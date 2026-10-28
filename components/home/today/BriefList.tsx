@@ -1,20 +1,12 @@
 import Link from 'next/link'
 import Icon from '@/lib/Icon'
 import LeadAvatar from '@/components/ui/lead-avatar'
-import type { BriefItem, QualifyingState } from '@/lib/today/types'
+import type { BriefItem } from '@/lib/today/types'
+import { WAIT_TONE } from './waitTone'
 
 // Presentational (RSC). The rest of the brief — dense rows, no pagination
 // (INV-15). The wait chip's tone is chosen from the precomputed state and it
 // always carries text (never color-only).
-const CHIP: Record<QualifyingState, string> = {
-  WAITING_REPLY: 'bg-error-bg text-error-text',
-  FOLLOWUP_OVERDUE: 'bg-error-bg text-error-text',
-  FOLLOWUP_DUE_TODAY: 'bg-warning-bg text-warning-text',
-  OVERDUE_TASK: 'bg-warning-bg text-warning-text',
-  NEW_INBOUND: 'bg-primary-tint text-primary-text',
-  OPEN_LOOP_SLA: 'bg-primary-tint text-primary-text',
-}
-
 const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const iconBtn = `inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-border bg-surface transition-colors ${focusRing}`
 
@@ -23,8 +15,8 @@ export default function BriefList({ items }: { items: BriefItem[] }) {
     <section className='min-w-0 flex-[2_1_560px] overflow-hidden rounded-2xl border border-border bg-surface'>
       <div className='flex items-center justify-between gap-3 px-[22px] pt-[18px] pb-3'>
         <div className='flex items-center gap-2.5'>
-          <h2 className='text-lg font-bold text-ink'>בהמשך היום</h2>
-          <span className='rounded-[10px] bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-600 tabular-nums'>
+          <h2 className='text-lg font-bold text-ink'>צריך לטפל עכשיו</h2>
+          <span className='rounded-[10px] bg-error-bg px-2 py-0.5 text-xs font-bold text-error-text tabular-nums'>
             {items.length}
           </span>
         </div>
@@ -36,6 +28,8 @@ export default function BriefList({ items }: { items: BriefItem[] }) {
         {items.map((it) => {
           const href = it.href ?? `/clients/${it.id}/summary`
           const chip = it.waitingFor ?? it.reason
+          // Same rule as the mission card: only a real thread link earns the WhatsApp action.
+          const openConversation = Boolean(it.conversationId || it.href?.startsWith('/inbox'))
           return (
             <li
               key={it.id}
@@ -56,12 +50,17 @@ export default function BriefList({ items }: { items: BriefItem[] }) {
                 </p>
               </div>
               <span
-                className={`shrink-0 rounded-lg px-2 py-[3px] text-xs font-bold whitespace-nowrap tabular-nums ${CHIP[it.state]}`}
+                className={`shrink-0 rounded-lg px-2 py-[3px] text-xs font-bold whitespace-nowrap tabular-nums ${WAIT_TONE[it.state]}`}
               >
                 {chip}
               </span>
+              {it.source && (
+                <span className='hidden max-w-28 shrink-0 truncate rounded-lg bg-neutral-bg px-2 py-[3px] text-xs text-neutral-text sm:inline'>
+                  {it.source}
+                </span>
+              )}
               <div className='flex shrink-0 gap-1.5'>
-                {it.targetSurface === 'inbox' && (
+                {openConversation && (
                   <Link
                     href={href}
                     aria-label={`פתח שיחת WhatsApp עם ${it.name || 'ליד'}`}

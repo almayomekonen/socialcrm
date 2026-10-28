@@ -102,18 +102,20 @@ describe('buildTodayBrief composition', () => {
       facts: [],
       dataFresh: true,
       meetings: [
-        { id: 1, title: 'IDT', start_at: new Date(Date.UTC(2026, 9, 22, 7, 30)) }, // UTC+3
-        { id: 2, title: 'IST', start_at: '2026-12-01T06:05:00Z' }, // UTC+2
-        { id: 3, title: 'bad', start_at: 'not-a-date' },
+        // The real getTodaysMeetings shape: `startAt` as an ISO string.
+        { id: 1, title: 'IDT', startAt: new Date(Date.UTC(2026, 9, 22, 7, 30)).toISOString(), leadId: 4, leadName: 'דני', meetUrl: null }, // UTC+3
+        { id: 2, title: 'IST', startAt: '2026-12-01T06:05:00Z', leadId: null, leadName: null, meetUrl: 'https://meet.google.com/x' }, // UTC+2
+        { id: 3, title: 'bad', startAt: 'not-a-date', leadId: null, leadName: null, meetUrl: null },
       ],
     })
     const b = await buildTodayBrief(VIEWER, NOW)
     expect(b.meetings.map((m) => m.timeLabel)).toEqual(['10:30', '08:05', null])
     expect(b.meetings[2].at).toBe(0)
+    expect(b.meetings.map((m) => m.subtitle)).toEqual(['דני', 'פגישת וידאו', null])
   })
 
   it('INV-14: meetings never affect remaining/handled/done', async () => {
-    setup({ facts: [], dataFresh: true, meetings: [{ id: 9, title: 'M', start_at: new Date(NOW) }] })
+    setup({ facts: [], dataFresh: true, meetings: [{ id: 9, title: 'M', startAt: new Date(NOW).toISOString(), leadId: null, leadName: null, meetUrl: null }] })
     const b = await buildTodayBrief(VIEWER, NOW)
     expect(b.meetings).toHaveLength(1)
     expect(b).toMatchObject({ remaining: 0, handledToday: 0, done: true })
@@ -123,7 +125,7 @@ describe('buildTodayBrief composition', () => {
     setup({ facts: [overdue(1)] })
     const b = await buildTodayBrief(VIEWER, NOW)
     expect(Object.keys(b).sort()).toEqual(
-      ['done', 'firstName', 'greeting', 'handledToday', 'items', 'meetings', 'permissionVerdict', 'remaining', 'statusVerdict', 'total', 'volumeState'].sort(),
+      ['dateLabel', 'done', 'firstName', 'greeting', 'handledToday', 'items', 'meetings', 'permissionVerdict', 'remaining', 'statusVerdict', 'total', 'volumeState'].sort(),
     )
     void CTX
   })

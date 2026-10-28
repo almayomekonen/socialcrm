@@ -49,6 +49,8 @@ export type BriefItem = {
   waitingFor?: string | null
   /** e.g. "נותרו 5 שעות בחלון WhatsApp" — precomputed from the inbound window. */
   windowHint?: string | null
+  /** Lead-source label for the row chip (e.g. "WhatsApp") — precomputed; null when unknown. */
+  source?: string | null
 }
 
 export type MeetingItem = {
@@ -57,6 +59,8 @@ export type MeetingItem = {
   at: number
   /** "HH:mm" in the business timezone — precomputed server-side; null when `at` is invalid. */
   timeLabel?: string | null
+  /** Secondary line, e.g. the linked lead or "פגישת וידאו" — precomputed; null when nothing to add. */
+  subtitle?: string | null
 }
 
 export type VolumeState = 'clear' | 'normal' | 'busy'
@@ -68,6 +72,8 @@ export type PermissionVerdict = 'scoped_all_clear' | 'scoped_partial'
 export type TodayBrief = {
   greeting: string
   firstName: string
+  /** e.g. "יום חמישי, 22 באוקטובר" in the business timezone — precomputed. Optional for older callers. */
+  dateLabel?: string
   items: BriefItem[]
   total: number
   remaining: number

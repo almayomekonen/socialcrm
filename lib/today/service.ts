@@ -7,10 +7,10 @@
 import { getBriefCandidateFacts, type Scope } from '@/db/today/facts'
 import { getTouchedTodayIds } from '@/db/today/handled'
 import { getInboundSyncFreshness } from '@/db/today/freshness'
-import { getTodaysMeetings } from '@/db/meetings'
+import { getTodaysMeetings, type TodaysMeeting } from '@/db/meetings'
 import { listOldestWaitingWhatsappByLeadIds } from '@/db/inboxWaiting'
 import { hydrateBriefWaitingItems } from '@/modules/today/waitingSpotlight'
-import { businessDayBounds, formatBusinessTime } from './time'
+import { businessDayBounds, formatBusinessLongDate, formatBusinessTime } from './time'
 import { orderAndDedupe } from './classify'
 import { progress, volumeStateFor } from './progress'
 import { completenessVerdict } from './verdict'
@@ -19,12 +19,16 @@ import type { MeetingItem, TodayBrief } from './types'
 
 export type Viewer = { scope: Scope; agencyId: number; userId: number; firstName: string }
 
-type MeetingRow = { id: number; title: string; start_at: Date | string }
-
-function toMeetingItem(m: MeetingRow): MeetingItem {
-  const at = m.start_at instanceof Date ? m.start_at.getTime() : new Date(m.start_at).getTime()
-  if (Number.isNaN(at)) return { id: Number(m.id), title: m.title ?? null, at: 0, timeLabel: null }
-  return { id: Number(m.id), title: m.title ?? null, at, timeLabel: formatBusinessTime(at) || null }
+// getTodaysMeetings returns `startAt` (ISO string). This used to read a
+// non-existent `start_at` through a cast, so every meeting's `at` was 0.
+function toMeetingItem(m: TodaysMeeting): MeetingItem {
+  const at = new Date(m.startAt).getTime()
+  const title = m.title ?? null
+  const subtitle =
+    [m.leadName && m.leadName !== title ? m.leadName : null, m.meetUrl ? 'פגישת וידאו' : null].filter(Boolean).join(' · ') ||
+    null
+  if (Number.isNaN(at)) return { id: Number(m.id), title, at: 0, timeLabel: null, subtitle }
+  return { id: Number(m.id), title, at, timeLabel: formatBusinessTime(at) || null, subtitle }
 }
 
 export async function buildTodayBrief(viewer: Viewer, nowMs: number): Promise<TodayBrief> {
@@ -58,6 +62,7 @@ export async function buildTodayBrief(viewer: Viewer, nowMs: number): Promise<To
   return {
     greeting: greetingFor(nowMs),
     firstName: viewer.firstName,
+    dateLabel: formatBusinessLongDate(nowMs),
     items,
     total: items.length,
     remaining,
@@ -66,6 +71,6 @@ export async function buildTodayBrief(viewer: Viewer, nowMs: number): Promise<To
     volumeState: volumeStateFor(remaining),
     statusVerdict,
     permissionVerdict,
-    meetings: (meetingsRaw as unknown as MeetingRow[]).map(toMeetingItem),
+    meetings: meetingsRaw.map(toMeetingItem),
   }
 }

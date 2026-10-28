@@ -112,10 +112,11 @@ describe('BriefHero', () => {
 describe('BriefMission', () => {
   it('conversation mode: opens the thread, with a labelled call button', () => {
     render(<BriefMission item={inboxItem(1)} />)
-    expect(screen.getByText('צריך לטפל עכשיו')).toBeTruthy()
+    expect(screen.getByText('המשימה הבאה')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'פתח שיחה' }).getAttribute('href')).toBe('/inbox?conversation=501')
     expect(screen.getByRole('link', { name: 'התקשר לליד 1' }).getAttribute('href')).toBe('tel:0541234567')
-    expect(screen.getByText('ממתין 11 ימים · חלון WhatsApp נסגר')).toBeTruthy()
+    expect(screen.getByText('ממתין 11 ימים').className).toContain('bg-error-bg')
+    expect(screen.getByText('ממתין לתשובה · חלון WhatsApp נסגר')).toBeTruthy()
   })
 
   it('lead mode: call + open lead, phone appended to the meta line', () => {
@@ -123,7 +124,8 @@ describe('BriefMission', () => {
     expect(screen.getByText('המשימה הבאה')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'התקשר' }).getAttribute('href')).toBe('tel:0541234567')
     expect(screen.getByRole('link', { name: 'פתח ליד' }).getAttribute('href')).toBe('/clients/1/summary')
-    expect(screen.getByText('מעקב באיחור · 0541234567')).toBeTruthy()
+    expect(screen.getByText('מעקב באיחור')).toBeTruthy()
+    expect(screen.getByText('0541234567')).toBeTruthy()
   })
 
   it('renders no call button without a phone', () => {
@@ -188,14 +190,13 @@ describe('TodayBriefView states', () => {
     render(<TodayBriefView brief={brief()} />)
     expect(screen.queryByText('המשימה הבאה')).toBeNull()
     expect(screen.queryByText('צריך לטפל עכשיו')).toBeNull()
-    expect(screen.queryByText('בהמשך היום')).toBeNull()
     expect(screen.queryByText('פגישות היום')).toBeNull()
   })
 
   it('exactly one item: mission card only, list hidden', () => {
     render(<TodayBriefView brief={brief({ done: false, remaining: 1, items: [item()] })} />)
     expect(screen.getByText('המשימה הבאה')).toBeTruthy()
-    expect(screen.queryByText('בהמשך היום')).toBeNull()
+    expect(screen.queryByText('צריך לטפל עכשיו')).toBeNull()
   })
 
   it('items[0] is the mission, the rest go to the list', () => {
@@ -207,6 +208,41 @@ describe('TodayBriefView states', () => {
   it('meetings render even when the brief is done', () => {
     render(<TodayBriefView brief={brief({ meetings: [{ id: 1, title: 'שיחת סגירה', at: Date.UTC(2026, 9, 22, 13, 15) }] })} />)
     expect(screen.getByText('פגישות היום')).toBeTruthy()
-    expect(screen.queryByText('בהמשך היום')).toBeNull()
+    expect(screen.queryByText('צריך לטפל עכשיו')).toBeNull()
+  })
+})
+
+describe('dashboard additions (optional DTO fields + analytics slots)', () => {
+  it('hero shows the server date label when present', () => {
+    render(<BriefHero brief={brief({ dateLabel: 'יום חמישי, 22 באוקטובר' })} />)
+    expect(screen.getByText('יום חמישי, 22 באוקטובר')).toBeTruthy()
+  })
+
+  it('list and mission show the lead-source label; no chip without one', () => {
+    render(<BriefList items={[inboxItem(1), { ...inboxItem(2), source: 'WhatsApp' }]} />)
+    const [first, second] = screen.getAllByRole('listitem')
+    expect(within(first).queryByText('WhatsApp')).toBeNull()
+    expect(within(second).getByText('WhatsApp')).toBeTruthy()
+    cleanup()
+    render(<BriefMission item={item({ source: 'Facebook' })} />)
+    expect(screen.getByText('Facebook')).toBeTruthy()
+  })
+
+  it('meetings show the subtitle under the title', () => {
+    render(<BriefMeetings meetings={[{ id: 1, title: 'שיחת סגירה', at: 1, timeLabel: '16:15', subtitle: 'דני · פגישת וידאו' }]} />)
+    expect(screen.getByText('דני · פגישת וידאו')).toBeTruthy()
+  })
+
+  it('renders the overview and funnel slots in place, without the brief depending on them', () => {
+    render(
+      <TodayBriefView
+        brief={brief({ done: false, remaining: 2, items: [inboxItem(1), inboxItem(2)] })}
+        overview={<div>OVERVIEW</div>}
+        funnel={<div>FUNNEL</div>}
+      />,
+    )
+    expect(screen.getByText('OVERVIEW')).toBeTruthy()
+    expect(screen.getByText('FUNNEL')).toBeTruthy()
+    expect(screen.getByText('צריך לטפל עכשיו')).toBeTruthy()
   })
 })

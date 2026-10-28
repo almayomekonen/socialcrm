@@ -74,6 +74,13 @@ export function formatBusinessTime(value: Date | string | number, tz: string = B
   return new Intl.DateTimeFormat('he-IL', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(d)
 }
 
+/** e.g. "יום חמישי, 22 באוקטובר" — the Today header date, in the business timezone. */
+export function formatBusinessLongDate(value: Date | string | number, tz: string = BUSINESS_TZ): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('he-IL', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' }).format(d)
+}
+
 export function formatBusinessDateTime(value: Date | string | number, tz: string = BUSINESS_TZ): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ''
