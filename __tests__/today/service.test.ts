@@ -97,6 +97,21 @@ describe('buildTodayBrief composition', () => {
     expect(b).toMatchObject({ remaining: 2, handledToday: 1, done: false }) // id 3 handled; 2 still qualifying
   })
 
+  it('meetings carry a server-formatted HH:mm label in Asia/Jerusalem, across DST', async () => {
+    setup({
+      facts: [],
+      dataFresh: true,
+      meetings: [
+        { id: 1, title: 'IDT', start_at: new Date(Date.UTC(2026, 9, 22, 7, 30)) }, // UTC+3
+        { id: 2, title: 'IST', start_at: '2026-12-01T06:05:00Z' }, // UTC+2
+        { id: 3, title: 'bad', start_at: 'not-a-date' },
+      ],
+    })
+    const b = await buildTodayBrief(VIEWER, NOW)
+    expect(b.meetings.map((m) => m.timeLabel)).toEqual(['10:30', '08:05', null])
+    expect(b.meetings[2].at).toBe(0)
+  })
+
   it('INV-14: meetings never affect remaining/handled/done', async () => {
     setup({ facts: [], dataFresh: true, meetings: [{ id: 9, title: 'M', start_at: new Date(NOW) }] })
     const b = await buildTodayBrief(VIEWER, NOW)

@@ -34,6 +34,7 @@ import { clearLeadScopeParams, hasActiveLeadScope, parseLeadSearch, withLeadSear
 import { useLeadsState } from './hooks/useLeadsState'
 import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
+import { useOpenDialogFromQuery } from './hooks/useOpenDialogFromQuery'
 import { contactLeadViaWhatsapp } from '@/modules/leads/contactLead'
 
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false, columnAvailability = null, whatsappConnected = undefined }) {
@@ -130,6 +131,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const [deleteErrMsg, setDeleteErrMsg] = useState<string | null>(null)
 
   useKeepTblScrollPos(tblId)
+  useOpenDialogFromQuery({ enabled: leads, openAdd: () => (setCurClient(null), setOpenForm(true)), openImport: () => setOpenUpload(true) })
 
   function moreRows(client) {
     return (

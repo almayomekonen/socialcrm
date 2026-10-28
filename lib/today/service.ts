@@ -10,7 +10,7 @@ import { getInboundSyncFreshness } from '@/db/today/freshness'
 import { getTodaysMeetings } from '@/db/meetings'
 import { listOldestWaitingWhatsappByLeadIds } from '@/db/inboxWaiting'
 import { hydrateBriefWaitingItems } from '@/modules/today/waitingSpotlight'
-import { businessDayBounds } from './time'
+import { businessDayBounds, formatBusinessTime } from './time'
 import { orderAndDedupe } from './classify'
 import { progress, volumeStateFor } from './progress'
 import { completenessVerdict } from './verdict'
@@ -23,7 +23,8 @@ type MeetingRow = { id: number; title: string; start_at: Date | string }
 
 function toMeetingItem(m: MeetingRow): MeetingItem {
   const at = m.start_at instanceof Date ? m.start_at.getTime() : new Date(m.start_at).getTime()
-  return { id: Number(m.id), title: m.title ?? null, at: Number.isNaN(at) ? 0 : at }
+  if (Number.isNaN(at)) return { id: Number(m.id), title: m.title ?? null, at: 0, timeLabel: null }
+  return { id: Number(m.id), title: m.title ?? null, at, timeLabel: formatBusinessTime(at) || null }
 }
 
 export async function buildTodayBrief(viewer: Viewer, nowMs: number): Promise<TodayBrief> {
