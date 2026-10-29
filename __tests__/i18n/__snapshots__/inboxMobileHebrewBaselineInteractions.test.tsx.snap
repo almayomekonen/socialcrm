@@ -1,0 +1,420 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — mobile list selection, delete, mark read > load more: pending label, appended rows with client-formatted times, arguments 1`] = `
+{
+  "button": "<button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">טען עוד שיחות</button>",
+  "calls": [
+    [
+      {
+        "cursor": {
+          "id": 1,
+          "lastMessageAt": "x",
+        },
+        "filters": {
+          "intel": "all",
+          "needsReply": false,
+          "q": "יוסי",
+          "sort": "latest",
+          "status": "all",
+          "unread": false,
+        },
+      },
+    ],
+  ],
+  "list": "<div class="flex min-h-full flex-col"><div class="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 pb-2.5 pt-3"><form role="search" class="relative"><label for="conversation-search" class="sr-only">חיפוש שיחות</label><input id="conversation-search" inputmode="search" enterkeyhint="search" placeholder="חיפוש שיחה" class="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-base outline-none focus:border-primary focus:bg-white" type="search" value="יוסי"><div aria-hidden="true" class="dark:bg-white pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/magnifying-glass.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/magnifying-glass.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></form><div class="mt-2 flex items-center"><button type="button" class="inline-flex h-11 min-w-11 items-center gap-1 px-1 text-[13px] font-medium text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="נקה חיפוש"><span>"יוסי"</span><span aria-hidden="true" class="text-[13px] leading-none text-gray-400">×</span></button></div><p aria-live="polite" class="mt-1.5 text-[12px] tabular-nums text-gray-400">12 שיחות</p></div><ul class="divide-y divide-gray-100"><li><a data-testid="conversation-row" data-conversation-id="1" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-primary-tint/40 hover:bg-gray-50" href="/inbox?conversation=1&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-bold">יוסי לוי</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">לפני שעה</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-700">כמה עולה החבילה השנתית?</span><span aria-hidden="true" class="ms-auto size-2.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-0.5 block truncate text-[12px] font-medium leading-tight text-amber-800">ממתין לתשובה שלך · 2 שעות</span><span class="block truncate text-[12px] leading-tight text-gray-500">נותרו 22 שעות בחלון WhatsApp</span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="2" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=2&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">רונית כהן</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">לפני שעה</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">אפשר לקבוע הדגמה ביום שלישי?</span></span><span class="mt-0.5 block truncate text-[12px] font-medium leading-tight text-amber-800">ממתין לתשובה שלך · יום</span><span class="block truncate text-[12px] leading-tight text-gray-500">חלון WhatsApp נסגר</span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="500" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=500&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 1</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">עכשיו</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה future</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="501" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=501&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 2</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">עכשיו</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה seconds</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="502" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=502&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 3</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">לפני דקה</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה minute</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="503" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=503&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 4</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">לפני 4 דקות</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה minutes</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="504" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=504&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 5</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">לפני שעה</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה hour</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="505" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=505&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 6</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">לפני 5 שעות</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה hours</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="506" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=506&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 7</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">אתמול</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה yesterday</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="507" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=507&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 8</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">לפני 3 ימים</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה days</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="508" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=508&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 9</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400">14.10</span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">הודעה older</span></span></span></a></li><li><a data-testid="conversation-row" data-conversation-id="509" class="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-white active:bg-gray-100 hover:bg-gray-50" href="/inbox?conversation=509&amp;q=%D7%99%D7%95%D7%A1%D7%99"><span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10"><div aria-hidden="true" class="dark:bg-white size-5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-baseline gap-2"><span class="truncate text-[15px] leading-tight text-ink font-semibold">לקוח 10</span><span class="ms-auto shrink-0 text-[11px] tabular-nums leading-tight text-gray-400"></span></span><span class="mt-0.5 flex items-center gap-2"><span class="truncate text-[13px] leading-tight text-gray-500">אין הודעות עדיין</span></span></span></a></li></ul></div>",
+}
+`;
+
+exports[`Hebrew baseline — mobile list selection, delete, mark read > selection mode (one, two), selection bar, delete confirmation (one / several), failures, success; mark read failure + success 1`] = `
+{
+  "actionsOne": "<div class="flex w-full flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">סמן כנקרא</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div>",
+  "afterAllFailed": 5,
+  "afterSomeFailed": 4,
+  "confirmOne": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מחיקת שיחות</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="text-sm leading-relaxed whitespace-pre-line text-gray-600">האם למחוק שיחה אחת?
+לא ניתן לשחזר את השיחות לאחר המחיקה.</p><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק שיחה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "confirmTwo": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מחיקת שיחות</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="text-sm leading-relaxed whitespace-pre-line text-gray-600">האם למחוק 2 שיחות?
+לא ניתן לשחזר את השיחות לאחר המחיקה.</p><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק שיחות</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "deleteCalls": [
+    [
+      1,
+    ],
+    [
+      2,
+    ],
+    [
+      1,
+    ],
+    [
+      2,
+    ],
+    [
+      1,
+    ],
+  ],
+  "markReadCalls": [
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+  ],
+  "rowsLeft": [
+    "3",
+    "4",
+    "5",
+  ],
+  "selectedOne": "<div data-testid="inbox-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 1</p></div>",
+  "selectedTwo": "<div data-testid="inbox-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 2</p></div>",
+  "selectionAfterPartial": "<div data-testid="inbox-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 1</p></div>",
+  "toasts": [
+    [
+      "error",
+      "מחיקת השיחות נכשלה. נסה שוב.",
+    ],
+    [
+      "error",
+      "חלק מהשיחות לא נמחקו. נסה שוב.",
+    ],
+    [
+      "error",
+      "לא הצלחנו לסמן כנקרא. נסה שוב.",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — mobile producers (fixed clock) > relativeTimeHe for every bucket and edge; readyMessageTitle for every title shape 1`] = `
+{
+  "buckets": [
+    [
+      "future",
+      "עכשיו",
+    ],
+    [
+      "seconds",
+      "עכשיו",
+    ],
+    [
+      "minute",
+      "לפני דקה",
+    ],
+    [
+      "minutes",
+      "לפני 4 דקות",
+    ],
+    [
+      "hour",
+      "לפני שעה",
+    ],
+    [
+      "hours",
+      "לפני 5 שעות",
+    ],
+    [
+      "yesterday",
+      "אתמול",
+    ],
+    [
+      "days",
+      "לפני 3 ימים",
+    ],
+    [
+      "older",
+      "14.10",
+    ],
+    [
+      "none",
+      "",
+    ],
+  ],
+  "edges": [
+    [
+      0,
+      "עכשיו",
+    ],
+    [
+      59999,
+      "עכשיו",
+    ],
+    [
+      60000,
+      "לפני דקה",
+    ],
+    [
+      119999,
+      "לפני דקה",
+    ],
+    [
+      120000,
+      "לפני 2 דקות",
+    ],
+    [
+      3540000,
+      "לפני 59 דקות",
+    ],
+    [
+      3600000,
+      "לפני שעה",
+    ],
+    [
+      7140000,
+      "לפני שעה",
+    ],
+    [
+      7200000,
+      "לפני 2 שעות",
+    ],
+    [
+      82800000,
+      "לפני 23 שעות",
+    ],
+    [
+      86400000,
+      "אתמול",
+    ],
+    [
+      169200000,
+      "אתמול",
+    ],
+    [
+      172800000,
+      "לפני 2 ימים",
+    ],
+    [
+      518400000,
+      "לפני 6 ימים",
+    ],
+    [
+      604800000,
+      "21.10",
+    ],
+  ],
+  "invalid": [
+    "",
+    "",
+    "",
+  ],
+  "titles": [
+    [
+      "תזכורת פגישה",
+      "תזכורת פגישה",
+    ],
+    [
+      "lead_first_contact",
+      "יצירת קשר ראשוני",
+    ],
+    [
+      "follow_up_2",
+      "מעקב",
+    ],
+    [
+      "ready_message",
+      "הודעה מוכנה",
+    ],
+    [
+      "promo_october",
+      "הודעה מוכנה",
+    ],
+    [
+      "",
+      "הודעה מוכנה",
+    ],
+    [
+      "Hello there",
+      "Hello there",
+    ],
+    [
+      "null",
+      "הודעה מוכנה",
+    ],
+    [
+      "undefined",
+      "הודעה מוכנה",
+    ],
+    [
+      "  ",
+      "הודעה מוכנה",
+    ],
+    [
+      "Lead_First_Contact",
+      "יצירת קשר ראשוני",
+    ],
+    [
+      "שלום_1",
+      "שלום_1",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — mobile thread actions > leadless actions on the green header: create (quota / failure), personal failure 1`] = `
+{
+  "calls": {
+    "personal": [
+      [
+        4,
+      ],
+    ],
+    "promote": [
+      [
+        4,
+      ],
+      [
+        4,
+      ],
+    ],
+  },
+  "createFailed": "<span role="alert" class="text-xs text-error-text">לא הצלחנו ליצור ליד</span>",
+  "personalFailed": "לא הצלחנו לסמן כאישי",
+  "quota": "הגעת למכסת הלידים",
+}
+`;
+
+exports[`Hebrew baseline — mobile thread actions > message action sheet: open on long press, copy success / failure toasts, cancel 1`] = `
+{
+  "closedAfterCopy": true,
+  "closedAfterEscape": true,
+  "sheet": "<div role="dialog" aria-modal="true" aria-labelledby="message-actions" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="message-actions" class="text-lg font-bold text-ink">פעולות הודעה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">העתק</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "toasts": [
+    [
+      "success",
+      "ההודעה הועתקה",
+    ],
+    [
+      "error",
+      "לא הצלחנו להעתיק את ההודעה",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — mobile thread actions > ready-message sheet: open, slug titles, choose, preview, send failure (server text) then success 1`] = `
+{
+  "calls": [
+    [
+      41,
+      71,
+      1,
+    ],
+    [
+      41,
+      71,
+      1,
+    ],
+  ],
+  "closedAfterSend": true,
+  "sheet": "<div role="dialog" aria-modal="true" aria-labelledby="send-ready-message-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="send-ready-message-title" class="text-lg font-bold text-ink">שליחת הודעה מוכנה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="mb-3 text-sm text-gray-500">בחרו הודעה שאושרה — היא תישלח לליד בוואטסאפ.</p><fieldset class="grid gap-2"><legend class="sr-only">הודעות WhatsApp מוכנות לשליחה</legend><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">תזכורת פגישה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 1</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">יצירת קשר ראשוני</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 2</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">מעקב</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 3</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">הודעה מוכנה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 4</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">הודעה מוכנה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 5</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">הודעה מוכנה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 6</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">Hello there</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 7</span></span></label></fieldset><div class="mt-4"><p class="mb-1.5 text-sm text-gray-500">תצוגה מקדימה</p><p class="rounded-md border border-dashed border-gray-200 p-3 text-sm text-gray-400">בחרו הודעה כדי לראות תצוגה מקדימה</p></div><div class="mt-4 flex flex-col gap-2"><button type="button" disabled="" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שלח הודעה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "toasts": [
+    [
+      "error",
+      "שגיאת שרת",
+    ],
+    [
+      "success",
+      "ההודעה נשלחה",
+    ],
+  ],
+  "withPreview": "<div role="dialog" aria-modal="true" aria-labelledby="send-ready-message-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="send-ready-message-title" class="text-lg font-bold text-ink">שליחת הודעה מוכנה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="mb-3 text-sm text-gray-500">בחרו הודעה שאושרה — היא תישלח לליד בוואטסאפ.</p><fieldset class="grid gap-2"><legend class="sr-only">הודעות WhatsApp מוכנות לשליחה</legend><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">תזכורת פגישה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 1</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-primary bg-primary-tint/40"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">יצירת קשר ראשוני</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 2</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">מעקב</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 3</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">הודעה מוכנה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 4</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">הודעה מוכנה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 5</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">הודעה מוכנה</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 6</span></span></label><label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border p-3 border-gray-200"><input class="mt-1 size-4" type="radio" name="ready-message"><span class="min-w-0"><span class="block truncate text-[15px] font-medium text-ink">Hello there</span><span class="mt-0.5 block line-clamp-2 text-sm text-gray-500">גוף הודעה 7</span></span></label></fieldset><div class="mt-4"><p class="mb-1.5 text-sm text-gray-500">תצוגה מקדימה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">גוף הודעה 2</p></div></div></div></div><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שלח הודעה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — mobile thread actions > send: success clears the box; every refusal reason and a failure category keep the text 1`] = `
+{
+  "alertHtml": "<p role="alert" class="mb-2 rounded-md bg-error-bg px-3 py-2 text-[13px] text-error-text">ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.</p>",
+  "category": "ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.",
+  "empty": "אי אפשר לשלוח הודעה ריקה.",
+  "health-blocked": "לא ניתן לשלוח הודעות כרגע",
+  "invalid-input": "לא ניתן לשלוח את ההודעה.",
+  "lead-not-found": "הליד לא נמצא.",
+  "leadless": "לא ניתן לשלוח הודעה משיחה בלי ליד.",
+  "no-connection": "אין חיבור וואטסאפ פעיל. אפשר לחבר אותו בהגדרות האינטגרציות.",
+  "no-recipient": "אין מספר וואטסאפ תקין לליד הזה.",
+  "persist-failed": "ההודעה נשלחה, אך לא נשמרה בשיחה. רענן את המסך.",
+  "refreshes": 1,
+  "send-failed": "וואטסאפ לא קיבל את ההודעה. נסה שוב בעוד רגע.",
+  "sendCalls": [
+    [
+      41,
+      "שלום רב",
+      1,
+    ],
+    [
+      41,
+      "ניסיון no-connection",
+      1,
+    ],
+    [
+      41,
+      "ניסיון no-recipient",
+      1,
+    ],
+    [
+      41,
+      "ניסיון lead-not-found",
+      1,
+    ],
+    [
+      41,
+      "ניסיון window-closed",
+      1,
+    ],
+    [
+      41,
+      "ניסיון window-unknown",
+      1,
+    ],
+    [
+      41,
+      "ניסיון health-blocked",
+      1,
+    ],
+    [
+      41,
+      "ניסיון leadless",
+      1,
+    ],
+    [
+      41,
+      "ניסיון send-failed",
+      1,
+    ],
+    [
+      41,
+      "ניסיון persist-failed",
+      1,
+    ],
+    [
+      41,
+      "ניסיון too-long",
+      1,
+    ],
+    [
+      41,
+      "ניסיון invalid-input",
+      1,
+    ],
+    [
+      41,
+      "ניסיון empty",
+      1,
+    ],
+    [
+      41,
+      "ניסיון unmapped",
+      1,
+    ],
+    [
+      41,
+      "ניסיון unmapped",
+      1,
+    ],
+  ],
+  "too-long": "ההודעה ארוכה מדי.",
+  "unmapped": "לא הצלחנו לשלוח את ההודעה. נסה שוב.",
+  "valueAfterFailures": "ניסיון unmapped",
+  "valueAfterSuccess": "",
+  "window-closed": "חלון ההודעות ב-WhatsApp נסגר",
+  "window-unknown": "לא ניתן לשלוח הודעת טקסט. אין הודעה נכנסת מהלקוח בשיחה הזו.",
+}
+`;
