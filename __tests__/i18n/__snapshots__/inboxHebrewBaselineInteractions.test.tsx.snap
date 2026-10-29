@@ -1,0 +1,215 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — conversation actions menu + delete > row menu, confirmation dialog, success and failure 1`] = `
+{
+  "calls": [
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+  ],
+  "dialog": "<div role="dialog" aria-modal="true" aria-label="מחיקת השיחה?
+
+השיחה וההודעות שלה יימחקו מ-SocialCRM. הפעולה לא תמחק את איש הקשר או את הליד ב-CRM." tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">מחיקת השיחה?
+
+השיחה וההודעות שלה יימחקו מ-SocialCRM. הפעולה לא תמחק את איש הקשר או את הליד ב-CRM.</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>בטל</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>מחק שיחה</span></button></div></div></div>",
+  "menu": "<div role="menu" style="position: fixed; top: 4px; left: 8px; z-index: 9999;" class="min-w-[10rem] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"><button type="button" role="menuitem" class="flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-red-600 transition-colors hover:bg-red-50 focus-visible:bg-red-50 focus-visible:outline-none"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash2 lucide-trash-2 size-3.5" aria-hidden="true"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>מחק שיחה</button></div>",
+  "menuAfterEscape": true,
+  "replaces": [],
+  "toasts": [
+    [
+      "error",
+      "מחיקת השיחה נכשלה. נסה שוב.",
+    ],
+    [
+      "error",
+      "מחיקת השיחה נכשלה. נסה שוב.",
+    ],
+    [
+      "success",
+      "השיחה נמחקה",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — media, failure tooltip, operator take, notifier, awareness > image viewer, voice note controls, failure tooltip panel, operator take dismiss 1`] = `
+{
+  "events": [
+    "operator_take.rendered",
+    "operator_take.dismissed",
+  ],
+  "takeGone": true,
+  "tooltip": "<div id="«id»" role="tooltip" dir="rtl" style="position: fixed; top: 8px; left: 8px; width: 288px; z-index: 100000;" class="pointer-events-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs leading-relaxed shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]"><p class="font-semibold text-gray-900">לא ניתן לשלוח את ההודעה</p><p class="mt-0.5 text-gray-700">נראה שהמספר הזה לא זמין ב־WhatsApp.</p><p class="mt-1 text-gray-500">בדוק שהמספר נכון או צור קשר עם הלקוח בדרך אחרת.</p></div>",
+  "viewer": "<div role="dialog" aria-modal="true" aria-label="תצוגת תמונה" tabindex="-1" class="overflow-y-auto relative popin overflow-x-hidden scrollbar-slim outline-none rounded-lg max-h-[92vh] max-w-[92vw] bg-transparent p-0 shadow-none"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><img alt="מוצר.jpg" class="block max-h-[88vh] max-w-[92vw] rounded-lg object-contain" src="/api/whatsapp/media/104"></div>",
+  "voice": "<div class="flex w-[230px] max-w-full items-center gap-2"><audio src="/api/whatsapp/media/107" preload="metadata" class="hidden"></audio><button type="button" aria-label="נגן הקלטה" class="flex size-8 shrink-0 items-center justify-center rounded-full bg-solid text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/play.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/play.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex min-w-0 flex-1 flex-col gap-2"><div dir="ltr" class="relative flex h-3 items-center"><span aria-hidden="true" class="absolute inset-x-0 h-1 rounded-full bg-gray-200"></span><span aria-hidden="true" data-testid="voice-progress-fill" style="width: 0%;" class="absolute left-0 h-1 rounded-full bg-solid"></span><input min="0" max="1" step="any" disabled="" aria-label="מיקום בהקלטה" class="relative m-0 h-3 w-full cursor-pointer appearance-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary [&amp;::-moz-range-thumb]:size-2.5 [&amp;::-moz-range-thumb]:rounded-full [&amp;::-moz-range-thumb]:border-0 [&amp;::-moz-range-thumb]:bg-solid [&amp;::-webkit-slider-runnable-track]:h-1 [&amp;::-webkit-slider-runnable-track]:bg-transparent [&amp;::-webkit-slider-thumb]:size-2.5 [&amp;::-webkit-slider-thumb]:appearance-none [&amp;::-webkit-slider-thumb]:rounded-full [&amp;::-webkit-slider-thumb]:bg-solid" type="range" value="0"></div><div class="flex items-center justify-between gap-2"><span dir="ltr" class="text-[10px] leading-none tabular-nums text-gray-500">0:00 / 0:00</span><span dir="ltr" class="text-[10px] leading-none tabular-nums text-gray-500">08:02</span></div></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — media, failure tooltip, operator take, notifier, awareness > new-message toast in the open thread; awareness toasts off-inbox (one / several) 1`] = `
+{
+  "toasts": [
+    [
+      "success",
+      "התקבלה הודעת WhatsApp חדשה",
+    ],
+    [
+      "message",
+      "הודעה חדשה מיוסי לוי",
+      6000,
+    ],
+    [
+      "message",
+      "2 הודעות חדשות",
+      6000,
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — ownership and leadless actions > leadless: create (quota / failure), link (not found / no match / failure / several), personal failure 1`] = `
+{
+  "calls": {
+    "link": [
+      [
+        4,
+        41,
+      ],
+    ],
+    "list": [
+      [
+        4,
+      ],
+      [
+        4,
+      ],
+      [
+        4,
+      ],
+      [
+        4,
+      ],
+    ],
+    "personal": [
+      [
+        4,
+      ],
+    ],
+    "promote": [
+      [
+        4,
+      ],
+      [
+        4,
+      ],
+    ],
+  },
+  "createFailed": "לא הצלחנו ליצור ליד",
+  "linkFailed": "לא הצלחנו לקשר לליד",
+  "noMatch": "אין ליד עם אותו מספר. אפשר ליצור ליד חדש.",
+  "notFound": "השיחה לא נמצאה",
+  "personalFailed": "לא הצלחנו לסמן כאישי",
+  "quota": "הגעת למכסת הלידים",
+  "several": "<div class="flex flex-wrap items-center gap-1.5"><button type="button" class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-plus size-3.5" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" x2="19" y1="8" y2="14"></line><line x1="22" x2="16" y1="11" y2="11"></line></svg>+ צור ליד</button><button type="button" class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link2 lucide-link-2 size-3.5" aria-hidden="true"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><line x1="8" x2="16" y1="12" y2="12"></line></svg>קשר לליד קיים</button><button type="button" class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user size-3.5" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>סמן כאישי</button><div class="flex w-full flex-wrap items-center gap-1.5"><button type="button" class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">יוסי לוי</button><button type="button" class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">יוסי לוי (2)</button></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — ownership and leadless actions > take over / return: pending label and every refusal reason 1`] = `
+{
+  "closed": "השיחה הסתיימה. המענה האוטומטי לא יחזור אליה.",
+  "failed": "לא הצלחנו לעדכן. נסו שוב.",
+  "forbidden": "אין לך הרשאה לשנות את זה.",
+  "invalid-input": "לא הצלחנו לעדכן. נסו שוב.",
+  "opted_out": "הלקוח ביקש לא לקבל הודעות, ולכן המענה האוטומטי לא יחזור לשיחה הזו.",
+  "returnCalls": [
+    [
+      1,
+    ],
+  ],
+  "returnFailed": "לא הצלחנו לעדכן. נסו שוב.",
+  "takeOverCalls": [
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+    [
+      1,
+    ],
+  ],
+  "unmapped": "לא הצלחנו לעדכן. נסו שוב.",
+}
+`;
+
+exports[`Hebrew baseline — reply composer > send success, send failures (category, generic, thrown), AI draft success + failure, copy, emoji panel, near-limit counter 1`] = `
+{
+  "counter": "<span class="text-[10px] text-gray-400 tabular-nums">3700 / 4096 תווים</span>",
+  "draftError": "<div><div class="relative flex items-end gap-1.5"><button type="button" aria-label="הוספת אימוג׳י" aria-haspopup="dialog" aria-expanded="false" title="הוספת אימוג׳י" class="flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smile size-5" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line></svg></button><textarea id="wa-reply-draft" rows="1" placeholder="כתוב טיוטה לתשובה..." aria-label="טיוטת תשובה בוואטסאפ" class="max-h-32 min-w-0 flex-1 resize-none field-sizing-content rounded-3xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50">טיוטה מה-AI</textarea><button class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 shrink-0 gap-1 rounded-full px-3" type="button" title="נסח טיוטה עם AI"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles size-3.5 text-accent" aria-hidden="true"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg>AI</button><button type="button" aria-label="העתק טיוטה" title="העתק טיוטה" class="flex size-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy size-4" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button><button type="button" aria-label="שלח הודעה" title="שלח הודעה" class="flex size-9 shrink-0 items-center justify-center rounded-full bg-success text-white transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send size-4 -scale-x-100" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg></button></div><p class="mt-1 ps-10.5 text-xs text-red-500">לא ניתן היה לנסח טיוטה כרגע. נסה שוב.</p></div>",
+  "drafted": "טיוטה מה-AI",
+  "emojiPanel": "<div role="dialog" aria-label="בחירת אימוג׳י" aria-hidden="false" tabindex="-1" class="absolute bottom-full start-0 z-50 mb-2 w-80 max-w-[75vw] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl transition duration-150 ease-out focus:outline-none scale-100 opacity-100"></div>",
+  "sendCalls": [
+    [
+      41,
+      "שלום רב",
+      1,
+    ],
+    [
+      41,
+      "שני",
+      1,
+    ],
+    [
+      41,
+      "שני",
+      1,
+    ],
+    [
+      41,
+      "שני",
+      1,
+    ],
+  ],
+  "toasts": [
+    [
+      "success",
+      "ההודעה נשלחה — ממתין לאישור מסירה",
+    ],
+    [
+      "error",
+      "ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.",
+    ],
+    [
+      "error",
+      "שליחת ההודעה נכשלה",
+    ],
+    [
+      "error",
+      "שליחת ההודעה נכשלה",
+    ],
+    [
+      "success",
+      "הטיוטה הועתקה",
+    ],
+    [
+      "error",
+      "ההעתקה נכשלה",
+    ],
+  ],
+  "valueAfterFailures": "שני",
+}
+`;
