@@ -12,8 +12,12 @@ import {
   clampPlaybackTime,
   isImageAttachment,
   resolveMediaDuration,
-  UNNAMED_ATTACHMENT_LABEL,
 } from '@/lib/inbox/attachmentDisplay'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { Translator } from '@/lib/i18n/translate'
+
+const HEBREW = translatorFor('he')
 
 /**
  * Inbound WhatsApp media, rendered inside the existing message bubble on both
@@ -30,33 +34,40 @@ import {
  * its own session cookie, which is why media renders without weakening the route
  * or minting a public URL. `next/image` is deliberately avoided: its optimizer
  * fetches server-side without the viewer's cookie and would be refused.
+ *
+ * `translated`: the caller follows the interface language (the desktop inbox).
+ * Off by default, so the mobile bubble keeps Hebrew. File names are data.
  */
 export default function WhatsappAttachment({
   messageId,
   attachment,
   timestampLabel,
+  translated = false,
 }: {
   messageId: number
   attachment: InboxMessageAttachment
   /** Pre-formatted time from the message, overlaid on a photo. Never re-derived here. */
   timestampLabel?: string
+  translated?: boolean
 }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const [imageFailed, setImageFailed] = useState(false)
   const [audioFailed, setAudioFailed] = useState(false)
   const [viewerOpen, setViewerOpen] = useState(false)
 
-  const name = attachment.filename ?? UNNAMED_ATTACHMENT_LABEL
-  const kind = fileKindLabel(attachment.mimeType)
+  const name = attachment.filename ?? t('inbox.media.unnamedFile')
+  const kind = fileKindLabel(attachment.mimeType, t.locale)
   const href = attachmentHref(messageId)
 
   if (isImageAttachment(attachment.mimeType) && !imageFailed) {
-    const alt = attachment.filename ?? 'תמונה שהתקבלה בוואטסאפ'
+    const alt = attachment.filename ?? t('inbox.media.imageAlt')
     return (
       <>
         <button
           type='button'
           onClick={() => setViewerOpen(true)}
-          aria-label={`הצג את התמונה ${alt}`}
+          aria-label={t('inbox.media.showImage', { name: alt })}
           aria-haspopup='dialog'
           className='relative block overflow-hidden rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
@@ -87,13 +98,20 @@ export default function WhatsappAttachment({
             </>
           )}
         </button>
-        <WhatsappImageViewer open={viewerOpen} onClose={() => setViewerOpen(false)} src={href} alt={alt} />
+        <WhatsappImageViewer
+          open={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+          src={href}
+          alt={alt}
+          label={t('inbox.media.viewer')}
+          translated={translated}
+        />
       </>
     )
   }
 
   if (isAudioAttachment(attachment.mimeType) && !audioFailed) {
-    return <VoiceNote src={href} onFailed={() => setAudioFailed(true)} timestampLabel={timestampLabel} />
+    return <VoiceNote src={href} onFailed={() => setAudioFailed(true)} timestampLabel={timestampLabel} t={t} />
   }
 
   return (
@@ -109,10 +127,10 @@ export default function WhatsappAttachment({
         href={href}
         target='_blank'
         rel='noopener noreferrer'
-        aria-label={`פתח את הקובץ ${name}`}
+        aria-label={t('inbox.media.openFile', { name })}
         className='shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-800 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
-        פתח
+        {t('inbox.media.open')}
       </a>
     </div>
   )
@@ -136,10 +154,12 @@ function VoiceNote({
   src,
   onFailed,
   timestampLabel,
+  t,
 }: {
   src: string
   onFailed: () => void
   timestampLabel?: string
+  t: Translator
 }) {
   const ref = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
@@ -246,7 +266,7 @@ function VoiceNote({
       <button
         type='button'
         onClick={toggle}
-        aria-label={playing ? 'השהה הקלטה' : 'נגן הקלטה'}
+        aria-label={playing ? t('inbox.media.pause') : t('inbox.media.play')}
         className='flex size-8 shrink-0 items-center justify-center rounded-full bg-solid text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
         <Icon name={playing ? 'pause' : 'play'} type='sol' className='size-3.5 bg-white' />
@@ -279,7 +299,7 @@ function VoiceNote({
             step='any'
             value={clampPlaybackTime(current, railMax)}
             disabled={!seekable}
-            aria-label='מיקום בהקלטה'
+            aria-label={t('inbox.media.seek')}
             onChange={(e) => {
               const el = ref.current
               if (!el || !seekable) return

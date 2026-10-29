@@ -1,6 +1,9 @@
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 import type { WhatsappServiceWindow } from '@/lib/inbox/whatsappServiceWindow'
 import { WHATSAPP_NOTICES, type ConnectionNotice } from '@/lib/connections/messages'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Conversation composer surface. Health is resolved FIRST, then the 24-hour
@@ -25,15 +28,30 @@ export type WhatsappComposerDecision = {
   canSendTemplate: boolean
 }
 
-export const SERVICE_WINDOW_COPY = {
-  closedTitle: 'חלון ההודעות ב-WhatsApp נסגר',
-  closedBody:
-    'עברו יותר מ-24 שעות מאז ההודעה האחרונה של הלקוח. כדי להמשיך את השיחה, יש לשלוח הודעה מוכנה מאושרת.',
-  closedCta: 'בחר הודעה מוכנה',
-  closedNoTemplate: 'חלון ההודעות נסגר. כדי להמשיך את השיחה, נדרשת הודעה מוכנה מאושרת.',
-  unknown: 'לא ניתן לשלוח הודעת טקסט. אין הודעה נכנסת מהלקוח בשיחה הזו.',
-  templatesSettings: 'להודעות המוכנות',
-} as const
+export type ServiceWindowCopy = {
+  closedTitle: string
+  closedBody: string
+  closedCta: string
+  closedNoTemplate: string
+  unknown: string
+  templatesSettings: string
+}
+
+/** Service-window copy in the interface locale (catalog `inbox.serviceWindow.*`). */
+export function serviceWindowCopy(locale: UiLocale = 'he'): ServiceWindowCopy {
+  const t = translatorFor(locale)
+  return {
+    closedTitle: t('inbox.serviceWindow.closedTitle'),
+    closedBody: t('inbox.serviceWindow.closedBody'),
+    closedCta: t('inbox.serviceWindow.closedCta'),
+    closedNoTemplate: t('inbox.serviceWindow.closedNoTemplate'),
+    unknown: t('inbox.serviceWindow.unknown'),
+    templatesSettings: t('inbox.serviceWindow.templatesSettings'),
+  }
+}
+
+/** The Hebrew copy, for existing readers. */
+export const SERVICE_WINDOW_COPY: Readonly<ServiceWindowCopy> = serviceWindowCopy('he')
 
 export const TEMPLATES_SETTINGS_HREF = '/settings/integrations?section=templates' as const
 export const INTEGRATIONS_SETTINGS_HREF = '/settings/integrations' as const
@@ -92,16 +110,84 @@ export function resolveWhatsappComposerDecision(input: {
   return { ...blocked, kind: 'closed_no_template' }
 }
 
+type HealthNoticeCode = 'not_ready' | 'restricted' | 'expired' | 'webhook' | 'throttled' | 'needs_verification'
+
+function healthNoticeCode(health: WhatsappHealthPrimary): HealthNoticeCode | null {
+  if (health === 'registration_pending' || health === 'inbound_only') return 'not_ready'
+  if (health === 'restricted') return 'restricted'
+  if (health === 'token') return 'expired'
+  if (health === 'webhook') return 'webhook'
+  if (health === 'throttled') return 'throttled'
+  if (health === 'unknown') return 'needs_verification'
+  return null
+}
+
+/** Catalog keys of the notice text the composer shows (`inbox.health.<code>`), reasons in order. */
+const NOTICE_KEYS: Record<HealthNoticeCode, { title: MessageKey; explanation: MessageKey; reasons: MessageKey[]; nextStep: MessageKey }> = {
+  not_ready: {
+    title: 'inbox.health.not_ready.title',
+    explanation: 'inbox.health.not_ready.explanation',
+    reasons: ['inbox.health.not_ready.reason1', 'inbox.health.not_ready.reason2'],
+    nextStep: 'inbox.health.not_ready.nextStep',
+  },
+  restricted: {
+    title: 'inbox.health.restricted.title',
+    explanation: 'inbox.health.restricted.explanation',
+    reasons: [],
+    nextStep: 'inbox.health.restricted.nextStep',
+  },
+  expired: {
+    title: 'inbox.health.expired.title',
+    explanation: 'inbox.health.expired.explanation',
+    reasons: ['inbox.health.expired.reason1', 'inbox.health.expired.reason2'],
+    nextStep: 'inbox.health.expired.nextStep',
+  },
+  webhook: {
+    title: 'inbox.health.webhook.title',
+    explanation: 'inbox.health.webhook.explanation',
+    reasons: [],
+    nextStep: 'inbox.health.webhook.nextStep',
+  },
+  throttled: {
+    title: 'inbox.health.throttled.title',
+    explanation: 'inbox.health.throttled.explanation',
+    reasons: [],
+    nextStep: 'inbox.health.throttled.nextStep',
+  },
+  needs_verification: {
+    title: 'inbox.health.needs_verification.title',
+    explanation: 'inbox.health.needs_verification.explanation',
+    reasons: [],
+    nextStep: 'inbox.health.needs_verification.nextStep',
+  },
+}
+
 /**
  * Existing Connection Health copy, same mapping as Settings → WhatsappConnect.
  * Duplicated here so the inbox does not import the Embedded Signup component.
+ *
+ * Hebrew returns the shared `WHATSAPP_NOTICES` entry itself (settings reads the
+ * same objects). Another locale gets the same notice with its displayed text
+ * (title, explanation, reasons, next step) from the catalog; `tone` and the
+ * actions are unchanged, so nothing about what the notice does differs.
  */
-export function noticeForComposerHealth(health: WhatsappHealthPrimary): ConnectionNotice | null {
-  if (health === 'registration_pending' || health === 'inbound_only') return WHATSAPP_NOTICES.not_ready
-  if (health === 'restricted') return WHATSAPP_NOTICES.restricted
-  if (health === 'token') return WHATSAPP_NOTICES.expired
-  if (health === 'webhook') return WHATSAPP_NOTICES.webhook
-  if (health === 'throttled') return WHATSAPP_NOTICES.throttled
-  if (health === 'unknown') return WHATSAPP_NOTICES.needs_verification
-  return null
+export function noticeForComposerHealth(health: WhatsappHealthPrimary, locale: UiLocale = 'he'): ConnectionNotice | null {
+  const code = healthNoticeCode(health)
+  if (!code) return null
+  const base = WHATSAPP_NOTICES[code]
+  if (locale === 'he') return base
+  const t = translatorFor(locale)
+  const keys = NOTICE_KEYS[code]
+  return {
+    ...base,
+    title: t(keys.title),
+    explanation: t(keys.explanation),
+    ...(base.reasons ? { reasons: keys.reasons.map((k) => t(k)) } : {}),
+    ...(base.nextStep ? { nextStep: t(keys.nextStep) } : {}),
+  }
+}
+
+/** The label above a notice's reasons, in the interface locale. */
+export function noticeReasonsLabel(locale: UiLocale = 'he'): string {
+  return translatorFor(locale)('inbox.health.reasonsLabel')
 }

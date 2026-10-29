@@ -15,7 +15,10 @@
  * emoji (WhatsApp's removal) removes it.
  */
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
-import { isAudioAttachment, isImageAttachment, UNSUPPORTED_MESSAGE_NOTICE } from '@/lib/inbox/attachmentDisplay'
+import { isAudioAttachment, isImageAttachment } from '@/lib/inbox/attachmentDisplay'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 export type ThreadReaction = { emoji: string; byBusiness: boolean }
 
@@ -33,18 +36,18 @@ export type ThreadEntry =
       timestamp: string
     }
 
-/** Shown when a reply's quoted message is not in this thread. */
-export const QUOTE_NOT_FOUND = 'תגובה להודעה קודמת'
+/** Shown when a reply's quoted message is not in this thread (Hebrew; translated readers use `inbox.quote.notFound`). */
+export const QUOTE_NOT_FOUND = translatorFor('he')('inbox.quote.notFound')
 const QUOTE_PREVIEW_CHARS = 80
 
-const TYPE_WORDS: Partial<Record<LeadWhatsappMessage['type'], string>> = {
-  image: 'תמונה',
-  video: 'סרטון',
-  document: 'מסמך',
-  audio: 'הודעה קולית',
-  sticker: 'מדבקה',
-  location: 'מיקום',
-  contacts: 'איש קשר',
+const TYPE_WORDS: Partial<Record<LeadWhatsappMessage['type'], MessageKey>> = {
+  image: 'inbox.kind.image',
+  video: 'inbox.kind.video',
+  document: 'inbox.kind.document',
+  audio: 'inbox.kind.audio',
+  sticker: 'inbox.kind.sticker',
+  location: 'inbox.kind.location',
+  contacts: 'inbox.kind.contacts',
 }
 
 /**
@@ -52,12 +55,12 @@ const TYPE_WORDS: Partial<Record<LeadWhatsappMessage['type'], string>> = {
  * (the file is the content), else the unsupported notice. Null for a text
  * message with no text, which each surface marks its own way.
  */
-export function messageBody(m: LeadWhatsappMessage): string | null {
+export function messageBody(m: LeadWhatsappMessage, locale: UiLocale = 'he'): string | null {
   if (m.text) return m.text
   if (m.caption) return m.caption
   if (m.attachment) return ''
   if (m.type === 'text') return null
-  return UNSUPPORTED_MESSAGE_NOTICE
+  return translatorFor(locale)('inbox.media.unsupported')
 }
 
 /** A captionless photo IS the bubble; a photo and a voice note carry their own time. */
@@ -66,12 +69,12 @@ export function bubbleMediaLayout(m: LeadWhatsappMessage): { photoBubble: boolea
   return { photoBubble, mediaCarriesTime: photoBubble || isAudioAttachment(m.attachment?.mimeType) }
 }
 
-/** One line of the quoted message, or what kind of message it was. */
-export function quotePreview(target: LeadWhatsappMessage): string {
+/** One line of the quoted message (data, verbatim), or what kind of message it was (interface text). */
+export function quotePreview(target: LeadWhatsappMessage, locale: UiLocale = 'he'): string {
   const line = (target.text || target.caption || '').trim().split('\n')[0].trim()
   if (line) return line.length > QUOTE_PREVIEW_CHARS ? `${line.slice(0, QUOTE_PREVIEW_CHARS)}…` : line
   if (target.type === 'document' && target.attachment?.filename) return target.attachment.filename
-  return TYPE_WORDS[target.type] ?? 'הודעה'
+  return translatorFor(locale)(TYPE_WORDS[target.type] ?? 'inbox.kind.message')
 }
 
 function reactionKey(m: LeadWhatsappMessage): string {
@@ -82,8 +85,8 @@ function reactionKey(m: LeadWhatsappMessage): string {
   return `${m.direction}|${target}`
 }
 
-/** The thread's entries, in the order of `messages`. */
-export function buildThreadEntries(messages: LeadWhatsappMessage[]): ThreadEntry[] {
+/** The thread's entries, in the order of `messages`. `locale` labels a quoted message that has no text. */
+export function buildThreadEntries(messages: LeadWhatsappMessage[], locale: UiLocale = 'he'): ThreadEntry[] {
   const byId = new Map(messages.map((m) => [m.id, m]))
 
   // The reaction that is current for each sender and message: the last one.
@@ -118,7 +121,7 @@ export function buildThreadEntries(messages: LeadWhatsappMessage[]): ThreadEntry
       key: `m${m.id}`,
       message: m,
       reactions: onMessage.get(m.id) ?? [],
-      quote: m.replyTo ? { preview: target ? quotePreview(target) : null } : null,
+      quote: m.replyTo ? { preview: target ? quotePreview(target, locale) : null } : null,
     })
   }
   return entries

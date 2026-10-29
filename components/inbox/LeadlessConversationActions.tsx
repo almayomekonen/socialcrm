@@ -13,6 +13,11 @@ import {
   type ConversationLeadMatch,
 } from '@/actions/whatsapp/promoteConversationToLead'
 import { markConversationPersonal } from '@/actions/whatsapp/markConversationPersonal'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
+
+const HEBREW = translatorFor('he')
 
 const TONE = {
   default:
@@ -25,16 +30,23 @@ export default function LeadlessConversationActions({
   conversationId,
   isPersonal,
   tone = 'default',
+  translated = false,
 }: {
   conversationId: number
   isPersonal: boolean
   /** `onGreen` is the mobile WhatsApp header. Desktop keeps `default`. */
   tone?: keyof typeof TONE
+  /** The caller follows the interface language (the desktop inbox). Off: Hebrew (the phone header). */
+  translated?: boolean
 }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const router = useRouter()
   /** Entitlement from the shared context — the same answer the server gives. */
   const expired = useAccessDenied()
   const { loading, error, setError, run } = useAction()
+  /** Errors are set as catalog keys and shown in the language above (`useAction`'s own generic line is its text). */
+  const fail = (key: MessageKey) => setError(t(key))
   const [matches, setMatches] = useState<ConversationLeadMatch[] | null>(null)
   const chip = TONE[tone]
 
@@ -46,7 +58,7 @@ export default function LeadlessConversationActions({
     void run(async () => {
       const res = await promoteConversationToLead(conversationId)
       if (res.ok === false) {
-        setError(res.reason === 'quota_exceeded' ? 'הגעת למכסת הלידים' : 'לא הצלחנו ליצור ליד')
+        fail(res.reason === 'quota_exceeded' ? 'inbox.leadless.quota' : 'inbox.leadless.createFailed')
         return
       }
       refresh()
@@ -57,17 +69,17 @@ export default function LeadlessConversationActions({
     void run(async () => {
       const listed = await listConversationLeadMatches(conversationId)
       if (listed.ok === false) {
-        setError('השיחה לא נמצאה')
+        fail('inbox.leadless.notFound')
         return
       }
       if (listed.matches.length === 0) {
-        setError('אין ליד עם אותו מספר. אפשר ליצור ליד חדש.')
+        fail('inbox.leadless.noMatch')
         return
       }
       if (listed.matches.length === 1) {
         const res = await linkConversationToExistingLead(conversationId, listed.matches[0].id)
         if (res.ok === false) {
-          setError('לא הצלחנו לקשר לליד')
+          fail('inbox.leadless.linkFailed')
           return
         }
         refresh()
@@ -81,7 +93,7 @@ export default function LeadlessConversationActions({
     void run(async () => {
       const res = await linkConversationToExistingLead(conversationId, leadId)
       if (res.ok === false) {
-        setError('לא הצלחנו לקשר לליד')
+        fail('inbox.leadless.linkFailed')
         return
       }
       setMatches(null)
@@ -93,7 +105,7 @@ export default function LeadlessConversationActions({
     void run(async () => {
       const res = await markConversationPersonal(conversationId)
       if (res.ok === false) {
-        setError('לא הצלחנו לסמן כאישי')
+        fail('inbox.leadless.personalFailed')
         return
       }
       refresh()
@@ -115,28 +127,28 @@ export default function LeadlessConversationActions({
    * The server remains the only thing enforcing access.
    */
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='חידוש המנוי מחזיר את ניהול השיחה' />
+    return <SubscriptionExpiredState mode='inline' source='conversation_actions' feature={t('inbox.leadless.locked')} translated={translated} />
   }
 
   return (
     <div className='flex flex-wrap items-center gap-1.5'>
       <button type='button' className={chip} disabled={loading} onClick={onCreate}>
         <UserPlus aria-hidden className='size-3.5' />
-        + צור ליד
+        {t('inbox.leadless.create')}
       </button>
       <button type='button' className={chip} disabled={loading} onClick={onLinkClick}>
         <Link2 aria-hidden className='size-3.5' />
-        קשר לליד קיים
+        {t('inbox.leadless.link')}
       </button>
       {!isPersonal && (
         <button type='button' className={chip} disabled={loading} onClick={onPersonal}>
           <User aria-hidden className='size-3.5' />
-          סמן כאישי
+          {t('inbox.leadless.personal')}
         </button>
       )}
       {/* A lapsed subscription gets the shared locked state, never a retry line. */}
       {error === ENTITLEMENT_ERROR && (
-        <SubscriptionExpiredState mode='inline' source='conversation_actions' feature='חידוש המנוי מחזיר את ניהול השיחה' />
+        <SubscriptionExpiredState mode='inline' source='conversation_actions' feature={t('inbox.leadless.locked')} translated={translated} />
       )}
       {error && error !== ENTITLEMENT_ERROR && (
         <span role='alert' className='text-xs text-error-text'>

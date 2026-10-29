@@ -9,6 +9,7 @@ import { leads } from './leads'
 import { leadDetail } from './leadDetail'
 import { entitlement } from './entitlement'
 import { leadTabs } from './leadTabs'
+import { inbox } from './inbox'
 
 /** Arabic (Modern Standard, Latin digits) — pilot draft; native review is recorded in lib/i18n/review.ts. */
-export const ar: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs }
+export const ar: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox }

@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { placeFollowUpMenu } from '@/lib/leads/placeFollowUpMenu'
+import type { RegionAttrs } from '@/lib/i18n/config'
 
 /**
  * Small clip-safe hover/focus tooltip.
@@ -44,9 +45,14 @@ type Props = {
    * different established language, such as the warm subscription tokens.
    */
   panelClassName?: string
+  /**
+   * `lang`/`dir` of a TRANSLATED caller (`useRegionAttrs()`), for the portalled
+   * panel. Omitted: the panel stays Hebrew right-to-left, exactly as before.
+   */
+  region?: RegionAttrs
 }
 
-export function HoverTooltip({ children, content, label, className, panelClassName }: Props) {
+export function HoverTooltip({ children, content, label, className, panelClassName, region }: Props) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const wrapRef = useRef<HTMLSpanElement>(null)
@@ -121,7 +127,8 @@ export function HoverTooltip({ children, content, label, className, panelClassNa
             <div
               id={tipId}
               role='tooltip'
-              dir='rtl'
+              dir={region?.dir ?? 'rtl'}
+              lang={region?.lang}
               style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 100000 }}
               className={
                 panelClassName ??

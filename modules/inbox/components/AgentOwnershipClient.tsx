@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Bot, UserRound } from 'lucide-react'
 import { returnToAgent, takeOverConversation } from '@/actions/inbox/agentOwnership'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * One line above the thread saying who is answering, with the one action that
@@ -57,12 +59,13 @@ type Props = {
   pausedForPlan?: boolean
 }
 
-const ERROR_COPY: Record<string, string> = {
-  opted_out: 'הלקוח ביקש לא לקבל הודעות, ולכן המענה האוטומטי לא יחזור לשיחה הזו.',
-  closed: 'השיחה הסתיימה. המענה האוטומטי לא יחזור אליה.',
-  forbidden: 'אין לך הרשאה לשנות את זה.',
-  failed: 'לא הצלחנו לעדכן. נסו שוב.',
-  'invalid-input': 'לא הצלחנו לעדכן. נסו שוב.',
+/** Refusal REASON codes from the ownership actions → copy. Anything else is the generic failure. */
+const ERROR_KEY: Record<string, MessageKey> = {
+  opted_out: 'inbox.ownership.error.opted_out',
+  closed: 'inbox.ownership.error.closed',
+  forbidden: 'inbox.ownership.error.forbidden',
+  failed: 'inbox.ownership.error.failed',
+  'invalid-input': 'inbox.ownership.error.failed',
 }
 
 export default function AgentOwnershipClient({
@@ -74,14 +77,16 @@ export default function AgentOwnershipClient({
   questionnaireActive = false,
   pausedForPlan = false,
 }: Props) {
+  const t = useT()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  // The refusal KEY, so the line follows the interface language it is shown in.
+  const [error, setError] = useState<MessageKey | null>(null)
 
   const run = (action: (id: number) => Promise<{ ok: boolean; reason?: string }>) => {
     setError(null)
     startTransition(async () => {
       const res = await action(conversationId)
-      if (!res.ok) setError(ERROR_COPY[res.reason ?? 'failed'] ?? ERROR_COPY.failed)
+      if (!res.ok) setError(ERROR_KEY[res.reason ?? 'failed'] ?? ERROR_KEY.failed)
     })
   }
 
@@ -91,11 +96,9 @@ export default function AgentOwnershipClient({
         <div className='flex items-start gap-3'>
           <Bot aria-hidden className='mt-0.5 size-4 shrink-0 text-gray-500' />
           <div className='min-w-0 flex-1'>
-            <p className='text-sm text-gray-900'>
-              המענה האוטומטי מושהה: התוכנית הנוכחית לא כוללת מענה AI, ולכן הלקוח לא קיבל תשובה אוטומטית.
-            </p>
+            <p className='text-sm text-gray-900'>{t('inbox.ownership.paused')}</p>
             <Link href='/settings/auto-response' className='mt-1 inline-block text-xs font-medium text-blue-600 hover:underline'>
-              לפרטים בהגדרות המענה האוטומטי
+              {t('inbox.ownership.pausedLink')}
             </Link>
           </div>
         </div>
@@ -103,27 +106,31 @@ export default function AgentOwnershipClient({
     )
   }
 
-  const status = humanOwned
-    ? handedOff
-      ? 'הפנייה הועברה אליכם. המשך הטיפול בידי הצוות.'
+  const status = t(
+    humanOwned
+      ? handedOff
+        ? 'inbox.ownership.handedOff'
+        : questionnaireMode
+          ? 'inbox.ownership.humanQuestionnaire'
+          : 'inbox.ownership.human'
       : questionnaireMode
-        ? 'אתם עונים בשיחה הזו. השאלון לא ישלח הודעות נוספות.'
-        : 'אתם עונים בשיחה הזו. הסוכן לא ישלח הודעות עד שתחזירו לו אותה.'
-    : questionnaireMode
-      ? 'שאלון אוטומטי עונה בשיחה הזו.'
-      : 'הסוכן עונה בשיחה הזו.'
+        ? 'inbox.ownership.questionnaire'
+        : 'inbox.ownership.agent',
+  )
 
   // name / business type / request / urgency — only what the customer actually
   // said. A field nobody supplied is omitted rather than shown as a dash.
   // A questionnaire supplies its own labels, because its questions are the
-  // business's own. Everything else uses the four the agent extracts.
+  // business's own (data, shown as written). Everything else uses the four the
+  // agent extracts, labelled in the interface language; the VALUES are what the
+  // customer said and are never translated.
   const details: Array<{ label: string; value: string }> =
     handoff?.fields && handoff.fields.length ? [...handoff.fields] : []
   if (!details.length) {
-    if (handoff?.name) details.push({ label: 'שם', value: handoff.name })
-    if (handoff?.businessType) details.push({ label: 'סוג העסק', value: handoff.businessType })
-    if (handoff?.need) details.push({ label: 'הפנייה', value: handoff.need })
-    if (handoff?.urgency) details.push({ label: 'דחיפות', value: handoff.urgency })
+    if (handoff?.name) details.push({ label: t('inbox.ownership.field.name'), value: handoff.name })
+    if (handoff?.businessType) details.push({ label: t('inbox.ownership.field.businessType'), value: handoff.businessType })
+    if (handoff?.need) details.push({ label: t('inbox.ownership.field.need'), value: handoff.need })
+    if (handoff?.urgency) details.push({ label: t('inbox.ownership.field.urgency'), value: handoff.urgency })
   }
 
   return (
@@ -138,11 +145,11 @@ export default function AgentOwnershipClient({
           {handedOff && (
             <p className='mb-1.5 flex flex-wrap items-center gap-1.5'>
               <span className='rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800'>
-                ממתין לטיפול נציג
+                {t('inbox.ownership.awaitingRep')}
               </span>
               {handoff?.urgency && (
                 <span className='rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-800'>
-                  דחיפות: {handoff.urgency}
+                  {t('inbox.ownership.urgency', { value: handoff.urgency })}
                 </span>
               )}
             </p>
@@ -160,7 +167,7 @@ export default function AgentOwnershipClient({
           )}
           {error ? (
             <p role='alert' className='mt-1 text-xs text-red-600'>
-              {error}
+              {t(error)}
             </p>
           ) : null}
         </div>
@@ -171,7 +178,11 @@ export default function AgentOwnershipClient({
             disabled={pending}
             className='shrink-0 text-xs font-medium text-blue-600 hover:underline disabled:opacity-60'
           >
-            {pending ? 'מעדכן…' : questionnaireMode ? 'החזרת המענה לשאלון' : 'החזרת המענה לסוכן'}
+            {pending
+              ? t('inbox.ownership.updating')
+              : questionnaireMode
+                ? t('inbox.ownership.returnQuestionnaire')
+                : t('inbox.ownership.returnAgent')}
           </button>
         ) : (
           <button
@@ -180,7 +191,7 @@ export default function AgentOwnershipClient({
             disabled={pending}
             className='shrink-0 text-xs font-medium text-blue-600 hover:underline disabled:opacity-60'
           >
-            {pending ? 'מעדכן…' : 'אני עונה מכאן'}
+            {pending ? t('inbox.ownership.updating') : t('inbox.ownership.takeOver')}
           </button>
         )}
       </div>

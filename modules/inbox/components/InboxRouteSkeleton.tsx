@@ -1,17 +1,25 @@
+'use client'
+
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+
 /**
  * Presentational 3-pane loading chrome for /inbox.
  * Used only by route `loading.tsx` — never mixed into hydrated inbox store state.
+ * Mirrors the page root's region: Hebrew keeps its explicit `dir='rtl'`.
  */
 export default function InboxRouteSkeleton() {
+  const t = useT()
+  const region = useRegionAttrs()
   return (
     <div
       className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'
-      dir='rtl'
+      dir={region.dir ?? 'rtl'}
+      lang={region.lang}
       aria-busy='true'
       data-testid='inbox-route-skeleton'
     >
       <span className='sr-only' role='status'>
-        טוען…
+        {t('inbox.page.loading')}
       </span>
 
       <aside

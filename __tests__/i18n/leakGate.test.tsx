@@ -151,9 +151,18 @@ vi.mock('@/db/tasks', async () => {
 })
 vi.mock('@/modules/inbox/queries', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
-  return { getInboxConversationByLeadId: async () => (detailEnv.conversationId ? { conversationId: detailEnv.conversationId } : null) }
+  return {
+    // The inbox list reads (Phase D), from the inbox fixtures.
+    ...(await (await import('./inboxMocks')).queriesModule()),
+    getInboxConversationByLeadId: async () => (detailEnv.conversationId ? { conversationId: detailEnv.conversationId } : null),
+  }
 })
-vi.mock('@/db/inboxMessages', async () => ({ listConversationMessages: async () => (await import('./leadDetailEnv')).detailEnv.messages }))
+vi.mock('@/db/inboxMessages', async () => {
+  const { detailEnv } = await import('./leadDetailEnv')
+  const { inboxEnv } = await import('./inboxEnv')
+  // The inbox thread while an inbox page is being built; the lead summary's preview otherwise.
+  return { listConversationMessages: async () => (inboxEnv.active ? structuredClone(inboxEnv.messages) : detailEnv.messages) }
+})
 vi.mock('@/db/leadFormAnswers', async () => ({ formAnswersForLead: async () => (await import('./leadDetailEnv')).detailEnv.formAnswers }))
 vi.mock('@/db/adsCrmOutcomes', async () => ({ getLeadAdAttribution: async () => (await import('./leadDetailEnv')).detailEnv.attribution }))
 vi.mock('@/db/adsSnapshots', async () => ({ readCreativeForAd: async () => (await import('./leadDetailEnv')).detailEnv.creative }))
@@ -162,6 +171,7 @@ vi.mock('@/lib/facebook/permissions', async () => {
   return {
     ...(await vi.importActual<typeof import('@/lib/facebook/permissions')>('@/lib/facebook/permissions')),
     isFacebookAdsReportingEnabledForAgency: () => detailEnv.adsReporting,
+    isFacebookMessengerEnabledForAgency: () => true,
   }
 })
 vi.mock('@/lib/whatsapp/templates/flag', async () => {
@@ -204,6 +214,28 @@ vi.mock('@/config/db', async () => {
 })
 vi.mock('@/db/billing/invoices', async () => ({ listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices }))
 
+// /inbox reads and actions (I/O only; the page, list, thread, composer, ownership line and producers run for real).
+vi.mock('next/cache', async () => (await import('./inboxMocks')).cacheModule())
+vi.mock('@/lib/flags/inboxFlags', () => ({ isInboxDeltaSyncEnabled: () => false, getInboxRefreshIntervalMs: () => null }))
+vi.mock('@/modules/messenger/queries', () => ({ countUnreadMessengerConversations: async () => 4 }))
+vi.mock('@/modules/inbox/actions', async () => (await import('./inboxMocks')).inboxActionsModule())
+vi.mock('@/lib/inbox/whatsappComposerContext', async () => {
+  const { inboxEnv } = await import('./inboxEnv')
+  return { loadWhatsappComposerContext: async () => inboxEnv.composer }
+})
+vi.mock('@/db/conversationAiState', async () => (await import('./inboxMocks')).aiStateModule())
+vi.mock('@/db/conversationIntelligence', async () => (await import('./inboxMocks')).conversationIntelligenceModule())
+vi.mock('@/db/autoResponseSettings', async () => (await import('./inboxMocks')).autoResponseSettingsModule())
+vi.mock('@/db/questionnaireSessions', async () => (await import('./inboxMocks')).questionnaireSessionsModule())
+vi.mock('@/lib/inbox/autoresponse/reliability/entitlement', async () => (await import('./inboxMocks')).replyEntitlementModule())
+vi.mock('@/actions/inbox/agentOwnership', async () => (await import('./inboxMocks')).ownershipActionsModule())
+vi.mock('@/actions/whatsapp/promoteConversationToLead', async () => (await import('./inboxMocks')).promoteActionsModule())
+vi.mock('@/actions/whatsapp/markConversationPersonal', () => ({ markConversationPersonal: async () => ({ ok: true }) }))
+vi.mock('@/actions/whatsapp/sendWhatsappReply', () => ({ sendWhatsappReply: async () => ({ ok: true }) }))
+vi.mock('@/actions/ai/whatsappReplyDraft', () => ({ generateWhatsappReplyDraft: async () => ({ ok: true, message: '' }) }))
+vi.mock('@/actions/analytics/recordOperatorTakeEvent', () => ({ recordOperatorTakeEvent: async () => {} }))
+vi.mock('@/modules/leads/contactEvents', () => ({ contactClicked: () => {}, contactSucceeded: () => {} }))
+
 const { SURFACES } = await import('./surfaces')
 
 const saved = { ...process.env }
@@ -220,6 +252,7 @@ afterEach(async () => {
   ;(await import('./leadsEnv')).resetLeadsEnv()
   ;(await import('./leadDetailEnv')).resetDetailEnv()
   ;(await import('./leadTabsEnv')).resetTabsEnv()
+  ;(await import('./inboxEnv')).resetInboxEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

@@ -8,6 +8,7 @@ import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
 import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
 import { INBOX_RECOVERY_MS } from '@/lib/polling/syncFailure'
 import type { AwarenessItem } from './types'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export type AwarenessCounts = { whatsappUnread: number }
 
@@ -51,6 +52,8 @@ export function AwarenessProvider({
   children: ReactNode
 }) {
   const router = useRouter()
+  // Toasts follow the interface language (the toast container is app-wide); the name is the contact's, as stored.
+  const t = useT()
   const [whatsappUnread, setWhatsappUnread] = useState<number | null>(enabled ? initialUnread : null)
   // Keys (conversationId:at) already toasted — prevents duplicate toasts across polls.
   const seen = useRef<Set<string>>(new Set())
@@ -69,15 +72,16 @@ export function AwarenessProvider({
       })
       if (fresh.length === 1) {
         const it = fresh[0]
-        toast('message', `הודעה חדשה מ${it.contactName}`, 6000, () =>
+        toast('message', t('inbox.awareness.one', { name: it.contactName }), 6000, () =>
           router.push(`/inbox?conversation=${it.conversationId}`),
         )
       } else if (fresh.length > 1) {
         // Triage, never dump: one calm summary, opens the inbox.
-        toast('message', `${fresh.length} הודעות חדשות`, 6000, () => router.push('/inbox'))
+        // Count as text: Hebrew stays exactly as before (no digit grouping).
+        toast('message', t('inbox.awareness.many', { count: String(fresh.length) }), 6000, () => router.push('/inbox'))
       }
     },
-    [router],
+    [router, t],
   )
 
   const setCount = useCallback((n: number) => setWhatsappUnread(n), [])

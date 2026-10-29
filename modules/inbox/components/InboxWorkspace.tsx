@@ -6,6 +6,8 @@ import { SUPPORTED_WORKSPACE_CHANNELS, channelLabel } from '@/modules/inbox/chan
 import InboxReadMarker from './InboxReadMarker'
 import OperatorTake from './OperatorTake'
 import AgentOwnership from './AgentOwnership'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 export default async function InboxWorkspace({
   conversationId,
@@ -15,6 +17,7 @@ export default async function InboxWorkspace({
   displayName = null,
   leadStatus = null,
   customerWaId = null,
+  locale = 'he',
 }: {
   conversationId: number
   leadId: number | null
@@ -23,11 +26,13 @@ export default async function InboxWorkspace({
   displayName?: string | null
   leadStatus?: string | null
   customerWaId?: string | null
+  /** The page's interface language (Hebrew by default); client pieces read the provider. */
+  locale?: UiLocale
 }) {
   if (!SUPPORTED_WORKSPACE_CHANNELS.has(channel)) {
     return (
       <div className='flex h-full items-center justify-center text-center text-sm text-gray-400'>
-        שיחות {channelLabel(channel)} עדיין לא נתמכות כאן.
+        {translatorFor(locale)('inbox.page.unsupportedChannel', { channel: channelLabel(channel) })}
       </div>
     )
   }

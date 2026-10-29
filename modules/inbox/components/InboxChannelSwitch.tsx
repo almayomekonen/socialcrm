@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import ChannelIcon from './ChannelIcon'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Small channel switch inside the existing שיחות experience (Facebook Comments
@@ -8,23 +11,29 @@ import ChannelIcon from './ChannelIcon'
  */
 export type InboxChannelTab = 'whatsapp' | 'facebook' | 'messenger'
 
-const TABS: { id: InboxChannelTab; href: string; label: string }[] = [
-  { id: 'whatsapp', href: '/inbox', label: 'שיחות' },
-  { id: 'messenger', href: '/inbox/messenger', label: 'Messenger' },
-  { id: 'facebook', href: '/inbox/comments', label: 'תגובות' },
+/** `label` is a catalog key, or null for a brand name shown as written. */
+const TABS: { id: InboxChannelTab; href: string; label: MessageKey | null }[] = [
+  { id: 'whatsapp', href: '/inbox', label: 'inbox.channels.whatsapp' },
+  { id: 'messenger', href: '/inbox/messenger', label: null },
+  { id: 'facebook', href: '/inbox/comments', label: 'inbox.channels.facebook' },
 ]
 
 /**
  * `showMessenger` is resolved server-side from the Messenger rollout gate, so an
  * agency without Messenger never sees a tab that leads nowhere. Default false:
  * every existing caller renders exactly the two tabs it rendered before.
+ *
+ * `locale` is the caller's interface language. Hebrew by default: the Messenger
+ * and comments inboxes (not translated yet) pass nothing.
  */
 export default function InboxChannelSwitch({
   active,
   showMessenger = false,
   messengerUnread = 0,
+  locale = 'he',
 }: {
   active: InboxChannelTab
+  locale?: UiLocale
   showMessenger?: boolean
   /**
    * Unread Messenger conversations for THIS user. Its own signal, deliberately
@@ -34,9 +43,10 @@ export default function InboxChannelSwitch({
    */
   messengerUnread?: number
 }) {
+  const t = translatorFor(locale)
   const tabs = TABS.filter((tab) => tab.id !== 'messenger' || showMessenger || active === 'messenger')
   return (
-    <nav aria-label='ערוץ' className='flex flex-wrap items-center gap-1.5'>
+    <nav aria-label={t('inbox.channels.label')} className='flex flex-wrap items-center gap-1.5'>
       {tabs.map((tab) => {
         const isActive = tab.id === active
         return (
@@ -51,11 +61,12 @@ export default function InboxChannelSwitch({
             }`}
           >
             <ChannelIcon channel={tab.id} className='size-3.5' />
-            {tab.label}
+            {tab.label ? t(tab.label) : 'Messenger'}
             {tab.id === 'messenger' && messengerUnread > 0 && (
               <span
                 // The count is in the accessible name, so it is not colour-only.
-                aria-label={`${messengerUnread} שיחות שלא נקראו`}
+                // Counts as text so Hebrew stays exactly as before (no digit grouping).
+                aria-label={t('inbox.channels.messengerUnread', { count: String(messengerUnread) })}
                 className='inline-flex min-w-4 items-center justify-center rounded-full bg-success px-1 text-[10px] font-semibold leading-4 text-white'
               >
                 {messengerUnread > 99 ? '99+' : messengerUnread}

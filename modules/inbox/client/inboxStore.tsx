@@ -9,6 +9,7 @@ import type { InboxConversationListItem, InboxCursor, InboxListFilters, InboxSor
 import type { LeadWhatsappMessage, LeadWhatsappMessageStatus } from '@/db/inboxMessages'
 import { applyStatusesToMessages } from './applyStatusUpdates'
 import InboxSyncLoop from './InboxSyncLoop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type InboxStoreValue = {
   // ── Conversation list ──
@@ -73,6 +74,7 @@ export function InboxStoreProvider({
   const [extra, setExtra] = useState<InboxConversationListItem[]>([])
   const [cursor, setCursor] = useState(initialCursor)
   const [loadingMore, startLoadMore] = useTransition()
+  const { locale } = useT()
 
   // Reconcile from server truth. router.refresh() (the soak safety net) replaces the
   // `initialItems` prop on every refresh → reset base to it (extra/cursor preserved).
@@ -165,11 +167,13 @@ export function InboxStoreProvider({
   const loadMore = useCallback(() => {
     if (!cursor || loadingMore) return
     startLoadMore(async () => {
-      const page = await loadMoreInboxConversations({ cursor, filters })
+      // The page's interface language, so the next page's waiting copy matches.
+      // Not sent for Hebrew: the call is exactly what it was.
+      const page = await loadMoreInboxConversations(locale === 'he' ? { cursor, filters } : { cursor, filters, locale })
       setExtra((prev) => mergeConversationPages(prev, page.items))
       setCursor(page.nextCursor)
     })
-  }, [cursor, loadingMore, filters])
+  }, [cursor, loadingMore, filters, locale])
 
   const value = useMemo<InboxStoreValue>(
     () => ({

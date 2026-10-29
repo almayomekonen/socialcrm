@@ -1,6 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import { Contact, Phone } from 'lucide-react'
-import { formatDate } from '@/lib/dates'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { formatLeadDate } from '@/lib/leads/leadDate'
 import LeadAvatar from '@/components/ui/lead-avatar'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import LeadlessConversationActions from '@/components/inbox/LeadlessConversationActions'
@@ -36,18 +39,19 @@ export default function WhatsappConversationHeader({
   lastDirection: 'inbound' | 'outbound' | null
   lastActivityAt: string | null
 }) {
+  const t = useT()
   const attention =
     lastDirection === null
       ? null
       : lastDirection === 'inbound'
-        ? { label: 'דורש מענה', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' }
-        : { label: 'הנציג השיב לאחרונה', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500' }
+        ? { label: t('inbox.header.needsReply'), bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' }
+        : { label: t('inbox.header.repReplied'), bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500' }
 
   return (
     <div className='flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-gray-100 bg-white px-4 py-2.5'>
       {displayName ? (
         <div className='flex min-w-0 items-center gap-3'>
-          <LeadAvatar name={displayName} size='lg' />
+          <LeadAvatar name={displayName} size='lg' fallback={t('inbox.row.avatarFallback')} />
           <div className='min-w-0'>
             <div className='flex min-w-0 items-center gap-2'>
               <h1 className='truncate text-base font-bold text-gray-900'>{displayName}</h1>
@@ -67,7 +71,7 @@ export default function WhatsappConversationHeader({
                     +{customerWaId}
                   </span>
                 )}
-                {lastActivityAt ? ` · פעילות אחרונה ${formatDate(lastActivityAt)}` : ''}
+                {lastActivityAt ? ` · ${t('inbox.header.lastActivity', { date: formatLeadDate(t.locale, lastActivityAt) })}` : ''}
               </span>
             </div>
           </div>
@@ -75,7 +79,7 @@ export default function WhatsappConversationHeader({
       ) : (
         <div className='flex items-center gap-2'>
           <ChannelIcon channel='whatsapp' className='size-5' />
-          <h1 className='text-base font-bold text-gray-900'>שיחת WhatsApp</h1>
+          <h1 className='text-base font-bold text-gray-900'>{t('inbox.header.title')}</h1>
         </div>
       )}
 
@@ -91,17 +95,17 @@ export default function WhatsappConversationHeader({
         {displayName && customerWaId && (
           <a href={`tel:+${customerWaId}`} className={QUICK_ACTION_CLS}>
             <Phone aria-hidden className='size-3.5' />
-            התקשר
+            {t('inbox.header.call')}
           </a>
         )}
         {leadId != null && displayName && (
           <Link href={`/clients/${leadId}/summary`} className={QUICK_ACTION_CLS}>
             <Contact aria-hidden className='size-3.5' />
-            כרטיס ליד
+            {t('inbox.header.leadCard')}
           </Link>
         )}
         {leadId == null && conversationId != null && (
-          <LeadlessConversationActions conversationId={conversationId} isPersonal={isPersonal} />
+          <LeadlessConversationActions conversationId={conversationId} isPersonal={isPersonal} translated />
         )}
         {showDelete && conversationId != null && (
           <DeleteConversationMenu conversationId={conversationId} size='md' />

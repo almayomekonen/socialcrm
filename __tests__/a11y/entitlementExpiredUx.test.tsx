@@ -339,7 +339,7 @@ describe('narrow audit: the five remaining surfaces', () => {
     expect(gate).toBeGreaterThan(-1)
     expect(gate).toBeLessThan(ret)
     // And it must never show a retry line for a permanent refusal.
-    expect(src).toContain('נסה שוב') // the ACTIVE-path copy still exists…
+    expect(src).toContain("t('inbox.draft.draftFailed')") // the ACTIVE-path copy still exists…
     expect(src).toContain('SubscriptionExpiredState') // …but expired short-circuits first
   })
 
@@ -446,7 +446,7 @@ describe('production audit follow-ups', () => {
   it('message text is never gated by entitlement — the em-dash is absence, not suppression', () => {
     const src = read('components/summary/WhatsappConversation.tsx')
     // The body comes from the shared thread view (text, else caption); '—' marks an empty text message.
-    expect(src).toContain('const body = messageBody(m)')
+    expect(src).toContain('const body = messageBody(m, t.locale)')
     expect(src).toContain("{body ?? '—'}")
     // The renderer must not consult entitlement for message BODIES.
     const textLine = src.indexOf("{body ?? '—'}")
@@ -914,7 +914,7 @@ describe('surfaces the sweep deliberately left alone', () => {
   /** Genuine operational errors: these actions are not entitlement-guarded. */
   it('conversation delete stays a real error, because it is one', () => {
     expect(read('modules/inbox/actions.ts')).not.toContain('requireProductAccess')
-    expect(read('components/inbox/DeleteConversationMenu.tsx')).toContain('מחיקת השיחה נכשלה. נסה שוב.')
+    expect(read('components/inbox/DeleteConversationMenu.tsx')).toContain("toast('error', t('inbox.menu.deleteFailed'))")
   })
 
   it('the notifications list renders for an expired customer', () => {

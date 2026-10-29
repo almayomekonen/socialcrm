@@ -59,3 +59,13 @@ export function untranslatedAttrs(locale: UiLocale): RegionAttrs {
   if (locale === LEGACY_DEFAULT_LOCALE) return {}
   return { lang: LEGACY_DEFAULT_LOCALE, dir: dirFor(LEGACY_DEFAULT_LOCALE) }
 }
+
+/**
+ * `dir="auto"` for a block of CUSTOMER text (a message body, a preview, a
+ * quote) inside a translated region: the text keeps its own direction instead
+ * of the interface's. Nothing for Hebrew, whose DOM stays exactly as before
+ * (there the surrounding RTL already matches the stored text).
+ */
+export function customerTextAttrs(locale: UiLocale): { dir?: 'auto' } {
+  return locale === LEGACY_DEFAULT_LOCALE ? {} : { dir: 'auto' }
+}

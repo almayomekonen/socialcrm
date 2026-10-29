@@ -66,7 +66,11 @@ export const queriesModule = async () => {
   const { mapInboxRow } = await import('@/modules/inbox/mapInboxRow')
   const { NOW } = await import('./inboxEnv')
   return {
-    listInboxConversations: async () => ({ items: inboxEnv.rows.map((r) => mapInboxRow(r, NOW)), nextCursor: null }),
+    listInboxConversations: async (_agencyId: number, _userId: number, opts: { locale?: 'he' | 'en' | 'ar' } = {}) => ({
+      // The page's locale reaches the REAL mapper exactly as the query passes it.
+      items: inboxEnv.rows.map((r) => mapInboxRow(r, NOW, opts.locale)),
+      nextCursor: null,
+    }),
     getInboxSmartCounts: async () => inboxEnv.smartCounts,
     getInboxConversationById: async () => inboxEnv.selected,
     getInboxConversationByLeadId: async () => null,
@@ -139,7 +143,9 @@ export const leadIntelligenceModule = async () => {
   return { getLeadIntelligence: async () => ({ ok: true, data: INTELLIGENCE }) }
 }
 
-export const toastModule = () => ({
+export const toastModule = async () => ({
+  // The real defaults plumbing (the provider pushes translated defaults); only showing a toast is recorded.
+  ...(await vi.importActual<typeof import('@/lib/toast')>('@/lib/toast')),
   toast: (...a: unknown[]) => inboxSpies.toasts.push(a),
   proToast: (opts: unknown) => inboxSpies.toasts.push(['pro', opts]),
 })

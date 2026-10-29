@@ -8,13 +8,23 @@ import { deleteConversation as deleteConversationDb } from '@/db/inboxConversati
 import { ensureWhatsappConversationForLead } from '@/lib/inbox/ensureWhatsappConversation'
 import { getInboxConversationByLeadId, listInboxConversations } from './queries'
 import type { InboxConversationsPage, InboxCursor, InboxListFilters } from './types'
+import { isUiLocale } from '@/lib/i18n/config'
 
+/**
+ * `locale` is the interface language the page was rendered in (resolved on the
+ * server and handed to the client), sent back only by the desktop list so the
+ * next page's waiting copy matches the rows already shown. It selects display
+ * strings and nothing else; anything outside the registry is Hebrew. The mobile
+ * list sends none and keeps Hebrew.
+ */
 export async function loadMoreInboxConversations(args: {
   cursor: InboxCursor
   filters: Partial<InboxListFilters>
+  locale?: string
 }): Promise<InboxConversationsPage> {
   const user = await requireAgencyUser()
-  return listInboxConversations(user.agencyId, user.id, { cursor: args.cursor, filters: args.filters })
+  const locale = isUiLocale(args.locale) ? args.locale : 'he'
+  return listInboxConversations(user.agencyId, user.id, { cursor: args.cursor, filters: args.filters, locale })
 }
 
 export async function markConversationRead(conversationIdRaw: number | string): Promise<{ ok: boolean }> {

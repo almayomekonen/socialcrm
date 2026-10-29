@@ -64,7 +64,7 @@ export function waitingReplyCopy(input: {
   lastHumanOutboundAt: Date | string | number | null | undefined
   nowMs: number
   channel?: string | null
-  /** Interface locale for the copy. Hebrew by default (the inbox passes nothing). */
+  /** Interface locale for the copy. Hebrew by default (the inbox list passes its page locale through `mapInboxRow`). */
   locale?: UiLocale
 }): WaitingReplyCopy | null {
   if (input.channel != null && input.channel !== 'whatsapp') return null
@@ -86,6 +86,22 @@ export function waitingReplyCopy(input: {
   }
 }
 
+/**
+ * The inbox row's waiting copy in the interface locale: "<reason> · <how long>"
+ * plus the window hint. Built from the reason code and the duration — never by
+ * parsing display text, so it reads the same way in every language. For Hebrew
+ * it equals `inboxWaitingTitle(waitingReplyCopy(input))` (the waited duration is
+ * never empty once a conversation is waiting).
+ */
+export function inboxWaitingCopy(input: Parameters<typeof waitingReplyCopy>[0]): { title: string; windowHint: string | null } | null {
+  const copy = waitingReplyCopy(input)
+  if (!copy) return null
+  const inboundMs = toEpochMs(input.lastInboundAt) as number
+  const waited = formatCoarseDuration(Math.max(0, input.nowMs - inboundMs), input.locale ?? 'he')
+  return { title: waited ? `${copy.title} · ${waited}` : copy.title, windowHint: copy.windowHint }
+}
+
+/** Hebrew-only: reads the Hebrew "ממתין" prefix. Kept for its existing readers; the inbox uses `inboxWaitingCopy`. */
 export function inboxWaitingTitle(copy: WaitingReplyCopy): string {
   const waited = copy.waitingFor.replace(/^ממתין\s+/, '')
   return waited ? `${copy.title} · ${waited}` : copy.title

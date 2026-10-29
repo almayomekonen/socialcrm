@@ -1,4 +1,5 @@
-import { inboxWaitingTitle, waitingReplyCopy } from '@/lib/inbox/waitingReplyCopy'
+import { inboxWaitingCopy } from '@/lib/inbox/waitingReplyCopy'
+import type { UiLocale } from '@/lib/i18n/config'
 import { isWaitingForReply } from '@/lib/today/waitingReply'
 import type { InboxAttention, InboxChannel, InboxConversationListItem } from './types'
 
@@ -36,16 +37,23 @@ export function inboxAttention(input: {
   return null
 }
 
-export function mapInboxRow(r: Record<string, unknown>, nowMs: number): InboxConversationListItem {
+/**
+ * `locale` only chooses the language of the two precomputed presentation
+ * strings (`waitingTitle`, `waitingWindowHint`). Hebrew by default: every
+ * caller that passes nothing (mobile API, mobile inbox, single-row reads) is
+ * unchanged.
+ */
+export function mapInboxRow(r: Record<string, unknown>, nowMs: number, locale: UiLocale = 'he'): InboxConversationListItem {
   const lastDirection = (r.lastDirection ?? null) as 'inbound' | 'outbound' | null
   const lastInboundAt = toIso(r.lastInboundAt)
   const lastHumanOutboundAt = toIso(r.lastHumanOutboundAt)
   const channel = r.channel as InboxChannel
-  const copy = waitingReplyCopy({
+  const copy = inboxWaitingCopy({
     lastInboundAt,
     lastHumanOutboundAt,
     nowMs,
     channel,
+    locale,
   })
 
   return {
@@ -68,7 +76,7 @@ export function mapInboxRow(r: Record<string, unknown>, nowMs: number): InboxCon
       nowMs,
       channel,
     }),
-    waitingTitle: copy ? inboxWaitingTitle(copy) : null,
+    waitingTitle: copy?.title ?? null,
     waitingWindowHint: copy?.windowHint ?? null,
     temperature: (r.temperature as InboxConversationListItem['temperature']) ?? null,
     intent: (r.intent as InboxConversationListItem['intent']) ?? null,

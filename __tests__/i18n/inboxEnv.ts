@@ -152,10 +152,16 @@ export const THREAD = [
   msg(121, 80, { text: 'תודה, אחשוב על זה https://example.test/info' }),
 ]
 
-/** Message bodies / captions / file names exactly as stored — never translated. */
-export const THREAD_CONTENT = THREAD.flatMap((m) => [m.text, m.caption, (m.attachment as { filename?: string } | null)?.filename]).filter(
-  (v): v is string => typeof v === 'string' && v.length > 0,
-)
+/**
+ * Message bodies / captions / file names exactly as stored — never translated.
+ * A body with a link renders as text + anchor, so it is listed as its text
+ * around the link (the same characters, split as the linkifier splits them).
+ */
+export const THREAD_CONTENT = THREAD.flatMap((m) => [
+  ...(typeof m.text === 'string' ? m.text.split(/\s*https?:\S+/) : []),
+  m.caption,
+  (m.attachment as { filename?: string } | null)?.filename,
+]).filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
 
 /** A thread whose latest inbound is 30h old: the 24h window is closed. */
 export const CLOSED_THREAD = [
@@ -295,3 +301,33 @@ export const SELECTED_LEADLESS = {
   leadStatus: null,
   customerWaId: '972500000004',
 }
+
+const NAMES = ['יוסי לוי', 'רונית כהן', 'משה אברהם', 'שרה מזרחי']
+
+/**
+ * Hebrew CUSTOMER data the inbox renders verbatim: contact names and their
+ * avatar initials, list previews, message bodies / captions / file names, the
+ * customer's handoff answers and a questionnaire's own questions and answers,
+ * ready-message titles.
+ */
+export const INBOX_CUSTOMER_DATA = [
+  ...NAMES,
+  ...NAMES.map((n) =>
+    n
+      .split(/\s+/)
+      .map((w) => w[0])
+      .join(''),
+  ),
+  ...LIST_ROWS.map((r) => r.lastMessageText).filter((v): v is string => typeof v === 'string'),
+  ...THREAD_CONTENT,
+  ...CLOSED_THREAD.map((m) => m.text as string),
+  ...UNKNOWN_THREAD.map((m) => m.text as string),
+  HANDOFF.businessType,
+  HANDOFF.need,
+  HANDOFF.urgency,
+  ...QUESTIONNAIRE_FIELDS.flatMap((f) => [f.label, f.value]),
+  ...TEMPLATES.map((t) => t.displayTitle),
+]
+
+/** AI-written text (decision D3: never translated) — the operator take and the conversation analysis. */
+export const INBOX_EXTERNAL = [AI_SUMMARY, AI_ACTION_REASON, OPERATOR_TAKE.data.actionMessage, OPERATOR_TAKE.data.reason]

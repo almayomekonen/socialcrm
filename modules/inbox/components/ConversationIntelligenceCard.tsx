@@ -10,8 +10,11 @@ import {
   type ConversationIntelligenceItem,
   type ConversationIntelligenceView,
 } from '@/db/conversationIntelligence'
-import { formatDateTime } from '@/lib/dates'
-import { ACTION_LABELS, CONFIDENCE_LABELS, INTENT_LABELS, TEMPERATURE_BADGES } from '@/modules/inbox/intelLabels'
+import { actionLabel as actionLabelFor, confidenceLabel, intentLabel as intentLabelFor, temperatureBadge as temperatureBadgeFor } from '@/modules/inbox/intelLabels'
+import { untranslatedAttrs, type UiLocale } from '@/lib/i18n/config'
+import type { MessageKey, Translator } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+import { formatLeadDateTime } from '@/lib/leads/leadDate'
 
 /**
  * Conversation Intelligence panel (Phase 3): summary + intent + temperature +
@@ -22,6 +25,9 @@ import { ACTION_LABELS, CONFIDENCE_LABELS, INTENT_LABELS, TEMPERATURE_BADGES } f
  *
  * States: pending (job queued, no result yet) / fresh / stale (newer messages
  * arrived, refresh queued) / failed (analysis dead-lettered).
+ *
+ * Chrome follows `locale` (the page's; Hebrew by default). The summary and the
+ * action's reason are AI-written Hebrew (decision D3) and re-declare Hebrew.
  */
 
 type DisplayState = 'pending' | 'fresh' | 'stale' | 'failed' | 'none'
@@ -46,10 +52,14 @@ function deriveState(view: ConversationIntelligenceView): { state: DisplayState;
 export default async function ConversationIntelligenceCard({
   agencyId,
   conversationId,
+  locale = 'he',
 }: {
   agencyId: number
   conversationId: number
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
+  const ai = untranslatedAttrs(locale)
   const view = await readIntelligence(agencyId, conversationId)
   const { state, item } = deriveState(view)
 
@@ -62,27 +72,25 @@ export default async function ConversationIntelligenceCard({
   const action = extractField(actionItem?.data, 'suggestedAction')
   const actionReason = extractField(actionItem?.data, 'reason')
 
-  const intentLabel = intent ? INTENT_LABELS[intent] : null
-  const temperatureBadge = temperature ? TEMPERATURE_BADGES[temperature] : null
+  const intentLabel = intentLabelFor(intent, locale)
+  const temperatureBadge = temperatureBadgeFor(temperature, locale)
   // 'none' has no label → the action block is hidden when there is nothing useful to do.
-  const actionLabel = action ? ACTION_LABELS[action] : null
-  const actionConfidenceLabel = actionItem?.confidence ? CONFIDENCE_LABELS[actionItem.confidence] : null
+  const actionLabel = actionLabelFor(action, locale)
+  const actionConfidenceLabel = confidenceLabel(actionItem?.confidence, locale)
 
   return (
     <div className='mb-4 rounded-lg border border-gray-200 bg-white p-5'>
       <div className='mb-3 flex items-center justify-between'>
         <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
           <Brain aria-hidden className='size-3.5 text-accent' />
-          ניתוח שיחה
+          {t('inbox.analysis.title')}
         </p>
-        <StatePill state={state} />
+        <StatePill state={state} t={t} />
       </div>
 
-      {state === 'pending' && <p className='text-sm text-gray-500'>מנתח את השיחה…</p>}
+      {state === 'pending' && <p className='text-sm text-gray-500'>{t('inbox.analysis.pending')}</p>}
 
-      {state === 'failed' && (
-        <p className='text-sm text-gray-500'>ניתוח השיחה נכשל. ננסה שוב אוטומטית כשתתקבל הודעה חדשה.</p>
-      )}
+      {state === 'failed' && <p className='text-sm text-gray-500'>{t('inbox.analysis.failed')}</p>}
 
       {(state === 'fresh' || state === 'stale') && item && (
         <div className='space-y-3'>
@@ -102,9 +110,11 @@ export default async function ConversationIntelligenceCard({
           )}
 
           {summary ? (
-            <p className='text-sm leading-relaxed text-gray-800'>{summary}</p>
+            <p className='text-sm leading-relaxed text-gray-800' {...ai}>
+              {summary}
+            </p>
           ) : (
-            <p className='text-sm text-gray-500'>אין סיכום זמין.</p>
+            <p className='text-sm text-gray-500'>{t('inbox.analysis.noSummary')}</p>
           )}
 
           {actionLabel && (
@@ -112,19 +122,23 @@ export default async function ConversationIntelligenceCard({
               <div className='flex items-center justify-between gap-2'>
                 <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-700'>
                   <Lightbulb aria-hidden className='size-3.5 shrink-0 text-accent' />
-                  הצעד הבא המומלץ: {actionLabel}
+                  {t('inbox.analysis.nextAction', { action: actionLabel })}
                 </p>
                 {actionConfidenceLabel && (
                   <span className='shrink-0 text-[10px] text-gray-400'>{actionConfidenceLabel}</span>
                 )}
               </div>
-              {actionReason && <p className='mt-1 text-xs leading-relaxed text-gray-500'>{actionReason}</p>}
+              {actionReason && (
+                <p className='mt-1 text-xs leading-relaxed text-gray-500' {...ai}>
+                  {actionReason}
+                </p>
+              )}
             </div>
           )}
 
           <p className='text-[10px] tracking-wide text-gray-400'>
-            {state === 'stale' ? 'הודעות חדשות התקבלו — הניתוח מתעדכן · ' : ''}
-            {item.updatedAt ? `נותח לאחרונה ${formatDateTime(item.updatedAt)}` : ''}
+            {state === 'stale' ? `${t('inbox.analysis.staleNote')} · ` : ''}
+            {item.updatedAt ? t('inbox.analysis.analyzedAt', { date: formatLeadDateTime(locale, item.updatedAt) }) : ''}
           </p>
         </div>
       )}
@@ -138,14 +152,15 @@ function extractField(data: unknown, field: string): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null
 }
 
-function StatePill({ state }: { state: DisplayState }) {
-  const map: Record<Exclude<DisplayState, 'none'>, { label: string; cls: string }> = {
-    fresh: { label: 'מעודכן', cls: 'bg-green-100 text-green-700' },
-    stale: { label: 'מתעדכן', cls: 'bg-amber-100 text-amber-700' },
-    failed: { label: 'נכשל', cls: 'bg-red-100 text-red-700' },
-    pending: { label: 'בתהליך', cls: 'bg-gray-100 text-gray-600' },
-  }
+const STATE_PILL: Record<Exclude<DisplayState, 'none'>, { label: MessageKey; cls: string }> = {
+  fresh: { label: 'inbox.analysis.state.fresh', cls: 'bg-green-100 text-green-700' },
+  stale: { label: 'inbox.analysis.state.stale', cls: 'bg-amber-100 text-amber-700' },
+  failed: { label: 'inbox.analysis.state.failed', cls: 'bg-red-100 text-red-700' },
+  pending: { label: 'inbox.analysis.state.pending', cls: 'bg-gray-100 text-gray-600' },
+}
+
+function StatePill({ state, t }: { state: DisplayState; t: Translator }) {
   if (state === 'none') return null
-  const { label, cls } = map[state]
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] ${cls}`}>{label}</span>
+  const { label, cls } = STATE_PILL[state]
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] ${cls}`}>{t(label)}</span>
 }

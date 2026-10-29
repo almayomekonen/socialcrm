@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { formatDate } from '@/lib/dates'
 import { channelLabel } from '@/modules/inbox/channels'
-import { ACTION_LABELS, INTENT_LABELS, TEMPERATURE_BADGES } from '@/modules/inbox/intelLabels'
+import { actionLabel as actionLabelFor, intentLabel as intentLabelFor, temperatureBadge as temperatureBadgeFor } from '@/modules/inbox/intelLabels'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { formatLeadDate } from '@/lib/leads/leadDate'
 import type { InboxConversationListItem } from '@/modules/inbox/types'
 import LeadAvatar from '@/components/ui/lead-avatar'
 import ChannelIcon from './ChannelIcon'
@@ -14,14 +15,15 @@ export default function InboxConversationRow({
   item: InboxConversationListItem
   selected: boolean
 }) {
+  const t = useT()
   const unread = item.unread && !selected
 
   const attentionDot =
     item.attention === 'needs_reply' ? 'bg-amber-500' : item.attention === 'replied' ? 'bg-green-500' : 'bg-gray-300'
 
-  const temperatureBadge = item.temperature ? TEMPERATURE_BADGES[item.temperature] : null
-  const intentLabel = item.intent ? INTENT_LABELS[item.intent] : null
-  const actionLabel = item.suggestedAction ? ACTION_LABELS[item.suggestedAction] : null
+  const temperatureBadge = temperatureBadgeFor(item.temperature, t.locale)
+  const intentLabel = intentLabelFor(item.intent, t.locale)
+  const actionLabel = actionLabelFor(item.suggestedAction, t.locale)
 
   return (
     <div className='group relative'>
@@ -32,22 +34,22 @@ export default function InboxConversationRow({
           selected ? 'bg-primary-soft' : 'hover:bg-gray-50'
         }`}
       >
-      <LeadAvatar name={item.displayName} size='sm' />
+      <LeadAvatar name={item.displayName} size='sm' fallback={t('inbox.row.avatarFallback')} />
       <div className='min-w-0 flex-1'>
         <div className='flex items-center justify-between gap-2'>
           <div className='flex min-w-0 items-center gap-1.5'>
             <span className={`size-2 shrink-0 rounded-full ${attentionDot}`} aria-hidden />
             <span className={`truncate text-sm text-gray-900 ${unread ? 'font-bold' : 'font-medium'}`}>
-              {item.displayName ?? 'שיחה'}
+              {item.displayName ?? t('inbox.row.fallbackName')}
             </span>
           </div>
           <span className='shrink-0 text-[11px] tabular-nums text-gray-400'>
-            {item.lastMessageAt ? formatDate(item.lastMessageAt) : ''}
+            {item.lastMessageAt ? formatLeadDate(t.locale, item.lastMessageAt) : ''}
           </span>
         </div>
         {item.lastMessagePreview && (
           <p className={`mt-0.5 truncate text-xs ${unread ? 'text-gray-700' : 'text-gray-400'}`}>
-            {item.lastDirection === 'outbound' ? 'נשלח: ' : ''}
+            {item.lastDirection === 'outbound' ? `${t('inbox.row.sentPrefix')} ` : ''}
             {item.lastMessagePreview}
           </p>
         )}
@@ -71,7 +73,7 @@ export default function InboxConversationRow({
             )}
           </div>
         )}
-        {actionLabel && <p className='mt-0.5 truncate text-[11px] text-gray-600'>הצעד הבא: {actionLabel}</p>}
+        {actionLabel && <p className='mt-0.5 truncate text-[11px] text-gray-600'>{t('inbox.row.nextStep', { action: actionLabel })}</p>}
         <div className='mt-0.5 flex items-center justify-between gap-2'>
           <span className='inline-flex items-center gap-1 text-xs text-gray-500'>
             <ChannelIcon channel={item.channel} className='size-3' />
@@ -80,7 +82,7 @@ export default function InboxConversationRow({
           {unread && (
             <span className='inline-flex items-center gap-1 text-[11px] font-medium text-success-text'>
               <span className='size-1.5 rounded-full bg-success' aria-hidden />
-              לא נקרא
+              {t('inbox.row.unread')}
             </span>
           )}
         </div>

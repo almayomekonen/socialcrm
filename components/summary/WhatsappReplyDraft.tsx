@@ -13,6 +13,7 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 import { useComposerTypingSignal } from '@/modules/inbox/client/useComposerTypingSignal'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 const MAX_CHARS = 4096
 
@@ -23,10 +24,12 @@ export default function WhatsappReplyDraft({
   leadId: number
   conversationId?: number | null
 }) {
+  const t = useT()
   const expired = useAccessDenied()
   const router = useRouter()
   const [draft, setDraft] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  // Chrome only: the draft itself (what the rep types) is never touched by the language.
+  const [error, setError] = useState<boolean>(false)
   const [pending, startTransition] = useTransition()
   const [sending, setSending] = useState(false)
   const [emojiOpen, setEmojiOpen] = useState(false)
@@ -72,24 +75,24 @@ export default function WhatsappReplyDraft({
    * subscription lapsed, and no message can be sent.
    */
   const generate = () => {
-    setError(null)
+    setError(false)
     startTransition(async () => {
       const res = await generateWhatsappReplyDraft(leadId)
       if (res.ok) setDraft(res.message.slice(0, MAX_CHARS))
-      else setError('לא ניתן היה לנסח טיוטה כרגע. נסה שוב.')
+      else setError(true)
     })
   }
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(draft)
-    if (ok) toast('success', 'הטיוטה הועתקה')
-    else toast('error', 'ההעתקה נכשלה')
+    if (ok) toast('success', t('inbox.draft.copied'))
+    else toast('error', t('inbox.draft.copyFailed'))
   }
 
   const handleSend = async () => {
     if (!hasDraft || sending) return
     setSending(true)
-    setError(null)
+    setError(false)
     try {
       const res = await sendWhatsappReply(leadId, draft, conversationId)
       if (res.ok === true) {
@@ -97,36 +100,36 @@ export default function WhatsappReplyDraft({
         // HTTP 200 from the Cloud API is an ACCEPT, not a delivery. Only a
         // `delivered` webhook may imply the message arrived — see
         // WhatsappMessageStatus.
-        toast('success', 'ההודעה נשלחה — ממתין לאישור מסירה')
+        toast('success', t('inbox.draft.sent'))
         router.refresh()
       } else {
-        toast('error', failureTextForCategory(res.category) ?? 'שליחת ההודעה נכשלה')
+        toast('error', failureTextForCategory(res.category, t.locale) ?? t('inbox.draft.sendFailed'))
       }
     } catch {
-      toast('error', 'שליחת ההודעה נכשלה')
+      toast('error', t('inbox.draft.sendFailed'))
     } finally {
       setSending(false)
     }
   }
 
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='whatsapp_reply_draft' feature='חידוש המנוי מחזיר את ניסוח ושליחת ההודעות' />
+    return <SubscriptionExpiredState mode='inline' source='whatsapp_reply_draft' feature={t('inbox.draft.expired')} translated />
   }
 
   return (
     <div>
       <div className='relative flex items-end gap-1.5'>
-        <EmojiPicker open={emojiOpen} onClose={closeEmoji} onPick={insertEmoji} triggerRef={emojiBtnRef} />
+        <EmojiPicker open={emojiOpen} onClose={closeEmoji} onPick={insertEmoji} triggerRef={emojiBtnRef} translated />
 
         <button
           ref={emojiBtnRef}
           type='button'
           onClick={() => setEmojiOpen((v) => !v)}
           disabled={sending}
-          aria-label='הוספת אימוג׳י'
+          aria-label={t('inbox.draft.emoji')}
           aria-haspopup='dialog'
           aria-expanded={emojiOpen}
-          title='הוספת אימוג׳י'
+          title={t('inbox.draft.emoji')}
           className={`flex size-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
             emojiOpen ? 'bg-gray-100 text-gray-700' : 'text-gray-500'
           }`}
@@ -150,8 +153,8 @@ export default function WhatsappReplyDraft({
           }}
           rows={1}
           disabled={sending}
-          placeholder='כתוב טיוטה לתשובה...'
-          aria-label='טיוטת תשובה בוואטסאפ'
+          placeholder={t('inbox.draft.placeholder')}
+          aria-label={t('inbox.draft.label')}
           className='max-h-32 min-w-0 flex-1 resize-none field-sizing-content rounded-3xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-900 transition-colors placeholder:text-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50'
         />
 
@@ -161,19 +164,19 @@ export default function WhatsappReplyDraft({
           size='sm'
           onClick={generate}
           disabled={busy}
-          title='נסח טיוטה עם AI'
+          title={t('inbox.draft.aiTitle')}
           className='shrink-0 gap-1 rounded-full px-3'
         >
           <Sparkles aria-hidden className='size-3.5 text-accent' />
-          {pending ? 'מנסח...' : 'AI'}
+          {pending ? t('inbox.draft.drafting') : 'AI'}
         </Button>
 
         <button
           type='button'
           onClick={handleCopy}
           disabled={!hasDraft || busy}
-          aria-label='העתק טיוטה'
-          title='העתק טיוטה'
+          aria-label={t('inbox.draft.copy')}
+          title={t('inbox.draft.copy')}
           className='flex size-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
         >
           <Copy aria-hidden className='size-4' />
@@ -183,8 +186,8 @@ export default function WhatsappReplyDraft({
           type='button'
           onClick={handleSend}
           disabled={!hasDraft || busy}
-          aria-label='שלח הודעה'
-          title='שלח הודעה'
+          aria-label={t('inbox.draft.send')}
+          title={t('inbox.draft.send')}
           className='flex size-9 shrink-0 items-center justify-center rounded-full bg-success text-white transition-colors hover:bg-success/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50'
         >
           <Send aria-hidden className='size-4 -scale-x-100' />
@@ -195,11 +198,12 @@ export default function WhatsappReplyDraft({
       {draft.length >= MAX_CHARS - 500 && (
         <div className='mt-1 ps-10.5'>
           <span className='text-[10px] text-gray-400 tabular-nums'>
-            {draft.length} / {MAX_CHARS} תווים
+            {/* Counts as text: Hebrew stays exactly as before (no digit grouping). */}
+            {t('inbox.draft.chars', { count: String(draft.length), max: String(MAX_CHARS) })}
           </span>
         </div>
       )}
-      {error && <p className='mt-1 ps-10.5 text-xs text-red-500'>{error}</p>}
+      {error && <p className='mt-1 ps-10.5 text-xs text-red-500'>{t('inbox.draft.draftFailed')}</p>}
     </div>
   )
 }
