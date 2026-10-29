@@ -2,6 +2,8 @@ import 'server-only'
 import { getOpenAIProvider } from '@/lib/ai/providers'
 import { errorCodeOf, newInvocationId, recordProviderCalls } from '@/lib/ai/usage/record'
 import { TRANSCRIPTION_USD_PER_MINUTE } from '@/lib/ai/usage/pricing'
+import { newCallId, settleShadowAfter, startShadow } from '@/lib/ai/budget/shadow'
+import { estimateTranscription } from '@/lib/ai/budget/estimate'
 import { VOICE_CONTAINER_MEDIA_TYPE, VOICE_MAX_RECORDING_MS, type VoiceContainer } from './limits'
 
 /**
@@ -73,6 +75,15 @@ export async function transcribeVoice(input: {
     userId: input.ledger?.userId ?? null,
     usage: null,
   }
+  // Budget SHADOW: bounded by the recording cap; never delays the request.
+  const shadow = startShadow({
+    callId: newCallId(),
+    agencyId: input.ledger?.agencyId ?? null,
+    feature: 'voice.transcribe',
+    provider: 'openai',
+    model: VOICE_TRANSCRIPTION_MODEL,
+    estimate: () => estimateTranscription(VOICE_MAX_RECORDING_MS),
+  })
   let result: Awaited<ReturnType<typeof model.doGenerate>>
   try {
     result = await model.doGenerate({
@@ -90,6 +101,12 @@ export async function transcribeVoice(input: {
         latencyMs: Date.now() - startedAt,
       },
     ])
+    await settleShadowAfter(shadow, {
+      outcome: 'error',
+      usage: null,
+      models: { requested: VOICE_TRANSCRIPTION_MODEL },
+      knownCostUsd: null,
+    })
     throw err
   }
   // Billed per audio minute. The reported duration prices it as an estimate;
@@ -105,5 +122,11 @@ export async function transcribeVoice(input: {
       latencyMs: Date.now() - startedAt,
     },
   ])
+  await settleShadowAfter(shadow, {
+    outcome: 'success',
+    usage: null,
+    models: { requested: VOICE_TRANSCRIPTION_MODEL },
+    knownCostUsd: seconds == null ? null : (seconds / 60) * TRANSCRIPTION_USD_PER_MINUTE,
+  })
   return { text: String(result.text ?? '').trim() }
 }
