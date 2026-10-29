@@ -14,7 +14,7 @@ import LeadlessConversationActions from '@/components/inbox/LeadlessConversation
 import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 import { countUnreadMessengerConversations } from '@/modules/messenger/queries'
 import { isFacebookMessengerEnabledForAgency } from '@/lib/facebook/permissions'
-import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { dirFor, regionAttrs, type UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 
 /**
@@ -124,7 +124,8 @@ export default async function MobileInboxRoute({
               aria-label={t('inbox.messenger.error.back')}
               className='press flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white'
             >
-              <Icon name='arrow-right' type='sol' className='size-5 bg-white' />
+              {/* Back points where reading starts: right in RTL, mirrored in LTR (the font has no arrow-left). */}
+              <Icon name='arrow-right' type='sol' className={dirFor(locale) === 'ltr' ? 'size-5 bg-white -scale-x-100' : 'size-5 bg-white'} />
             </Link>
 
             <span

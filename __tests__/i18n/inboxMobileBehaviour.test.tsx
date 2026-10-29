@@ -239,3 +239,28 @@ describe('icon-only controls are named in the interface language; classes never 
     expect(classes.ar).toEqual(classes.he)
   })
 })
+
+describe('thread direction: sent right, received left, back arrow points where reading starts', () => {
+  test('RTL keeps the Hebrew classes; LTR swaps bubble alignment and mirrors the back arrow', async () => {
+    const seen: Record<string, { out: string[]; inn: string[]; arrow: string }> = {}
+    for (const l of LOCALES) {
+      await mount(l, { selected: SELECTED_LEAD })
+      const side = (d: string) =>
+        [...document.querySelectorAll(`[data-testid="message-bubble"][data-direction="${d}"]`)].map((b) => b.closest('li')!.className)
+      const back = document.querySelector('[data-testid="wa-thread-header"] a')!
+      seen[l] = { out: side('outbound'), inn: side('inbound'), arrow: back.querySelector('[class*="size-5"]')!.getAttribute('class')! }
+      cleanup()
+    }
+    expect(seen.he.out.length).toBeGreaterThan(0)
+    expect(seen.he.inn.length).toBeGreaterThan(0)
+    // RTL: unchanged from the Hebrew baseline (items-start is the right edge).
+    expect(seen.he.out.every((c) => c.includes('items-start'))).toBe(true)
+    expect(seen.he.inn.every((c) => c.includes('items-end'))).toBe(true)
+    expect(seen.ar).toEqual(seen.he)
+    // LTR: the same physical sides, so the logical classes swap; the arrow is mirrored.
+    expect(seen.en.out.every((c) => c.includes('items-end') && !c.includes('items-start'))).toBe(true)
+    expect(seen.en.inn.every((c) => c.includes('items-start') && !c.includes('items-end'))).toBe(true)
+    expect(seen.he.arrow).not.toContain('-scale-x-100')
+    expect(seen.en.arrow).toContain('-scale-x-100')
+  })
+})

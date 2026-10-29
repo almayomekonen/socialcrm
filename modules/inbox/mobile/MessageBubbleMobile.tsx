@@ -11,7 +11,7 @@ import useLongPress from '@/components/mobile/useLongPress'
 import { formatTime } from '@/lib/dates'
 import type { InboxMessageStatus, LeadWhatsappMessage } from '@/db/inboxMessages'
 import { useT } from '@/lib/i18n/I18nProvider'
-import { customerTextAttrs } from '@/lib/i18n/config'
+import { customerTextAttrs, dirFor } from '@/lib/i18n/config'
 import type { MessageKey } from '@/lib/i18n/translate'
 import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 
@@ -52,7 +52,9 @@ export function MessageBubbleMobile({
   const { photoBubble, mediaCarriesTime } = bubbleMediaLayout(message)
 
   return (
-    <li className={`flex flex-col gap-1 ${outbound ? 'items-start' : 'items-end'}`}>
+    // Sent on the right, received on the left (WhatsApp's layout) in either
+    // direction: `items-start` is the right edge only in RTL, so LTR swaps them.
+    <li className={`flex flex-col gap-1 ${outbound === (dirFor(t.locale) === 'rtl') ? 'items-start' : 'items-end'}`}>
       <div
         data-testid='message-bubble'
         data-direction={message.direction}
