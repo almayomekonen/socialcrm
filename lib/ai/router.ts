@@ -10,6 +10,7 @@ import { buildPrompt } from './router/promptBuilder'
 import { classifyError, isPermanentError } from './router/errorClassify'
 import { logAttemptFailure, logAttemptSuccess, logFallbackTrace } from './router/attemptLogger'
 import { attemptBudget, skipRetryOnTimeout } from './router/interactivePolicy'
+import { newInvocationId, recordProviderCalls, usageFromSdk } from './usage/record'
 
 export { _resetDailySpendForTests } from './router/spend'
 
@@ -91,8 +92,26 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
   let lastErrorMessage: string | undefined
   let lastErrorCode: string | undefined
   let previousProvider: ProviderName | null = null
+  // Usage ledger: every attempt below (retries and fallbacks included) is one
+  // provider request under this one invocation.
+  const invocationId = newInvocationId()
+  let chainIndex = -1
+  let ledgerHandle = chain[0]
+  const ledgerBase = (ci: number, attempt: number) => ({
+    invocationId,
+    feature: opts.kind,
+    provider: ledgerHandle.provider,
+    requestedModel: ledgerHandle.modelId,
+    chainIndex: ci,
+    attempt,
+    agencyId: opts.agencyId ?? null,
+    userId: opts.userId ?? null,
+    leadId: opts.leadId ?? null,
+  })
 
   providerLoop: for (const handle of chain) {
+    chainIndex++
+    ledgerHandle = handle
     if (previousProvider !== null && previousProvider !== handle.provider) {
       logFallbackTrace({
         kind: opts.kind,
@@ -150,6 +169,17 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
         if (opts.agencyId) addDailySpend(opts.agencyId, costUsd)
 
         logAttemptSuccess({ ...commonCtx, inputTokens, outputTokens, costUsd, latencyMs })
+        await recordProviderCalls([
+          {
+            ...ledgerBase(chainIndex, attempt),
+            status: 'success',
+            usage: usageFromSdk(result.usage),
+            responseModel: result.response?.modelId ?? null,
+            providerRequestId: result.response?.id ?? null,
+            finishReason: result.finishReason ?? null,
+            latencyMs,
+          },
+        ])
 
         return {
           ok: true,
@@ -168,6 +198,25 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
         lastErrorCode = errorCode
 
         logAttemptFailure({ ...commonCtx, errorCode, message, err })
+        // A schema failure (NoObjectGeneratedError) still carries the usage the
+        // provider billed; a timeout or abort usually carries none (→ unknown cost).
+        const failed = err as {
+          usage?: Parameters<typeof usageFromSdk>[0]
+          response?: { id?: string; modelId?: string }
+          finishReason?: string
+        }
+        await recordProviderCalls([
+          {
+            ...ledgerBase(chainIndex, attempt),
+            status: errorCode === 'timeout' ? (opts.abortSignal?.aborted ? 'aborted' : 'timeout') : 'error',
+            errorCode,
+            usage: usageFromSdk(failed?.usage),
+            responseModel: failed?.response?.modelId ?? null,
+            providerRequestId: failed?.response?.id ?? null,
+            finishReason: failed?.finishReason ?? null,
+            latencyMs: Date.now() - callStartedAt,
+          },
+        ])
         if (isPermanentError(errorCode)) break
         if (skipRetryOnTimeout(cfg, errorCode)) break
         if (attempt === attempts - 1) break
