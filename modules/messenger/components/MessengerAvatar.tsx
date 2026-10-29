@@ -25,15 +25,18 @@ export default function MessengerAvatar({
   name,
   picUrl,
   size = 'sm',
+  fallback,
 }: {
   name: string | null
   picUrl: string | null
   size?: 'sm' | 'md' | 'lg'
+  /** The letter shown when there is no name (LeadAvatar's default otherwise). */
+  fallback?: string
 }) {
   // Also catches a URL that already failed before hydration (see useImageFailed).
   const { failed: broken, ref, onError } = useImageFailed()
 
-  if (!picUrl || broken) return <LeadAvatar name={name} size={size} />
+  if (!picUrl || broken) return <LeadAvatar name={name} size={size} fallback={fallback} />
 
   const px = size === 'lg' ? 'size-12' : size === 'md' ? 'size-10' : 'size-8'
   return (

@@ -1,5 +1,8 @@
 import Icon, { type IconNames } from '@/lib/Icon'
 import type { MessengerMessage } from '../types'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Delivery state for an outbound Messenger bubble.
@@ -20,20 +23,20 @@ import type { MessengerMessage } from '../types'
  * `Icon` is an aria-hidden CSS mask with no accessible name; the sr-only label
  * is the only name, which is what keeps colour from being the sole carrier.
  */
-const STATE: Record<'sent' | 'delivered' | 'read', { icon: IconNames; tone: string; label: string }> = {
-  sent: { icon: 'check', tone: 'bg-gray-500', label: 'נשלח — ממתין לאישור מסירה' },
-  delivered: { icon: 'check-double', tone: 'bg-gray-500', label: 'נמסר' },
-  read: { icon: 'check-double', tone: 'bg-primary', label: 'נקרא' },
+const STATE: Record<'sent' | 'delivered' | 'read', { icon: IconNames; tone: string; label: MessageKey }> = {
+  sent: { icon: 'check', tone: 'bg-gray-500', label: 'inbox.messenger.receipt.sent' },
+  delivered: { icon: 'check-double', tone: 'bg-gray-500', label: 'inbox.messenger.receipt.delivered' },
+  read: { icon: 'check-double', tone: 'bg-primary', label: 'inbox.messenger.receipt.read' },
 }
 
-export default function MessengerMessageStatus({ message }: { message: MessengerMessage }) {
+export default function MessengerMessageStatus({ message, locale = 'he' }: { message: MessengerMessage; locale?: UiLocale }) {
   // A receipt is about what the Page sent. An inbound message has no such state.
   if (message.direction !== 'outbound') return null
 
   const state = message.readAt ? STATE.read : message.deliveredAt ? STATE.delivered : STATE.sent
   return (
     <span className='inline-flex shrink-0 items-center'>
-      <span className='sr-only'>{state.label}</span>
+      <span className='sr-only'>{translatorFor(locale)(state.label)}</span>
       <Icon name={state.icon} className={`size-3.5 ${state.tone}`} />
     </span>
   )

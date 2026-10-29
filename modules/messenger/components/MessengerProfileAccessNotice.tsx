@@ -1,3 +1,6 @@
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+
 /**
  * Why contacts show initials instead of real names and pictures.
  *
@@ -10,12 +13,17 @@
  * contacts, no "fix this" nag: messaging works perfectly without profile access,
  * and this is a cosmetic gap, not a failure. It is deliberately NOT an error
  * style — nothing is broken.
+ *
+ * The Meta feature name stays in English in every language (it is what the rep
+ * would search for in Meta's settings); only the sentence around it is translated.
  */
-export default function MessengerProfileAccessNotice() {
+export default function MessengerProfileAccessNotice({ locale = 'he' }: { locale?: UiLocale }) {
+  const t = translatorFor(locale)
   return (
     <p role='status' className='border-b border-gray-100 px-3 py-2 text-[11px] leading-relaxed text-gray-500'>
-      שמות ותמונות של פונים אינם זמינים: Meta טרם אישרה לאפליקציה גישה לפרטי הפרופיל
-      (<span dir='ltr'>Business Asset User Profile Access</span>). שליחה וקבלה של הודעות פועלות כרגיל.
+      {t('inbox.messenger.profileAccess.before')}
+      <span dir='ltr'>Business Asset User Profile Access</span>
+      {t('inbox.messenger.profileAccess.after')}
     </p>
   )
 }

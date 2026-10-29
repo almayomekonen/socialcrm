@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import type { CommentStatusFilter } from '../types'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Status filter for the Comments Inbox — the WhatsApp inbox's status vocabulary
@@ -10,10 +13,10 @@ import type { CommentStatusFilter } from '../types'
  * "הכל" is the default so a comment turned into a ליד stays where the user left
  * it, with its "פתח ליד" link. Links, not buttons: this is navigation.
  */
-const OPTIONS: { value: CommentStatusFilter; label: string; href: string }[] = [
-  { value: 'all', label: 'הכל', href: '/inbox/comments' },
-  { value: 'open', label: 'פתוחות', href: '/inbox/comments?status=open' },
-  { value: 'converted', label: 'הומרו לליד', href: '/inbox/comments?status=converted' },
+const OPTIONS: { value: CommentStatusFilter; label: MessageKey; href: string }[] = [
+  { value: 'all', label: 'inbox.comments.filter.all', href: '/inbox/comments' },
+  { value: 'open', label: 'inbox.comments.filter.open', href: '/inbox/comments?status=open' },
+  { value: 'converted', label: 'inbox.comments.filter.converted', href: '/inbox/comments?status=converted' },
 ]
 
 /** The only `?status=` values the Comments Inbox page accepts. */
@@ -22,13 +25,17 @@ export const PAGE_STATUS_FILTERS: readonly CommentStatusFilter[] = OPTIONS.map((
 export default function CommentsStatusFilter({
   active,
   openCount = null,
+  locale = 'he',
 }: {
   active: CommentStatusFilter
   /** Server-counted open comments (countOpenComments); null hides the badge. */
   openCount?: number | null
+  /** Labels only — the filter values in the URL never change. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
-    <nav aria-label='סינון תגובות' className='flex flex-wrap items-center gap-1.5'>
+    <nav aria-label={t('inbox.comments.filter.label')} className='flex flex-wrap items-center gap-1.5'>
       {OPTIONS.map((o) => {
         const isActive = o.value === active
         const count = o.value === 'open' && openCount ? openCount : null
@@ -43,7 +50,7 @@ export default function CommentsStatusFilter({
                 : 'border-gray-200 text-gray-500 hover:bg-gray-50'
             }`}
           >
-            {o.label}
+            {t(o.label)}
             {count !== null && (
               <span className='rounded-full bg-white px-1.5 text-[10px] font-semibold tabular-nums text-primary-text'>
                 <span className='sr-only'>, </span>

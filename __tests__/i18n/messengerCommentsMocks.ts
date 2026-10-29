@@ -11,6 +11,8 @@ import { commentsEnv, messengerEnv } from './messengerCommentsEnv'
 export const mcSpies = {
   /** Which page's `facebook_pages` rows the shared db double returns. */
   route: 'messenger' as 'messenger' | 'comments',
+  /** The stored interface-language preference the server reads (locale tests). */
+  prefs: { userLocale: null as string | null },
   toasts: [] as unknown[][],
   replaces: [] as string[],
   pushes: [] as string[],
@@ -30,6 +32,7 @@ export const mcSpies = {
 
 export function resetMcSpies() {
   mcSpies.route = 'messenger'
+  mcSpies.prefs.userLocale = null
   mcSpies.toasts.length = 0
   mcSpies.replaces.length = 0
   mcSpies.pushes.length = 0
@@ -66,6 +69,10 @@ export const navigationModule = () => ({
   notFound: () => {
     throw new Error('NEXT_NOT_FOUND')
   },
+})
+
+export const uiLocaleModule = () => ({
+  getUiLocalePrefs: async () => ({ userLocale: mcSpies.prefs.userLocale, agencyLocale: null }),
 })
 
 export const deviceModule = () => ({

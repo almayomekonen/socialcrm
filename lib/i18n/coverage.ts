@@ -28,6 +28,8 @@ const ALLOWED_SAME = new Set<string>([
   'today.greetingWithName',
   // Pure placeholder pattern (document kind + its number); the kind comes from another key.
   'leadTabs.billing.identity',
+  // Pure placeholder pattern (an event source + Meta's referral ref); both parts come from elsewhere.
+  'inbox.messenger.event.withRef',
 ])
 
 type Leaf = string | Record<string, string>

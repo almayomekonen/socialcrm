@@ -6,6 +6,8 @@ import MessengerComposer from './MessengerComposer'
 import MessengerLeadActions from './MessengerLeadActions'
 import MessengerMessageList from './MessengerMessageList'
 import MessengerReadMarker from './MessengerReadMarker'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Messenger conversation workspace: header with lead association, the message
@@ -14,6 +16,9 @@ import MessengerReadMarker from './MessengerReadMarker'
  *
  * A thin orchestrator: the history (and its "load earlier" paging) lives in
  * MessengerMessageList, one bubble in MessengerBubble.
+ *
+ * `locale` is the page's interface language, handed to every piece (Hebrew by
+ * default: the phone branch, not translated yet).
  */
 export default function MessengerThread({
   conversation,
@@ -25,6 +30,7 @@ export default function MessengerThread({
   canSend,
   permissionPrompt,
   savedReplies,
+  locale = 'he',
 }: {
   conversation: MessengerConversationListItem
   /** First page, oldest-first. */
@@ -39,8 +45,10 @@ export default function MessengerThread({
   permissionPrompt: React.ReactNode
   /** Agency snippets for the composer picker. */
   savedReplies: MessengerSavedReply[]
+  locale?: UiLocale
 }) {
-  const name = conversation.leadName ?? conversation.customerName ?? 'פונה מ-Messenger'
+  const t = translatorFor(locale)
+  const name = conversation.leadName ?? conversation.customerName ?? t('inbox.messenger.row.fallbackName')
 
   return (
     <div className='flex h-full min-h-0 flex-1 flex-col'>
@@ -57,7 +65,12 @@ export default function MessengerThread({
             </p>
           </div>
         </div>
-        <MessengerLeadActions conversationId={conversation.id} leadId={conversation.leadId} leadName={conversation.leadName} />
+        <MessengerLeadActions
+          conversationId={conversation.id}
+          leadId={conversation.leadId}
+          leadName={conversation.leadName}
+          locale={locale}
+        />
       </header>
 
       <MessengerMessageList
@@ -65,6 +78,7 @@ export default function MessengerThread({
         initial={messages}
         hasMoreInitially={hasMoreMessages}
         events={events}
+        locale={locale}
       />
 
       <div className='shrink-0 border-t border-gray-100 bg-white px-3 py-2.5'>
@@ -74,6 +88,7 @@ export default function MessengerThread({
             windowOpen={windowOpen}
             windowHint={windowHint}
             savedReplies={savedReplies}
+            locale={locale}
           />
         ) : (
           permissionPrompt

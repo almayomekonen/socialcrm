@@ -1,4 +1,6 @@
 import type { MetaGraphError } from '@/lib/facebook/graphClient'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Messenger sending rules — pure, no DB, safe in a client bundle.
@@ -73,9 +75,16 @@ export function messengerLeadSource(agencyId: number, pageId: string, psid: stri
   return `messenger:${agencyId}:${pageId}:${psid}`
 }
 
-/** Relative, timezone-free guidance for the composer. Computed on the server with `now`. */
-export function messengerWindowHint(window: MessengerWindow, now: Date): string | null {
+/**
+ * Relative, timezone-free guidance for the composer. Computed on the server with
+ * `now`, in the page's interface language (Hebrew by default). The hour count
+ * is passed as text so Hebrew reads exactly as before; `count` picks the plural.
+ */
+export function messengerWindowHint(window: MessengerWindow, now: Date, locale: UiLocale = 'he'): string | null {
   if (!window.open || !window.closesAt) return null
   const hours = Math.floor((window.closesAt.getTime() - now.getTime()) / 3_600_000)
-  return hours >= 1 ? `אפשר להשיב עוד כ-${hours} שעות` : 'חלון המענה ייסגר בפחות משעה'
+  const t = translatorFor(locale)
+  return hours >= 1
+    ? t('inbox.messenger.window.hours', { count: hours, hours: String(hours) })
+    : t('inbox.messenger.window.lastHour')
 }

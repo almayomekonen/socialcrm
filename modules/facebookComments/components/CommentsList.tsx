@@ -6,6 +6,8 @@ import { groupRepliesByThread, threadRootId } from '@/lib/facebook/comments/thre
 import CommentCard from './CommentCard'
 import { loadMoreComments } from '../listActions'
 import type { CommentListItem, CommentPost, CommentReply, CommentsCursor, CommentStatusFilter } from '../types'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The comments inbox feed: one card per comment, newest first, and "טען עוד
@@ -25,6 +27,7 @@ export default function CommentsList({
   nextCursor = null,
   status = 'all',
   touch = false,
+  locale = 'he',
 }: {
   comments: CommentListItem[]
   /** Thread entries for the listed comments (see listCommentReplies). */
@@ -39,7 +42,10 @@ export default function CommentsList({
   status?: CommentStatusFilter
   /** Phone: larger tap targets. */
   touch?: boolean
+  /** The page's interface language, for every card; the phone feed passes nothing (Hebrew). */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const [more, setMore] = useState<{ items: CommentListItem[]; replies: CommentReply[]; posts: CommentPost[] }>({
     items: [],
     replies: [],
@@ -100,7 +106,7 @@ export default function CommentsList({
     <div className='@container/feed grid w-full gap-3'>
       {/* items-start: a card is as tall as its content. Stretching to the row's
           tallest card left text-only cards mostly empty. */}
-      <ul className='grid grid-cols-1 items-start gap-3 @4xl/feed:grid-cols-2' aria-label='תגובות מפייסבוק'>
+      <ul className='grid grid-cols-1 items-start gap-3 @4xl/feed:grid-cols-2' aria-label={t('inbox.comments.list.label')}>
         {all.map((c) => (
           <li key={c.commentId} data-comment-id={c.commentId} data-post-id={c.postId} className='min-w-0'>
             <CommentCard
@@ -110,6 +116,7 @@ export default function CommentsList({
               canReply={replyable.has(c.pageId)}
               leavesViewOnConvert={leavesViewOnConvert}
               touch={touch}
+              locale={locale}
             />
           </li>
         ))}
@@ -119,7 +126,7 @@ export default function CommentsList({
         <div className={`flex flex-col items-center gap-1.5 ${touch ? '[&_button]:min-h-11' : ''}`}>
           <Btn
             variant='outline'
-            lbl={loading ? 'טוען תגובות...' : 'טען עוד תגובות'}
+            lbl={loading ? t('inbox.comments.list.loadingMore') : t('inbox.comments.list.loadMore')}
             icon={loading ? 'spinner' : undefined}
             iconClassName={loading ? 'animate-spin' : undefined}
             disabled={loading}
@@ -127,7 +134,7 @@ export default function CommentsList({
           />
           {failed && (
             <p role='alert' className='text-xs text-error-text'>
-              לא הצלחנו לטעון עוד תגובות. נסה שוב.
+              {t('inbox.comments.list.loadMoreFailed')}
             </p>
           )}
         </div>

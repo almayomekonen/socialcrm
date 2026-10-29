@@ -28,7 +28,7 @@ vi.mock('@/db/auth', async () => ({ getUser: async () => (await import('./surfac
 vi.mock('@/db/uiLocale', () => ({ getUiLocalePrefs: async () => ({ userLocale: prefs.userLocale, agencyLocale: null }) }))
 vi.mock('@/lib/device', async () => {
   const f = await import('./dashboardFixtures')
-  return { isMobileRequest: async () => f.dashboardEnv.mobile, isMobileWorkspaceRequest: async () => false }
+  return { isMobileRequest: async () => f.dashboardEnv.mobile, isMobileWorkspaceRequest: async () => false, getInAppBrowser: async () => null }
 })
 vi.mock('@/lib/access/productAccess', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
@@ -78,7 +78,11 @@ vi.mock('@/db/today/handled', () => ({ getTouchedTodayIds: async () => [7, 8] })
 vi.mock('@/db/today/freshness', () => ({ getInboundSyncFreshness: async () => ({ dataFresh: true }) }))
 vi.mock('@/db/facebook', async () => {
   const { leadsEnv } = await import('./leadsEnv')
-  return { getFacebookConnectionState: async () => leadsEnv.meta }
+  return {
+    getFacebookConnectionState: async () => leadsEnv.meta,
+    // Pure (the Messenger / Comments pages read their Pages' grants with it).
+    parseGrantedScopes: (await vi.importActual<typeof import('@/db/facebook')>('@/db/facebook')).parseGrantedScopes,
+  }
 })
 // /leads and /clients reads (I/O only; the page, banners, table and producers run for real).
 vi.mock('@/db/usersNTeams', async () => ({
@@ -168,10 +172,13 @@ vi.mock('@/db/adsCrmOutcomes', async () => ({ getLeadAdAttribution: async () => 
 vi.mock('@/db/adsSnapshots', async () => ({ readCreativeForAd: async () => (await import('./leadDetailEnv')).detailEnv.creative }))
 vi.mock('@/lib/facebook/permissions', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
+  const { messengerEnv, commentsEnv } = await import('./messengerCommentsEnv')
   return {
     ...(await vi.importActual<typeof import('@/lib/facebook/permissions')>('@/lib/facebook/permissions')),
     isFacebookAdsReportingEnabledForAgency: () => detailEnv.adsReporting,
-    isFacebookMessengerEnabledForAgency: () => true,
+    // Messenger is on by default (the inbox fixtures); the Messenger/Comments surfaces vary both.
+    isFacebookMessengerEnabledForAgency: () => messengerEnv.enabled,
+    isFacebookCommentRepliesEnabledForAgency: () => commentsEnv.repliesEnabled,
   }
 })
 vi.mock('@/lib/whatsapp/templates/flag', async () => {
@@ -209,7 +216,9 @@ vi.mock('@/actions/leadDriveFilesSearch', async () => ({
 vi.mock('@/lib/integrations/google/picker/useDrivePicker', () => ({ useDrivePicker: () => ({ status: 'idle', openPicker: () => {} }) }))
 vi.mock('@/config/db', async () => {
   const { tabsEnv } = await import('./leadTabsEnv')
-  const q = { where: () => q, whereIn: () => q, first: async () => (tabsEnv.leadFound ? { id: 41 } : undefined) }
+  // `select` is the Messenger / Comments pages' facebook_pages read (their fixtures).
+  const mc = (await import('./messengerCommentsMocks')).dbModule().db()
+  const q = { where: () => q, whereIn: () => q, first: async () => (tabsEnv.leadFound ? { id: 41 } : undefined), select: mc.select }
   return { db: () => q }
 })
 vi.mock('@/db/billing/invoices', async () => ({ listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices }))
@@ -217,7 +226,7 @@ vi.mock('@/db/billing/invoices', async () => ({ listInvoicesForLead: async () =>
 // /inbox reads and actions (I/O only; the page, list, thread, composer, ownership line and producers run for real).
 vi.mock('next/cache', async () => (await import('./inboxMocks')).cacheModule())
 vi.mock('@/lib/flags/inboxFlags', () => ({ isInboxDeltaSyncEnabled: () => false, getInboxRefreshIntervalMs: () => null }))
-vi.mock('@/modules/messenger/queries', () => ({ countUnreadMessengerConversations: async () => 4 }))
+vi.mock('@/modules/messenger/queries', async () => (await import('./messengerCommentsMocks')).messengerQueriesModule())
 vi.mock('@/modules/inbox/actions', async () => (await import('./inboxMocks')).inboxActionsModule())
 vi.mock('@/lib/inbox/whatsappComposerContext', async () => {
   const { inboxEnv } = await import('./inboxEnv')
@@ -236,6 +245,22 @@ vi.mock('@/actions/ai/whatsappReplyDraft', () => ({ generateWhatsappReplyDraft: 
 vi.mock('@/actions/analytics/recordOperatorTakeEvent', () => ({ recordOperatorTakeEvent: async () => {} }))
 vi.mock('@/modules/leads/contactEvents', () => ({ contactClicked: () => {}, contactSucceeded: () => {} }))
 
+// /inbox/messenger and /inbox/comments reads and actions (I/O only; the pages, threads, feed and producers run for real).
+vi.mock('next/server', async () => ({ ...(await vi.importActual<typeof import('next/server')>('next/server')), after: () => {} }))
+vi.mock('@/lib/facebook/comments/capability', async () => (await import('./messengerCommentsMocks')).capabilityModule())
+vi.mock('@/db/messengerSavedReplies', async () => (await import('./messengerCommentsMocks')).savedRepliesModule())
+vi.mock('@/lib/facebook/messenger/deliveryCheck', async () => (await import('./messengerCommentsMocks')).deliveryModule())
+vi.mock('@/lib/facebook/messenger/profile', async () => (await import('./messengerCommentsMocks')).profileModule())
+vi.mock('@/modules/messenger/actions', async () => (await import('./messengerCommentsMocks')).messengerActionsModule())
+vi.mock('@/modules/messenger/leadActions', async () => (await import('./messengerCommentsMocks')).messengerLeadActionsModule())
+vi.mock('@/modules/messenger/profileActions', async () => (await import('./messengerCommentsMocks')).messengerProfileActionsModule())
+vi.mock('@/modules/facebookComments/queries', async () => (await import('./messengerCommentsMocks')).commentsQueriesModule())
+vi.mock('@/modules/facebookComments/feed', async () => (await import('./messengerCommentsMocks')).feedModule())
+vi.mock('@/lib/facebook/comments/enrich', async () => (await import('./messengerCommentsMocks')).enrichModule())
+vi.mock('@/modules/facebookComments/actions', async () => (await import('./messengerCommentsMocks')).commentsActionsModule())
+vi.mock('@/modules/facebookComments/replyActions', async () => (await import('./messengerCommentsMocks')).replyActionsModule())
+vi.mock('@/modules/facebookComments/listActions', async () => (await import('./messengerCommentsMocks')).listActionsModule())
+
 const { SURFACES } = await import('./surfaces')
 
 const saved = { ...process.env }
@@ -253,6 +278,7 @@ afterEach(async () => {
   ;(await import('./leadDetailEnv')).resetDetailEnv()
   ;(await import('./leadTabsEnv')).resetTabsEnv()
   ;(await import('./inboxEnv')).resetInboxEnv()
+  ;(await import('./messengerCommentsEnv')).resetMessengerCommentsEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

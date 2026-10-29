@@ -8,6 +8,9 @@ import { useAction } from '@/lib/useAction'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { toast } from '@/lib/toast'
 import { convertCommentToLead } from '../actions'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey, Translator } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The ליד slot of one comment card: "המר לליד" while the comment has no ליד,
@@ -32,22 +35,25 @@ import { convertCommentToLead } from '../actions'
  *
  * No raw error text ever reaches here; the action returns typed reasons.
  */
-const FAILURE_COPY: Record<string, string> = {
-  not_found: 'התגובה לא נמצאה. רענן את הדף ונסה שוב.',
-  deleted: 'התגובה נמחקה בפייסבוק, ולכן לא ניתן ליצור ממנה ליד.',
-  page_authored: 'זו תגובה של הדף שלך, ולכן לא ניתן ליצור ממנה ליד.',
-  not_enabled: 'יצירת לידים מתגובות אינה זמינה בחשבון הזה.',
-  quota_exceeded: 'הגעת למכסת הלידים בחבילה הנוכחית. שדרג את החבילה כדי ליצור ליד מהתגובה.',
-  create_failed: 'הליד לא נוצר. נסה שוב.',
+const FAILURE_KEYS: Record<string, MessageKey> = {
+  not_found: 'inbox.comments.convert.failure.not_found',
+  deleted: 'inbox.comments.convert.failure.deleted',
+  page_authored: 'inbox.comments.convert.failure.page_authored',
+  not_enabled: 'inbox.comments.convert.failure.not_enabled',
+  quota_exceeded: 'inbox.comments.convert.failure.quota_exceeded',
+  create_failed: 'inbox.comments.convert.failure.create_failed',
   // The ליד may exist with the link unsaved; a retry adopts it, so do not claim "not created".
-  db_error: 'לא הצלחנו להשלים את יצירת הליד. נסה שוב.',
+  db_error: 'inbox.comments.convert.failure.db_error',
 }
-const THROWN_COPY = 'לא הצלחנו להשלים את יצירת הליד. בדוק את החיבור ונסה שוב.'
 
 type Outcome = { kind: 'created' | 'existing'; leadId: number } | { kind: 'error'; message: string }
 
 const leadHref = (leadId: number) => `/clients/${leadId}/summary`
-const successCopy = (kind: 'created' | 'existing') => (kind === 'created' ? 'הליד נוצר בהצלחה' : 'התגובה כבר מקושרת לליד קיים')
+const successCopy = (t: Translator, kind: 'created' | 'existing') =>
+  kind === 'created' ? t('inbox.comments.convert.created') : t('inbox.comments.convert.existing')
+/** The toast is one whole sentence per outcome (never glued from fragments). */
+const toastCopy = (t: Translator, kind: 'created' | 'existing') =>
+  kind === 'created' ? t('inbox.comments.convert.createdToast') : t('inbox.comments.convert.existingToast')
 // "פתח ליד" is navigation (a real <a>), drawn like the outline Btn beside it.
 const linkCls =
   'inline-flex h-9 items-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 hover:bg-gray-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
@@ -56,13 +62,17 @@ export default function ConvertCommentButton({
   commentId,
   convertedLeadId = null,
   leavesViewOnConvert = false,
+  locale = 'he',
 }: {
   commentId: string
   /** The ליד this comment is already linked to, from the server; null while it has none. */
   convertedLeadId?: number | null
   /** True when the current list excludes converted comments, so this row will disappear. */
   leavesViewOnConvert?: boolean
+  /** The page's interface language; the phone feed passes nothing (Hebrew). */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const router = useRouter()
   /*
     A lapsed subscription never throws out of `convertCommentToLead`: `upsertLead`
@@ -83,12 +93,19 @@ export default function ConvertCommentButton({
   if (accessDenied) {
     // Opening an existing ליד stays available on a lapsed subscription; creating one does not.
     if (!convertedLeadId && !success) {
-      return <SubscriptionExpiredState mode='inline' source='convert_comment' feature='חידוש המנוי מחזיר את המרת התגובות לליד' />
+      return (
+        <SubscriptionExpiredState
+          mode='inline'
+          source='convert_comment'
+          feature={t('inbox.comments.convert.expired')}
+          translated={locale !== 'he'}
+        />
+      )
     }
   }
 
   // A thrown action (network, server crash) reaches `error` via useAction.
-  const failure = outcome?.kind === 'error' ? outcome.message : error ? THROWN_COPY : null
+  const failure = outcome?.kind === 'error' ? outcome.message : error ? t('inbox.comments.convert.thrown') : null
 
   const onClick = () => {
     // `run` checks its own `loading`, but that is state: two clicks in one
@@ -105,11 +122,11 @@ export default function ConvertCommentButton({
           const kind = result.created ? 'created' : 'existing'
           const leadId = result.leadId
           setOutcome({ kind, leadId })
-          if (leavesViewOnConvert) toast('success', `${successCopy(kind)} · פתח ליד`, 8000, () => router.push(leadHref(leadId)))
+          if (leavesViewOnConvert) toast('success', toastCopy(t, kind), 8000, () => router.push(leadHref(leadId)))
           return
         }
         const reason = 'reason' in result ? result.reason : undefined
-        setOutcome({ kind: 'error', message: (reason && FAILURE_COPY[reason]) || FAILURE_COPY.create_failed })
+        setOutcome({ kind: 'error', message: t((reason && FAILURE_KEYS[reason]) || FAILURE_KEYS.create_failed) })
       } finally {
         inFlight.current = false
       }
@@ -120,12 +137,12 @@ export default function ConvertCommentButton({
     <span className='inline-flex flex-wrap items-center gap-x-2 gap-y-1'>
       {!success && convertedLeadId && (
         <Link href={leadHref(convertedLeadId)} className={linkCls}>
-          פתח ליד
+          {t('inbox.comments.convert.open')}
         </Link>
       )}
       {!success && !convertedLeadId && (
         <Btn
-          lbl={loading ? 'ממיר לליד...' : 'המר לליד'}
+          lbl={loading ? t('inbox.comments.convert.converting') : t('inbox.comments.convert.action')}
           icon={loading ? 'spinner' : undefined}
           iconClassName={loading ? 'animate-spin' : undefined}
           size='small'
@@ -138,9 +155,9 @@ export default function ConvertCommentButton({
       <span role='status' className='inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-xs'>
         {success && (
           <>
-            <span className='font-medium text-green-700'>{successCopy(success.kind)}</span>
+            <span className='font-medium text-green-700'>{successCopy(t, success.kind)}</span>
             <Link ref={openLeadRef} href={leadHref(success.leadId)} className={linkCls}>
-              פתח ליד
+              {t('inbox.comments.convert.open')}
             </Link>
           </>
         )}

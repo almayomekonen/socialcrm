@@ -23,8 +23,8 @@ const TABS: { id: InboxChannelTab; href: string; label: MessageKey | null }[] = 
  * agency without Messenger never sees a tab that leads nowhere. Default false:
  * every existing caller renders exactly the two tabs it rendered before.
  *
- * `locale` is the caller's interface language. Hebrew by default: the Messenger
- * and comments inboxes (not translated yet) pass nothing.
+ * `locale` is the caller's interface language. Hebrew by default: the phone
+ * inbox (not translated yet) passes nothing, or Hebrew.
  */
 export default function InboxChannelSwitch({
   active,

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useImageFailed } from '@/lib/useImageFailed'
+import { customerTextAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * What the commenter wrote, plus anything they attached.
@@ -23,6 +25,7 @@ export default function CommentBody({
   attachmentType = null,
   attachmentUrl = null,
   touch = false,
+  locale = 'he',
 }: {
   message: string
   messageAvailable: boolean
@@ -30,7 +33,10 @@ export default function CommentBody({
   attachmentUrl?: string | null
   /** Phone: toggles and links are 44px tap targets. */
   touch?: boolean
+  /** Our labels only. The comment text is the commenter's: never translated; own direction in en/ar. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const [expanded, setExpanded] = useState(false)
   const photo = useImageFailed()
   const photoBroken = photo.failed
@@ -42,6 +48,7 @@ export default function CommentBody({
         <>
           <p
             className={`text-[15px] leading-relaxed break-words whitespace-pre-wrap text-gray-900 ${long && !expanded ? 'line-clamp-4' : ''}`}
+            {...customerTextAttrs(locale)}
           >
             {message}
           </p>
@@ -52,14 +59,14 @@ export default function CommentBody({
               aria-expanded={expanded}
               className={`rounded text-xs font-medium text-primary-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${touch ? 'min-h-11' : 'mt-1'}`}
             >
-              {expanded ? 'הצג פחות' : 'הצג עוד'}
+              {expanded ? t('inbox.comments.body.less') : t('inbox.comments.body.more')}
             </button>
           )}
         </>
       ) : (
         // Deliberate, not broken: Meta did not send text for this comment (it
         // predates the permission, or the Page has not reconnected since).
-        <p className='text-sm text-gray-400 italic'>תוכן התגובה לא התקבל מפייסבוק</p>
+        <p className='text-sm text-gray-400 italic'>{t('inbox.comments.body.noText')}</p>
       )}
 
       {attachmentType === 'photo' && attachmentUrl && !photoBroken && (
@@ -67,7 +74,7 @@ export default function CommentBody({
           {/* eslint-disable-next-line @next/next/no-img-element -- expiring Meta CDN URL, not a static asset */}
           <img
             src={attachmentUrl}
-            alt='תמונה שצורפה לתגובה'
+            alt={t('inbox.comments.body.photo')}
             loading='lazy'
             decoding='async'
             referrerPolicy='no-referrer'
@@ -78,7 +85,7 @@ export default function CommentBody({
         </a>
       )}
       {attachmentType === 'photo' && attachmentUrl && photoBroken && (
-        <p className='mt-1 text-xs text-gray-400'>התמונה שצורפה לתגובה כבר לא זמינה</p>
+        <p className='mt-1 text-xs text-gray-400'>{t('inbox.comments.body.photoGone')}</p>
       )}
       {attachmentType === 'video' && attachmentUrl && (
         <a
@@ -87,7 +94,7 @@ export default function CommentBody({
           rel='noopener noreferrer'
           className={`text-xs text-primary underline underline-offset-2 ${touch ? 'inline-flex min-h-11 items-center' : 'mt-1 inline-block'}`}
         >
-          צפה בסרטון שצורף לתגובה
+          {t('inbox.comments.body.video')}
         </a>
       )}
     </div>

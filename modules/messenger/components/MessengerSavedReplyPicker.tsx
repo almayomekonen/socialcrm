@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { MessageSquareText } from 'lucide-react'
 import type { MessengerSavedReply } from '@/db/messengerSavedReplies'
+import { customerTextAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Pick a saved reply from the composer.
@@ -24,12 +26,16 @@ export default function MessengerSavedReplyPicker({
   onInsert,
   onSend,
   disabled,
+  locale = 'he',
 }: {
   replies: MessengerSavedReply[]
   onInsert: (reply: MessengerSavedReply) => void
   onSend: (reply: MessengerSavedReply) => void
   disabled?: boolean
+  /** Our labels only; a reply's title and body are the agency's own text. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const trigger = useRef<HTMLButtonElement | null>(null)
@@ -72,8 +78,8 @@ export default function MessengerSavedReplyPicker({
         disabled={disabled}
         aria-haspopup='listbox'
         aria-expanded={open}
-        aria-label='תשובות שמורות'
-        title='תשובות שמורות'
+        aria-label={t('inbox.messenger.saved.label')}
+        title={t('inbox.messenger.saved.label')}
         className='flex size-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50'
       >
         <MessageSquareText aria-hidden className='size-4' />
@@ -83,7 +89,7 @@ export default function MessengerSavedReplyPicker({
         <div
           ref={panel}
           role='listbox'
-          aria-label='תשובות שמורות'
+          aria-label={t('inbox.messenger.saved.label')}
           tabIndex={-1}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
@@ -117,10 +123,16 @@ export default function MessengerSavedReplyPicker({
                   i === active ? 'bg-primary-soft' : 'hover:bg-gray-50'
                 }`}
               >
-                <span className='block truncate text-sm font-medium text-gray-900'>{reply.title}</span>
-                {reply.body && <span className='mt-0.5 block truncate text-xs text-gray-500'>{reply.body}</span>}
+                <span className='block truncate text-sm font-medium text-gray-900' {...customerTextAttrs(locale)}>
+                  {reply.title}
+                </span>
+                {reply.body && (
+                  <span className='mt-0.5 block truncate text-xs text-gray-500' {...customerTextAttrs(locale)}>
+                    {reply.body}
+                  </span>
+                )}
                 <span className='mt-0.5 block text-[10px] text-gray-400'>
-                  {structured ? 'נשלח מיד — כולל כפתורים או קובץ' : 'ייכנס לתיבת הכתיבה לעריכה'}
+                  {structured ? t('inbox.messenger.saved.sendsNow') : t('inbox.messenger.saved.inserts')}
                 </span>
               </button>
             )

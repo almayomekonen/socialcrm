@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Filter the Messenger conversation list.
@@ -23,7 +25,8 @@ import { Search, X } from 'lucide-react'
  */
 const DEBOUNCE_MS = 250
 
-export default function MessengerSearch({ initial }: { initial: string }) {
+export default function MessengerSearch({ initial, locale = 'he' }: { initial: string; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -59,7 +62,7 @@ export default function MessengerSearch({ initial }: { initial: string }) {
   return (
     <div className='relative'>
       <label htmlFor='messenger-search' className='sr-only'>
-        חיפוש בשיחות Messenger
+        {t('inbox.messenger.search.label')}
       </label>
       <Search aria-hidden className='pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2 text-gray-400' />
       <input
@@ -73,7 +76,7 @@ export default function MessengerSearch({ initial }: { initial: string }) {
             clear()
           }
         }}
-        placeholder='חיפוש לפי שם או תוכן'
+        placeholder={t('inbox.messenger.search.placeholder')}
         // The browser's own clear button would bypass the debounce and leave
         // the URL stale; ours is the only one.
         className='w-full rounded-md border border-gray-200 bg-white py-1.5 pe-8 ps-8 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary [&::-webkit-search-cancel-button]:hidden'
@@ -82,8 +85,8 @@ export default function MessengerSearch({ initial }: { initial: string }) {
         <button
           type='button'
           onClick={clear}
-          aria-label='נקה חיפוש'
-          title='נקה חיפוש'
+          aria-label={t('inbox.messenger.search.clear')}
+          title={t('inbox.messenger.search.clear')}
           className='absolute end-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
         >
           <X aria-hidden className='size-3.5' />
