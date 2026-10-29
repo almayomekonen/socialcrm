@@ -404,8 +404,8 @@ describe('production audit follow-ups', () => {
     expect(src).toContain('isAccessDenied()')
     expect(src).toContain('SubscriptionExpiredState')
     // The generic connection copy and its retry must survive for non-403 failures.
-    expect(src).toContain('בעיית חיבור. מנסים שוב')
-    expect(src).toContain('נסה שוב')
+    expect(src).toContain("t('leads.banners.syncProblem')")
+    expect(src).toContain("t('leads.banners.retry')")
     // …but only AFTER the entitlement branch has returned. Compare against the
     // JSX occurrence, not the explanatory comment above the gate.
     const code = src
@@ -414,7 +414,7 @@ describe('production audit follow-ups', () => {
       .join('\n')
     const gate = code.indexOf('if (isAccessDenied())')
     expect(gate).toBeGreaterThan(-1)
-    expect(gate).toBeLessThan(code.indexOf('בעיית חיבור'))
+    expect(gate).toBeLessThan(code.indexOf("t('leads.banners.syncProblem')"))
   })
 
   it('only a 403 latches the gate — a 500 stays a generic failure', () => {
@@ -782,12 +782,12 @@ describe('the lead summary card reads the entitlement reason it was already give
   it('teases the value for either entitlement reason', () => {
     const src = card()
     expect(src).toContain("if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {")
-    expect(src).toContain('return <LeadIntelligenceTeaser />')
+    expect(src).toContain('return <LeadIntelligenceTeaser locale={locale} />')
     expect(src).not.toContain('SubscriptionExpiredState')
   })
 
   it('keeps the retry line for genuine AI failures', () => {
-    expect(card()).toContain('העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.')
+    expect(card()).toContain("t('leadDetail.intelligence.unavailable')")
   })
 
   it('still renders nothing when AI is off or the agency is not allowlisted', () => {
@@ -1028,7 +1028,7 @@ describe('lead Drive keeps the files and withholds the mutations', () => {
 
   it('withholds attach while the subscription is lapsed', () => {
     const src = section()
-    expect(src).toContain("{!expired && <Btn lbl='צרף קובץ מ-Drive'")
+    expect(src).toContain("{!expired && <Btn lbl={t('leadTabs.drive.attach')}")
     expect(src).toContain("source='lead_drive'")
   })
 
@@ -1044,13 +1044,13 @@ describe('lead Drive keeps the files and withholds the mutations', () => {
 
   it('keeps "פתח" and withholds only detach and re-pick', () => {
     const row = read('components/clientPage/LeadDriveAttachedRow.tsx')
-    expect(row).toContain("<Btn lbl='פתח'")
-    expect(row).toContain("{!expired && <Btn lbl='הסר'")
+    expect(row).toContain("<Btn lbl={t('leadTabs.drive.open')}")
+    expect(row).toContain("{!expired && <Btn lbl={t('leadTabs.drive.detach')}")
     expect(row).toContain('{!expired && pickerEnabled && leadId != null && (')
   })
 
   it('keeps the generic failure copy for real errors', () => {
-    expect(section()).toContain('הצירוף נכשל. נסה שוב.')
+    expect(section()).toContain("t('leadTabs.drive.attachFailed')")
   })
 })
 
@@ -1213,7 +1213,7 @@ describe('closing a deal and uploading files gate at their single choke point', 
 
   it('the generic upload failure copy survives for real errors', () => {
     expect(read('components/files/funcs.tsx')).toContain('getPresigned')
-    expect(read('components/files/FileUploader.tsx')).toContain('העלאת הקבצים נכשלה: ')
+    expect(read('components/files/FileUploader.tsx')).toContain("t('leadTabs.files.uploader.failed'")
   })
 })
 

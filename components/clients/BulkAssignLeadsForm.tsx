@@ -7,6 +7,7 @@ import { getFormData2 } from '@/lib/form/funcs'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { useProps } from '@/lib/hooksNEvents'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Pick the representative a set of selected leads is assigned to.
@@ -30,6 +31,7 @@ export default function BulkAssignLeadsForm({
   onAssign: (userId: number) => void
   onCancel: () => void
 }) {
+  const t = useT()
   const { users } = useProps()
   const [pending, setPending] = useState<{ userId: number; label: string } | null>(null)
 
@@ -46,12 +48,12 @@ export default function BulkAssignLeadsForm({
 
   return (
     <div>
-      <Title lbl={count === 1 ? 'שיוך ליד לנציג' : `שיוך ${count} לידים לנציג`} className='mb-6' />
+      <Title lbl={count === 1 ? t('leads.dialog.assignOne') : t('leads.assign.titleMany', { count: String(count) })} className='mb-6' />
       <form onSubmit={onSubmit}>
-        <SelectSearch name='userId' lbl='בחר נציג' options={users} />
+        <SelectSearch name='userId' lbl={t('leads.assign.pickRep')} options={users} />
         <div className='flex gap-2 mt-8'>
-          <Btn lbl='שייך לנציג' className='w-full' icon='user-check' />
-          <Btn lbl='ביטול' variant='outline' type='button' className='w-full' onClick={onCancel} />
+          <Btn lbl={t('leads.assign.submit')} className='w-full' icon='user-check' />
+          <Btn lbl={t('leads.assign.cancel')} variant='outline' type='button' className='w-full' onClick={onCancel} />
         </div>
       </form>
       <ConfirmPop
@@ -64,9 +66,10 @@ export default function BulkAssignLeadsForm({
         }}
         msg={
           count === 1
-            ? `לשייך את הליד ל${pending?.label}?`
-            : `לשייך ${count} לידים ל${pending?.label}?`
+            ? t('leads.assign.confirmOne', { rep: `${pending?.label}` })
+            : t('leads.assign.confirmMany', { count: String(count), rep: `${pending?.label}` })
         }
+        translated
       />
     </div>
   )

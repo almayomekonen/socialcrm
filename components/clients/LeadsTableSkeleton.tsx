@@ -1,17 +1,26 @@
+'use client'
+
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor, regionAttrs } from '@/lib/i18n/config'
+
 /**
  * Presentational loading chrome for /leads and /clients route segments.
  * Used only by route `loading.tsx` — never wired into hydrated ClientsTable.
+ * A client component only to read the interface language from the layout's
+ * provider (the route's loading UI renders inside it).
  */
 export default function LeadsTableSkeleton({ withStatusTabs = true }: { withStatusTabs?: boolean }) {
+  const t = useT()
   return (
     <div
       className='flex min-h-0 flex-1 flex-col'
-      dir='rtl'
+      dir={dirFor(t.locale)}
+      {...regionAttrs(t.locale)}
       aria-busy='true'
       data-testid='leads-route-skeleton'
     >
       <span className='sr-only' role='status'>
-        טוען…
+        {t('leads.empty.loading')}
       </span>
 
       {withStatusTabs && (

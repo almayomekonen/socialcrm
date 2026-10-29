@@ -5,6 +5,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { iconForDriveMime } from '@/lib/copilot/driveMimeIcon'
 import type { LeadDriveAttachment } from '@/actions/leadDriveFiles'
 import LeadDriveRepickButton from './LeadDriveRepickButton'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function LeadDriveAttachedRow({
   attachment,
@@ -24,6 +25,7 @@ export default function LeadDriveAttachedRow({
   leadId?: number
   onRepicked?: () => void
 }) {
+  const t = useT()
   const icon = iconForDriveMime(attachment.mimeType)
   const url = attachment.webViewLink ?? ''
 
@@ -55,8 +57,8 @@ export default function LeadDriveAttachedRow({
         {!expired && pickerEnabled && leadId != null && (
           <LeadDriveRepickButton leadId={leadId} onRepicked={onRepicked} />
         )}
-        <Btn lbl='פתח' size='small' variant='outline' onClick={open} disabled={!url || busy} />
-        {!expired && <Btn lbl='הסר' size='small' variant='destructive' onClick={onDetach} disabled={busy} />}
+        <Btn lbl={t('leadTabs.drive.open')} size='small' variant='outline' onClick={open} disabled={!url || busy} />
+        {!expired && <Btn lbl={t('leadTabs.drive.detach')} size='small' variant='destructive' onClick={onDetach} disabled={busy} />}
       </div>
     </div>
   )

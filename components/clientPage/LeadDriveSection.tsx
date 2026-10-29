@@ -12,6 +12,7 @@ import type { SuggestedDriveFile } from '@/actions/leadDriveFilesSearch'
 import LeadDriveAttachModal from './LeadDriveAttachModal'
 import LeadDriveAttachedRow from './LeadDriveAttachedRow'
 import LeadDriveSuggestionRow from './LeadDriveSuggestionRow'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   leadId: number
@@ -20,7 +21,9 @@ type Props = {
   pickerEnabled?: boolean
 }
 
+/** Lead files tab only; chrome follows the interface language. File names are data; "Google Drive" is a product name. */
 export default function LeadDriveSection({ leadId, attachments, suggestions, pickerEnabled = false }: Props) {
+  const t = useT()
   const router = useRouter()
   /** Entitlement from the shared context — the same answer the server gives. */
   const expired = useAccessDenied()
@@ -44,13 +47,13 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
         webViewLink: file.webViewLink,
       })
       if (res.ok) {
-        toast('success', 'הקובץ צורף לליד')
+        toast('success', t('leadTabs.drive.attached'))
         refresh()
       } else {
-        toast('error', 'הצירוף נכשל. נסה שוב.')
+        toast('error', t('leadTabs.drive.attachFailed'))
       }
     } catch {
-      toast('error', 'הצירוף נכשל. נסה שוב.')
+      toast('error', t('leadTabs.drive.attachFailed'))
     } finally {
       setBusyId(null)
     }
@@ -62,13 +65,13 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
     try {
       const res = await detachDriveFile(att.id)
       if (res.ok) {
-        toast('success', 'הקובץ הוסר')
+        toast('success', t('leadTabs.drive.detached'))
         refresh()
       } else {
-        toast('error', 'ההסרה נכשלה. נסה שוב.')
+        toast('error', t('leadTabs.drive.detachFailed'))
       }
     } catch {
-      toast('error', 'ההסרה נכשלה. נסה שוב.')
+      toast('error', t('leadTabs.drive.detachFailed'))
     } finally {
       setBusyId(null)
     }
@@ -89,12 +92,12 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
           is withheld; the attached files stay listed and openable, because
           reading their own data is never what lapses.
         */}
-        {!expired && <Btn lbl='צרף קובץ מ-Drive' size='small' onClick={() => setModalOpen(true)} />}
+        {!expired && <Btn lbl={t('leadTabs.drive.attach')} size='small' onClick={() => setModalOpen(true)} />}
       </header>
 
       {expired && (
         <div className='mb-4'>
-          <SubscriptionExpiredState mode='inline' source='lead_drive' feature='חידוש המנוי מחזיר את צירוף הקבצים' />
+          <SubscriptionExpiredState mode='inline' source='lead_drive' feature={t('leadTabs.drive.expired')} translated />
         </div>
       )}
 
@@ -116,12 +119,12 @@ export default function LeadDriveSection({ leadId, attachments, suggestions, pic
       )}
 
       {attachments.length === 0 && (
-        <p className='text-sm text-gray-500 mb-4'>אין קבצים מצורפים לליד מ-Drive.</p>
+        <p className='text-sm text-gray-500 mb-4'>{t('leadTabs.drive.empty')}</p>
       )}
 
       {!expired && !pickerEnabled && suggestions.length > 0 && (
         <div className='grid gap-1.5'>
-          <p className='text-[11px] text-gray-400 tracking-wide'>מוצע — נמצאו ב-Drive לפי פרטי הליד</p>
+          <p className='text-[11px] text-gray-400 tracking-wide'>{t('leadTabs.drive.suggested')}</p>
           {suggestions.map((s) => (
             <LeadDriveSuggestionRow
               key={s.driveFileId}

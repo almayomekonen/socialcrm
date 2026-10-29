@@ -7,8 +7,10 @@ import { useUser } from '@/lib/hooksNEvents'
 import { useProps } from '@/lib/hooksNEvents'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function ListForm() {
+  const t = useT()
   const user = useUser()
   if (!user) return null
   const { clients, params, clientLists } = useProps()
@@ -16,7 +18,7 @@ export default function ListForm() {
 
   async function onSubmit(e) {
     const data = getFormData2(e) as any
-    if (!data?.clientIds || data.clientIds.length === 0) return toast('error', 'יש לבחור לידים')
+    if (!data?.clientIds || data.clientIds.length === 0) return toast('error', t('leads.list.pickRequired'))
 
     data.id = selectedList?.id
 
@@ -28,23 +30,23 @@ export default function ListForm() {
     <div popover='auto' id='listForm' className='pop min-w-96 overflow-hidden'>
       <form onSubmit={onSubmit}>
         <div className='flex justify-between items-center'>
-          <Title lbl={selectedList ? 'עריכת רשימה' : 'יצירת רשימה חדשה'} />
-          {selectedList && <Btn variant='outline' size='icon' icon='trash' aria-label='מחיקת רשימה' onClick={() => deleteLeadList(selectedList.id)} />}
+          <Title lbl={selectedList ? t('leads.list.editTitle') : t('leads.list.newTitle')} />
+          {selectedList && <Btn variant='outline' size='icon' icon='trash' aria-label={t('leads.list.delete')} onClick={() => deleteLeadList(selectedList.id)} />}
         </div>
 
         <div className='py-4'>
-          <Input name='title' lbl='שם הרשימה' className='mb-2' defaultValue={selectedList?.title} />
+          <Input name='title' lbl={t('leads.list.name')} className='mb-2' defaultValue={selectedList?.title} />
           <MultiSelectSearch
             name='clientIds'
             options={clients}
-            placeholder='חיפוש'
-            lbl='בחר לידים'
+            placeholder={t('leads.list.search')}
+            lbl={t('leads.list.pickLeads')}
             selected={selectedList?.clientIds}
             key={Math.random()}
           />
         </div>
 
-        <Btn lbl='שמירה' className='w-full' />
+        <Btn lbl={t('common.save')} className='w-full' />
       </form>
     </div>
   )

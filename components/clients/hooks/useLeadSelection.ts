@@ -6,6 +6,7 @@ import { api } from '@/lib/funcs'
 import { checkedIds } from '@/lib/table/funcs'
 import { toast } from '@/lib/toast'
 import { deleteLeadsMessage } from '@/lib/leads/deleteResult'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Args = {
   leads: boolean
@@ -18,6 +19,7 @@ type Args = {
 }
 
 export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiveLeads, setDeletedIds, setDeleting }: Args) {
+  const t = useT()
   const [selectedIds, setSelectedIds] = useState<number[]>([])
 
   useEffect(() => {
@@ -83,7 +85,7 @@ export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiv
         deletedCount: typeof res?.deletedCount === 'number' ? res.deletedCount : deletedSet.size,
         blockedCount: typeof res?.blockedCount === 'number' ? res.blockedCount : blockedLeads.length,
         blockedLeads,
-      })
+      }, t.locale)
       toast(icon, msg)
     } finally {
       setDeleting(false)
@@ -120,11 +122,11 @@ export function useLeadSelection({ leads, tblId, filteredData, activeTab, setLiv
 
       clearDomChecks()
       if (assigned === 0) {
-        toast('success', 'הלידים כבר משויכים לנציג הזה')
+        toast('success', t('leads.assignResult.already'))
       } else if (skipped > 0) {
-        toast('success', `${assigned} לידים שויכו. ${skipped} כבר היו משויכים`)
+        toast('success', t('leads.assignResult.partial', { assigned: String(assigned), skipped: String(skipped) }))
       } else {
-        toast('success', assigned === 1 ? 'הליד שויך לנציג' : `${assigned} לידים שויכו לנציג`)
+        toast('success', t('leads.assignResult.done', { count: String(assigned) }))
       }
     } finally {
       setAssigning(false)

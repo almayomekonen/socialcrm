@@ -3,6 +3,7 @@
 import { JSX, useState } from 'react'
 import ModalPop from './ModalPop'
 import { Btn } from '@/lib/btns/Btn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   open: boolean
@@ -13,6 +14,8 @@ type Props = {
   cancelLbl?: string
   destructive?: boolean
   hideCancel?: boolean
+  /** See ModalPop `translated`. */
+  translated?: boolean
 }
 
 export default function ConfirmPop({
@@ -20,11 +23,13 @@ export default function ConfirmPop({
   onClose,
   onConfirm,
   msg,
-  confirmLbl = 'אישור',
-  cancelLbl = 'ביטול',
+  confirmLbl,
+  cancelLbl,
   destructive = false,
   hideCancel = false,
+  translated = false,
 }: Props): JSX.Element {
+  const t = useT()
   const [busy, setBusy] = useState(false)
 
   async function handleConfirm() {
@@ -40,14 +45,14 @@ export default function ConfirmPop({
   const safeClose = busy ? () => {} : onClose
 
   return (
-    <ModalPop open={open} pos='middle' onClose={safeClose} label={msg}>
+    <ModalPop open={open} pos='middle' onClose={safeClose} label={msg} translated={translated}>
       <div className='flex flex-col gap-6 min-w-[320px] pt-4'>
         <p className='font-semibold whitespace-pre-line pe-6'>{msg}</p>
         <div className='flex justify-end gap-2'>
-          {!hideCancel && <Btn variant='outline' lbl={cancelLbl} onClick={safeClose} disabled={busy} />}
+          {!hideCancel && <Btn variant='outline' lbl={cancelLbl ?? t('common.dialog.cancel')} onClick={safeClose} disabled={busy} />}
           <Btn
             variant={destructive ? 'destructive' : 'solid'}
-            lbl={confirmLbl}
+            lbl={confirmLbl ?? t('common.dialog.confirm')}
             onClick={handleConfirm}
             disabled={busy}
           />

@@ -5,38 +5,23 @@ import { checkedIds } from '@/lib/table/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { setPosAndPop } from '@/lib/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { asLeadActionCode, leadGroupActions, type LeadActionCode } from './table/leadActions'
+import { useT } from '@/lib/i18n/I18nProvider'
 
-export function getDealActionLabel(status?: string) {
-  if (status === 'closed') return 'הוסף עסקה נוספת'
-  if (status === 'lost') return 'הוסף עסקה (ליד אבוד)'
-  return 'סגור עסקה'
+export { getDealActionLabel } from './table/leadActions'
+
+/**
+ * Group actions by CODE. None of them does anything yet — this is the existing
+ * behaviour (every group handler was an empty function), kept as is.
+ */
+const GROUP_ACTION_HANDLERS: Record<LeadActionCode, (ids: number[], user: unknown) => void | Promise<void>> = {
+  edit: () => {},
+  deal: () => {},
+  transfer: () => {},
 }
 
-export const DEAL_ACTION_LABELS: string[] = [
-  'סגור עסקה',
-  'הוסף עסקה נוספת',
-  'הוסף עסקה (ליד אבוד)',
-]
-
-export const getActions = (status?: string) => ({
-  // מחיקה: {
-  //   func: onDel,
-  // },
-
-  עריכה: {
-    func: (..._args: any[]) => {},
-  },
-
-  [getDealActionLabel(status)]: {
-    func: (..._args: any[]) => {},
-  },
-
-  'העברה לבעל ליד אחר': {
-    func: (..._args: any[]) => {},
-  },
-})
-
 export function SelectClientGrpActions({ user }) {
+  const t = useT()
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   const onGroupAction = async (e) => {
@@ -44,27 +29,31 @@ export function SelectClientGrpActions({ user }) {
     const ids = checkedIds()
 
     e.target.value = ''
-    if (!ids.length) return setErrMsg('לא נבחרו רשומות מהטבלה')
-    await getActions()[val].func(ids, user)
+    if (!ids.length) return setErrMsg(t('leads.toolbar.noRowsSelected'))
+    const code = asLeadActionCode(val)
+    if (code) await GROUP_ACTION_HANDLERS[code](ids, user)
   }
 
   return (
     <>
-      <Select options={Object.keys(getActions())} placeholder='פעולות' onChange={onGroupAction} />
+      {/* The option VALUE is the stable action code; only the visible text is a label. */}
+      <Select options={leadGroupActions(t.locale).map((a) => ({ id: a.code, name: a.label }))} placeholder={t('leads.table.actions')} onChange={onGroupAction} />
       <ConfirmPop
         open={!!errMsg}
         hideCancel
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </>
   )
 }
 
 export function DotsMenu({ id, onClick }) {
+  const t = useT()
   return (
-    <Btn variant='outline' size='icon' icon='ellipsis-vertical' type='button' aria-label='פעולות' aria-haspopup='menu' onClick={(e) => setPosAndPop(e, id, onClick)} />
+    <Btn variant='outline' size='icon' icon='ellipsis-vertical' type='button' aria-label={t('leads.table.actions')} aria-haspopup='menu' onClick={(e) => setPosAndPop(e, id, onClick)} />
   )
 }
 

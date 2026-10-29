@@ -9,6 +9,7 @@ import type { Template } from '@/lib/whatsapp/templates/types'
 import { sendTemplateToLead } from '@/actions/whatsapp/templates/sendTemplateToLead'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMessagePreview'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Lead-profile affordance: send ONE approved ready-made message to THIS lead
@@ -19,11 +20,16 @@ import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMess
  * The preview shows sample values (`WhatsappMessagePreview`, aria-hidden) — an
  * honest "this is roughly what the lead will see"; the real send resolves the
  * lead's actual name server-side.
+ *
+ * Chrome follows the interface language (also inside the inbox, where it is a
+ * shared widget and declares its own region). Template titles and bodies are
+ * business content and are shown exactly as stored. The send error (`res.error`)
+ * is the server action's text, shown as it arrives.
  */
 export default function SendReadyMessage({
   leadId,
   templates,
-  lbl = 'שלח הודעה מוכנה',
+  lbl,
   conversationId = null,
 }: {
   leadId: number
@@ -31,6 +37,8 @@ export default function SendReadyMessage({
   lbl?: string
   conversationId?: number | null
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const [open, setOpen] = useState(false)
   /** Outbound WhatsApp is Tier 3: the refusal is a billing prompt, not a crash. */
   const expired = useAccessDenied()
@@ -48,8 +56,8 @@ export default function SendReadyMessage({
   const handleSend = async () => {
     if (expired) {
       return proToast({
-        title: 'שליחת הודעות זמינה עם Pro',
-        body: 'חידוש המנוי יחזיר את שליחת ההודעות ללידים.',
+        title: t('leadDetail.readyMessage.proTitle'),
+        body: t('leadDetail.readyMessage.proBody'),
         source: 'ready_message_send',
       })
     }
@@ -69,7 +77,7 @@ export default function SendReadyMessage({
           leadId,
           via: 'template',
         }).catch(() => {})
-        toast('success', 'ההודעה נשלחה')
+        toast('success', t('leadDetail.readyMessage.sent'))
         setOpen(false)
         setSelectedId(null)
       } else if ('error' in res) {
@@ -84,7 +92,9 @@ export default function SendReadyMessage({
   return (
     <>
       <Btn
-        lbl={lbl}
+        lbl={lbl ?? t('leadDetail.readyMessage.open')}
+        // Only our own label declares the interface language; a caller's label (the inbox's) is the caller's text.
+        {...(lbl ? {} : region)}
         icon='paper-plane'
         variant='outline'
         size='small'
@@ -98,15 +108,16 @@ export default function SendReadyMessage({
         labelledBy='send-ready-message-title'
         pos='middle'
         className='w-[min(92vw,640px)]'
+        translated
       >
         <h2 id='send-ready-message-title' className='mb-1 text-lg font-semibold text-gray-800'>
-          שליחת הודעה מוכנה
+          {t('leadDetail.readyMessage.title')}
         </h2>
-        <p className='mb-4 text-sm text-gray-500'>בחרו הודעה שאושרה — היא תישלח לליד בוואטסאפ.</p>
+        <p className='mb-4 text-sm text-gray-500'>{t('leadDetail.readyMessage.intro')}</p>
 
         <div className='grid gap-6 md:grid-cols-[1fr_240px]'>
           <fieldset className='grid gap-2'>
-            <legend className='sr-only'>הודעות WhatsApp מוכנות לשליחה</legend>
+            <legend className='sr-only'>{t('leadDetail.readyMessage.legend')}</legend>
             {templates.map((t) => (
               <label
                 key={t.id}
@@ -130,21 +141,21 @@ export default function SendReadyMessage({
           </fieldset>
 
           <div>
-            <p className='mb-1 text-xs text-gray-500'>תצוגה מקדימה</p>
+            <p className='mb-1 text-xs text-gray-500'>{t('leadDetail.readyMessage.preview')}</p>
             {selected ? (
               <WhatsappMessagePreview bodyText={selected.bodyText} variables={selected.variables} />
             ) : (
               <p className='rounded-md border border-dashed border-gray-200 p-3 text-sm text-gray-400'>
-                בחרו הודעה כדי לראות תצוגה מקדימה
+                {t('leadDetail.readyMessage.previewEmpty')}
               </p>
             )}
           </div>
         </div>
 
         <div className='mt-6 flex justify-end gap-2'>
-          <Btn lbl='ביטול' variant='ghost' size='small' onClick={close} disabled={sending} />
+          <Btn lbl={t('common.dialog.cancel')} variant='ghost' size='small' onClick={close} disabled={sending} />
           <Btn
-            lbl={sending ? 'שולח…' : 'שלח הודעה'}
+            lbl={sending ? t('leadDetail.readyMessage.sending') : t('leadDetail.readyMessage.send')}
             icon='paper-plane'
             size='small'
             onClick={handleSend}

@@ -10,6 +10,10 @@
  * only the latest outcome into the existing lastOutcomeType column).
  */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+
 export type LeadOutcome = 'call_no_answer' | 'call_reached' | 'call_interested' | 'call_not_interested'
 
 export const LEAD_OUTCOMES: LeadOutcome[] = ['call_no_answer', 'call_reached', 'call_interested', 'call_not_interested']
@@ -72,7 +76,24 @@ export const OUTCOME_LABELS: Record<string, string> = {
   meeting_no_show: 'לא הגיע לפגישה',
 }
 
-export function outcomeLabel(code: string | null | undefined): string | null {
+/** Display label of each outcome CODE in the interface language (`leadDetail.outcome.*`). */
+const OUTCOME_LABEL_KEY: Record<string, MessageKey> = {
+  call_no_answer: 'leadDetail.outcome.call_no_answer',
+  call_reached: 'leadDetail.outcome.call_reached',
+  call_interested: 'leadDetail.outcome.call_interested',
+  call_not_interested: 'leadDetail.outcome.call_not_interested',
+  meeting_completed: 'leadDetail.outcome.meeting_completed',
+  meeting_no_show: 'leadDetail.outcome.meeting_no_show',
+}
+
+/**
+ * Label for display. Hebrew (the default, and every non-UI caller such as the
+ * AI context) reads `OUTCOME_LABELS` exactly as before; an unknown code is
+ * shown as stored in every language.
+ */
+export function outcomeLabel(code: string | null | undefined, locale: UiLocale = 'he'): string | null {
   if (!code) return null
-  return OUTCOME_LABELS[code] ?? code
+  if (locale === 'he') return OUTCOME_LABELS[code] ?? code
+  const key = OUTCOME_LABEL_KEY[code]
+  return key ? translatorFor(locale)(key) : code
 }

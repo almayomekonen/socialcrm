@@ -45,139 +45,152 @@
  * across the app's controls. Desktop previously mixed singular prose into the
  * same screen as plural mobile prose; unifying on plural gives the product one
  * voice, per `frontend-experience-guidelines.md` §22.
+ *
+ * ---------------------------------------------------------------------------
+ * LANGUAGE. The words live in the catalog (`leads.firstRun.*`, Hebrew source in
+ * lib/i18n/messages/he/leads/firstRun.ts); `firstRunCopy(locale)` reads them in
+ * the interface language and `FIRST_RUN_COPY` is the Hebrew copy, unchanged.
  */
 
-export const FIRST_RUN_COPY = {
-  /**
-   * The sentence the screen never had. Answers "what is this" before anything
-   * is asked of the reader. Verb-free on purpose so one string serves both
-   * surfaces without a singular/plural fork.
-   */
-  /**
-   * States the true state of the account: OPEN, and empty. Never "ready".
-   *
-   * "מוכן" was the product's habit — the welcome modal said the Pro plan was
-   * ready, the activation screen said the workspace was ready — and both were
-   * true about the software while the user still had nothing. A new user heard
-   * a claim about their business, went looking for the part that was ready,
-   * and left. Naming the emptiness is what makes the next line worth reading.
-   */
-  headline: 'סביבת העבודה שלכם פתוחה, עכשיו נכניס את הלידים',
-  subhead:
-    'SocialCRM מרכז את הלידים מוואטסאפ וממודעות פייסבוק ואינסטגרם לרשימה אחת, עם סטטוס ומעקב לכל ליד.',
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-  /**
-   * PATH 1 — the product promise. Connecting is what makes the CRM fill itself,
-   * so it is recommended. It is not the only legitimate path: it delivers zero
-   * leads today and only pays off on the next inbound.
-   */
-  connect: {
-    heading: 'חברו את המקור שממנו מגיעים הלידים',
-    rationale: 'מהרגע שתחברו, כל פנייה חדשה נכנסת לכאן אוטומטית, בלי להעתיק ידנית.',
-    recommendedBadge: 'מומלץ',
-    whatsapp: {
-      title: 'וואטסאפ',
-      description: 'כל הודעה נכנסת נפתחת כליד, והשיחה נשמרת כאן',
-      href: '/settings/integrations?section=whatsapp',
-    },
-    meta: {
-      title: 'פייסבוק ואינסטגרם',
-      description: 'לידים מהמודעות שלכם נכנסים אוטומטית',
-      href: '/settings/integrations?section=facebook',
-    },
-  },
-
-  /**
-   * PATH 2 — immediate value, and deliberately NOT framed as a fallback.
-   *
-   * `product.md` §7 names the Excel import as the product's first success
-   * moment ("within 60 seconds they can see all their leads organized"), and it
-   * is the only path that delivers real data on day one. It gets its own
-   * heading and its own reason to exist, not a footnote under the "real" option.
-   */
-  own: {
-    heading: 'הכניסו את הלידים שיש לכם עכשיו',
-    rationale: 'תוך דקה תראו רשימה אחת של כל מי שצריך לחזור אליו.',
-    recommendedBadge: 'הכי מהיר',
+export function firstRunCopy(locale: UiLocale = 'he') {
+  const t = translatorFor(locale)
+  const n = (count: number) => ({ count: String(count) })
+  return {
     /**
-     * Named by its OUTCOME, not by its file format. "ייבוא מאקסל" describes a
-     * mechanism the user has no appetite for; "הרשימה שלכם, מסודרת" describes
-     * the thing they came to get. The formats belong in the description, where
-     * they answer "can I?" instead of asking "do you want to?".
+     * The sentence the screen never had. Answers "what is this" before anything
+     * is asked of the reader. Verb-free on purpose so one string serves both
+     * surfaces without a singular/plural fork.
      */
-    import: {
-      title: 'הרשימה שלכם, מסודרת',
-      description: 'קובץ אקסל, או פשוט הדביקו מספרי טלפון',
-    },
-    add: { title: 'הוסף ליד אחד', description: 'ידנית, כשאין רשימה לייבא' },
-  },
-
-  /**
-   * The paste path. On a phone — and especially inside Facebook's in-app
-   * browser, where a measurable share of signups land — there is no spreadsheet
-   * to pick, so a file input is a dead end. A column of numbers from WhatsApp
-   * is the list these users actually have.
-   */
-  paste: {
-    tabFile: 'קובץ',
-    tabPaste: 'הדבקת מספרים',
-    label: 'הדביקו מספרי טלפון, אחד בכל שורה',
-    placeholder: '0521234567\nדנה לוי, 0537654321',
-    hint: 'אפשר גם "שם, טלפון" בכל שורה.',
-    /** Count is filled in by the caller — never a promise before parsing. */
-    submit: (n: number) => (n === 1 ? 'הוסף ליד אחד' : `הוסף ${n} לידים`),
-    submitEmpty: 'הוסף לידים',
-    pending: 'מוסיף…',
-    skipped: (n: number) => (n === 1 ? 'שורה אחת לא נקראה ולא תתווסף' : `${n} שורות לא נקראו ולא יתווספו`),
-    truncated: 'נוספו 1000 השורות הראשונות. אפשר להדביק את השאר אחר כך.',
-    empty: 'לא זיהינו מספרי טלפון בטקסט שהודבק.',
-  },
-
-  /**
-   * The workspace has a connected Meta account but no leads yet. A DIFFERENT
-   * situation from first run and it keeps different copy: this user has already
-   * acted, so the screen's job is reassurance that the action worked, not
-   * persuasion. "אין עדיין לידים" is honest here precisely because the wait is
-   * expected and explained.
-   */
-  connected: {
-    headline: 'אין עדיין לידים',
-    subhead: 'חשבון ה־Meta שלך מחובר. הליד הראשון יופיע כאן אוטומטית ברגע שיגיע.',
-  },
-
-  /**
-   * Shown ONLY when true. A first-time visitor is never greeted by a column of
-   * "לא מחובר" labels, which read as a broken setup checklist rather than an
-   * offer — the single most damaging detail on the current mobile screen.
-   */
-  statusConnected: 'מחובר',
-
-  /**
-   * THE STATE NOBODY HAD DESIGNED: leads just landed, and now what?
-   *
-   * Import used to drop the user straight into an ordinary table. In production
-   * five of six leads created by new agencies were never opened again, and
-   * `first_follow_up_set` had never fired once in the product's history — the
-   * loop simply had no next step after the data arrived.
-   *
-   * This names the one action worth taking, and points at a specific lead, so
-   * the user leaves with a follow-up set instead of a list to admire.
-   */
-  firstImport: {
-    title: (n: number) => (n === 1 ? 'הליד שלכם נכנס' : `${n} לידים נכנסו`),
-    body: 'הצעד הבא: פתחו את הראשון וקבעו מתי לחזור אליו.',
     /**
-     * Rows the file carried that we could not turn into לידים. Reported here
-     * because routing straight to the list skips the importer's own invalid
-     * panel — and a customer silently losing rows from their file is exactly
-     * the kind of quiet data loss `care-charter.md` Law 1 forbids.
+     * States the true state of the account: OPEN, and empty. Never "ready".
+     *
+     * "מוכן" was the product's habit — the welcome modal said the Pro plan was
+     * ready, the activation screen said the workspace was ready — and both were
+     * true about the software while the user still had nothing. A new user heard
+     * a claim about their business, went looking for the part that was ready,
+     * and left. Naming the emptiness is what makes the next line worth reading.
      */
-    skipped: (n: number) =>
-      n === 1 ? 'שורה אחת בקובץ לא נקראה ולא נוספה' : `${n} שורות בקובץ לא נקראו ולא נוספו`,
-    cta: 'פתח את הליד הראשון',
-    dismiss: 'סגירה',
-  },
-} as const
+    headline: t('leads.firstRun.headline'),
+    subhead: t('leads.firstRun.subhead'),
+
+    /**
+     * PATH 1 — the product promise. Connecting is what makes the CRM fill itself,
+     * so it is recommended. It is not the only legitimate path: it delivers zero
+     * leads today and only pays off on the next inbound.
+     */
+    connect: {
+      heading: t('leads.firstRun.connect.heading'),
+      rationale: t('leads.firstRun.connect.rationale'),
+      recommendedBadge: t('leads.firstRun.connect.recommendedBadge'),
+      whatsapp: {
+        title: t('leads.firstRun.connect.whatsapp.title'),
+        description: t('leads.firstRun.connect.whatsapp.description'),
+        href: '/settings/integrations?section=whatsapp',
+      },
+      meta: {
+        title: t('leads.firstRun.connect.meta.title'),
+        description: t('leads.firstRun.connect.meta.description'),
+        href: '/settings/integrations?section=facebook',
+      },
+    },
+
+    /**
+     * PATH 2 — immediate value, and deliberately NOT framed as a fallback.
+     *
+     * `product.md` §7 names the Excel import as the product's first success
+     * moment ("within 60 seconds they can see all their leads organized"), and it
+     * is the only path that delivers real data on day one. It gets its own
+     * heading and its own reason to exist, not a footnote under the "real" option.
+     */
+    own: {
+      heading: t('leads.firstRun.own.heading'),
+      rationale: t('leads.firstRun.own.rationale'),
+      recommendedBadge: t('leads.firstRun.own.recommendedBadge'),
+      /**
+       * Named by its OUTCOME, not by its file format. "ייבוא מאקסל" describes a
+       * mechanism the user has no appetite for; "הרשימה שלכם, מסודרת" describes
+       * the thing they came to get. The formats belong in the description, where
+       * they answer "can I?" instead of asking "do you want to?".
+       */
+      import: {
+        title: t('leads.firstRun.own.import.title'),
+        description: t('leads.firstRun.own.import.description'),
+      },
+      add: { title: t('leads.firstRun.own.add.title'), description: t('leads.firstRun.own.add.description') },
+    },
+
+    /**
+     * The paste path. On a phone — and especially inside Facebook's in-app
+     * browser, where a measurable share of signups land — there is no spreadsheet
+     * to pick, so a file input is a dead end. A column of numbers from WhatsApp
+     * is the list these users actually have.
+     */
+    paste: {
+      tabFile: t('leads.firstRun.paste.tabFile'),
+      tabPaste: t('leads.firstRun.paste.tabPaste'),
+      label: t('leads.firstRun.paste.label'),
+      placeholder: t('leads.firstRun.paste.placeholder'),
+      hint: t('leads.firstRun.paste.hint'),
+      /** Count is filled in by the caller — never a promise before parsing. */
+      submit: (count: number) => t('leads.firstRun.paste.submit', n(count)),
+      submitEmpty: t('leads.firstRun.paste.submitEmpty'),
+      pending: t('leads.firstRun.paste.pending'),
+      skipped: (count: number) => t('leads.firstRun.paste.skipped', n(count)),
+      truncated: t('leads.firstRun.paste.truncated'),
+      empty: t('leads.firstRun.paste.empty'),
+    },
+
+    /**
+     * The workspace has a connected Meta account but no leads yet. A DIFFERENT
+     * situation from first run and it keeps different copy: this user has already
+     * acted, so the screen's job is reassurance that the action worked, not
+     * persuasion. "אין עדיין לידים" is honest here precisely because the wait is
+     * expected and explained.
+     */
+    connected: {
+      headline: t('leads.firstRun.connected.headline'),
+      subhead: t('leads.firstRun.connected.subhead'),
+    },
+
+    /**
+     * Shown ONLY when true. A first-time visitor is never greeted by a column of
+     * "לא מחובר" labels, which read as a broken setup checklist rather than an
+     * offer — the single most damaging detail on the current mobile screen.
+     */
+    statusConnected: t('leads.firstRun.statusConnected'),
+
+    /**
+     * THE STATE NOBODY HAD DESIGNED: leads just landed, and now what?
+     *
+     * Import used to drop the user straight into an ordinary table. In production
+     * five of six leads created by new agencies were never opened again, and
+     * `first_follow_up_set` had never fired once in the product's history — the
+     * loop simply had no next step after the data arrived.
+     *
+     * This names the one action worth taking, and points at a specific lead, so
+     * the user leaves with a follow-up set instead of a list to admire.
+     */
+    firstImport: {
+      title: (count: number) => t('leads.firstRun.firstImport.title', n(count)),
+      body: t('leads.firstRun.firstImport.body'),
+      /**
+       * Rows the file carried that we could not turn into לידים. Reported here
+       * because routing straight to the list skips the importer's own invalid
+       * panel — and a customer silently losing rows from their file is exactly
+       * the kind of quiet data loss `care-charter.md` Law 1 forbids.
+       */
+      skipped: (count: number) => t('leads.firstRun.firstImport.skipped', n(count)),
+      cta: t('leads.firstRun.firstImport.cta'),
+      dismiss: t('leads.firstRun.firstImport.dismiss'),
+    },
+  }
+}
+
+/** The Hebrew copy — what every existing importer (mobile sheets, tests) has always read. */
+export const FIRST_RUN_COPY = firstRunCopy('he')
 
 /**
  * First-lead guidance — the words the desktop `FirstLeadCallout` already uses,

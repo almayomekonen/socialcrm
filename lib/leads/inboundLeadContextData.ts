@@ -1,7 +1,10 @@
 import { getUser } from '@/db/auth'
 import { listConversationMessages } from '@/db/inboxMessages'
 import { getInboxConversationByLeadId } from '@/modules/inbox/queries'
-import { CAPTURED_FIELD_LABELS } from './inboundLeadCopy'
+import type { UiLocale } from '@/lib/i18n/config'
+import { formatDateTime } from '@/lib/i18n/format'
+import { translatorFor } from '@/lib/i18n/translators'
+import { BUSINESS_TZ } from '@/lib/today/constants'
 import { formAnswersForLead } from '@/db/leadFormAnswers'
 import { displayableFormAnswers, formAnswerLabel } from '@/lib/facebook/leadFormAnswers'
 
@@ -20,11 +23,14 @@ export const FB_NAME_PLACEHOLDER = 'ליד מפייסבוק'
  * SocialCRM's capture time in the business timezone (Asia/Jerusalem), pinned
  * explicitly so it is correct on Vercel's UTC runtime and deterministic. Mirrors
  * `formatDateTime` (he-IL short date+time, dots→slashes) but timezone-safe.
+ * Hebrew (the default — the mobile card passes nothing) is unchanged; other
+ * interface languages use `lib/i18n/format` in the same business timezone.
  */
-export function formatCaptureAt(date: Date | string | null | undefined): string | null {
+export function formatCaptureAt(date: Date | string | null | undefined, locale: UiLocale = 'he'): string | null {
   if (!date) return null
   const d = new Date(date)
   if (Number.isNaN(d.getTime())) return null
+  if (locale !== 'he') return formatDateTime(locale, d, BUSINESS_TZ, 'short')
   return new Intl.DateTimeFormat('he-IL', {
     dateStyle: 'short',
     timeStyle: 'short',
@@ -55,11 +61,13 @@ export function facebookCapturedFieldLabels(
   hasName?: boolean,
   hasPhone?: boolean,
   hasEmail?: boolean,
+  locale: UiLocale = 'he',
 ): string[] {
+  const t = translatorFor(locale)
   return [
-    hasName && CAPTURED_FIELD_LABELS.name,
-    hasPhone && CAPTURED_FIELD_LABELS.phone,
-    hasEmail && CAPTURED_FIELD_LABELS.email,
+    hasName && t('leadDetail.inbound.field.name'),
+    hasPhone && t('leadDetail.inbound.field.phone'),
+    hasEmail && t('leadDetail.inbound.field.email'),
   ].filter(Boolean) as string[]
 }
 
@@ -103,12 +111,12 @@ export type FormAnswerRow = { label: string; values: string[] }
  * than breaking the lead page. Leads created before answers were stored have
  * none.
  */
-export async function loadLeadFormAnswers(leadId: number): Promise<FormAnswerRow[]> {
+export async function loadLeadFormAnswers(leadId: number, locale: UiLocale = 'he'): Promise<FormAnswerRow[]> {
   try {
     const user = await getUser()
     if (!user?.agencyId) return []
     const answers = await formAnswersForLead(user.agencyId, leadId)
-    return displayableFormAnswers(answers).map((a) => ({ label: formAnswerLabel(a.key), values: a.values }))
+    return displayableFormAnswers(answers).map((a) => ({ label: formAnswerLabel(a.key, locale), values: a.values }))
   } catch {
     return []
   }

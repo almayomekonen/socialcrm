@@ -9,10 +9,14 @@ import CopilotLeadContext from '@/components/copilot/CopilotLeadContext'
 import { Metadata } from 'next'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = {
-  title: 'נתוני ליד',
-  description: 'כל נתוני הליד',
+/** Tab title in the interface language — Hebrew ('נתוני ליד') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('leadDetail.page.title'), description: t('leadDetail.page.description') }
 }
 
 export default async function layout({ children, params }) {
@@ -34,7 +38,10 @@ export default async function layout({ children, params }) {
     select: ['name', 'rank', 'birthDate', 'gender', 'familyStatus', 'email', 'phone', 'secPhone', 'handlerId'],
   })
 
-  if (!client?.name) return <div>ליד זה לא נמצא</div>
+  if (!client?.name) {
+    const { locale } = await getUiLocaleState(user)
+    return <div {...regionAttrs(locale)}>{translatorFor(locale)('leadDetail.page.notFound')}</div>
+  }
 
   const [handlerName, family, perms, allUsers] = await Promise.all([
     getUserNameById(client?.handlerId),
@@ -45,6 +52,9 @@ export default async function layout({ children, params }) {
 
   const formProps = { user, officeGotPerm: perms.gotPermUsers, allUsers }
 
+  // The header and the tab nav declare the interface language themselves; the
+  // tab CONTENT (children) keeps inheriting <main>'s language until each tab is
+  // translated, so this wrapper declares nothing.
   return (
     <div className='mb-8 '>
       <ClientHeader

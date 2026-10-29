@@ -10,6 +10,8 @@ import { api } from '@/lib/funcs'
 import { onTaskChange, onTaskCtxMenu, TaskCtxMenu } from './utils'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { useAction } from '@/lib/useAction'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { taskStatusOptions } from '@/lib/tasks/taskStatus'
 
 type TaskHeaderProps = {
   task: any
@@ -24,7 +26,13 @@ type SavePayload = Partial<{
   dueDate: string
 }>
 
+/**
+ * Task detail header (lead tasks tab only). Chrome follows the interface
+ * language; the status picker shows labels but sends the STORED status value.
+ * `api()` toasts are its shared defaults.
+ */
 export default function TaskHeader({ task, users }: TaskHeaderProps) {
+  const t = useT()
   const [state, setState] = useState(false)
   const [title, setTitle] = useState<string>(task.title)
   const [status, setStatus] = useState<string>(task.status)
@@ -126,7 +134,7 @@ export default function TaskHeader({ task, users }: TaskHeaderProps) {
           {title}
         </h2>
         <Btn
-          lbl={completed ? 'בטל סימון' : 'סמן כבוצע'}
+          lbl={completed ? t('leadTabs.tasks.detail.unmarkDone') : t('leadTabs.tasks.detail.markDone')}
           size='small'
           icon={completed ? 'x' : 'check'}
           variant={completed ? 'soft' : undefined}
@@ -138,17 +146,17 @@ export default function TaskHeader({ task, users }: TaskHeaderProps) {
       <div className='flex flex-wrap gap-3 items-center rounded-xl bg-gray-50 border border-gray-100 p-3'>
         <SelectSearch
           name='userId'
-          placeholder='נציג'
+          placeholder={t('leadTabs.tasks.detail.repPlaceholder')}
           options={users}
           selected={task.userId}
           onSelectOpt={(user) => handleUserChange(user.id)}
         />
         <SelectSearch
           name='status'
-          placeholder='סטטוס'
-          options={statusOptions}
+          placeholder={t('leadTabs.tasks.detail.statusPlaceholder')}
+          options={taskStatusOptions(statusOptions, t.locale)}
           selected={status}
-          onSelectOpt={(opt) => handleStatusChange(opt.name)}
+          onSelectOpt={(opt) => handleStatusChange(opt.id)}
         />
         <Input
           type='date'
@@ -173,12 +181,13 @@ function TaskTitleFormPop({
   onSave: (title: string) => Promise<void>
   saving: boolean
 }) {
+  const t = useT()
   const { loading, error, setError, run } = useAction()
 
   async function handleSave() {
     const newTitle = (document.getElementById('taskTitle') as HTMLInputElement).value.trim()
     if (!newTitle) {
-      setError('יש להזין כותרת')
+      setError(t('leadTabs.tasks.detail.titleRequired'))
       return
     }
     await run(async () => {
@@ -189,10 +198,10 @@ function TaskTitleFormPop({
 
   return (
     <div popover='auto' id='taskTitleForm' className='pop p-4'>
-      <Input key={title} lbl='כותרת' defaultValue={title} id='taskTitle' />
+      <Input key={title} lbl={t('leadTabs.tasks.detail.titleLabel')} defaultValue={title} id='taskTitle' />
       {error && <p className='text-sm text-red-500 mt-1'>{error}</p>}
       <Btn
-        lbl={loading || saving ? '...' : 'שמירה'}
+        lbl={loading || saving ? '...' : t('common.save')}
         icon='floppy-disk'
         className='mt-2 w-full'
         onClick={handleSave}

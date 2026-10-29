@@ -9,6 +9,10 @@
  * multiple-choice question, none if Meta sent the field empty.
  */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+
 export type LeadFormAnswer = {
   /** Meta's field name, as sent (trimmed, bounded). */
   key: string
@@ -57,23 +61,27 @@ export function normalizeFormAnswers(fieldData: unknown): LeadFormAnswer[] {
 /** Fields the lead itself already holds and shows (name, phone, email). */
 const CONTACT_KEYS = new Set(['full_name', 'name', 'first_name', 'last_name', 'phone_number', 'phone', 'email'])
 
-/** Meta's standard question keys, in the product's Hebrew. */
-const STANDARD_LABELS: Record<string, string> = {
-  city: 'עיר',
-  state: 'מחוז',
-  country: 'מדינה',
-  province: 'מחוז',
-  street_address: 'כתובת',
-  post_code: 'מיקוד',
-  zip_code: 'מיקוד',
-  company_name: 'חברה',
-  job_title: 'תפקיד',
-  work_email: 'אימייל בעבודה',
-  work_phone_number: 'טלפון בעבודה',
-  date_of_birth: 'תאריך לידה',
-  gender: 'מגדר',
-  marital_status: 'מצב משפחתי',
-  relationship_status: 'מצב משפחתי',
+/**
+ * Meta's STANDARD question keys, labelled by our catalog (`leadDetail.formField.*`;
+ * Hebrew is the product wording these labels always had). A custom question is
+ * the owner's own text and is never translated.
+ */
+const STANDARD_LABELS: Record<string, MessageKey> = {
+  city: 'leadDetail.formField.city',
+  state: 'leadDetail.formField.state',
+  country: 'leadDetail.formField.country',
+  province: 'leadDetail.formField.province',
+  street_address: 'leadDetail.formField.street_address',
+  post_code: 'leadDetail.formField.post_code',
+  zip_code: 'leadDetail.formField.zip_code',
+  company_name: 'leadDetail.formField.company_name',
+  job_title: 'leadDetail.formField.job_title',
+  work_email: 'leadDetail.formField.work_email',
+  work_phone_number: 'leadDetail.formField.work_phone_number',
+  date_of_birth: 'leadDetail.formField.date_of_birth',
+  gender: 'leadDetail.formField.gender',
+  marital_status: 'leadDetail.formField.marital_status',
+  relationship_status: 'leadDetail.formField.relationship_status',
 }
 
 /**
@@ -86,9 +94,10 @@ export function displayableFormAnswers(answers: readonly LeadFormAnswer[]): Lead
 }
 
 /**
- * The owner-facing label: Hebrew for a standard question, otherwise the custom
- * question as written ("מה_התקציב_שלך?" → "מה התקציב שלך?").
+ * The owner-facing label: ours for a standard question (in the interface
+ * language, Hebrew by default), otherwise the custom question as written ("מה_התקציב_שלך?" → "מה התקציב שלך?").
  */
-export function formAnswerLabel(key: string): string {
-  return STANDARD_LABELS[key.toLowerCase()] ?? key.replace(/_+/g, ' ').trim()
+export function formAnswerLabel(key: string, locale: UiLocale = 'he'): string {
+  const standard = STANDARD_LABELS[key.toLowerCase()]
+  return standard ? translatorFor(locale)(standard) : key.replace(/_+/g, ' ').trim()
 }

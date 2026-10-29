@@ -15,6 +15,7 @@ import { api, isIdNumValid } from '@/lib/funcs'
 import { toast } from '@/lib/toast'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 const DUPLICATE_CHECK_DEBOUNCE_MS = 400
 const CONTACT_FIELDS = ['firstName', 'lastName', 'idNum', 'phone', 'secPhone', 'email'] as const
@@ -28,6 +29,7 @@ export default function ClientFormPop({
   onClose?: () => void
   onCreated?: (leadId: number) => void
 }) {
+  const t = useT()
   const expired = useAccessDenied()
   const user = useUser()
   const [errMsg, setErrMsg] = useState<string | null>(null)
@@ -83,10 +85,10 @@ export default function ClientFormPop({
 
     if (!client?.id && clientData.idNum) {
       const existingClient = await getLeadByIdNum(clientData.idNum)
-      if (existingClient) return setErrMsg(`תעודת זהות זו משוייכת לליד ${existingClient.name}`)
+      if (existingClient) return setErrMsg(t('leads.form.idNumTaken', { name: `${existingClient.name}` }))
     }
 
-    if (clientData.idNum && !isIdNumValid(clientData.idNum)) return setErrMsg('תעודת זהות לא תקינה')
+    if (clientData.idNum && !isIdNumValid(clientData.idNum)) return setErrMsg(t('leads.form.idNumInvalid'))
 
     const res = await api(upsertLead, [user.id, clientData, client?.id], undefined, undefined, { silentSuccess: true })
     if (res?.error === 'quota_exceeded') {
@@ -101,7 +103,7 @@ export default function ClientFormPop({
 
   return (
     <div>
-      <Title lbl={client?.id ? 'עריכת ליד' : 'הוספת ליד'} className='mb-6' />
+      <Title lbl={client?.id ? t('leads.form.editTitle') : t('leads.form.addTitle')} className='mb-6' />
       {!dupDismissed && duplicates.length > 0 && (
         <DuplicateLeadBanner matches={duplicates} onDismiss={() => setDupDismissed(true)} />
       )}
@@ -114,12 +116,12 @@ export default function ClientFormPop({
       */}
       {expired ? (
         <div className='mt-2'>
-          <SubscriptionExpiredState mode='panel' source='create_lead' feature='חידוש המנוי מחזיר את הוספת הלידים.' />
+          <SubscriptionExpiredState mode='panel' source='create_lead' feature={t('leads.form.expired')} translated />
         </div>
       ) : (
         <form id='clientForm' onSubmit={onSubmit}>
           <ClientForm key={client?.id ?? 'new'} data={client} onContactBlur={onContactBlur} />
-          <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />
+          <Btn lbl={t('common.save')} className='w-full mt-8' icon='floppy-disk' />
         </form>
       )}
       <ConfirmPop
@@ -128,6 +130,7 @@ export default function ClientFormPop({
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
       <QuotaPaywallModal state={paywall} onClose={() => setPaywall(null)} />
     </div>

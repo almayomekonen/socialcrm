@@ -9,12 +9,16 @@ import { twMerge } from 'tailwind-merge'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
 
 const Glry = dynamic(() => import('./Glry'), { ssr: false })
 type folderPath = 'display' | 'docs'
 
 export default function FileUploader({
-  title = 'העלאת קבצים',
+  title,
   initialFiles,
   folder = 'docs',
   path,
@@ -29,7 +33,10 @@ export default function FileUploader({
   disabled = false,
   taskId = null,
   clientId = null,
+  translated = false,
 }: Props) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const [files, setFiles] = useState(single && initialFiles ? [initialFiles] : initialFiles || [])
   const [fileToRemove, setFileToRemove] = useState<any>(null)
   const [errMsg, setErrMsg] = useState<string | null>(null)
@@ -47,7 +54,14 @@ export default function FileUploader({
 
   if (!user) return null
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='file_upload' feature='חידוש המנוי מחזיר את העלאת הקבצים' />
+    return (
+      <SubscriptionExpiredState
+        mode='inline'
+        source='file_upload'
+        feature={t('leadTabs.files.uploader.expired')}
+        translated={translated}
+      />
+    )
   }
 
   function onRemove(file) {
@@ -69,7 +83,8 @@ export default function FileUploader({
     getFiles(e.target.files)
 
     const newFiles = (await uploadS3(e, folderPath, taskId, clientId)) as any
-    if (newFiles.err) return setErrMsg('העלאת הקבצים נכשלה: ' + newFiles.msg)
+    // The reason is the upload's own error text, shown as it arrives.
+    if (newFiles.err) return setErrMsg(t('leadTabs.files.uploader.failed', { reason: newFiles.msg }))
 
     const obj = single ? [newFiles[0]] : [...files, ...newFiles]
     setFiles(obj)
@@ -90,7 +105,7 @@ export default function FileUploader({
 
         <label className={twMerge('btn', disabled && 'opacity-50')}>
           <Icon name={icon ? icon : type === 'image' ? 'image' : 'file-lines'} className='size-4' />
-          <p>{title}</p>
+          <p>{title ?? t('leadTabs.files.uploader.title')}</p>
 
           <input
             disabled={disabled}
@@ -112,7 +127,8 @@ export default function FileUploader({
         destructive
         onClose={() => setFileToRemove(null)}
         onConfirm={performRemove}
-        msg='להסיר את הקובץ?'
+        msg={t('leadTabs.files.uploader.removeConfirm')}
+        translated={translated}
       />
       <ConfirmPop
         open={!!errMsg}
@@ -120,6 +136,7 @@ export default function FileUploader({
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated={translated}
       />
     </div>
   )
@@ -141,4 +158,10 @@ type Props = {
   disabled?: boolean
   taskId?: number | null
   clientId?: number | null
+  /**
+   * The caller's screen follows the interface language (the lead files tab,
+   * table export): the uploader's own chrome (default title, confirmations,
+   * failure line, lock) follows it too. Off: Hebrew, as before.
+   */
+  translated?: boolean
 }

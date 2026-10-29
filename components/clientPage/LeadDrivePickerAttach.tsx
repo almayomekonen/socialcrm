@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast'
 import { useDrivePicker } from '@/lib/integrations/google/picker/useDrivePicker'
 import { attachDriveFile } from '@/actions/leadDriveFiles'
 import type { PickedDriveFile } from '@/lib/integrations/google/picker/pickerCore'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   leadId: number
@@ -19,6 +20,7 @@ type Props = {
  * unchanged, only the file-selection mechanism differs from the search flow.
  */
 export default function LeadDrivePickerAttach({ leadId, onAttached }: Props) {
+  const t = useT()
   const { status, openPicker } = useDrivePicker()
   const [attaching, setAttaching] = useState(false)
 
@@ -42,10 +44,10 @@ export default function LeadDrivePickerAttach({ leadId, onAttached }: Props) {
     }
     setAttaching(false)
     if (ok > 0) {
-      toast('success', ok === 1 ? 'הקובץ צורף לליד' : `צורפו ${ok} קבצים`)
+      toast('success', ok === 1 ? t('leadTabs.drive.attached') : t('leadTabs.drive.attachedMany', { count: ok }))
       onAttached?.()
     } else {
-      toast('error', 'הצירוף נכשל. נסה שוב.')
+      toast('error', t('leadTabs.drive.attachFailed'))
     }
   }
 
@@ -53,15 +55,15 @@ export default function LeadDrivePickerAttach({ leadId, onAttached }: Props) {
 
   return (
     <div className='grid gap-3'>
-      <p className='text-sm text-gray-600 leading-relaxed'>בחר קובץ מ-Drive לצירוף לליד.</p>
+      <p className='text-sm text-gray-600 leading-relaxed'>{t('leadTabs.drive.picker.intro')}</p>
       <Btn
-        lbl={busy ? 'טוען…' : 'בחר קובץ מ-Drive'}
+        lbl={busy ? t('leadTabs.drive.loading') : t('leadTabs.drive.picker.pick')}
         size='small'
         onClick={() => openPicker({ onPicked: handlePicked })}
         disabled={busy}
       />
-      {status === 'unconfigured' && <p className='text-xs text-red-500'>ה-Picker אינו מוגדר.</p>}
-      {status === 'error' && <p className='text-xs text-red-500'>פתיחת ה-Picker נכשלה. נסה שוב.</p>}
+      {status === 'unconfigured' && <p className='text-xs text-red-500'>{t('leadTabs.drive.picker.unconfigured')}</p>}
+      {status === 'error' && <p className='text-xs text-red-500'>{t('leadTabs.drive.picker.failed')}</p>}
     </div>
   )
 }

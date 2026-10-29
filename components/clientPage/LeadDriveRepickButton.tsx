@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast'
 import { useDrivePicker } from '@/lib/integrations/google/picker/useDrivePicker'
 import { attachDriveFile } from '@/actions/leadDriveFiles'
 import type { PickedDriveFile } from '@/lib/integrations/google/picker/pickerCore'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   leadId: number
@@ -26,6 +27,7 @@ type Props = {
  * row without schema or id changes.
  */
 export default function LeadDriveRepickButton({ leadId, onRepicked }: Props) {
+  const t = useT()
   const { status, openPicker } = useDrivePicker()
   const [working, setWorking] = useState(false)
 
@@ -49,10 +51,10 @@ export default function LeadDriveRepickButton({ leadId, onRepicked }: Props) {
     }
     setWorking(false)
     if (ok > 0) {
-      toast('success', 'הקובץ עודכן מ-Drive')
+      toast('success', t('leadTabs.drive.repicked'))
       onRepicked?.()
     } else {
-      toast('error', 'העדכון נכשל. נסה שוב.')
+      toast('error', t('leadTabs.drive.repickFailed'))
     }
   }
 
@@ -60,7 +62,7 @@ export default function LeadDriveRepickButton({ leadId, onRepicked }: Props) {
 
   return (
     <Btn
-      lbl={busy ? 'טוען…' : 'צרף מחדש'}
+      lbl={busy ? t('leadTabs.drive.loading') : t('leadTabs.drive.repick')}
       size='small'
       variant='outline'
       onClick={() => openPicker({ onPicked: handlePicked })}

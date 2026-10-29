@@ -8,7 +8,9 @@ import UploadClientData from '@/components/settings/UploadClientData'
 import { MetaLeadAdsBadge } from '@/components/ui/MetaLeadAdsBadge'
 import OnboardingActionCard from './OnboardingActionCard'
 import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
-import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
+import { firstRunCopy } from '@/lib/activation/firstRunCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor, regionAttrs } from '@/lib/i18n/config'
 import { useFirstRunAnalytics } from '@/hooks/useFirstRunAnalytics'
 
 /**
@@ -46,6 +48,8 @@ export default function LeadsFirstRun({
   metaConnected?: boolean
   whatsappConnected?: boolean
 }) {
+  const t = useT()
+  const C = firstRunCopy(t.locale)
   const router = useRouter()
   const [openForm, setOpenForm] = useState(false)
   const [openUpload, setOpenUpload] = useState(false)
@@ -74,7 +78,8 @@ export default function LeadsFirstRun({
 
   return (
     <div
-      dir='rtl'
+      dir={dirFor(t.locale)}
+      {...regionAttrs(t.locale)}
       data-leads-empty=''
       className='flex min-h-full w-full flex-col items-center justify-center px-6 py-16'
     >
@@ -166,7 +171,7 @@ export default function LeadsFirstRun({
 
       </div>
 
-      <ModalPop open={openForm} label='פרטי ליד' pos='middle' onClose={() => setOpenForm(false)}>
+      <ModalPop open={openForm} label={t('leads.dialog.leadDetails')} pos='middle' onClose={() => setOpenForm(false)} translated>
         <ClientFormPop
           client={null}
           onClose={() => setOpenForm(false)}
@@ -181,7 +186,7 @@ export default function LeadsFirstRun({
         />
       </ModalPop>
 
-      <ModalPop open={openUpload} label='העלאת לידים' pos='middle' onClose={() => setOpenUpload(false)}>
+      <ModalPop open={openUpload} label={t('leads.dialog.upload')} pos='middle' onClose={() => setOpenUpload(false)} translated>
         <UploadClientData onImported={onImported} />
       </ModalPop>
     </div>

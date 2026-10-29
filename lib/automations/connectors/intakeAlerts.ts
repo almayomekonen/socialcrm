@@ -1,6 +1,7 @@
 import 'server-only'
 import { deliveryFacts } from '@/db/automations/connectionDelivery'
 import { intakeErrorCopy, isFailingIntake } from './intakeErrors'
+import type { UiLocale } from '@/lib/i18n/config'
 
 /**
  * The one question the leads page asks: is any lead source refusing what
@@ -23,7 +24,8 @@ export type IntakeAlert = {
   action?: { label: string; href: string }
 }
 
-export async function intakeAlerts(agencyId: number): Promise<IntakeAlert[]> {
+/** `locale` is the interface language the banner is shown in; Hebrew by default. */
+export async function intakeAlerts(agencyId: number, locale: UiLocale = 'he'): Promise<IntakeAlert[]> {
   if (!Number.isInteger(agencyId) || agencyId <= 0) return []
 
   const facts = await deliveryFacts(agencyId)
@@ -31,7 +33,7 @@ export async function intakeAlerts(agencyId: number): Promise<IntakeAlert[]> {
 
   for (const [connectionId, f] of Object.entries(facts)) {
     if (!isFailingIntake(f)) continue
-    const copy = intakeErrorCopy(f.lastRejectionReason)
+    const copy = intakeErrorCopy(f.lastRejectionReason, locale)
     if (!copy) continue
     alerts.push({ connectionId, title: copy.title, short: copy.short, action: copy.action })
   }

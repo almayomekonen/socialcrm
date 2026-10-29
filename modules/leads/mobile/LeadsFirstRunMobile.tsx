@@ -7,7 +7,9 @@ import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
 import Icon from '@/lib/Icon'
 import { MetaLeadAdsBadge, WhatsappBadge } from '@/components/ui/MetaLeadAdsBadge'
 import MobileListRow, { MobileList } from '@/components/mobile/MobileListRow'
-import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
+import { firstRunCopy } from '@/lib/activation/firstRunCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor, regionAttrs } from '@/lib/i18n/config'
 import { useFirstRunAnalytics } from '@/hooks/useFirstRunAnalytics'
 import LeadFormMobile from './LeadFormMobile'
 import LeadImportMobile from './LeadImportMobile'
@@ -42,6 +44,8 @@ export default function LeadsFirstRunMobile({
   metaConnected?: boolean
   whatsappConnected?: boolean
 }) {
+  const t = useT()
+  const C = firstRunCopy(t.locale)
   const router = useRouter()
   const [formOpen, setFormOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -58,7 +62,7 @@ export default function LeadsFirstRunMobile({
 
   return (
     <>
-      <div dir='rtl' className='flex flex-col px-4 py-6'>
+      <div dir={dirFor(t.locale)} {...regionAttrs(t.locale)} className='flex flex-col px-4 py-6'>
         <header className='mb-6'>
           <h1 className='text-xl font-bold leading-tight text-ink'>{heading}</h1>
           <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>{body}</p>

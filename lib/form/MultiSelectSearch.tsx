@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Icon from '../Icon'
 import { Input } from '.'
 import { debounce } from '@/lib/hooksNEvents'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   options?: any[]
@@ -32,12 +33,15 @@ export function MultiSelectSearch({
   searchFunc,
   returnShow = null,
   selectedShow = null,
-  placeholder = 'חיפוש...',
+  placeholder: placeholderProp,
 
   onSelectOpt,
   tooltipPos,
   ...props
 }: Props) {
+  const t = useT()
+  // Default placeholder in the interface language (Hebrew 'חיפוש...' outside a provider).
+  const placeholder = placeholderProp ?? t('common.picker.search')
   const [state, setState] = useState(false)
 
   const render = () => setState(!state)
@@ -186,7 +190,7 @@ export function MultiSelectSearch({
         >
           <button type='button' onMouseDown={isAllSelected ? onDeselectAll : onSelectAll} className={itemCls}>
             <Icon name={isAllSelected ? 'square-check' : 'square'} />
-            {isAllSelected ? 'הסר הכל' : 'בחר הכל'}
+            {isAllSelected ? t('common.picker.clearAll') : t('common.picker.selectAll')}
           </button>
           {data.map((el) => {
             const selected = isSelected(el[val])

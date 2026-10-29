@@ -4,11 +4,11 @@ import React, { useCallback, useRef, useState } from 'react'
 import { updateLead } from '@/actions/clients'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { api } from '@/lib/funcs'
+import { useT } from '@/lib/i18n/I18nProvider'
 import {
   isLatestStatusRequest,
   registerStatusRequest,
   resolveStatusChangeOutcome,
-  STATUS_UPDATED_ANNOUNCE,
 } from './leadStatusRequest'
 
 type Args = {
@@ -23,6 +23,9 @@ type Args = {
  * sequencing, and aria-live confirmation (Wave A5).
  */
 export function useLeadActions({ activeTab, setActiveTab, setOptimisticStatuses }: Args) {
+  const t = useT()
+  // `STATUS_UPDATED_ANNOUNCE` (leadStatusRequest.ts) in the interface language.
+  const announce = t('leads.table.statusUpdated')
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [highlightedId, setHighlightedId] = useState<number | null>(null)
   const [statusAnnounce, setStatusAnnounce] = useState('')
@@ -47,7 +50,7 @@ export function useLeadActions({ activeTab, setActiveTab, setOptimisticStatuses 
       })
       setUpdatingId(obj.id)
 
-      const res = await api(updateLead, { id: obj.id, status: newStatus }, STATUS_UPDATED_ANNOUNCE, undefined, {
+      const res = await api(updateLead, { id: obj.id, status: newStatus }, announce, undefined, {
         silentSuccess: true,
       })
 
@@ -82,13 +85,13 @@ export function useLeadActions({ activeTab, setActiveTab, setOptimisticStatuses 
       recordLeadActionEvent('lead_action_taken', { surface: 'desktop', action: 'status', leadId: obj.id }).catch(() => {})
 
       setHighlightedId(obj.id)
-      setStatusAnnounce(STATUS_UPDATED_ANNOUNCE)
+      setStatusAnnounce(announce)
       setTimeout(() => {
         setHighlightedId((cur) => (cur === obj.id ? null : cur))
-        setStatusAnnounce((cur) => (cur === STATUS_UPDATED_ANNOUNCE ? '' : cur))
+        setStatusAnnounce((cur) => (cur === announce ? '' : cur))
       }, 2500)
     },
-    [setActiveTab, setOptimisticStatuses],
+    [setActiveTab, setOptimisticStatuses, announce],
   )
 
   return {

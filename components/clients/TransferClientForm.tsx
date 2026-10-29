@@ -7,8 +7,10 @@ import { transferLeadToRep } from '@/actions/clients'
 import { useProps } from '@/lib/hooksNEvents'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function TransferClientForm({ client }) {
+  const t = useT()
   let { users } = useProps()
   const [userName, setUserName] = useState('')
   const [pending, setPending] = useState<{ userId: any } | null>(null)
@@ -27,16 +29,17 @@ export default function TransferClientForm({ client }) {
 
   return (
     <div>
-      <Title lbl={`העברת ליד מבעל הליד ${client.userName}`} className='mb-6' />
+      <Title lbl={t('leads.transfer.title', { owner: `${client.userName}` })} className='mb-6' />
       <form id='transferClientForm' onSubmit={onSubmit}>
-        <SelectSearch name='userId' lbl='בחר בעל ליד חדש' options={users} onSelectOpt={(user) => setUserName(user.name)} />
-        <Btn lbl='שמירה' className='w-full mt-8' icon='floppy-disk' />
+        <SelectSearch name='userId' lbl={t('leads.transfer.pickOwner')} options={users} onSelectOpt={(user) => setUserName(user.name)} />
+        <Btn lbl={t('common.save')} className='w-full mt-8' icon='floppy-disk' />
       </form>
       <ConfirmPop
         open={!!pending}
         onClose={() => setPending(null)}
         onConfirm={onConfirm}
-        msg={`האם להעביר ליד ${client.name} לבעל ליד ${userName} ?`}
+        msg={t('leads.transfer.confirm', { name: `${client.name}`, owner: userName })}
+        translated
       />
     </div>
   )

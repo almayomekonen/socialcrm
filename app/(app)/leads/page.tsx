@@ -24,10 +24,13 @@ import { getMobileLeadList, agencyHasAnyLeads } from '@/modules/leads/queries'
 import LeadListMobile from '@/modules/leads/mobile/LeadListMobile'
 import AutoTour from '@/components/education/AutoTour'
 import { pipelineYieldsToFirstImport } from '@/lib/education'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
 
-export const metadata: Metadata = {
-  title: 'נתוני לידים',
-  description: 'כל נתוני הלידים',
+/** Tab title in the interface language — Hebrew ('נתוני לידים') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('leads.page.leadsTitle'), description: t('leads.page.leadsDescription') }
 }
 
 export default async function LeadsPage({ searchParams }) {
@@ -90,6 +93,9 @@ export default async function LeadsPage({ searchParams }) {
     )
   }
 
+  // Resolved once by the same request-memoised call the (app) layout makes, so
+  // page and layout agree; only intake copy is produced here on the server.
+  const { locale } = await getUiLocaleState(user)
   const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, meta, wa, intake] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),
@@ -99,7 +105,7 @@ export default async function LeadsPage({ searchParams }) {
     getQuotaStatus(user.agencyId),
     getFacebookConnectionState(user.id),
     getWhatsappConnectionState(user.agencyId),
-    intakeAlerts(user.agencyId),
+    intakeAlerts(user.agencyId, locale),
   ])
 
   const hasLeads = await hasAnyLeads(user.agencyId, handlers.gotPermIds, user.role)
@@ -139,6 +145,7 @@ export default async function LeadsPage({ searchParams }) {
         users: handlers.allPermUsers,
       }}
       className='flex flex-col min-h-0 h-full'
+      regionAttrs={regionAttrs(locale)}
     >
       <WelcomeParamCleanup />
 

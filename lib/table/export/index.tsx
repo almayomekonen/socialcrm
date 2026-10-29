@@ -15,6 +15,7 @@ import { useProps } from '@/lib/hooksNEvents'
 import FileUploader from '@/components/files/FileUploader'
 import { useState } from 'react'
 import { SubmitButton } from '@/lib/btns/SubmitBtn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   data?: any
@@ -23,6 +24,10 @@ type Props = {
 }
 
 export default function ExportTable({ data, dataToFetch, columns }: Props) {
+  // UI chrome only. Exported HEADER text stays each column's stored label (Hebrew):
+  // lib/leads/importMapping.ts recognizes no English/Arabic header for most
+  // columns, so translating them would break export → re-import.
+  const t = useT()
   const [img, setImg] = useState(null)
   let sql = null
   try {
@@ -73,7 +78,7 @@ export default function ExportTable({ data, dataToFetch, columns }: Props) {
           variant='outline'
           size='icon'
           iconClassName='bg-red-700'
-          title='ייצוא טבלה ל PDF'
+          title={t('common.table.exportPdf')}
         />
         <Btn
           onClick={exportXL}
@@ -81,16 +86,16 @@ export default function ExportTable({ data, dataToFetch, columns }: Props) {
           variant='outline'
           size='icon'
           iconClassName='bg-green-700'
-          title='ייצוא טבלה ל Excel'
+          title={t('common.table.exportExcel')}
         />
       </div>
 
       <div id='exportPdfForm' popover='manual' className='pop max-w-96'>
-        <button className='absolute top-2 left-2 z-10' popoverTarget='exportPdfForm' aria-label='סגירה'>
+        <button className='absolute top-2 left-2 z-10' popoverTarget='exportPdfForm' aria-label={t('common.dialog.close')}>
           <Icon name='circle-xmark' className='bg-red-700' />
         </button>
         <form className='grid gap-4' onSubmit={onSubmit}>
-          <Input lbl='כותרת' name='title' required={false} />
+          <Input lbl={t('common.table.pdfTitle')} name='title' required={false} />
           <FileUploader
             onFilesChange={(file) => setImg(file[0]?.url)}
             folder='display'
@@ -98,10 +103,11 @@ export default function ExportTable({ data, dataToFetch, columns }: Props) {
             name='img'
             type='image'
             tooltipClass='top-full mt-4 w-full'
-            title='העלאת תמונה'
+            title={t('common.table.pdfImage')}
+            translated
           />
-          <Checkbox lbl='הוספת שורת סה"כ בסוף הטבלה' name='sum' />
-          <SubmitButton lbl='יצירת מסמך PDF' icon='download' />
+          <Checkbox lbl={t('common.table.pdfSumRow')} name='sum' />
+          <SubmitButton lbl={t('common.table.pdfCreate')} icon='download' />
         </form>
       </div>
     </>

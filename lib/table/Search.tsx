@@ -1,7 +1,9 @@
 import { Input } from '../form'
 import { ConfigT } from '.'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function Search({ config }: SearchT) {
+  const t = useT()
   const { data, columns, setState } = config
 
   function onTermChange(e) {
@@ -10,7 +12,7 @@ export default function Search({ config }: SearchT) {
     setState(filtered)
   }
 
-  return <Input placeholder='🔎︎  חיפוש חופשי...' onChange={onTermChange} />
+  return <Input placeholder={t('common.table.freeSearch')} onChange={onTermChange} />
 }
 
 type SearchT = {

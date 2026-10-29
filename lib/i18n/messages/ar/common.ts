@@ -2,6 +2,36 @@ import type { Messages } from '../../translate'
 
 export const common: Messages['common'] = {
   source: { whatsapp: 'واتساب', facebook: 'فيسبوك', instagram: 'إنستغرام', website: 'الموقع', manual: 'يدوي' },
+  dialog: { close: 'إغلاق', closeTitle: 'خروج دون حفظ', fallbackName: 'مربع حوار', confirm: 'موافق', cancel: 'إلغاء' },
+  picker: { search: 'بحث…', selectAll: 'تحديد الكل', clearAll: 'إلغاء تحديد الكل' },
+  table: {
+    columns: 'الأعمدة المعروضة',
+    freeSearch: '🔎︎  بحث…',
+    records: {
+      zero: 'لا سجلات',
+      one: 'سجل واحد',
+      two: 'سجلان',
+      few: '{count} سجلات',
+      many: '{count} سجلًا',
+      other: '{count} سجل',
+    },
+    recordsOf: {
+      zero: '0 من أصل {total} سجل',
+      one: 'سجل واحد من أصل {total}',
+      two: 'سجلان من أصل {total}',
+      few: '{count} سجلات من أصل {total}',
+      many: '{count} سجلًا من أصل {total}',
+      other: '{count} سجل من أصل {total}',
+    },
+    prev: 'السابق',
+    next: 'التالي',
+    exportPdf: 'تصدير الجدول إلى PDF',
+    exportExcel: 'تصدير الجدول إلى Excel',
+    pdfTitle: 'العنوان',
+    pdfImage: 'رفع صورة',
+    pdfSumRow: 'إضافة صف إجمالي في نهاية الجدول',
+    pdfCreate: 'إنشاء مستند PDF',
+  },
   save: 'حفظ',
   toast: {
     success: 'تم بنجاح',

@@ -8,6 +8,15 @@ import { isDrivePickerEnabled } from '@/lib/integrations/google/picker/pickerCor
 import { getUser } from '@/db/auth'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { Metadata } from 'next'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+
+/** Tab title in the interface language — Hebrew ('נתוני ליד', the lead layout's title) outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('leadDetail.page.title'), description: t('leadDetail.page.description') }
+}
 
 export default async function page({ params, searchParams }) {
   searchParams = await searchParams
@@ -21,6 +30,8 @@ export default async function page({ params, searchParams }) {
   const user = await getUser()
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='lead_files' />
 
+  // Resolved once by the same request-memoised call the (app) layout makes.
+  const { locale } = await getUiLocaleState(user)
   const tasks = await getTasksByClientId(clientId)
   const files = await getFilesByClientId(clientId)
 
@@ -35,7 +46,7 @@ export default async function page({ params, searchParams }) {
   ])
 
   return (
-    <div className='grid gap-4'>
+    <div className='grid gap-4' {...regionAttrs(locale)}>
       <LeadDriveSection
         leadId={Number(clientId)}
         attachments={driveAttachments}

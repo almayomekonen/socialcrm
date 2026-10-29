@@ -33,4 +33,5 @@ export function resolveStatusChangeOutcome(args: {
   return { apply: true, kind: 'success' }
 }
 
+/** The Hebrew status-change announcement; the table reads `leads.table.statusUpdated` (same text) for the interface language. */
 export const STATUS_UPDATED_ANNOUNCE = 'סטטוס עודכן'

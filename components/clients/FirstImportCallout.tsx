@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
-import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
+import { firstRunCopy } from '@/lib/activation/firstRunCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor, regionAttrs } from '@/lib/i18n/config'
 
 /**
  * The state nobody had designed: leads just landed, and now what?
@@ -34,6 +36,8 @@ export default function FirstImportCallout({
   /** Rows the file carried that could not be imported. */
   skipped?: number
 }) {
+  const t = useT()
+  const C = firstRunCopy(t.locale)
   const router = useRouter()
   const pathname = usePathname()
   const sp = useSearchParams()
@@ -54,7 +58,8 @@ export default function FirstImportCallout({
   return (
     <div
       role='status'
-      dir='rtl'
+      dir={dirFor(t.locale)}
+      {...regionAttrs(t.locale)}
       className='mb-4 flex items-start gap-3 rounded-lg border border-gray-200 bg-primary-tint px-4 py-3'
     >
       <span className='flex size-8 flex-none items-center justify-center rounded-lg bg-white'>

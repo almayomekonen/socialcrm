@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import type { DocumentKindEntry } from '@/lib/billing/documentKinds'
 import DocumentKindPicker from './document-picker/DocumentKindPicker'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Opens the document-kind picker. The picker routes to the appropriate
@@ -13,6 +14,7 @@ import DocumentKindPicker from './document-picker/DocumentKindPicker'
  * kinds in the picker are not clickable.
  */
 export default function CreateInvoiceBtn({ leadId }: { leadId: number }) {
+  const t = useT()
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
@@ -27,7 +29,7 @@ export default function CreateInvoiceBtn({ leadId }: { leadId: number }) {
 
   return (
     <>
-      <Btn icon='file-plus' lbl='צור מסמך' onClick={() => setOpen(true)} />
+      <Btn icon='file-plus' lbl={t('leadTabs.billing.create')} onClick={() => setOpen(true)} />
       <DocumentKindPicker open={open} onClose={() => setOpen(false)} onPick={onPick} />
     </>
   )

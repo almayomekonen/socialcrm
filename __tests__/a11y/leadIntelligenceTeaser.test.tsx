@@ -129,6 +129,8 @@ describe('the teaser costs nothing to produce', () => {
     expect(imports).toEqual([
       "import { Lightbulb, Sparkles } from 'lucide-react'",
       "import { proToast } from '@/lib/toast'",
+      "import { dirFor, regionAttrs, type UiLocale } from '@/lib/i18n/config'",
+      "import { translatorFor } from '@/lib/i18n/translators'",
     ])
   })
 
@@ -155,7 +157,7 @@ describe('what is blurred is not content', () => {
 
   it('it takes no lead data, because it takes no props', () => {
     const src = read('components/ai/LeadIntelligenceTeaser.tsx')
-    expect(src).toContain('export default function LeadIntelligenceTeaser()')
+    expect(src).toContain("export default function LeadIntelligenceTeaser({ locale = 'he' }: { locale?: UiLocale })")
     expect(src).not.toContain('leadId')
   })
 
@@ -255,14 +257,14 @@ describe('an active subscription is completely unchanged', () => {
     const { container } = render(<LeadIntelligenceTeaser />)
     expect(container.innerHTML).not.toContain('רענן')
     const src = read('components/ai/LeadIntelligenceCard.tsx')
-    const teaserReturn = src.indexOf('return <LeadIntelligenceTeaser />')
+    const teaserReturn = src.indexOf('return <LeadIntelligenceTeaser locale={locale} />')
     for (const at of [...src.matchAll(/<RefreshLeadIntelligenceButton/g)].map((m) => m.index!)) {
       expect(at).toBeGreaterThan(teaserReturn)
     }
   })
 
   it('the retry line survives for genuine AI failures', () => {
-    expect(read('components/ai/LeadIntelligenceCard.tsx')).toContain('העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.')
+    expect(read('components/ai/LeadIntelligenceCard.tsx')).toContain("t('leadDetail.intelligence.unavailable')")
   })
 
   it('AI off and not allowlisted still render nothing, as before', () => {

@@ -255,6 +255,8 @@ const PageCtx = createContext<any>(null)
 
 type ProviderProps = {
   className?: string
+  /** `lang`/`dir` of a translated page root (`regionAttrs(locale)`); nothing for Hebrew. */
+  regionAttrs?: { lang?: string; dir?: 'rtl' | 'ltr' }
   children: React.ReactNode
   props: {
     tableLength?: number
@@ -263,12 +265,12 @@ type ProviderProps = {
   }
 }
 
-export function Provider({ children, props, className }: ProviderProps) {
+export function Provider({ children, props, className, regionAttrs }: ProviderProps) {
   const [state, setState] = useState()
 
   return (
     <PageCtx.Provider value={{ ...props, state, setState }}>
-      <div className={className}>{children}</div>
+      <div className={className} {...regionAttrs}>{children}</div>
     </PageCtx.Provider>
   )
 }

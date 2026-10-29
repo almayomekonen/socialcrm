@@ -148,8 +148,8 @@ describe('leads tour boundaries', () => {
 
     const callout = readFileSync('components/clients/FirstLeadCallout.tsx', 'utf8')
     expect(callout).not.toContain('driver.js')
-    expect(callout).toContain('הליד הראשון שלך בפנים')
-    expect(callout).toContain('קבע מתי לחזור אליו')
+    expect(callout).toContain("t('leadDetail.firstLead.title')")
+    expect(callout).toContain("t('leadDetail.firstLead.body')")
 
     const lead = getTour('lead')!
     expect(lead.version).toBe(1)

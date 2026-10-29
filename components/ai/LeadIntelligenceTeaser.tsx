@@ -2,6 +2,8 @@
 
 import { Lightbulb, Sparkles } from 'lucide-react'
 import { proToast } from '@/lib/toast'
+import { dirFor, regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The Pro teaser for the lead summary card.
@@ -27,21 +29,35 @@ import { proToast } from '@/lib/toast'
 const SUMMARY_ROWS = ['100%', '92%', '68%']
 const INSIGHT_ROWS = ['86%', '78%', '64%']
 
+/** Direction-dependent decoration: the legacy RTL classes, mirrored for LTR. */
+const SIDE = {
+  rtl: { insights: 'space-y-2 pr-5', action: 'border-r-2 border-info-border pr-3 space-y-2' },
+  ltr: { insights: 'space-y-2 pl-5', action: 'border-l-2 border-info-border pl-3 space-y-2' },
+} as const
+
 function Bar({ width, className = '' }: { width: string; className?: string }) {
   return <div aria-hidden className={`h-2.5 rounded-full bg-gray-200/90 ${className}`} style={{ width }} />
 }
 
-export default function LeadIntelligenceTeaser() {
+/**
+ * `locale` is the card's chrome language, passed by `LeadIntelligenceCard` from
+ * the page (the inbox and mobile pass nothing: Hebrew). It is the only prop, and
+ * it carries nothing about the lead.
+ */
+export default function LeadIntelligenceTeaser({ locale = 'he' }: { locale?: UiLocale }) {
+  const t = translatorFor(locale)
+  const side = SIDE[dirFor(locale)]
   return (
     <section
-      aria-label='תקציר חכם, זמין עם Pro'
+      aria-label={t('leadDetail.intelligence.teaser.label')}
+      {...regionAttrs(locale)}
       className='relative overflow-hidden rounded-lg border border-gray-200 bg-white p-5 mb-8'
     >
       <div className='flex items-center justify-between mb-3'>
         <div className='flex items-center gap-2'>
           <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
             <Sparkles aria-hidden className='size-3.5 text-accent' />
-            תקציר חכם
+            {t('leadDetail.intelligence.title')}
           </p>
           <span className='rounded-full border border-warning-border bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning-text'>
             Pro
@@ -62,13 +78,13 @@ export default function LeadIntelligenceTeaser() {
             ))}
           </div>
 
-          <div className='space-y-2 pr-5'>
+          <div className={side.insights}>
             {INSIGHT_ROWS.map((w) => (
               <Bar key={w} width={w} className='bg-gray-200/75' />
             ))}
           </div>
 
-          <div className='border-r-2 border-info-border pr-3 space-y-2'>
+          <div className={side.action}>
             <div className='flex items-center gap-1.5'>
               <Lightbulb aria-hidden className='size-3.5 text-accent' />
               <Bar width='104px' className='h-2 bg-gray-200/80' />
@@ -91,20 +107,20 @@ export default function LeadIntelligenceTeaser() {
 
       <div className='mt-4 flex flex-wrap items-center justify-between gap-3'>
         <p className='text-[13px] leading-snug text-gray-600'>
-          התקציר החכם מנתח את הליד ומציע את הצעד הבא.
+          {t('leadDetail.intelligence.teaser.body')}
         </p>
         <button
           type='button'
           onClick={() =>
             proToast({
-              title: 'התקציר החכם זמין עם Pro',
-              body: 'חידוש המנוי יחזיר את התקציר החכם.',
+              title: t('leadDetail.intelligence.teaser.proTitle'),
+              body: t('leadDetail.intelligence.teaser.proBody'),
               source: 'lead_intelligence',
             })
           }
           className='press inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border border-warning-border bg-warning-bg px-5 text-[13px] font-semibold text-warning-text hover:bg-warning-bg/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning-text'
         >
-          לצפייה בתקציר
+          {t('leadDetail.intelligence.teaser.cta')}
         </button>
       </div>
     </section>

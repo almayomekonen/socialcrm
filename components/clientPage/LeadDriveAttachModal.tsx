@@ -9,6 +9,9 @@ import { iconForDriveMime } from '@/lib/copilot/driveMimeIcon'
 import { attachDriveFile } from '@/actions/leadDriveFiles'
 import { searchDriveForLead, type SuggestedDriveFile } from '@/actions/leadDriveFilesSearch'
 import LeadDrivePickerAttach from './LeadDrivePickerAttach'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
+import { driveModifiedDate } from './driveModifiedDate'
 
 type Props = {
   open: boolean
@@ -18,7 +21,9 @@ type Props = {
   pickerEnabled?: boolean
 }
 
+/** Attach dialog of the lead files tab; portalled, so it declares the interface language (`translated`). */
 export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached, pickerEnabled = false }: Props) {
+  const t = useT()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SuggestedDriveFile[]>([])
   const [loading, setLoading] = useState(false)
@@ -72,29 +77,29 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
         webViewLink: file.webViewLink,
       })
       if (res.ok) {
-        toast('success', 'הקובץ צורף לליד')
+        toast('success', t('leadTabs.drive.attached'))
         setResults((prev) => prev.filter((r) => r.driveFileId !== file.driveFileId))
         onAttached?.()
       } else {
-        toast('error', 'הצירוף נכשל. נסה שוב.')
+        toast('error', t('leadTabs.drive.attachFailed'))
       }
     } catch {
-      toast('error', 'הצירוף נכשל. נסה שוב.')
+      toast('error', t('leadTabs.drive.attachFailed'))
     } finally {
       setAttachingId(null)
     }
   }
 
   return (
-    <ModalPop open={open} pos='middle' onClose={onClose} label='צירוף קובץ מ-Google Drive' className='w-[520px] max-w-[94vw]'>
+    <ModalPop open={open} pos='middle' onClose={onClose} label={t('leadTabs.drive.dialog.label')} className='w-[520px] max-w-[94vw]' translated>
       <div className='pt-2 grid gap-4'>
         <header className='grid gap-2'>
           <div className='flex items-center gap-2.5'>
             <Icon name='google-drive' className='size-6 bg-gray-900' />
-            <h2 className='text-lg font-bold text-dark'>צרף קובץ מ-Google Drive</h2>
+            <h2 className='text-lg font-bold text-dark'>{t('leadTabs.drive.dialog.title')}</h2>
           </div>
           {!pickerEnabled && (
-            <p className='text-sm text-gray-600 leading-relaxed'>חפש בקבצים שלך ב-Drive ובחר את הקובץ לצירוף לליד.</p>
+            <p className='text-sm text-gray-600 leading-relaxed'>{t('leadTabs.drive.dialog.intro')}</p>
           )}
         </header>
 
@@ -113,7 +118,7 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
             type='text'
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder='חפש קובץ לפי שם או תוכן…'
+            placeholder={t('leadTabs.drive.dialog.searchPlaceholder')}
             className='w-full h-10 px-3 ps-9 rounded-md border border-gray-200 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
             autoFocus
           />
@@ -126,18 +131,19 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
 
         <div className='min-h-[200px] max-h-[360px] overflow-y-auto scrollbar-slim flex flex-col gap-1.5'>
           {loading && (
-            <div className='h-20 flex items-center justify-center text-sm text-gray-500'>טוען…</div>
+            <div className='h-20 flex items-center justify-center text-sm text-gray-500'>{t('leadTabs.drive.loading')}</div>
           )}
           {!loading && query.trim().length < 2 && (
-            <div className='h-20 flex items-center justify-center text-sm text-gray-400'>הקלד לפחות 2 תווים</div>
+            <div className='h-20 flex items-center justify-center text-sm text-gray-400'>{t('leadTabs.drive.dialog.minChars')}</div>
           )}
           {!loading && query.trim().length >= 2 && results.length === 0 && (
-            <div className='h-20 flex items-center justify-center text-sm text-gray-400'>לא נמצאו קבצים</div>
+            <div className='h-20 flex items-center justify-center text-sm text-gray-400'>{t('leadTabs.drive.dialog.noResults')}</div>
           )}
           {!loading &&
             results.map((file) => (
               <SearchResultRow
                 key={file.driveFileId}
+                t={t}
                 file={file}
                 attaching={attachingId === file.driveFileId}
                 onAttach={() => handleAttach(file)}
@@ -148,7 +154,7 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
         )}
 
         <div className='flex justify-end'>
-          <Btn lbl='סגור' variant='outline' onClick={onClose} />
+          <Btn lbl={t('leadTabs.drive.dialog.close')} variant='outline' onClick={onClose} />
         </div>
       </div>
     </ModalPop>
@@ -156,16 +162,18 @@ export default function LeadDriveAttachModal({ open, onClose, leadId, onAttached
 }
 
 function SearchResultRow({
+  t,
   file,
   attaching,
   onAttach,
 }: {
+  t: Translator
   file: SuggestedDriveFile
   attaching: boolean
   onAttach: () => void
 }) {
   const icon = iconForDriveMime(file.mimeType)
-  const date = file.modifiedTime ? file.modifiedTime.slice(0, 10) : ''
+  const date = driveModifiedDate(file.modifiedTime, t.locale)
 
   return (
     <div
@@ -182,7 +190,7 @@ function SearchResultRow({
         {date && <p className='text-[10.5px] text-gray-400'>{date}</p>}
       </div>
       <div className='shrink-0'>
-        <Btn lbl={attaching ? 'מצרף…' : 'צרף'} size='small' onClick={onAttach} disabled={attaching} />
+        <Btn lbl={attaching ? t('leadTabs.drive.attaching') : t('leadTabs.drive.attachOne')} size='small' onClick={onAttach} disabled={attaching} />
       </div>
     </div>
   )
