@@ -3,6 +3,7 @@
 import { useTopLayerPromotion } from '@/lib/useTopLayer'
 import LeadPickerRow, { dropdownGroupHeaderCls } from './LeadPickerRow'
 import type { RecentLead } from './types'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The portal-rendered dropdown body. Pulled out so LeadPicker stays
@@ -32,6 +33,9 @@ export default function LeadPickerPanel({
   // Held in the top layer for as long as the panel is open. Mounted only while
   // open, so mounting IS opening and the promotion needs no further condition.
   useTopLayerPromotion(panelRef, canTopLayer)
+  const t = useT()
+  // Portalled to <body> (outside every translated region), so it declares the language itself.
+  const region = useRegionAttrs()
 
   const billed = results.filter((l) => (l.invoiceCount ?? 0) > 0)
   const unbilled = results.filter((l) => !(l.invoiceCount ?? 0))
@@ -81,18 +85,19 @@ export default function LeadPickerPanel({
         zIndex: 100000,
       }}
       className='bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden'
+      {...region}
     >
       <input
         type='text'
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder='חיפוש לקוח/ה...'
+        placeholder={t('billing.picker.search')}
         autoFocus
         className='w-full h-10 px-3 border-b border-gray-100 bg-gray-50 focus:bg-white focus:outline-none text-base placeholder:text-gray-400'
       />
       <div className='max-h-72 overflow-y-auto'>
         {results.length === 0 ? (
-          <p className='px-3 py-6 text-sm text-gray-500 text-center'>אין תוצאות</p>
+          <p className='px-3 py-6 text-sm text-gray-500 text-center'>{t('billing.picker.none')}</p>
         ) : !showGroups ? (
           results.map((lead) => (
             <LeadPickerRow
@@ -104,7 +109,7 @@ export default function LeadPickerPanel({
           ))
         ) : (
           <>
-            <div className={dropdownGroupHeaderCls}>כבר חויבו</div>
+            <div className={dropdownGroupHeaderCls}>{t('billing.picker.billed')}</div>
             {billed.map((lead) => (
               <LeadPickerRow
                 key={lead.id}
@@ -113,7 +118,7 @@ export default function LeadPickerPanel({
                 onClick={() => onPickLead(lead.id)}
               />
             ))}
-            <div className={dropdownGroupHeaderCls}>לידים אחרונים</div>
+            <div className={dropdownGroupHeaderCls}>{t('billing.picker.recent')}</div>
             {unbilled.map((lead) => (
               <LeadPickerRow
                 key={lead.id}
@@ -131,7 +136,7 @@ export default function LeadPickerPanel({
         className='border-t border-gray-200 px-3 py-3 hover:bg-gray-50 text-sm font-medium text-solid flex items-center gap-1.5 bg-white shrink-0 w-full'
       >
         <span aria-hidden>+</span>
-        <span>יצירת לקוח/ה חדש/ה</span>
+        <span>{t('billing.picker.create')}</span>
       </button>
     </div>
   )

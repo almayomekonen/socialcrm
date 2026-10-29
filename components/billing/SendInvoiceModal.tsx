@@ -11,21 +11,24 @@ import { sendInvoiceEmailAction, type SendInvoiceErrorReason, type SendInvoiceRe
 import { formatInvoiceNumber } from './funcs'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
-// Map every server-side error reason to a clear Hebrew message. Without
+// Map every server-side error reason to a clear message (catalog:
+// `billing.send.error.*`, worded in the interface language). Without
 // this, the `api()` helper showed a success toast on EVERY non-thrown
 // return — including `{ error: true, reason: 'pdf_not_ready' }` — leaving
 // the user thinking the email was sent when it wasn't.
-const SEND_ERROR_MESSAGES: Record<SendInvoiceErrorReason, string> = {
-  no_permission: 'אין הרשאה לשליחת חשבוניות',
-  lead_not_found: 'הליד לא נמצא',
-  invoice_not_found: 'החשבונית לא נמצאה',
-  invoice_not_issued: 'החשבונית עדיין טיוטה',
-  pdf_not_ready: 'קובץ ה-PDF עדיין לא מוכן',
-  invalid_email: 'כתובת המייל אינה תקינה',
-  rate_limited: 'נשלחה בקשה לאחרונה — נסו שוב בעוד מספר שניות',
-  transport_failed: 'שירות המייל סירב — בדקו את הלוגים',
-  failed: 'שליחת החשבונית נכשלה',
+const SEND_ERROR_KEYS: Record<SendInvoiceErrorReason, MessageKey> = {
+  no_permission: 'billing.send.error.no_permission',
+  lead_not_found: 'billing.send.error.lead_not_found',
+  invoice_not_found: 'billing.send.error.invoice_not_found',
+  invoice_not_issued: 'billing.send.error.invoice_not_issued',
+  pdf_not_ready: 'billing.send.error.pdf_not_ready',
+  invalid_email: 'billing.send.error.invalid_email',
+  rate_limited: 'billing.send.error.rate_limited',
+  transport_failed: 'billing.send.error.transport_failed',
+  failed: 'billing.send.error.failed',
 }
 
 export default function SendInvoiceModal({
@@ -39,6 +42,7 @@ export default function SendInvoiceModal({
   open: boolean
   onClose: () => void
 }) {
+  const t = useT()
   const router = useRouter()
   /**
    * PRE-GATE inside the modal, so BOTH triggers — SendInvoiceBtn and the
@@ -72,7 +76,7 @@ export default function SendInvoiceModal({
       })
     } catch (err) {
       setBusy(false)
-      toast('error', 'שליחת החשבונית נכשלה')
+      toast('error', t(SEND_ERROR_KEYS.failed))
       console.error('[send-modal] threw', err)
       return
     }
@@ -80,7 +84,7 @@ export default function SendInvoiceModal({
     setBusy(false)
 
     if ('success' in result && result.success) {
-      toast('success', 'החשבונית נשלחה')
+      toast('success', t('billing.send.sent'))
       onClose()
       router.refresh()
       return
@@ -90,20 +94,20 @@ export default function SendInvoiceModal({
     // WHY the send didn't happen (was the PDF not ready? is the lead
     // missing? etc.). Previously the api() helper hid this entirely.
     const reason = (result as { reason?: SendInvoiceErrorReason }).reason
-    const message = reason ? SEND_ERROR_MESSAGES[reason] : SEND_ERROR_MESSAGES.failed
+    const message = t(reason ? SEND_ERROR_KEYS[reason] : SEND_ERROR_KEYS.failed)
     toast('error', message)
   }
 
   if (expired) {
     return (
-      <ModalPop open={open} onClose={onClose} label='שליחת חשבונית' pos='middle' className='w-[460px] max-w-[92vw]'>
-        <SubscriptionExpiredState mode='panel' source='invoice_send' feature='חידוש המנוי מחזיר את שליחת החשבוניות.' />
+      <ModalPop open={open} onClose={onClose} label={t('billing.send.title')} pos='middle' className='w-[460px] max-w-[92vw]' translated>
+        <SubscriptionExpiredState mode='panel' source='invoice_send' feature={t('billing.send.expired')} translated />
       </ModalPop>
     )
   }
 
   return (
-    <ModalPop open={open} onClose={busy ? () => {} : onClose} label='שליחת חשבונית' pos='middle' className='w-[460px] max-w-[92vw]'>
+    <ModalPop open={open} onClose={busy ? () => {} : onClose} label={t('billing.send.title')} pos='middle' className='w-[460px] max-w-[92vw]' translated>
       <div className='grid gap-4 pt-2'>
         <div className='flex items-start gap-3'>
           <div className='size-11 rounded-lg bg-softy border border-soft flex items-center justify-center shrink-0'>
@@ -111,11 +115,11 @@ export default function SendInvoiceModal({
           </div>
           <div className='min-w-0'>
             <p className='text-xs text-gray-500'>
-              {invoice.kind === 'invoice_receipt' ? 'שליחת חשבונית/קבלה' : 'שליחת חשבונית'}
+              {invoice.kind === 'invoice_receipt' ? t('billing.send.kind.invoice_receipt') : t('billing.send.kind.invoice')}
             </p>
-            <h3 className='text-lg font-semibold tabular-nums text-dark leading-tight'>{formatInvoiceNumber(invoice)}</h3>
+            <h3 className='text-lg font-semibold tabular-nums text-dark leading-tight'>{formatInvoiceNumber(invoice, t.locale)}</h3>
             <p className='mt-1 text-sm text-gray-600 leading-relaxed'>
-              ללקוח יישלח מייל עם קישור להורדת המסמך כקובץ PDF.
+              {t('billing.send.intro')}
             </p>
           </div>
         </div>
@@ -123,7 +127,7 @@ export default function SendInvoiceModal({
         <Input
           name='recipientEmail'
           type='email'
-          lbl='לאיזה מייל לשלוח'
+          lbl={t('billing.send.recipient')}
           dir='ltr'
           required
           value={recipient}
@@ -137,30 +141,30 @@ export default function SendInvoiceModal({
           className='self-start text-sm text-solid hover:underline underline-offset-2'
           onClick={() => setShowAdvanced((v) => !v)}
         >
-          {showAdvanced ? 'הסתר אפשרויות נוספות' : 'אפשרויות נוספות'}
+          {showAdvanced ? t('billing.send.hideAdvanced') : t('billing.send.showAdvanced')}
         </button>
 
         {showAdvanced && (
           <Input
             name='customMessage'
             as='textarea'
-            lbl='הודעה אישית (אופציונלי)'
+            lbl={t('billing.send.message')}
             required={false}
             value={customMessage}
             onChange={(e) => setCustomMessage(e.target.value)}
-            placeholder='שלום, מצורפת החשבונית. תודה!'
+            placeholder={t('billing.send.messagePlaceholder')}
           />
         )}
 
         <div className='flex justify-end gap-2 mt-2'>
-          <Btn variant='outline' lbl='ביטול' onClick={onClose} type='button' disabled={busy} />
+          <Btn variant='outline' lbl={t('common.dialog.cancel')} onClick={onClose} type='button' disabled={busy} />
           <Btn
             icon='paper-plane'
-            lbl='שלח חשבונית'
+            lbl={t('billing.send.submit')}
             onClick={onSend}
             type='button'
             disabled={busy || !isValid}
-            title={!isValid ? 'הזן כתובת מייל תקינה' : undefined}
+            title={!isValid ? t('billing.send.invalidEmail') : undefined}
             data-testid='send-invoice-submit'
           />
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import type { RecentLead } from './types'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Single row inside the LeadPicker dropdown panel.
@@ -20,10 +21,11 @@ export default function LeadPickerRow({
   isCurrent: boolean
   onClick: () => void
 }) {
+  const t = useT()
   const label =
     lead.details?.trim() ||
     `${lead.firstName || ''} ${lead.lastName || ''}`.trim() ||
-    'ללא שם'
+    t('billing.picker.noName')
   const count = lead.invoiceCount ?? 0
 
   return (
@@ -31,7 +33,8 @@ export default function LeadPickerRow({
       type='button'
       onClick={onClick}
       className={
-        'w-full text-right px-3 py-2.5 flex items-center justify-between gap-3 text-base transition-colors ' +
+        // Hebrew keeps its physical `text-right` (identical markup); other languages align to the start.
+        `w-full ${t.locale === 'he' ? 'text-right' : 'text-start'} px-3 py-2.5 flex items-center justify-between gap-3 text-base transition-colors ` +
         (isCurrent ? 'bg-softy/60 font-medium text-solid' : 'hover:bg-gray-50 text-gray-900')
       }
     >
@@ -40,12 +43,12 @@ export default function LeadPickerRow({
         {count > 0 && (
           <span
             className='text-xs font-medium text-solid bg-softy px-2 py-0.5 rounded-full tabular-nums'
-            title={`${count} חשבוניות`}
+            title={t('billing.picker.invoices', { count })}
           >
             {count}
           </span>
         )}
-        {isCurrent && <span className='text-xs text-solid/80'>נוכחי</span>}
+        {isCurrent && <span className='text-xs text-solid/80'>{t('billing.picker.current')}</span>}
       </span>
     </button>
   )

@@ -3,6 +3,7 @@
 import { Btn } from '@/lib/btns/Btn'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import IssueInvoiceBtn from '../IssueInvoiceBtn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The draft editor's pinned bottom bar: delete the draft (with its
@@ -28,11 +29,12 @@ export default function DraftActionBar({
   onCancelDelete: () => void
   onDelete: () => Promise<void>
 }) {
+  const t = useT()
   return (
     <>
       <div className='fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 shadow-sm'>
         <div className='ps-20 pe-8 py-3 flex items-center justify-between gap-3'>
-          <Btn variant='outline' icon='trash' lbl='מחק טיוטה' onClick={onAskDelete} />
+          <Btn variant='outline' icon='trash' lbl={t('billing.editor.bar.deleteDraft')} onClick={onAskDelete} />
           <div className='flex items-center gap-2'>
             <IssueInvoiceBtn
               leadId={leadId}
@@ -47,8 +49,9 @@ export default function DraftActionBar({
       <ConfirmPop
         open={confirmDelete}
         destructive
-        confirmLbl='מחק טיוטה'
-        msg={'למחוק את הטיוטה? פעולה זו אינה הפיכה.'}
+        confirmLbl={t('billing.editor.bar.deleteDraft')}
+        msg={t('billing.editor.draft.deleteMsg')}
+        translated
         onClose={onCancelDelete}
         onConfirm={onDelete}
       />

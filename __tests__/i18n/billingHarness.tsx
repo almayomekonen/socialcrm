@@ -63,7 +63,7 @@ export async function invoicePage(invoiceId = '9') {
 
 /** Run the page's server reads under `overrides`, then restore the defaults other surfaces expect. */
 export async function withBillEnv<T>(overrides: Partial<typeof BILL_DEFAULTS>, build: () => Promise<T>): Promise<T> {
-  Object.assign(billEnv, BILL_DEFAULTS, overrides, { results: {}, calls: [] })
+  Object.assign(billEnv, BILL_DEFAULTS, overrides, { results: {}, calls: [], active: true })
   try {
     return await build()
   } finally {

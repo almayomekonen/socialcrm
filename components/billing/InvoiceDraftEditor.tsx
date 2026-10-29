@@ -8,7 +8,8 @@ import type { BillInvoiceRow, BillInvoiceLineRow } from '@/db/billing/invoices'
 import type { BillBillingProfileRow } from '@/db/billing/profiles'
 import { computeInvoiceLegalTotals } from '@/lib/billing/totals'
 import { issueReadiness } from '@/lib/billing/issueReadiness'
-import { ISSUE_BLOCKER_MESSAGES } from './issue/issueBlockerMessages'
+import { ISSUE_BLOCKER_KEYS } from './issue/issueBlockerMessages'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 import { effectiveTaxRatePercent } from '@/lib/billing/issuer/effectiveTaxRate'
 import type { BusinessType } from '@/lib/billing/issuer/fields'
 import {
@@ -21,7 +22,7 @@ import {
 import InvoiceLinesEditor, { type LineFormPayload } from './InvoiceLinesEditor'
 import PaymentSection from './payment/PaymentSection'
 import { DocStateChip } from './chips'
-import { documentKindLabel } from '@/lib/billing/documentKinds'
+import { documentKindDisplay } from './labels'
 import { formatInvoiceNumber } from './funcs'
 import { useDraftPayment } from '@/hooks/useDraftPayment'
 import DraftProfileStrip from './draft/DraftProfileStrip'
@@ -42,10 +43,12 @@ export default function InvoiceDraftEditor({
   canIssue: boolean
   agencyBusinessType: BusinessType | null
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const router = useRouter()
   const [savingMeta, setSavingMeta] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const payment = useDraftPayment(invoice, 'שמירת פרטי התשלום נכשלה')
+  const payment = useDraftPayment(invoice, t('billing.editor.toast.paymentSaveFailed'))
   const { isCombinedDoc, paymentMethod, paymentAmount, paymentDate } = payment
 
   // Legal totals (W1): VAT computed per rate group from each line's stored
@@ -82,7 +85,7 @@ export default function InvoiceDraftEditor({
     paymentAmount: effectivePaymentAmount,
     paymentDate,
   })
-  const issueDisabledReason = blocker ? ISSUE_BLOCKER_MESSAGES[blocker] : undefined
+  const issueDisabledReason = blocker ? t(ISSUE_BLOCKER_KEYS[blocker]) : undefined
 
   async function onSaveMeta(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -106,8 +109,8 @@ export default function InvoiceDraftEditor({
           customerFooter: data.customerFooter ?? '',
         },
       ],
-      'השינויים נשמרו',
-      'שמירת השינויים נכשלה',
+      t('billing.editor.toast.metaSaved'),
+      t('billing.editor.toast.metaSaveFailed'),
     )
 
     setSavingMeta(false)
@@ -120,8 +123,8 @@ export default function InvoiceDraftEditor({
     const result = await api(
       deleteDraftAction,
       [{ invoiceId: invoice.id, leadId: invoice.leadId }],
-      'הטיוטה נמחקה',
-      'מחיקת הטיוטה נכשלה',
+      t('billing.editor.toast.draftDeleted'),
+      t('billing.editor.toast.draftDeleteFailed'),
     )
     setConfirmDelete(false)
     if (result && 'success' in result && result.success) {
@@ -130,26 +133,26 @@ export default function InvoiceDraftEditor({
   }
 
   return (
-    <div className='grid gap-5 py-4 pb-28'>
+    <div className='grid gap-5 py-4 pb-28' {...region}>
       {/* ── Compact draft header ──────────────────────────────────── */}
       <header className='flex items-center justify-between gap-4 flex-wrap'>
         <div className='flex items-baseline gap-3'>
-          <h2 className='text-2xl font-bold text-dark tracking-tight tabular-nums'>{formatInvoiceNumber(invoice)}</h2>
-          <DocStateChip state={invoice.docState} />
+          <h2 className='text-2xl font-bold text-dark tracking-tight tabular-nums'>{formatInvoiceNumber(invoice, t.locale)}</h2>
+          <DocStateChip state={invoice.docState} locale={t.locale} />
           <span className='text-xs font-medium px-2 py-0.5 rounded bg-softy text-gray-700'>
-            {documentKindLabel(invoice.kind)}
+            {documentKindDisplay(invoice.kind, t.locale)}
           </span>
         </div>
-        <p className='text-sm text-gray-400'>טיוטה ניתנת לעריכה עד ההנפקה</p>
+        <p className='text-sm text-gray-400'>{t('billing.editor.draft.editable')}</p>
       </header>
 
       {/* ── Recipient strip ──────────────────────────────────────── */}
       <section className='border-b border-gray-200 pb-4'>
-        <p className='text-xs font-semibold text-gray-500 uppercase tracking-[0.08em] mb-2'>לכבוד</p>
+        <p className='text-xs font-semibold text-gray-500 uppercase tracking-[0.08em] mb-2'>{t('billing.editor.recipient.heading')}</p>
         {profile ? (
           <DraftProfileStrip profile={profile} currency={invoice.currency} />
         ) : (
-          <p className='text-base text-red-700'>חסרים פרטי חיוב — אין אפשרות להנפיק</p>
+          <p className='text-base text-red-700'>{t('billing.editor.draft.noProfile')}</p>
         )}
       </section>
 
@@ -160,8 +163,8 @@ export default function InvoiceDraftEditor({
           const result = await api(
             addLineAction,
             [{ leadId: invoice.leadId, line: { invoiceId: invoice.id, ...payload } }],
-            'הפריט נוסף',
-            'הוספת הפריט נכשלה',
+            t('billing.editor.toast.lineAdded'),
+            t('billing.editor.toast.lineAddFailed'),
           )
           if (!result || !('success' in result) || !result.success) throw new Error('add_line_failed')
           router.refresh()
@@ -170,8 +173,8 @@ export default function InvoiceDraftEditor({
           const result = await api(
             updateLineAction,
             [{ leadId: invoice.leadId, invoiceId: invoice.id, line: { lineId, ...payload } }],
-            'הפריט עודכן',
-            'עדכון הפריט נכשל',
+            t('billing.editor.toast.lineUpdated'),
+            t('billing.editor.toast.lineUpdateFailed'),
           )
           if (!result || !('success' in result) || !result.success) throw new Error('update_line_failed')
           router.refresh()
@@ -180,8 +183,8 @@ export default function InvoiceDraftEditor({
           const result = await api(
             removeLineAction,
             [{ leadId: invoice.leadId, invoiceId: invoice.id, lineId }],
-            'הפריט נמחק',
-            'מחיקת הפריט נכשלה',
+            t('billing.editor.toast.lineRemoved'),
+            t('billing.editor.toast.lineRemoveFailed'),
           )
           if (!result || !('success' in result) || !result.success) throw new Error('remove_line_failed')
           router.refresh()

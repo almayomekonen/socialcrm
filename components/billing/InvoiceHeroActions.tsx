@@ -6,12 +6,14 @@ import DuplicateInvoiceBtn from './DuplicateInvoiceBtn'
 import RerenderPdfBtn from './RerenderPdfBtn'
 import SendInvoiceBtn from './SendInvoiceBtn'
 import { useInvoicePdfStatus } from './InvoicePdfLive'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function InvoiceHeroActions({ invoice }: { invoice: BillInvoiceRow }) {
+  const t = useT()
   const { status, url } = useInvoicePdfStatus()
   const ready = status === 'ready' && !!url
   const failed = status === 'failed'
-  const sendTitle = ready ? undefined : failed ? 'יש לנסות להפיק את ה-PDF מחדש' : 'המסמך עדיין מופק…'
+  const sendTitle = ready ? undefined : failed ? t('billing.issued.failedTitle') : t('billing.issued.pendingTitle')
 
   return (
     <div className='flex items-center gap-2 shrink-0'>
@@ -26,7 +28,7 @@ export default function InvoiceHeroActions({ invoice }: { invoice: BillInvoiceRo
           data-testid='invoice-download-pdf'
         >
           <Icon name='download' type='reg' className='size-4 bg-white' />
-          <span>הורד PDF</span>
+          <span>{t('billing.issued.download')}</span>
         </a>
       )}
 
@@ -36,11 +38,11 @@ export default function InvoiceHeroActions({ invoice }: { invoice: BillInvoiceRo
           data-testid='invoice-pdf-pending'
         >
           <span className='inline-block size-2 rounded-full bg-white/70 animate-pulse' />
-          <span>מופק כעת…</span>
+          <span>{t('billing.issued.rendering')}</span>
         </span>
       )}
 
-      {failed && <RerenderPdfBtn invoiceId={invoice.id} leadId={invoice.leadId} lbl='נסה שוב' />}
+      {failed && <RerenderPdfBtn invoiceId={invoice.id} leadId={invoice.leadId} lbl={t('billing.issued.retry')} />}
 
       <DuplicateInvoiceBtn invoiceId={invoice.id} leadId={invoice.leadId} variant='hero' />
     </div>

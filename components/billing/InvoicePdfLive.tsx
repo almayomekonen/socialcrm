@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getInvoicePdfStatusAction, type InvoicePdfStatusSnapshot, type InvoicePdfStatusValue } from '@/actions/billing/documentStatus'
 import { StatusBadge, type StatusRole } from '@/lib/StatusBadge'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 const FAST_INTERVAL_MS = 1500
 const SLOW_INTERVAL_MS = 5000
@@ -98,11 +100,11 @@ export function InvoicePdfStatusProvider({
   return <InvoicePdfStatusContext.Provider value={snapshot}>{children}</InvoicePdfStatusContext.Provider>
 }
 
-const STATUS_LABELS: Record<InvoicePdfStatusValue, string> = {
-  none: 'PDF בקרוב',
-  rendering: 'מופק כעת',
-  ready: 'מסמך זמין',
-  failed: 'שגיאה בהפקה',
+const STATUS_KEYS: Record<InvoicePdfStatusValue, MessageKey> = {
+  none: 'billing.issued.pdf.none',
+  rendering: 'billing.issued.pdf.rendering',
+  ready: 'billing.issued.pdf.ready',
+  failed: 'billing.issued.pdf.failed',
 }
 
 const STATUS_ROLE: Record<InvoicePdfStatusValue, StatusRole> = {
@@ -113,11 +115,12 @@ const STATUS_ROLE: Record<InvoicePdfStatusValue, StatusRole> = {
 }
 
 export function InvoicePdfStatusChipLive() {
+  const t = useT()
   const { status } = useInvoicePdfStatus()
   return (
     <StatusBadge
       role={STATUS_ROLE[status]}
-      label={STATUS_LABELS[status]}
+      label={t(STATUS_KEYS[status])}
       size='xs'
       pulse={status === 'rendering'}
       data-pdf-status={status}
@@ -125,8 +128,10 @@ export function InvoicePdfStatusChipLive() {
   )
 }
 
+/** The renderer's own error text is external (shown as stored, usually English). */
 export function InvoicePdfErrorReasonLive() {
+  const t = useT()
   const { status, errorReason } = useInvoicePdfStatus()
   if (status !== 'failed' || !errorReason) return null
-  return <span className='ms-2 text-gray-600'>· שגיאת הפקה: {errorReason}</span>
+  return <span className='ms-2 text-gray-600'>{t('billing.issued.pdf.errorReason', { reason: errorReason })}</span>
 }

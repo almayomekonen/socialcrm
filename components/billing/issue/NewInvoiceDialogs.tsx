@@ -6,6 +6,7 @@ import ClientFormPop from '@/components/clients/ClientFormPop'
 import IssuerIdentityModal from '@/components/billing/issuer/IssuerIdentityModal'
 import IssuerSetupRequiredModal from '@/components/billing/issuer/IssuerSetupRequiredModal'
 import type { IssueFlowStage } from '@/hooks/useIssueFlow'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The new-invoice editor's dialogs: the issue confirmation, the new-lead form,
@@ -31,17 +32,19 @@ export default function NewInvoiceDialogs({
   onCloseNewLead: () => void
   onLeadCreated: (newLeadId: number) => void
 }) {
+  const t = useT()
   return (
     <>
       <ConfirmPop
         open={stage.kind === 'confirm'}
         onClose={() => (busy ? null : onCloseIssueFlow())}
         onConfirm={onConfirmIssue}
-        confirmLbl='הנפק חשבונית'
-        msg={'החשבונית תקבל מספר ותיסגר לעריכה.\nאם צריך לתקן משהו בהמשך, אפשר לבטל ולהנפיק חשבונית חדשה.'}
+        confirmLbl={t('billing.editor.bar.issue')}
+        msg={t('billing.editor.issueConfirm')}
+        translated
       />
 
-      <ModalPop open={newLeadOpen} pos='middle' onClose={onCloseNewLead} label='ליד חדש'>
+      <ModalPop open={newLeadOpen} pos='middle' onClose={onCloseNewLead} label={t('billing.editor.newLead')} translated>
         <ClientFormPop onCreated={onLeadCreated} onClose={onCloseNewLead} />
       </ModalPop>
 

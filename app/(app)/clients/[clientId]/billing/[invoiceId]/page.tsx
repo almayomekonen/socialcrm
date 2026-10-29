@@ -16,6 +16,17 @@ import InvoiceDraftEditor from '@/components/billing/InvoiceDraftEditor'
 import InvoiceFrozenView from '@/components/billing/InvoiceFrozenView'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import type { Metadata } from 'next'
+import { getUser } from '@/db/auth'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+
+/** Tab title in the interface language — Hebrew ('נתוני ליד', the lead layout's title) outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('leadDetail.page.title'), description: t('leadDetail.page.description') }
+}
 
 export const maxDuration = 60
 export const preferredRegion = 'arn1'
@@ -39,22 +50,25 @@ export default async function InvoiceDetailPage({
    */
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='lead_billing' />
 
+  // Resolved once by the same request-memoised call the (app) layout makes; each screen's root declares it.
+  const { locale } = await getUiLocaleState(user)
+
   const { gotPermIds } = await getPerms(user)
   const leadAccessQ = db('clients').where({ id: leadId, agencyId: user.agencyId })
   if (!isAdmin(user.role)) leadAccessQ.whereIn('userId', gotPermIds)
   const leadRow = await leadAccessQ.first('id')
-  if (!leadRow) return <NotFound leadId={leadId} />
+  if (!leadRow) return <NotFound leadId={leadId} locale={locale} />
 
   const invoice = await getInvoiceById(invId)
   if (!invoice || invoice.leadId !== leadId) {
-    return <NotFound leadId={leadId} />
+    return <NotFound leadId={leadId} locale={locale} />
   }
 
   const lines = await getInvoiceLinesByInvoiceId(invId)
 
   if (invoice.docState !== 'draft') {
     const document = await getCurrentDocumentForInvoice(invId)
-    return <InvoiceFrozenView invoice={invoice} lines={lines} document={document} />
+    return <InvoiceFrozenView invoice={invoice} lines={lines} document={document} locale={locale} />
   }
 
   const profile = await getActiveBillingProfileForLead(leadId)
@@ -73,12 +87,13 @@ export default async function InvoiceDetailPage({
   )
 }
 
-function NotFound({ leadId }: { leadId: number }) {
+function NotFound({ leadId, locale }: { leadId: number; locale: UiLocale }) {
+  const t = translatorFor(locale)
   return (
-    <div className='py-12 text-center text-gray-500'>
-      <p className='text-base mb-2'>החשבונית לא נמצאה</p>
+    <div className='py-12 text-center text-gray-500' {...regionAttrs(locale)}>
+      <p className='text-base mb-2'>{t('billing.issued.notFound')}</p>
       <Link href={`/clients/${leadId}/billing` as any} className='text-solid underline'>
-        חזרה לרשימת החשבוניות
+        {t('billing.issued.backToList')}
       </Link>
     </div>
   )

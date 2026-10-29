@@ -7,6 +7,7 @@ import { useCanTopLayer } from '@/lib/useTopLayer'
 import { searchLeads } from '@/actions/clients'
 import LeadPickerPanel from './LeadPickerPanel'
 import type { RecentLead } from './types'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Combobox-style customer picker.
@@ -21,6 +22,11 @@ import type { RecentLead } from './types'
  *
  * Pure picker — does NOT know about invoice creation. The parent
  * decides what to do with the picked lead via `onPick`.
+ *
+ * LANGUAGE: follows the interface language (`useT`; Hebrew outside a
+ * provider). Every caller is a translated screen — the invoice editor, the
+ * new-meeting dialog (Phase E1), Messenger's lead actions (Phase D) — so no
+ * opt-in prop. The portalled panel re-declares the language itself.
  */
 export default function LeadPicker({
   currentLeadId,
@@ -35,6 +41,7 @@ export default function LeadPicker({
   onPick: (leadId: number) => void
   onCreateNew: () => void
 }) {
+  const t = useT()
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<RecentLead[]>(() => [...recentLeads])
@@ -114,7 +121,7 @@ export default function LeadPicker({
         onClick={() => setIsOpen((v) => !v)}
         className='w-full h-10 px-3 rounded-md bg-white border border-gray-300 hover:border-gray-400 flex items-center justify-between gap-3 text-base text-gray-900 transition-colors'
       >
-        <span className='truncate'>{currentLeadName || 'בחר לקוח/ה'}</span>
+        <span className='truncate'>{currentLeadName || t('billing.picker.trigger')}</span>
         <Icon
           name='chevron-down'
           type='reg'

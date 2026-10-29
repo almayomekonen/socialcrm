@@ -38,33 +38,14 @@ vi.mock('@/lib/device', async () => {
 })
 vi.mock('@/lib/access/productAccess', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
-  return { getAgencyProductAccess: async () => ({ hasAccess: detailEnv.hasAccess }) }
+  const { billEnv } = await import('./billingEnv') // the new-invoice route lock (Phase E3)
+  return { getAgencyProductAccess: async () => ({ hasAccess: detailEnv.hasAccess && billEnv.hasAccess }) }
 })
 // /dashboard reads (I/O only; every producer and component runs for real).
 // `gavePermUsers`: the global /tasks page (Phase E1) also lists the reps who gave permission.
 // `getPermsAndFilter`: /deals and /sum_sales (Phase E2).
 vi.mock('@/db/filter', async () => ({ getPerms: async () => ({ ...(await import('./leadsEnv')).LEADS_PAGE_PERMS, gavePermUsers: [] }), getPermsAndFilter: (await import('./dealsMocks')).filterDbModule().getPermsAndFilter }))
-vi.mock('@/db/clients', async () => {
-  const { leadsEnv, CLIENT_LISTS } = await import('./leadsEnv')
-  return {
-    hasAnyLeads: async () => leadsEnv.hasLeads,
-    getLeadLists: async () => CLIENT_LISTS,
-    getLeadsTable: async () => leadsEnv.rows,
-    getGlobalLatestUpdatedAt: async () => '2026-10-28T09:00:00.000Z',
-    getLeadColumnAvailability: async () => ({ idNum: true, secPhone: true, birthDate: true, gender: true }),
-    // Lead detail (layout + summary).
-    getFullLead: async () => {
-      const { detailEnv } = await import('./leadDetailEnv')
-      return detailEnv.header || detailEnv.lead ? { ...(detailEnv.header ?? {}), ...(detailEnv.lead ?? {}) } : null
-    },
-    getFamMembers: async () => {
-      const { detailEnv } = await import('./leadDetailEnv')
-      return { famMembers: detailEnv.family, familyId: detailEnv.family.length ? 1 : null }
-    },
-    // Lead tabs (the add-task form on the global page only).
-    getLeadsByRep: async () => [],
-  }
-})
+vi.mock('@/db/clients', async () => (await import('./leakGateMocks')).clientsDbModule())
 vi.mock('@/db/worklist', async () => {
   const f = await import('./dashboardFixtures')
   return {
@@ -107,14 +88,7 @@ vi.mock('@/db/automations/connectionDelivery', async () => {
   const { leadsEnv } = await import('./leadsEnv')
   return { deliveryFacts: async () => leadsEnv.intakeFacts }
 })
-vi.mock('@/actions/clients', () => ({
-  fetchLeadsSince: async () => [], searchContacts: async () => [], searchLeads: async () => [], getLeadById: async () => null,
-  updateLead: async () => ({ ok: true }), deleteLead: async () => ({ ok: true }),
-  deleteManyLeads: async () => ({ deletedCount: 0, blockedCount: 0, blockedLeads: [] }),
-  assignLeadsToRep: async () => ({ assignedCount: 0, skippedCount: 0 }), transferLeadToRep: async () => ({ ok: true }),
-  getLeadByIdNum: async () => null, upsertLead: async () => ({ ok: true }), addLeads: async () => ({ inserted: 0 }),
-  importLeadsFromCsv: async () => ({ inserted: 0 }), uploadLeadData: async () => ({}), upsertLeadList: async () => ({}), deleteLeadList: async () => ({}),
-}))
+vi.mock('@/actions/clients', async () => (await import('./leakGateMocks')).clientsActionsModule())
 vi.mock('@/actions/global', () => ({ saveTblPref: async () => ({ ok: true }) }))
 vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: async () => [] }))
 vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEvent: async () => {} }))
@@ -141,20 +115,7 @@ vi.mock('@/lib/requireUser', async () => ({
   ...(await vi.importActual<typeof import('@/lib/requireUser')>('@/lib/requireUser')),
   requireAgencyUser: async () => (await import('./surfaces')).FIXTURE_USER,
 }))
-vi.mock('@/db/tasks', async () => {
-  const { detailEnv } = await import('./leadDetailEnv')
-  const { tabsEnv } = await import('./leadTabsEnv')
-  return {
-    get5TasksByClientId: async () => detailEnv.tasks,
-    // Lead tabs.
-    getTasksTbl: async () => tabsEnv.tasks,
-    getTaskTmplts: async () => tabsEnv.taskTmplts,
-    getTaskById: async () => (tabsEnv.taskDetail ? structuredClone(tabsEnv.taskDetail) : undefined),
-    getTasksByClientId: async () => [{ id: 2, title: 'שיחת המשך' }],
-    // Global /tasks (Phase E1).
-    getTasks: async () => (await import('./globalTasksFilesEnv')).globalEnv.tasks,
-  }
-})
+vi.mock('@/db/tasks', async () => (await import('./leakGateMocks')).tasksDbModule())
 vi.mock('@/modules/inbox/queries', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
   return {
@@ -173,19 +134,7 @@ vi.mock('@/db/leadFormAnswers', async () => ({ formAnswersForLead: async () => (
 vi.mock('@/db/adsCrmOutcomes', async () => ({ getLeadAdAttribution: async () => (await import('./leadDetailEnv')).detailEnv.attribution }))
 // `readSnapshot` / `writeSnapshot`: the ads report's (empty) snapshot cache (Phase E2).
 vi.mock('@/db/adsSnapshots', async () => ({ readCreativeForAd: async () => (await import('./leadDetailEnv')).detailEnv.creative, readSnapshot: async () => null, writeSnapshot: async () => {} }))
-vi.mock('@/lib/facebook/permissions', async () => {
-  const { detailEnv } = await import('./leadDetailEnv')
-  const { messengerEnv, commentsEnv } = await import('./messengerCommentsEnv')
-  const deals = await import('./dealsEnv')
-  return {
-    ...(await vi.importActual<typeof import('@/lib/facebook/permissions')>('@/lib/facebook/permissions')),
-    // The lead page's ad line; the /sum_sales ads tab and page (Phase E2) read the deals fixtures' flag.
-    isFacebookAdsReportingEnabledForAgency: () => detailEnv.adsReporting || (deals.dealsEnv.pathname.startsWith('/sum_sales') && deals.dealsEnv.adsEnabled),
-    // Messenger is on by default (the inbox fixtures); the Messenger/Comments surfaces vary both.
-    isFacebookMessengerEnabledForAgency: () => messengerEnv.enabled,
-    isFacebookCommentRepliesEnabledForAgency: () => commentsEnv.repliesEnabled,
-  }
-})
+vi.mock('@/lib/facebook/permissions', async () => (await import('./leakGateMocks')).facebookPermissionsModule())
 vi.mock('@/lib/whatsapp/templates/flag', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
   return { isTemplatesEnabledForAgency: () => detailEnv.templatesEnabled }
@@ -227,15 +176,23 @@ vi.mock('@/actions/leadDriveFilesSearch', async () => ({
   searchDriveForLead: async () => [],
 }))
 vi.mock('@/lib/integrations/google/picker/useDrivePicker', () => ({ useDrivePicker: () => ({ status: 'idle', openPicker: () => {} }) }))
-vi.mock('@/config/db', async () => {
-  const { tabsEnv } = await import('./leadTabsEnv')
-  // `select` is the Messenger / Comments pages' facebook_pages read (their fixtures).
-  const mc = (await import('./messengerCommentsMocks')).dbModule().db()
-  const q = { where: () => q, whereIn: () => q, first: async () => (tabsEnv.leadFound ? { id: 41 } : undefined), select: mc.select }
-  const chain = (await import('./dealsMocks')).fakeSql() // /promotion/[id] builds an (unexecuted) query on `db` itself
-  return { db: new Proxy(() => q, { get: (_t, prop) => chain[prop] }) }
-})
-vi.mock('@/db/billing/invoices', async () => ({ listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices }))
+vi.mock('@/config/db', async () => (await import('./leakGateMocks')).configDbModule())
+vi.mock('@/db/billing/invoices', async () => ({
+  ...(await import('./billingMocks')).invoicesDbModule(), // the invoice screens (Phase E3)
+  listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices,
+}))
+// The invoice editors, the issued view and the lead picker (Phase E3; I/O only).
+vi.mock('@/db/billing/profiles', async () => (await import('./billingMocks')).profilesDbModule())
+vi.mock('@/db/billing/documents', async () => (await import('./billingMocks')).documentsDbModule())
+vi.mock('@/db/billing/events', async () => (await import('./billingMocks')).eventsDbModule())
+vi.mock('@/db/billing/taxRates', async () => (await import('./billingMocks')).taxRatesDbModule())
+vi.mock('@/actions/billing/drafts', async () => (await import('./billingMocks')).draftsActionsModule())
+vi.mock('@/actions/billing/issue', async () => (await import('./billingMocks')).issueActionsModule())
+vi.mock('@/actions/billing/issuer', async () => (await import('./billingMocks')).issuerActionsModule())
+vi.mock('@/actions/billing/render', async () => (await import('./billingMocks')).renderActionsModule())
+vi.mock('@/actions/billing/duplicate', async () => (await import('./billingMocks')).duplicateActionsModule())
+vi.mock('@/actions/billing/send', async () => (await import('./billingMocks')).sendActionsModule())
+vi.mock('@/actions/billing/documentStatus', async () => (await import('./billingMocks')).documentStatusModule())
 
 // /inbox reads and actions (I/O only; the page, list, thread, composer, ownership line and producers run for real).
 vi.mock('next/cache', async () => (await import('./inboxMocks')).cacheModule())
@@ -314,6 +271,7 @@ afterEach(async () => {
   ;(await import('./globalTasksFilesEnv')).resetGlobalEnv()
   ;(await import('./calendarEnv')).resetCalEnv()
   ;(await import('./dealsEnv')).resetDealsEnv(), (await import('./adsEnv')).resetAdsEnv()
+  ;(await import('./billingEnv')).resetBillEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

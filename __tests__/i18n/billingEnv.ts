@@ -219,6 +219,8 @@ export const BILL_DEFAULTS = {
   /** What the PDF status poll returns. */
   pdfStatus: null as null | { status: string; url: string | null; errorReason: string | null },
   calls: [] as unknown[][],
+  /** The leak gate's shared `db` mock answers from these fixtures only while a billing surface is built. */
+  active: false,
 }
 
 export const billEnv = { ...BILL_DEFAULTS, results: {} as Record<string, string | undefined>, calls: [] as unknown[][] }

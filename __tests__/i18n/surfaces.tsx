@@ -14,6 +14,7 @@ import { INBOX_MOBILE_SURFACES } from './inboxMobileSurfaces'
 import { GLOBAL_TASKS_FILES_SURFACES } from './globalTasksFilesSurfaces'
 import { CALENDAR_SURFACES } from './calendarSurfaces'
 import { DEALS_SURFACES } from './dealsSurfaces'
+import { BILLING_SURFACES } from './billingSurfaces'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -203,6 +204,7 @@ export const SURFACES: Surface[] = [
   ...GLOBAL_TASKS_FILES_SURFACES,
   ...CALENDAR_SURFACES,
   ...DEALS_SURFACES,
+  ...BILLING_SURFACES,
   ...(
     [
       ['desktop, Today brief v2 + analytics', { mobile: false, v2: true, stats: STATS }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],

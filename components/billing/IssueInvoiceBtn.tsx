@@ -10,6 +10,7 @@ import { issueInvoiceAction } from '@/actions/billing/issue'
 import { issueErrorMessage } from '@/lib/billing/issueErrorMessages'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function IssueInvoiceBtn({
   leadId,
@@ -22,6 +23,7 @@ export default function IssueInvoiceBtn({
   disabled?: boolean
   disabledReason?: string
 }) {
+  const t = useT()
   const router = useRouter()
   /**
    * PRE-GATE. `issueInvoiceAction` is requireProductAccess-guarded and the
@@ -39,8 +41,8 @@ export default function IssueInvoiceBtn({
     const result = await api(
       issueInvoiceAction,
       [{ invoiceId, leadId }],
-      'החשבונית הונפקה',
-      'הנפקת החשבונית נכשלה',
+      t('billing.editor.toast.issued'),
+      t('billing.editor.toast.issueFailed'),
       { silentSuccess: true },
     )
     setBusy(false)
@@ -52,19 +54,19 @@ export default function IssueInvoiceBtn({
     
     if (result && 'error' in result) {
       const reason = (result as { reason?: string }).reason
-      toast('error', issueErrorMessage(reason))
+      toast('error', issueErrorMessage(reason, t.locale))
     }
   }
 
   if (expired) {
-    return <SubscriptionExpiredState mode='inline' source='invoice_issue' feature='חידוש המנוי מחזיר את הפקת החשבוניות' />
+    return <SubscriptionExpiredState mode='inline' source='invoice_issue' feature={t('billing.editor.issueExpired')} translated />
   }
 
   return (
     <>
       <Btn
         icon='paper-plane'
-        lbl='הנפק חשבונית'
+        lbl={t('billing.editor.bar.issue')}
         onClick={() => setOpen(true)}
         disabled={disabled || busy}
         title={disabled ? disabledReason : undefined}
@@ -73,8 +75,9 @@ export default function IssueInvoiceBtn({
         open={open}
         onClose={() => (busy ? null : setOpen(false))}
         onConfirm={onConfirm}
-        confirmLbl='הנפק חשבונית'
-        msg={'החשבונית תקבל מספר ותיסגר לעריכה.\nאם צריך לתקן משהו בהמשך, אפשר לבטל ולהנפיק חשבונית חדשה.'}
+        confirmLbl={t('billing.editor.bar.issue')}
+        msg={t('billing.editor.issueConfirm')}
+        translated
       />
     </>
   )

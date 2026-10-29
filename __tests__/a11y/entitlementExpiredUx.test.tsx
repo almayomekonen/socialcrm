@@ -1172,15 +1172,18 @@ describe('invoice mutations are withheld while the records stay readable', () =>
     const src = read('components/billing/IssueInvoiceBtn.tsx')
     expect(src).toContain('const expired = useAccessDenied()')
     expect(src).toContain("source='invoice_issue'")
-    expect(src).toContain('issueErrorMessage(reason)')
+    // Worded in the interface language since Phase E3 (Hebrew unchanged); same call site.
+    expect(src).toContain('issueErrorMessage(reason, t.locale)')
   })
 
   it('sending is gated inside the modal, so both triggers are covered', () => {
     const src = read('components/billing/SendInvoiceModal.tsx')
     expect(src).toContain('const expired = useAccessDenied()')
     expect(src).toContain("source='invoice_send'")
-    // The real failure copy is untouched.
-    expect(src).toContain('שליחת החשבונית נכשלה')
+    // The real failure copy is untouched — in the catalog since Phase E3, used for the thrown send.
+    expect(read('lib/i18n/messages/he/billing/send.ts')).toContain("failed: 'שליחת החשבונית נכשלה'")
+    expect(src).toContain("failed: 'billing.send.error.failed'")
+    expect(src).toContain("toast('error', t(SEND_ERROR_KEYS.failed))")
   })
 
   it('the new-invoice route locks, because creating is all it does', () => {
