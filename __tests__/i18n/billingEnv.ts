@@ -221,7 +221,7 @@ export const BILL_DEFAULTS = {
   calls: [] as unknown[][],
 }
 
-export const billEnv = { ...BILL_DEFAULTS, results: {}, calls: [] as unknown[][] }
+export const billEnv = { ...BILL_DEFAULTS, results: {} as Record<string, string | undefined>, calls: [] as unknown[][] }
 
 export function resetBillEnv() {
   Object.assign(billEnv, BILL_DEFAULTS, { results: {}, calls: [] })
