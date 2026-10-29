@@ -47,6 +47,9 @@ vi.mock('@/db/autoResponseJobs', () => ({
   enqueueAutoResponse: vi.fn(),
   deferAutoResponseJob: vi.fn(),
   skipPendingNoResponseJobs: vi.fn(),
+  // The worker's lease heartbeat and pre-send fence: this worker still owns its jobs.
+  renewAutoResponseJobLease: vi.fn(async () => true),
+  ownsAutoResponseJob: vi.fn(async () => true),
 }))
 vi.mock('@/db/autoResponseSettings', () => ({ getMasterEnabled, getChannelSettings }))
 vi.mock('@/config/db', () => {
