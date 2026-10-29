@@ -26,6 +26,8 @@ const ALLOWED_SAME = new Set<string>([
   'today.analytics.source.whatsapp',
   // Pure punctuation pattern; the words come from other keys.
   'today.greetingWithName',
+  // Pure placeholder pattern (document kind + its number); the kind comes from another key.
+  'leadTabs.billing.identity',
 ])
 
 type Leaf = string | Record<string, string>

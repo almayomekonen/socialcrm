@@ -8,15 +8,18 @@ import FileUploader from './FileUploader'
 import { useState } from 'react'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
+/** Upload form of the lead files tab; follows the interface language. Task titles are data. */
 export default function FileForm({ clientId, tasks }) {
+  const t = useT()
   const [taskId, setTaskId] = useState(null)
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function onSubmit(e) {
     const data = getFormData2(e)
     data.files = JSON.parse(data.files)
-    if (!data.files.length) return setErrMsg('יש להעלות קבצים')
+    if (!data.files.length) return setErrMsg(t('leadTabs.files.form.noFiles'))
 
     if (data.taskId) api(addFilesToTask, [data, clientId])
   }
@@ -25,19 +28,25 @@ export default function FileForm({ clientId, tasks }) {
     <div popover='manual' id='filePopover' className='pop overflow-hidden w-[450px] relative'>
       <Btn variant='sign' size='sign' className='absolute top-4 left-4' icon='circle-x' popoverTarget='filePopover' />
       <form onSubmit={onSubmit} className='space-y-4'>
-        <Title lbl='הוספת קבצים חדשים' />
-        <p className='col-span-2 pt-4 py-1'>קישור למעקב (אופציונלי):</p>
+        <Title lbl={t('leadTabs.files.form.title')} />
+        <p className='col-span-2 pt-4 py-1'>{t('leadTabs.files.form.taskLink')}</p>
         <SelectSearch
           onSelectOpt={(task) => setTaskId(task.id)}
           name='taskId'
           options={tasks}
           show='title'
           val='id'
-          lbl='מעקב'
+          lbl={t('leadTabs.files.form.taskLabel')}
           key={`tasks-${tasks.length}`}
         />
-        <FileUploader tooltipClass='h-30' path={`${clientId}/${taskId ?? 'unassigned'}`} clientId={clientId} taskId={taskId} />
-        <Btn lbl='הוספה' className='w-full' />
+        <FileUploader
+          tooltipClass='h-30'
+          path={`${clientId}/${taskId ?? 'unassigned'}`}
+          clientId={clientId}
+          taskId={taskId}
+          translated
+        />
+        <Btn lbl={t('leadTabs.files.form.submit')} className='w-full' />
       </form>
       <ConfirmPop
         open={!!errMsg}
@@ -45,6 +54,7 @@ export default function FileForm({ clientId, tasks }) {
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </div>
   )

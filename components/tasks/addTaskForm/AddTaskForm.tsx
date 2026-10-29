@@ -10,27 +10,40 @@ import Title from '@/lib/Title'
 import { isAdmin } from '@/types/roles'
 import { searchContacts } from '@/actions/clients'
 import { useAction } from '@/lib/useAction'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
 
 interface Props {
   clientId: string
   taskTmplts: any[]
   clients: any[]
   user: any
+  /**
+   * The caller's screen follows the interface language (the lead tasks tab).
+   * Off: Hebrew, as on the untranslated global /tasks page. The popover sits
+   * inside the caller's page root, so it inherits that region's direction.
+   * A failed action shows `useAction`'s own (shared, Hebrew) text.
+   */
+  translated?: boolean
 }
 
-export default function AddTaskForm({ clientId, taskTmplts, clients, user }: Props) {
+export default function AddTaskForm({ clientId, taskTmplts, clients, user, translated = false }: Props) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const { loading, error, setError, run } = useAction()
   const router = useRouter()
 
   function getTitle() {
     const title = (document.getElementById('newTaskTitle') as HTMLInputElement)?.value?.trim()
-    if (!title) { setError('יש להזין כותרת למעקב'); return null }
+    if (!title) { setError(t('leadTabs.tasks.form.titleRequired')); return null }
     return title
   }
 
   function getSelectedClientId() {
     const id = (document.getElementsByName('selectedClientId')?.[0] as any)?.value
-    if (!id) { setError('יש לבחור ליד'); return null }
+    if (!id) { setError(t('leadTabs.tasks.form.leadRequired')); return null }
     return id
   }
 
@@ -63,30 +76,30 @@ export default function AddTaskForm({ clientId, taskTmplts, clients, user }: Pro
   return (
     <>
       <div popover='auto' id='chooseTaskTmplt' className='pop p-4 w-96'>
-        <Title lbl='יצירת משימה חדשה' />
+        <Title lbl={t('leadTabs.tasks.form.title')} />
         <div className='grid gap-4 mt-4'>
           {!clientId && (
             <SelectSearch
               show='details'
               val='id'
               searchFunc={searchFunc}
-              placeholder='בחירת ליד'
+              placeholder={t('leadTabs.tasks.form.leadPlaceholder')}
               name='selectedClientId'
               options={options}
-              lbl='ליד'
+              lbl={t('leadTabs.tasks.form.leadLabel')}
             />
           )}
 
-          <Input id='newTaskTitle' lbl='כותרת המעקב' placeholder='לדוגמה: מעקב אחר הצעת מחיר' />
+          <Input id='newTaskTitle' lbl={t('leadTabs.tasks.form.taskTitleLabel')} placeholder={t('leadTabs.tasks.form.taskTitlePlaceholder')} />
 
           {error && <p className='text-sm text-red-500'>{error}</p>}
 
-          <Btn lbl={loading ? '...' : 'יצירת משימה חדשה'} className='w-full' onClick={addAndRedirect} disabled={loading} />
+          <Btn lbl={loading ? '...' : t('leadTabs.tasks.form.create')} className='w-full' onClick={addAndRedirect} disabled={loading} />
 
           {taskTmplts?.length > 0 && (
             <form onSubmit={addAndRedirectFromTmplt} className='w-full'>
-              <Select options={taskTmplts} name='taskTmpltId' lbl='או בחר מתבנית' val='id' show='title' />
-              <Btn lbl={loading ? '...' : 'יצירת משימה מתבנית'} variant='outline' className='mt-2 w-full' disabled={loading} />
+              <Select options={taskTmplts} name='taskTmpltId' lbl={t('leadTabs.tasks.form.templateLabel')} val='id' show='title' />
+              <Btn lbl={loading ? '...' : t('leadTabs.tasks.form.createFromTemplate')} variant='outline' className='mt-2 w-full' disabled={loading} />
             </form>
           )}
         </div>

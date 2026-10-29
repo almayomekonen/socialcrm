@@ -8,6 +8,15 @@ import { canDraftBilling } from '@/lib/billing/permissions'
 import LeadBillingList from '@/components/billing/LeadBillingList'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { Metadata } from 'next'
+import { getUser } from '@/db/auth'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+
+/** Tab title in the interface language — Hebrew ('נתוני ליד', the lead layout's title) outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('leadDetail.page.title'), description: t('leadDetail.page.description') }
+}
 
 export default async function LeadBillingPage({ params }: { params: Promise<{ clientId: string }> }) {
   const { clientId } = await params
@@ -31,6 +40,8 @@ export default async function LeadBillingPage({ params }: { params: Promise<{ cl
   if (!lead) notFound()
 
   const invoices = await listInvoicesForLead(leadId)
+  // Resolved once by the same request-memoised call the (app) layout makes; the list's root declares it.
+  const { locale } = await getUiLocaleState(user)
 
-  return <LeadBillingList leadId={leadId} invoices={invoices} canCreate={canDraftBilling(user)} />
+  return <LeadBillingList leadId={leadId} invoices={invoices} canCreate={canDraftBilling(user)} locale={locale} />
 }

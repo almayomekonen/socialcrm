@@ -53,6 +53,8 @@ vi.mock('@/db/clients', async () => {
       const { detailEnv } = await import('./leadDetailEnv')
       return { famMembers: detailEnv.family, familyId: detailEnv.family.length ? 1 : null }
     },
+    // Lead tabs (the add-task form on the global page only).
+    getLeadsByRep: async () => [],
   }
 })
 vi.mock('@/db/worklist', async () => {
@@ -135,7 +137,18 @@ vi.mock('@/lib/requireUser', async () => ({
   ...(await vi.importActual<typeof import('@/lib/requireUser')>('@/lib/requireUser')),
   requireAgencyUser: async () => (await import('./surfaces')).FIXTURE_USER,
 }))
-vi.mock('@/db/tasks', async () => ({ get5TasksByClientId: async () => (await import('./leadDetailEnv')).detailEnv.tasks }))
+vi.mock('@/db/tasks', async () => {
+  const { detailEnv } = await import('./leadDetailEnv')
+  const { tabsEnv } = await import('./leadTabsEnv')
+  return {
+    get5TasksByClientId: async () => detailEnv.tasks,
+    // Lead tabs.
+    getTasksTbl: async () => tabsEnv.tasks,
+    getTaskTmplts: async () => tabsEnv.taskTmplts,
+    getTaskById: async () => (tabsEnv.taskDetail ? structuredClone(tabsEnv.taskDetail) : undefined),
+    getTasksByClientId: async () => [{ id: 2, title: 'שיחת המשך' }],
+  }
+})
 vi.mock('@/modules/inbox/queries', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
   return { getInboxConversationByLeadId: async () => (detailEnv.conversationId ? { conversationId: detailEnv.conversationId } : null) }
@@ -169,6 +182,28 @@ vi.mock('@/components/copilot/CopilotLeadContext', () => ({ default: () => null 
 vi.mock('@/components/sales/saleForm/SaleForm', () => ({ default: () => null }))
 vi.mock('@/modules/leads/mobile/LeadDetailMobile', () => ({ default: () => null }))
 
+// /clients/[clientId]/{tasks,files,billing} reads (I/O only; the pages, tables, Drive section and list run for real).
+vi.mock('next/dynamic', async () => ({ default: (await import('./leadTabsHarness')).nextDynamicMock }))
+vi.mock('@/db/files', async () => ({ getFilesByClientId: async () => (await import('./leadTabsEnv')).tabsEnv.files }))
+vi.mock('@/actions/tasks', () => ({ addTask: async () => 1, addTaskFromTmplt: async () => 1, updateFullTask: async () => {}, updateFullTaskTmplt: async () => {}, deleteTask: async () => {} }))
+vi.mock('@/actions/files', () => ({ deleteFile: async () => {}, addFilesToTask: async () => {}, addFiles: async () => [], getPresigned: async () => [] }))
+vi.mock('@/actions/leadDriveFiles', async () => ({
+  listLeadDriveAttachments: async () => (await import('./leadTabsEnv')).tabsEnv.attachments,
+  attachDriveFile: async () => ({ ok: true }),
+  detachDriveFile: async () => ({ ok: true }),
+}))
+vi.mock('@/actions/leadDriveFilesSearch', async () => ({
+  fetchSuggestedDriveFiles: async () => (await import('./leadTabsEnv')).tabsEnv.suggestions,
+  searchDriveForLead: async () => [],
+}))
+vi.mock('@/lib/integrations/google/picker/useDrivePicker', () => ({ useDrivePicker: () => ({ status: 'idle', openPicker: () => {} }) }))
+vi.mock('@/config/db', async () => {
+  const { tabsEnv } = await import('./leadTabsEnv')
+  const q = { where: () => q, whereIn: () => q, first: async () => (tabsEnv.leadFound ? { id: 41 } : undefined) }
+  return { db: () => q }
+})
+vi.mock('@/db/billing/invoices', async () => ({ listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices }))
+
 const { SURFACES } = await import('./surfaces')
 
 const saved = { ...process.env }
@@ -184,6 +219,7 @@ afterEach(async () => {
   Object.assign(dashboardEnv, { mobile: false, v2: true, stats: STATS })
   ;(await import('./leadsEnv')).resetLeadsEnv()
   ;(await import('./leadDetailEnv')).resetDetailEnv()
+  ;(await import('./leadTabsEnv')).resetTabsEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

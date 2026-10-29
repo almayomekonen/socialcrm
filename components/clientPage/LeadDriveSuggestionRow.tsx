@@ -4,6 +4,8 @@ import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 import { iconForDriveMime } from '@/lib/copilot/driveMimeIcon'
 import type { SuggestedDriveFile } from '@/actions/leadDriveFilesSearch'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { driveModifiedDate } from './driveModifiedDate'
 
 export default function LeadDriveSuggestionRow({
   file,
@@ -14,8 +16,9 @@ export default function LeadDriveSuggestionRow({
   busy: boolean
   onAttach: () => void
 }) {
+  const t = useT()
   const icon = iconForDriveMime(file.mimeType)
-  const date = file.modifiedTime ? file.modifiedTime.slice(0, 10) : ''
+  const date = driveModifiedDate(file.modifiedTime, t.locale)
 
   return (
     <div
@@ -32,7 +35,12 @@ export default function LeadDriveSuggestionRow({
         {date && <p className='text-[10.5px] text-gray-400'>{date}</p>}
       </div>
       <div className='shrink-0'>
-        <Btn lbl={busy ? 'מצרף…' : 'צרף'} size='small' onClick={onAttach} disabled={busy} />
+        <Btn
+          lbl={busy ? t('leadTabs.drive.attaching') : t('leadTabs.drive.attachOne')}
+          size='small'
+          onClick={onAttach}
+          disabled={busy}
+        />
       </div>
     </div>
   )

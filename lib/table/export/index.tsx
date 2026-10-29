@@ -104,6 +104,7 @@ export default function ExportTable({ data, dataToFetch, columns }: Props) {
             type='image'
             tooltipClass='top-full mt-4 w-full'
             title={t('common.table.pdfImage')}
+            translated
           />
           <Checkbox lbl={t('common.table.pdfSumRow')} name='sum' />
           <SubmitButton lbl={t('common.table.pdfCreate')} icon='download' />

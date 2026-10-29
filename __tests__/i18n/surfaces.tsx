@@ -7,6 +7,7 @@ import { FAILING_INTAKE, LEADS_CUSTOMER_DATA, LEADS_DEFAULTS, leadsEnv } from '.
 import { clientsPage, leadsPage, shell } from './leadsHarness'
 import { ROWS, makeLead } from './leadsFixtures'
 import { LEAD_DETAIL_SURFACES } from './leadDetailSurfaces'
+import { LEAD_TABS_SURFACES } from './leadTabsSurfaces'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -189,6 +190,7 @@ export const SURFACES: Surface[] = [
     allowed: leadsData('אבי מזרחי', 'נציג ראשי'),
   },
   ...LEAD_DETAIL_SURFACES,
+  ...LEAD_TABS_SURFACES,
   ...(
     [
       ['desktop, Today brief v2 + analytics', { mobile: false, v2: true, stats: STATS }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],

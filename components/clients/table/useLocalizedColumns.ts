@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from 'react'
 import { useT } from '@/lib/i18n/I18nProvider'
+import type { UiLocale } from '@/lib/i18n/config'
 import { columnLabel, type LeadColumn } from './headers'
 
 /**
@@ -20,19 +21,23 @@ import { columnLabel, type LeadColumn } from './headers'
  * In another language, edits made through the displayed copies (show/hide,
  * drag to reorder) are mapped back onto the stored objects by key before they
  * reach `setColumns` / `save`, so a translated label is never persisted.
+ *
+ * `labelFor` names another table's headers by key (the lead tasks and files
+ * tabs); it defaults to the leads table's.
  */
 export function useLocalizedColumns(
   columns: LeadColumn[],
   setColumns: (next: LeadColumn[]) => void,
   save: (next: LeadColumn[]) => void,
+  labelFor: (key: string, locale: UiLocale) => string | null = columnLabel,
 ) {
   const t = useT()
   const locale = t.locale
 
   const display = useMemo(
     () =>
-      locale === 'he' ? columns : columns.map((c) => ({ ...c, label: columnLabel(c.key, locale) ?? c.label })),
-    [columns, locale],
+      locale === 'he' ? columns : columns.map((c) => ({ ...c, label: labelFor(c.key, locale) ?? c.label })),
+    [columns, locale, labelFor],
   )
 
   const toStored = useCallback(

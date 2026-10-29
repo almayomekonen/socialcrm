@@ -1028,7 +1028,7 @@ describe('lead Drive keeps the files and withholds the mutations', () => {
 
   it('withholds attach while the subscription is lapsed', () => {
     const src = section()
-    expect(src).toContain("{!expired && <Btn lbl='צרף קובץ מ-Drive'")
+    expect(src).toContain("{!expired && <Btn lbl={t('leadTabs.drive.attach')}")
     expect(src).toContain("source='lead_drive'")
   })
 
@@ -1044,13 +1044,13 @@ describe('lead Drive keeps the files and withholds the mutations', () => {
 
   it('keeps "פתח" and withholds only detach and re-pick', () => {
     const row = read('components/clientPage/LeadDriveAttachedRow.tsx')
-    expect(row).toContain("<Btn lbl='פתח'")
-    expect(row).toContain("{!expired && <Btn lbl='הסר'")
+    expect(row).toContain("<Btn lbl={t('leadTabs.drive.open')}")
+    expect(row).toContain("{!expired && <Btn lbl={t('leadTabs.drive.detach')}")
     expect(row).toContain('{!expired && pickerEnabled && leadId != null && (')
   })
 
   it('keeps the generic failure copy for real errors', () => {
-    expect(section()).toContain('הצירוף נכשל. נסה שוב.')
+    expect(section()).toContain("t('leadTabs.drive.attachFailed')")
   })
 })
 
@@ -1213,7 +1213,7 @@ describe('closing a deal and uploading files gate at their single choke point', 
 
   it('the generic upload failure copy survives for real errors', () => {
     expect(read('components/files/funcs.tsx')).toContain('getPresigned')
-    expect(read('components/files/FileUploader.tsx')).toContain('העלאת הקבצים נכשלה: ')
+    expect(read('components/files/FileUploader.tsx')).toContain("t('leadTabs.files.uploader.failed'")
   })
 })
 

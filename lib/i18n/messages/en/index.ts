@@ -8,6 +8,7 @@ import { today } from './today'
 import { leads } from './leads'
 import { leadDetail } from './leadDetail'
 import { entitlement } from './entitlement'
+import { leadTabs } from './leadTabs'
 
 /** English — pilot draft; native review is recorded in lib/i18n/review.ts. */
-export const en: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement }
+export const en: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs }

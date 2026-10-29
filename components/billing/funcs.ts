@@ -1,42 +1,67 @@
 import type { DocState, DocumentKind, FulfillState } from '@/db/billing/invoices'
-import { formatDocumentIdentity } from '@/lib/billing/numbering'
+import { formatDocumentIdentity, formatDocumentShortNumber } from '@/lib/billing/numbering'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
-const DOC_STATE_LABELS: Record<DocState, string> = {
-  draft: 'טיוטה',
-  issued: 'הונפקה',
-  voided: 'בוטלה',
-  replaced: 'הוחלפה',
+/**
+ * Billing state labels by CODE. Hebrew (the default) is the catalog's
+ * `leadTabs.billing.*`, the exact words these chips always showed — the invoice
+ * editor (Phase E) passes no locale and keeps them. The lead billing LIST passes
+ * the interface language. An unknown code is shown as stored.
+ */
+const DOC_STATE_KEY: Record<DocState, MessageKey> = {
+  draft: 'leadTabs.billing.docState.draft',
+  issued: 'leadTabs.billing.docState.issued',
+  voided: 'leadTabs.billing.docState.voided',
+  replaced: 'leadTabs.billing.docState.replaced',
 }
 
-const FULFILL_STATE_LABELS: Record<FulfillState, string> = {
-  open: 'ממתינה לתשלום',
-  partial: 'תשלום חלקי',
-  paid: 'שולמה',
-  overdue: 'באיחור',
-  written_off: 'נמחקה',
+const FULFILL_STATE_KEY: Record<FulfillState, MessageKey> = {
+  open: 'leadTabs.billing.fulfillState.open',
+  partial: 'leadTabs.billing.fulfillState.partial',
+  paid: 'leadTabs.billing.fulfillState.paid',
+  overdue: 'leadTabs.billing.fulfillState.overdue',
+  written_off: 'leadTabs.billing.fulfillState.written_off',
 }
 
-export function docStateLabel(state: DocState): string {
-  return DOC_STATE_LABELS[state] ?? state
+const KIND_SHORT_KEY: Record<DocumentKind, MessageKey> = {
+  invoice: 'leadTabs.billing.kindShort.invoice',
+  invoice_receipt: 'leadTabs.billing.kindShort.invoice_receipt',
 }
 
-export function fulfillStateLabel(state: FulfillState | null): string {
+export function docStateLabel(state: DocState, locale: UiLocale = 'he'): string {
+  const key = DOC_STATE_KEY[state]
+  return key ? translatorFor(locale)(key) : state
+}
+
+export function fulfillStateLabel(state: FulfillState | null, locale: UiLocale = 'he'): string {
   if (!state) return ''
-  return FULFILL_STATE_LABELS[state] ?? state
+  const key = FULFILL_STATE_KEY[state]
+  return key ? translatorFor(locale)(key) : state
 }
 
-export function formatInvoiceNumber(invoice: {
-  documentNumber: number | null
-  documentYear: number | null
-  docState: DocState
-  kind: DocumentKind
-}): string {
+/**
+ * The document's visual identity in a list row. Hebrew is exactly
+ * `formatDocumentIdentity` (shared with the email subject and the editor);
+ * other languages name the kind in the interface language around the same
+ * number (`#00042`), which is data.
+ */
+export function formatInvoiceNumber(
+  invoice: {
+    documentNumber: number | null
+    documentYear: number | null
+    docState: DocState
+    kind: DocumentKind
+  },
+  locale: UiLocale = 'he',
+): string {
+  const t = translatorFor(locale)
   if (invoice.docState === 'draft' || invoice.documentNumber == null) {
-    return 'טיוטה ללא מספר'
+    return t('leadTabs.billing.draftNumber')
   }
-  return formatDocumentIdentity({
-    documentNumber: invoice.documentNumber,
-    docState: invoice.docState,
-    kind: invoice.kind,
-  })
+  const identity = { documentNumber: invoice.documentNumber, docState: invoice.docState, kind: invoice.kind }
+  if (locale === 'he') return formatDocumentIdentity(identity)
+  const kindKey = KIND_SHORT_KEY[invoice.kind] ?? KIND_SHORT_KEY.invoice
+  return t('leadTabs.billing.identity', { kind: t(kindKey), number: formatDocumentShortNumber(identity) })
 }

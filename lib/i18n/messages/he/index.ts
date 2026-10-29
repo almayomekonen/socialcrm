@@ -19,5 +19,6 @@ import { today } from './today'
 import { leads } from './leads'
 import { leadDetail } from './leadDetail'
 import { entitlement } from './entitlement'
+import { leadTabs } from './leadTabs'
 
-export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement } as const
+export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs } as const
