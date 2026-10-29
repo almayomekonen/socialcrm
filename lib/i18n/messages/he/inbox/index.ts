@@ -4,8 +4,9 @@
  * (header, bubbles, delivery, failures, media), composer (reply box, service
  * window, health notices), conversation (actions, ownership, analysis,
  * arrivals); then the Messenger and Comments inboxes (`messenger`, `comments`)
- * and the Meta permission notices they show (`metaNotice`). Hebrew copied
- * verbatim from the components it came from.
+ * and the Meta permission notices they show (`metaNotice`); last, the copy only
+ * the phone inbox has (`mobile`). Hebrew copied verbatim from the components it
+ * came from.
  */
 import { page, toolbar, channels, list, row, empty, intel } from './list'
 import { header, conversation, status, failure, tooltip, reaction, quote, kind, media } from './thread'
@@ -14,6 +15,7 @@ import { menu, leadless, ownership, take, analysis, awareness } from './conversa
 import { messenger } from './messenger'
 import { comments } from './comments'
 import { metaNotice } from './metaNotices'
+import { mobile } from './mobile'
 
 export const inbox = {
   page,
@@ -47,4 +49,5 @@ export const inbox = {
   messenger,
   comments,
   metaNotice,
+  mobile,
 } as const

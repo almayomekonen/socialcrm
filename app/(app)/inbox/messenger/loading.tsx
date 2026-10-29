@@ -6,7 +6,7 @@ import MessengerRouteSkeleton from '@/modules/messenger/components/MessengerRout
 export default function Loading() {
   return (
     <EntityLoading
-      phone={<InboxListSkeletonMobile />}
+      phone={<InboxListSkeletonMobile translated />}
       desktop={<MessengerRouteSkeleton />}
     />
   )

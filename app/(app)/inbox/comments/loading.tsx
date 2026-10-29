@@ -13,7 +13,7 @@ import CommentsRouteSkeleton from '@/modules/facebookComments/components/Comment
 export default function Loading() {
   return (
     <EntityLoading
-      phone={<InboxListSkeletonMobile />}
+      phone={<InboxListSkeletonMobile translated />}
       desktop={<CommentsRouteSkeleton />}
     />
   )

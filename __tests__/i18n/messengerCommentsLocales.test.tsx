@@ -11,7 +11,7 @@ import { findHebrewLeaks } from './leakScan'
  * `/inbox/messenger` and `/inbox/comments` in en / ar: translated chrome, the
  * region (lang/dir) on the page roots, customer text untouched (byte-identical
  * inner HTML in every language, `dir="auto"` only outside Hebrew), the phone
- * branches still Hebrew, and the interaction copy (toasts, failures, picker,
+ * branches following the interface language too (mobile Phase D), and the interaction copy (toasts, failures, picker,
  * import outcomes with plurals) scanned for leaks. Hydration and the language
  * switch: messengerCommentsLocalesHydration. Arguments: …Behaviour.
  */
@@ -137,15 +137,16 @@ describe('Messenger — translated chrome and region', () => {
     expect(out.en.filter((b) => texts.includes(b.inner)).every((b) => b.dir === 'auto')).toBe(true)
   })
 
-  test('Hebrew declares nothing; the phone branch stays Hebrew for an English user', async () => {
+  test('Hebrew declares nothing; the phone branch follows the interface language for an English user', async () => {
     const he = await mountMessenger('he', { selectedId: 1, selectedOverrides: OPEN })
     expect(he.container.querySelector('[lang]')).toBeNull()
     expect(he.container.querySelector('[dir="auto"]')).toBeNull()
     he.unmount()
     const phone = await mountMessenger('en', { mobile: true })
-    expect(text(phone.container)).toContain('לא נקרא')
-    expect(screen.getByLabelText('חיפוש בשיחות Messenger')).toBeTruthy()
-    expect(phone.container.querySelector('[lang]')).toBeNull()
+    expect(text(phone.container)).toContain('Unread')
+    expect(text(phone.container)).not.toContain('לא נקרא')
+    expect(screen.getByLabelText('Search Messenger conversations')).toBeTruthy()
+    expect(phone.container.querySelector('[data-testid="messenger-mobile"]')?.getAttribute('lang')).toBe('en')
   })
 })
 
@@ -230,7 +231,7 @@ describe('Comments — translated chrome, region, customer text', () => {
     expect(out.ar.every((b) => b.dir === 'auto')).toBe(true)
   })
 
-  test('en: reply form, reply failure, convert toast — and the phone feed stays Hebrew', async () => {
+  test('en: reply form, reply failure, convert toast — and the phone feed follows the interface language', async () => {
     const { container } = await mountComments('en', {}, { status: 'open' })
     const card = within(container.querySelector('[data-comment-id="9001"]') as HTMLElement)
     await act(async () => fireEvent.click(card.getByText('Reply to comment')))
@@ -246,8 +247,9 @@ describe('Comments — translated chrome, region, customer text', () => {
     expect(S.toasts.map((t) => t.slice(0, 2))).toEqual([['success', 'Lead created · Open lead']])
     cleanup()
     const phone = await mountComments('en', { mobile: true })
-    expect(text(phone.container)).toContain('המר לליד')
-    expect(phone.container.querySelector('[lang]')).toBeNull()
+    expect(text(phone.container)).toContain('Convert to lead')
+    expect(text(phone.container)).not.toContain('המר לליד')
+    expect(phone.container.querySelector('[data-testid="facebook-comments-mobile"]')?.getAttribute('lang')).toBe('en')
   })
 })
 

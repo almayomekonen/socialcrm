@@ -21,14 +21,20 @@ vi.mock('next/navigation', async () => {
 })
 vi.mock('@/actions/auth', () => ({ logout: async () => {} }))
 vi.mock('@/actions/uiLocale', () => ({ setMyUiLocale: vi.fn(), setAgencyDefaultUiLocale: vi.fn() }))
-vi.mock('@/modules/inbox/awareness/AwarenessContext', () => ({ useAwarenessCount: () => null }))
+vi.mock('@/modules/inbox/awareness/AwarenessContext', () => ({
+  useAwarenessCount: () => null,
+  // The phone inbox list and read marker push the unread count (mobile Phase D surfaces).
+  useAwareness: () => ({ whatsappUnread: null, setCount: () => {}, mergeAwareness: () => {} }),
+}))
 vi.mock('@/components/notifications/NotificationBell', () => ({ default: () => null }))
 vi.mock('@/components/education/HelpTrigger', () => ({ default: () => null }))
 vi.mock('@/db/auth', async () => ({ getUser: async () => (await import('./surfaces')).FIXTURE_USER }))
 vi.mock('@/db/uiLocale', () => ({ getUiLocalePrefs: async () => ({ userLocale: prefs.userLocale, agencyLocale: null }) }))
 vi.mock('@/lib/device', async () => {
   const f = await import('./dashboardFixtures')
-  return { isMobileRequest: async () => f.dashboardEnv.mobile, isMobileWorkspaceRequest: async () => false, getInAppBrowser: async () => null }
+  // The Messenger / Comments phone branches (mobile Phase D) read their fixtures' `mobile` flag; false by default.
+  const mc = (await import('./messengerCommentsMocks')).deviceModule()
+  return { isMobileRequest: async () => f.dashboardEnv.mobile, isMobileWorkspaceRequest: mc.isMobileWorkspaceRequest, getInAppBrowser: async () => null }
 })
 vi.mock('@/lib/access/productAccess', async () => {
   const { detailEnv } = await import('./leadDetailEnv')

@@ -13,7 +13,7 @@ import { refreshMessengerProfiles } from '@/lib/facebook/messenger/profile'
 import type { ConnectionNotice } from '@/lib/connections/messages'
 import { metaInboxNotice } from '@/lib/connections/metaNoticeCopy'
 import { getUiLocaleState } from '@/lib/i18n/server'
-import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { regionAttrs } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
@@ -44,10 +44,9 @@ import { listMessengerSavedReplies } from '@/db/messengerSavedReplies'
  * STATES, exactly one at a time: not enabled → no Page → permission missing →
  * no conversations → list (+ selected thread).
  *
- * LANGUAGE: the desktop page follows the interface language, resolved once here
- * and passed down as `locale`. The phone branch (the mobile workspace, not
- * translated yet) is handed Hebrew, so it renders exactly as before. The tab
- * title is the product name in every language.
+ * LANGUAGE: the page follows the interface language — desktop and the phone
+ * branch alike — resolved once here and passed down as `locale`. The tab title
+ * is the product name in every language.
  */
 export const metadata: Metadata = { title: 'Messenger' }
 
@@ -61,7 +60,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   const agencyId = user.agencyId
   const sp = await searchParams
   const mobile = await isMobileWorkspaceRequest(agencyId)
-  const locale: UiLocale = mobile ? 'he' : (await getUiLocaleState(user)).locale
+  const { locale } = await getUiLocaleState(user)
   const t = translatorFor(locale)
 
   const shell = (content: React.ReactNode) => (
@@ -210,7 +209,7 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
 
   if (mobile) {
     return (
-      <div data-testid='messenger-mobile' className='flex flex-col gap-3 p-3'>
+      <div data-testid='messenger-mobile' className='flex flex-col gap-3 p-3' {...regionAttrs(locale)}>
         <ConversationRefreshPoller intervalMs={REFRESH_MS} />
         <div className='[&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
           <InboxChannelSwitch active='messenger' showMessenger locale={locale} />

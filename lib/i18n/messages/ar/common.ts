@@ -3,6 +3,17 @@ import type { Messages } from '../../translate'
 export const common: Messages['common'] = {
   source: { whatsapp: 'واتساب', facebook: 'فيسبوك', instagram: 'إنستغرام', website: 'الموقع', manual: 'يدوي' },
   dialog: { close: 'إغلاق', closeTitle: 'خروج دون حفظ', fallbackName: 'مربع حوار', confirm: 'موافق', cancel: 'إلغاء' },
+  sheet: {
+    working: 'جارٍ التنفيذ...',
+    selected: {
+      zero: 'لم يتم تحديد أي عنصر',
+      one: 'تم تحديد عنصر واحد',
+      two: 'تم تحديد عنصرين',
+      few: 'تم تحديد {count} عناصر',
+      many: 'تم تحديد {count} عنصرًا',
+      other: 'تم تحديد {count} عنصر',
+    },
+  },
   picker: { search: 'بحث…', selectAll: 'تحديد الكل', clearAll: 'إلغاء تحديد الكل' },
   table: {
     columns: 'الأعمدة المعروضة',

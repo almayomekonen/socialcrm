@@ -2,6 +2,10 @@
 
 import { useState } from 'react'
 import BottomSheet from '@/components/mobile/BottomSheet'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
 
 /**
  * Phone confirmation. Same job as `ConfirmPop` (explicit confirm, no `alert()`),
@@ -14,9 +18,10 @@ export default function ConfirmSheet({
   onConfirm,
   title,
   msg,
-  confirmLbl = 'אישור',
-  cancelLbl = 'ביטול',
+  confirmLbl,
+  cancelLbl,
   destructive = false,
+  translated = false,
 }: {
   open: boolean
   onClose: () => void
@@ -26,7 +31,11 @@ export default function ConfirmSheet({
   confirmLbl?: string
   cancelLbl?: string
   destructive?: boolean
+  /** The caller follows the interface language (the phone inbox); off keeps the Hebrew defaults. */
+  translated?: boolean
 }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const [busy, setBusy] = useState(false)
 
   async function handleConfirm() {
@@ -40,7 +49,7 @@ export default function ConfirmSheet({
   }
 
   return (
-    <BottomSheet open={open} onClose={busy ? () => {} : onClose} title={title} dismissOnScrim={!busy}>
+    <BottomSheet open={open} onClose={busy ? () => {} : onClose} title={title} dismissOnScrim={!busy} translated={translated}>
       <p className='text-sm leading-relaxed whitespace-pre-line text-gray-600'>{msg}</p>
       <div className='mt-4 flex flex-col gap-2'>
         <button
@@ -53,7 +62,7 @@ export default function ConfirmSheet({
               : 'press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           }
         >
-          {busy ? 'מבצע...' : confirmLbl}
+          {busy ? t('common.sheet.working') : (confirmLbl ?? t('common.dialog.confirm'))}
         </button>
         <button
           type='button'
@@ -61,7 +70,7 @@ export default function ConfirmSheet({
           onClick={onClose}
           className='press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
-          {cancelLbl}
+          {cancelLbl ?? t('common.dialog.cancel')}
         </button>
       </div>
     </BottomSheet>

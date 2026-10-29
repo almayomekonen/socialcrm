@@ -1,13 +1,9 @@
 'use client' // Error boundaries must be Client Components
 
-import { useContext, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Btn } from '@/lib/btns/Btn'
-import { MobileWorkspaceContext } from '@/components/mobile/MobileWorkspaceContext'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { regionAttrs } from '@/lib/i18n/config'
-import { translatorFor } from '@/lib/i18n/translators'
-
-const HEBREW = translatorFor('he')
 
 /**
  * Segment error boundary for the Comments Inbox. Mirrors `app/(app)/error.tsx`:
@@ -15,10 +11,9 @@ const HEBREW = translatorFor('he')
  * never surfaced to the user (`frontend-experience-guidelines.md` §5).
  */
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  // The desktop page follows the interface language; the phone workspace (not
-  // translated yet) keeps Hebrew. Hebrew keeps its explicit `dir='rtl'`.
-  const ui = useT()
-  const t = useContext(MobileWorkspaceContext) ? HEBREW : ui
+  // Follows the interface language on desktop and in the phone workspace alike.
+  // Hebrew keeps its explicit `dir='rtl'`.
+  const t = useT()
   const region = regionAttrs(t.locale)
   useEffect(() => {
     console.error('[facebook-comments-error]', error?.digest ?? '', error)

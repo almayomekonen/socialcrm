@@ -17,7 +17,7 @@ import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import { metaInboxNotice } from '@/lib/connections/metaNoticeCopy'
 import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
-import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { regionAttrs } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 import type { CommentStatusFilter } from '@/modules/facebookComments/types'
 import CommentsList from '@/modules/facebookComments/components/CommentsList'
@@ -40,9 +40,9 @@ import CommentsInboxMobile from '@/modules/facebookComments/mobile/CommentsInbox
  * The UI itself stays reachable so the empty/preview states can be inspected
  * without enabling production comment ingestion.
  *
- * LANGUAGE: the desktop page follows the interface language, resolved once here
- * and passed down as `locale`. The phone branch (`CommentsInboxMobile`, not
- * translated yet) gets Hebrew, so it renders exactly as before.
+ * LANGUAGE: the page follows the interface language — desktop and the phone
+ * branch (`CommentsInboxMobile`) alike — resolved once here and passed down as
+ * `locale`.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT(await getUser())
@@ -66,14 +66,14 @@ export default async function FacebookCommentsPage({
     ? await countUnreadMessengerConversations(user.agencyId, user.id).catch(() => 0)
     : 0
   const mobile = await isMobileWorkspaceRequest(user.agencyId)
-  const locale: UiLocale = mobile ? 'he' : (await getUiLocaleState(user)).locale
+  const { locale } = await getUiLocaleState(user)
   const t = translatorFor(locale)
 
   // Dark launch: show the shell + honest empty state. Do not query or pretend
   // rows exist — ingest remains blocked until the agency is allowlisted.
   if (!enabled) {
     if (mobile) {
-      return <CommentsInboxMobile emptyKind='not-enabled' comments={[]} showMessenger={showMessenger} />
+      return <CommentsInboxMobile emptyKind='not-enabled' comments={[]} showMessenger={showMessenger} locale={locale} />
     }
     return (
       <div className='grid gap-3 p-3 sm:p-4' {...regionAttrs(locale)}>
@@ -163,6 +163,7 @@ export default async function FacebookCommentsPage({
         showMessenger={showMessenger}
         nextCursor={page.nextCursor}
         status={status}
+        locale={locale}
       />
     )
   }

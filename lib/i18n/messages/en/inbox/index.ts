@@ -6,6 +6,7 @@ import { menu, leadless, ownership, take, analysis, awareness } from './conversa
 import { messenger } from './messenger'
 import { comments } from './comments'
 import { metaNotice } from './metaNotices'
+import { mobile } from './mobile'
 
 export const inbox: Messages['inbox'] = {
   page,
@@ -39,4 +40,5 @@ export const inbox: Messages['inbox'] = {
   messenger,
   comments,
   metaNotice,
+  mobile,
 }

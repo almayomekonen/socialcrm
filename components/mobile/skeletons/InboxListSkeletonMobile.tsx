@@ -1,10 +1,22 @@
+'use client'
+
+import { useT } from '@/lib/i18n/I18nProvider'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import { Pulse, Status } from './Pulse'
 
+const HEBREW = translatorFor('he')
+
 /** Mirrors ConversationListMobile: search + 64px rows with channel mark. */
-export default function InboxListSkeletonMobile() {
+export default function InboxListSkeletonMobile({ translated = false }: { translated?: boolean }) {
+  // `translated`: the phone inbox's own loading boundaries (the shell-level
+  // MobileInnerSkeleton passes nothing and stays Hebrew). `inbox.page.loading`
+  // is the same "טוען…" in Hebrew.
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   return (
-    <div className='flex min-h-full flex-col' aria-busy='true' data-testid='inbox-skeleton-mobile'>
-      <Status>טוען…</Status>
+    <div className='flex min-h-full flex-col' aria-busy='true' data-testid='inbox-skeleton-mobile' {...regionAttrs(t.locale)}>
+      <Status>{t('inbox.page.loading')}</Status>
       <div className='sticky top-0 z-20 border-b border-gray-200 bg-white px-4 pb-2.5 pt-3' aria-hidden>
         <Pulse className='h-11 w-full rounded-lg' />
         <Pulse className='mt-2 h-3 w-16 rounded' />

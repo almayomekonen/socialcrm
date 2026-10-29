@@ -58,16 +58,28 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
    * Returned BEFORE the desktop's parallel reads, so a phone does no wasted work
    * and receives no desktop markup (architecture-rules.md §9).
    */
-  if ((await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)) {
-    return <MobileInboxRoute agencyId={user.agencyId} userId={user.id} q={filters.q ?? ''} conversationId={selectedConversationId} />
-  }
+  const mobile = (await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)
 
   /**
    * Interface language, resolved once (the same request-memoised read as the
-   * layout). Hebrew outside the rollout, with no query. Server pieces take it
-   * as a prop; client pieces read the layout's provider (same value).
+   * layout), for the phone and desktop branches alike. Hebrew outside the
+   * rollout, with no query. Server pieces take it as a prop; client pieces read
+   * the layout's provider (same value).
    */
   const { locale } = await getUiLocaleState(user)
+
+  if (mobile) {
+    return (
+      <MobileInboxRoute
+        agencyId={user.agencyId}
+        userId={user.id}
+        q={filters.q ?? ''}
+        conversationId={selectedConversationId}
+        locale={locale}
+      />
+    )
+  }
+
   const t = translatorFor(locale)
 
   const [firstPage, smartCounts, selected] = await Promise.all([
