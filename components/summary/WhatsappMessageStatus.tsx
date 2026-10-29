@@ -2,6 +2,8 @@ import Icon, { type IconNames } from '@/lib/Icon'
 import type { InboxMessageStatus } from '@/db/inboxMessages'
 import { failureTooltip, type WhatsappErrorCategory } from '@/lib/inbox/whatsappErrorCopy'
 import { HoverTooltip } from '@/components/ui/HoverTooltip'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * Delivery state indicator for an outbound WhatsApp bubble.
@@ -18,11 +20,11 @@ import { HoverTooltip } from '@/components/ui/HoverTooltip'
  * CATEGORY (never a raw Meta string/code). The tooltip renders through a body
  * portal so the Inbox scroll overflow cannot clip it.
  */
-const STATE: Partial<Record<InboxMessageStatus, { icon: IconNames; tone: string; label: string }>> = {
-  sent: { icon: 'check', tone: 'bg-gray-500', label: 'נשלח — ממתין לאישור מסירה' },
-  delivered: { icon: 'check-double', tone: 'bg-gray-500', label: 'נמסר' },
-  read: { icon: 'check-double', tone: 'bg-primary', label: 'נקרא' },
-  failed: { icon: 'circle-exclamation', tone: 'bg-error', label: 'לא נשלח' },
+const STATE: Partial<Record<InboxMessageStatus, { icon: IconNames; tone: string; label: MessageKey }>> = {
+  sent: { icon: 'check', tone: 'bg-gray-500', label: 'inbox.status.sent' },
+  delivered: { icon: 'check-double', tone: 'bg-gray-500', label: 'inbox.status.delivered' },
+  read: { icon: 'check-double', tone: 'bg-primary', label: 'inbox.status.read' },
+  failed: { icon: 'circle-exclamation', tone: 'bg-error', label: 'inbox.status.failed' },
 }
 
 export default function WhatsappMessageStatus({
@@ -34,13 +36,17 @@ export default function WhatsappMessageStatus({
   // failureCategory); non-null only when failed. Presentation-only — no new read.
   failureCategory?: WhatsappErrorCategory | null
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const state = STATE[status]
   if (!state) return null
 
   if (status === 'failed') {
-    const tip = failureTooltip(failureCategory)
+    const tip = failureTooltip(failureCategory, t.locale)
     return (
       <HoverTooltip
+        // The panel is portalled to <body>: it declares the interface language itself.
+        region={region}
         className='inline-flex shrink-0 items-center rounded-sm focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-error'
         // Accessible name — the full guidance, so AT and touch users are never
         // left with only the (hover-only) visual panel; kept meaningful when closed.
@@ -60,7 +66,7 @@ export default function WhatsappMessageStatus({
 
   return (
     <span className='inline-flex shrink-0 items-center'>
-      <span className='sr-only'>{state.label}</span>
+      <span className='sr-only'>{t(state.label)}</span>
       <Icon name={state.icon} className={`size-3.5 ${state.tone}`} />
     </span>
   )

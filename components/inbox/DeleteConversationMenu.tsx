@@ -8,6 +8,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { toast } from '@/lib/toast'
 import { useInboxStore } from '@/modules/inbox/client/inboxStore'
 import { deleteConversation } from '@/modules/inbox/actions'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 const MENU_WIDTH = 176 // min-w-[10rem] (160px) + slack, for viewport clamping
 
@@ -35,6 +36,8 @@ export default function DeleteConversationMenu({
   size?: 'sm' | 'md'
   revealOnHover?: boolean
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { removeConversation } = useInboxStore()
@@ -88,11 +91,11 @@ export default function DeleteConversationMenu({
     try {
       res = await deleteConversation(conversationId)
     } catch {
-      toast('error', 'מחיקת השיחה נכשלה. נסה שוב.')
+      toast('error', t('inbox.menu.deleteFailed'))
       return
     }
     if (!res.ok) {
-      toast('error', 'מחיקת השיחה נכשלה. נסה שוב.')
+      toast('error', t('inbox.menu.deleteFailed'))
       return
     }
 
@@ -106,7 +109,7 @@ export default function DeleteConversationMenu({
       router.replace('/inbox')
     }
     router.refresh()
-    toast('success', 'השיחה נמחקה')
+    toast('success', t('inbox.menu.deleted'))
   }
 
   const btnSize = size === 'md' ? 'size-8' : 'size-7'
@@ -123,7 +126,7 @@ export default function DeleteConversationMenu({
       <button
         ref={btnRef}
         type='button'
-        aria-label='פעולות שיחה'
+        aria-label={t('inbox.menu.label')}
         aria-haspopup='menu'
         aria-expanded={menuOpen}
         className={`inline-flex ${btnSize} items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${visibility}`}
@@ -143,6 +146,8 @@ export default function DeleteConversationMenu({
             <div
               ref={menuRef}
               role='menu'
+              // Portalled to <body>: it declares the interface language itself.
+              {...region}
               style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
               className='min-w-[10rem] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg'
             >
@@ -158,7 +163,7 @@ export default function DeleteConversationMenu({
                 }}
               >
                 <Trash2 aria-hidden className='size-3.5' />
-                מחק שיחה
+                {t('inbox.menu.delete')}
               </button>
             </div>,
             document.body,
@@ -169,10 +174,11 @@ export default function DeleteConversationMenu({
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={onConfirm}
-        msg={'מחיקת השיחה?\n\nהשיחה וההודעות שלה יימחקו מ-SocialCRM. הפעולה לא תמחק את איש הקשר או את הליד ב-CRM.'}
-        confirmLbl='מחק שיחה'
-        cancelLbl='בטל'
+        msg={t('inbox.menu.confirm')}
+        confirmLbl={t('inbox.menu.delete')}
+        cancelLbl={t('inbox.menu.cancel')}
         destructive
+        translated
       />
     </div>
   )

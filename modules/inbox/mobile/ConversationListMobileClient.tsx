@@ -28,7 +28,8 @@ import {
   selectedUnreadIds,
   type ConversationListRow,
 } from './conversationSelection'
-import { relativeTimeHe } from './relativeTime'
+import { relativeTime } from './relativeTime'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Client island for the mobile conversation list: selection, optimistic delete /
@@ -37,6 +38,10 @@ import { relativeTimeHe } from './relativeTime'
  *
  * Selection IDs are the source of truth. The confirm sheet is `sel.action`; it
  * cannot stay open after the last selected id is cleared.
+ *
+ * Copy follows the interface language (`useT`); load-more carries a non-Hebrew
+ * locale back to the server for the rows' waiting copy, exactly as the desktop
+ * list does, and formats the new rows' times in it.
  */
 export default function ConversationListMobileClient({
   items: initialItems,
@@ -57,6 +62,7 @@ export default function ConversationListMobileClient({
   itemsRef.current = items
   const router = useRouter()
   const { setCount } = useAwareness()
+  const t = useT()
 
   const selecting = isSelecting(sel)
   const selected = sel.ids
@@ -104,7 +110,7 @@ export default function ConversationListMobileClient({
     if (failed.size > 0) {
       setItems((current) => restoreRows(current, snapshot, failed))
       setSel({ ids: failed, action: null })
-      toast('error', failed.size === ids.size ? 'מחיקת השיחות נכשלה. נסה שוב.' : 'חלק מהשיחות לא נמחקו. נסה שוב.')
+      toast('error', failed.size === ids.size ? t('inbox.mobile.list.deleteFailed') : t('inbox.mobile.list.deletePartial'))
     } else {
       exit()
     }
@@ -128,7 +134,7 @@ export default function ConversationListMobileClient({
     }
     if (failed.size > 0) {
       setItems((current) => restoreUnread(current, snapshot, failed))
-      toast('error', 'לא הצלחנו לסמן כנקרא. נסה שוב.')
+      toast('error', t('inbox.mobile.list.markReadFailed'))
     } else {
       await refreshWhatsappUnread(setCount)
       if (typeof document !== 'undefined' && document.querySelector('[data-mobile-workspace]')) {
@@ -142,14 +148,13 @@ export default function ConversationListMobileClient({
   const loadMore = () => {
     if (!cursor || loadingMore) return
     startLoadMore(async () => {
-      const page = await loadMoreInboxConversations({
-        cursor,
-        filters: { ...DEFAULT_INBOX_FILTERS, q: q || null },
-      })
+      const filters = { ...DEFAULT_INBOX_FILTERS, q: q || null }
+      // Hebrew sends exactly what it always sent; another language asks for its waiting copy.
+      const page = await loadMoreInboxConversations(t.locale === 'he' ? { cursor, filters } : { cursor, filters, locale: t.locale })
       const nowMs = Date.now()
       const extra: ConversationListRow[] = page.items.map((row) => ({
         ...row,
-        when: relativeTimeHe(row.lastMessageAt, nowMs),
+        when: relativeTime(row.lastMessageAt, nowMs, t.locale),
       }))
       setItems((prev) => {
         const seen = new Set(prev.map((r) => r.conversationId))
@@ -160,10 +165,8 @@ export default function ConversationListMobileClient({
   }
 
   const count = selected.size
-  const deleteMsg =
-    count === 1
-      ? 'האם למחוק שיחה אחת?\nלא ניתן לשחזר את השיחות לאחר המחיקה.'
-      : `האם למחוק ${count} שיחות?\nלא ניתן לשחזר את השיחות לאחר המחיקה.`
+  // The count is passed as its digits, exactly as the Hebrew copy always printed it.
+  const deleteMsg = t('inbox.mobile.selection.confirmBody', { count: String(count) })
 
   return (
     <div className='flex min-h-full flex-col'>
@@ -174,7 +177,7 @@ export default function ConversationListMobileClient({
       )}
 
       {items.length === 0 ? (
-        <EmptyConversationsMobile q={q} />
+        <EmptyConversationsMobile q={q} locale={t.locale} />
       ) : (
         <ul className='divide-y divide-gray-100'>
           {items.map((c) => (
@@ -199,7 +202,7 @@ export default function ConversationListMobileClient({
             onClick={loadMore}
             className='press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            {loadingMore ? 'טוען…' : 'טען עוד שיחות'}
+            {loadingMore ? t('inbox.page.loading') : t('inbox.mobile.list.loadMore')}
           </button>
         </div>
       )}
@@ -218,10 +221,11 @@ export default function ConversationListMobileClient({
       <ConfirmSheet
         open={confirmOpen}
         destructive
-        title='מחיקת שיחות'
+        title={t('inbox.mobile.selection.confirmTitle')}
         msg={deleteMsg}
-        confirmLbl={count === 1 ? 'מחק שיחה' : 'מחק שיחות'}
-        cancelLbl='ביטול'
+        confirmLbl={t('inbox.mobile.selection.confirm', { count })}
+        cancelLbl={t('common.dialog.cancel')}
+        translated
         onClose={() => setSel((prev) => setAction(prev, null))}
         onConfirm={runDelete}
       />

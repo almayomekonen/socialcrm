@@ -2,6 +2,8 @@
 
 import { useImageFailed } from '@/lib/useImageFailed'
 import type { CommentPost } from '../types'
+import { customerTextAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Which post the comment was left on, below the comment.
@@ -22,6 +24,7 @@ export default function CommentPostContext({
   facebookUrl,
   isReply,
   touch = false,
+  locale = 'he',
 }: {
   post: CommentPost | undefined
   /** Opens the post at this comment; built from ids, may be null for odd ids. */
@@ -29,12 +32,15 @@ export default function CommentPostContext({
   isReply: boolean
   /** Phone: the link is a 44px tap target. */
   touch?: boolean
+  /** Our labels only; the post excerpt is the Page's own text. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const image = useImageFailed()
   const gone = post?.fetchStatus === 'unavailable'
   const href = gone ? null : (facebookUrl ?? post?.permalinkUrl ?? null)
   const picture = !gone && !image.failed ? (post?.pictureUrl ?? null) : null
-  const text = gone ? 'הפוסט כבר לא זמין בפייסבוק' : (post?.message ?? null)
+  const text = gone ? t('inbox.comments.post.gone') : (post?.message ?? null)
 
   if (!href && !text) return null
 
@@ -73,8 +79,15 @@ export default function CommentPostContext({
           </div>
         ))}
       <div className='p-2.5'>
-        <p className='text-[11px] font-medium text-gray-500'>{isReply ? 'תגובה בשרשור על הפוסט' : 'תגובה על הפוסט'}</p>
-        {text && <p className={`mt-0.5 line-clamp-2 text-xs leading-snug ${gone ? 'text-gray-400' : 'text-gray-700'}`}>{text}</p>}
+        <p className='text-[11px] font-medium text-gray-500'>{isReply ? t('inbox.comments.post.inThread') : t('inbox.comments.post.onPost')}</p>
+        {text && (
+          <p
+            className={`mt-0.5 line-clamp-2 text-xs leading-snug ${gone ? 'text-gray-400' : 'text-gray-700'}`}
+            {...(gone ? {} : customerTextAttrs(locale))}
+          >
+            {text}
+          </p>
+        )}
         {href && (
           <a
             href={href}
@@ -82,7 +95,7 @@ export default function CommentPostContext({
             rel='noopener noreferrer'
             className={`text-xs text-primary underline underline-offset-2 ${touch ? 'inline-flex min-h-11 items-center' : 'mt-1 inline-block'}`}
           >
-            פתח את הפוסט בפייסבוק
+            {t('inbox.comments.post.open')}
           </a>
         )}
       </div>

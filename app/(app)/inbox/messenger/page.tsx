@@ -10,7 +10,11 @@ import { hasFeatureScopes, isFacebookMessengerEnabledForAgency } from '@/lib/fac
 import { messengerWindow, messengerWindowHint } from '@/lib/facebook/messenger/rules'
 import { checkMessengerDelivery, pendingMessengerDeliveryChecks } from '@/lib/facebook/messenger/deliveryCheck'
 import { refreshMessengerProfiles } from '@/lib/facebook/messenger/profile'
-import { FACEBOOK_NOTICES, type ConnectionNotice } from '@/lib/connections/messages'
+import type { ConnectionNotice } from '@/lib/connections/messages'
+import { metaInboxNotice } from '@/lib/connections/metaNoticeCopy'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import MetaPermissionPrompt from '@/components/settings/MetaPermissionPrompt'
 import { isAdmin, type Roles } from '@/types/roles'
 import ConversationRefreshPoller from '@/components/summary/ConversationRefreshPoller'
@@ -39,6 +43,10 @@ import { listMessengerSavedReplies } from '@/db/messengerSavedReplies'
  *
  * STATES, exactly one at a time: not enabled → no Page → permission missing →
  * no conversations → list (+ selected thread).
+ *
+ * LANGUAGE: the page follows the interface language — desktop and the phone
+ * branch alike — resolved once here and passed down as `locale`. The tab title
+ * is the product name in every language.
  */
 export const metadata: Metadata = { title: 'Messenger' }
 
@@ -52,17 +60,19 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   const agencyId = user.agencyId
   const sp = await searchParams
   const mobile = await isMobileWorkspaceRequest(agencyId)
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
 
   const shell = (content: React.ReactNode) => (
-    <div className='grid gap-3 p-3 sm:p-4'>
+    <div className='grid gap-3 p-3 sm:p-4' {...regionAttrs(locale)}>
       <header className='flex flex-wrap items-center justify-between gap-2'>
-        <h1 className='text-lg font-semibold text-gray-900'>הודעות Messenger</h1>
-        <InboxChannelSwitch active='messenger' showMessenger />
+        <h1 className='text-lg font-semibold text-gray-900'>{t('inbox.messenger.page.heading')}</h1>
+        <InboxChannelSwitch active='messenger' showMessenger locale={locale} />
       </header>
       {content}
     </div>
   )
-  const empty = (kind: MessengerEmptyKind) => shell(<MessengerEmptyState kind={kind} compact={mobile} />)
+  const empty = (kind: MessengerEmptyKind) => shell(<MessengerEmptyState kind={kind} compact={mobile} locale={locale} />)
 
   if (!isFacebookMessengerEnabledForAgency(agencyId)) return empty('not-enabled')
 
@@ -86,10 +96,11 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       href='/api/auth/facebook?feature=messenger'
       canAuthorize={isAdmin(user.role as Roles)}
       inAppBrowser={inAppBrowser}
+      locale={locale}
     />
   )
   const permissionPrompt = promptFor(
-    sp.permission === 'missing' ? FACEBOOK_NOTICES.messenger_declined : FACEBOOK_NOTICES.messenger_permission,
+    metaInboxNotice(sp.permission === 'missing' ? 'messenger_declined' : 'messenger_permission', locale),
   )
   if (messagingPageIds.size === 0) return shell(permissionPrompt)
 
@@ -106,10 +117,10 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     return shell(
       <div className='overflow-hidden rounded-lg border border-gray-200 bg-white'>
         <div className='border-b border-gray-100 p-2 px-3'>
-          <MessengerSearch initial={query} />
+          <MessengerSearch initial={query} locale={locale} />
         </div>
         <p role='status' className='px-3 py-6 text-center text-sm text-gray-500'>
-          לא נמצאו שיחות התואמות לחיפוש.
+          {t('inbox.messenger.page.noResults')}
         </p>
       </div>,
     )
@@ -126,24 +137,24 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
     // The refresh is what shows the first message without a reload, and what clears
     // the prompt once a reconnect or the hourly repair has subscribed the Page.
     const poller = <ConversationRefreshPoller intervalMs={REFRESH_MS} />
-    if (delivery.includes('reconnect')) return shell(<>{poller}{promptFor(FACEBOOK_NOTICES.expired)}</>)
+    if (delivery.includes('reconnect')) return shell(<>{poller}{promptFor(metaInboxNotice('expired', locale))}</>)
     if (delivery.includes('not_subscribed')) {
-      return shell(<>{poller}{promptFor(FACEBOOK_NOTICES.messenger_not_subscribed)}</>)
+      return shell(<>{poller}{promptFor(metaInboxNotice('messenger_not_subscribed', locale))}</>)
     }
     // An admin with a working Page can pull in the conversations it already had,
     // rather than staring at an empty inbox until someone writes again. Offered
     // only here — once there are conversations, this is no longer the question.
     const importOffer =
       isAdmin(user.role as Roles) && delivery.includes('ready') ? (
-        <MessengerImportHistory pageId={messagingPages[0].page_id} />
+        <MessengerImportHistory pageId={messagingPages[0].page_id} locale={locale} />
       ) : null
     return shell(
       <>
         {poller}
         {sp.permission === 'granted' && (
-          <p role='status' className='text-sm text-green-600'>ההרשאה אושרה. הודעות Messenger חדשות יופיעו כאן.</p>
+          <p role='status' className='text-sm text-green-600'>{t('inbox.messenger.page.granted')}</p>
         )}
-        <MessengerEmptyState kind='no-conversations' compact={mobile} />
+        <MessengerEmptyState kind='no-conversations' compact={mobile} locale={locale} />
         {importOffer}
       </>,
     )
@@ -178,36 +189,37 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
       events={events}
       savedReplies={savedReplies}
       windowOpen={replyWindow!.open}
-      windowHint={messengerWindowHint(replyWindow!, now)}
+      windowHint={messengerWindowHint(replyWindow!, now, locale)}
       canSend={messagingPageIds.has(selected.pageId)}
       permissionPrompt={permissionPrompt}
+      locale={locale}
     />
   ) : null
 
   const profileNotice =
-    profileAccessDenied && isAdmin(user.role as Roles) ? <MessengerProfileAccessNotice /> : null
+    profileAccessDenied && isAdmin(user.role as Roles) ? <MessengerProfileAccessNotice locale={locale} /> : null
 
   const list = (
-    <nav aria-label='שיחות Messenger'>
+    <nav aria-label={t('inbox.messenger.page.list')}>
       {conversations.map((c) => (
-        <MessengerConversationRow key={c.id} item={c} selected={c.id === selected?.id} />
+        <MessengerConversationRow key={c.id} item={c} selected={c.id === selected?.id} locale={locale} />
       ))}
     </nav>
   )
 
   if (mobile) {
     return (
-      <div data-testid='messenger-mobile' className='flex flex-col gap-3 p-3'>
+      <div data-testid='messenger-mobile' className='flex flex-col gap-3 p-3' {...regionAttrs(locale)}>
         <ConversationRefreshPoller intervalMs={REFRESH_MS} />
         <div className='[&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
-          <InboxChannelSwitch active='messenger' showMessenger />
+          <InboxChannelSwitch active='messenger' showMessenger locale={locale} />
         </div>
-        {!selected && <MessengerSearch initial={query} />}
+        {!selected && <MessengerSearch initial={query} locale={locale} />}
         {profileNotice}
         {selected ? (
           <>
             <Link href='/inbox/messenger' className='inline-flex min-h-11 items-center text-sm text-primary'>
-              חזרה לשיחות Messenger
+              {t('inbox.messenger.page.back')}
             </Link>
             <div className='flex h-[70dvh] min-h-0 flex-col overflow-hidden rounded-md border border-gray-200 bg-white'>{thread}</div>
           </>
@@ -219,18 +231,18 @@ export default async function MessengerPage({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>
+    <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3' {...regionAttrs(locale)}>
       <ConversationRefreshPoller intervalMs={REFRESH_MS} />
       <aside className='flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
         <div className='shrink-0 space-y-2 border-b border-gray-100 p-2 px-3'>
-          <InboxChannelSwitch active='messenger' showMessenger />
-          <MessengerSearch initial={query} />
+          <InboxChannelSwitch active='messenger' showMessenger locale={locale} />
+          <MessengerSearch initial={query} locale={locale} />
         </div>
         {profileNotice}
         <div className='min-h-0 flex-1 overflow-y-auto'>{list}</div>
       </aside>
-      <section aria-label='שיחה' className='flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
-        {thread ?? <MessengerEmptyState kind='no-selection' />}
+      <section aria-label={t('inbox.page.conversation')} className='flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'>
+        {thread ?? <MessengerEmptyState kind='no-selection' locale={locale} />}
       </section>
     </div>
   )

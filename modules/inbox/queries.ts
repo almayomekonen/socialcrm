@@ -3,6 +3,7 @@ import { countUnreadConversationsForUser } from '@/db/inboxConversationReads'
 import { lastHumanOutboundSubquery, waitingReplySql } from '@/lib/inbox/waitingReplySql'
 import type { AwarenessItem } from './awareness/types'
 import { computeUnread, mapInboxRow } from './mapInboxRow'
+import type { UiLocale } from '@/lib/i18n/config'
 import type {
   InboxChannel,
   InboxConversationListItem,
@@ -117,7 +118,8 @@ export { computeUnread } from './mapInboxRow'
 export async function listInboxConversations(
   agencyId: number,
   userId: number,
-  opts: { cursor?: InboxCursor | null; limit?: number; filters?: Partial<InboxListFilters>; nowMs?: number } = {},
+  // `locale`: language of the rows' presentation strings only (see `mapInboxRow`); Hebrew by default.
+  opts: { cursor?: InboxCursor | null; limit?: number; filters?: Partial<InboxListFilters>; nowMs?: number; locale?: UiLocale } = {},
 ): Promise<InboxConversationsPage> {
   const limit = Math.min(Math.max(opts.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT)
   const filters: InboxListFilters = { ...DEFAULT_INBOX_FILTERS, ...opts.filters }
@@ -160,7 +162,7 @@ export async function listInboxConversations(
   const hasMore = rows.length > limit
   const pageRows = hasMore ? rows.slice(0, limit) : rows
 
-  const items: InboxConversationListItem[] = pageRows.map((r) => mapInboxRow(r, nowMs))
+  const items: InboxConversationListItem[] = pageRows.map((r) => mapInboxRow(r, nowMs, opts.locale))
 
   const last = pageRows[pageRows.length - 1]
   const lastTs = last ? toIso(last.lastMessageAt) : null
@@ -183,6 +185,7 @@ export async function getInboxDelta(
   userId: number,
   sinceISO: string | null,
   filters: InboxListFilters,
+  locale: UiLocale = 'he', // presentation strings only (see `mapInboxRow`)
 ): Promise<{ changed: InboxConversationListItem[]; full: boolean }> {
   const DELTA_LIMIT = 100
   const q = inboxSelectQuery(userId).where('cv.agencyId', agencyId)
@@ -197,7 +200,7 @@ export async function getInboxDelta(
   const rows = await q
   const full = rows.length > DELTA_LIMIT
   const nowMs = Date.now()
-  return { changed: (full ? rows.slice(0, DELTA_LIMIT) : rows).map((r) => mapInboxRow(r, nowMs)), full }
+  return { changed: (full ? rows.slice(0, DELTA_LIMIT) : rows).map((r) => mapInboxRow(r, nowMs, locale)), full }
 }
 
 /** Global awareness: per-user unread count + recent unread arrivals (toast/bell items). */

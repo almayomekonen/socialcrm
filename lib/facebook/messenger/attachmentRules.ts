@@ -1,4 +1,6 @@
 import type { MessengerAttachmentType } from '@/lib/facebook/messenger/parseMessagingEvent'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * What may be sent as a Messenger attachment — pure, no Node APIs, safe in a
@@ -77,9 +79,24 @@ export function checkMessengerAttachment(file: { size: number; type: string; nam
   return { type: messengerAssetType(mime) }
 }
 
-/** Hebrew copy for a rejection. Says the limit, so the rep can act on it. */
+/**
+ * Hebrew copy for a rejection. Says the limit, so the rep can act on it. The
+ * upload route answers with it (`detail`); the composer reads
+ * `attachmentRejectionCopy`, which is this same text in Hebrew.
+ */
 export const ATTACHMENT_REJECTION_COPY: Record<AttachmentRejection, string> = {
   empty: 'הקובץ ריק',
   too_large: 'הקובץ גדול מדי. המגבלה היא 25MB.',
   blocked_type: 'לא ניתן לשלוח קובץ מסוג זה',
+}
+
+const REJECTION_KEYS = {
+  empty: 'inbox.messenger.attachment.empty',
+  too_large: 'inbox.messenger.attachment.too_large',
+  blocked_type: 'inbox.messenger.attachment.blocked_type',
+} as const
+
+/** A rejection in the interface language, by its code. Hebrew is `ATTACHMENT_REJECTION_COPY`. */
+export function attachmentRejectionCopy(reason: AttachmentRejection, locale: UiLocale = 'he'): string {
+  return locale === 'he' ? ATTACHMENT_REJECTION_COPY[reason] : translatorFor(locale)(REJECTION_KEYS[reason])
 }

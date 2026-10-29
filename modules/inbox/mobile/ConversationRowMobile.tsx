@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
 import useLongPress from '@/components/mobile/useLongPress'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { ConversationListRow } from './conversationSelection'
 
 /**
@@ -33,8 +34,9 @@ export default function ConversationRowMobile({
   onToggle: () => void
   onEnterSelection: () => void
 }) {
-  const name = item.displayName || item.leadName || 'שיחה'
-  const preview = item.lastMessagePreview?.trim() || (item.lastMessageAt ? '' : 'אין הודעות עדיין')
+  const t = useT()
+  const name = item.displayName || item.leadName || t('inbox.row.fallbackName')
+  const preview = item.lastMessagePreview?.trim() || (item.lastMessageAt ? '' : t('inbox.mobile.list.noMessages'))
   const longPress = useLongPress(onEnterSelection, !selecting)
 
   const cls = `flex min-h-16 w-full items-center gap-3 px-4 py-3 text-start transition-colors select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
@@ -64,7 +66,7 @@ export default function ConversationRowMobile({
         </span>
         <span className='mt-0.5 flex items-center gap-2'>
           <span className={`truncate text-[13px] leading-tight ${item.unread ? 'text-gray-700' : 'text-gray-500'}`}>
-            {item.lastDirection === 'outbound' && preview ? 'את/ה: ' : ''}
+            {item.lastDirection === 'outbound' && preview ? `${t('inbox.mobile.list.you')} ` : ''}
             {preview}
           </span>
           {item.unread && !selected && (

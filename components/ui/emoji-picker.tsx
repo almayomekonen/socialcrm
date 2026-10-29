@@ -3,6 +3,27 @@
 import dynamic from 'next/dynamic'
 import { memo, useEffect, useRef, type RefObject } from 'react'
 import type { EmojiStyle } from 'emoji-picker-react'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
+
+const loadingCls = 'flex h-[360px] w-full items-center justify-center text-sm text-gray-400'
+
+/** The chunk-loading line for a translated caller (`next/dynamic` passes no props, so it reads the provider). */
+function TranslatedLoading() {
+  return <div className={loadingCls}>{useT()('inbox.emoji.loading')}</div>
+}
+
+const Picker = dynamic(() => import('emoji-picker-react'), {
+  ssr: false,
+  loading: () => <div className={loadingCls}>{HEBREW('inbox.emoji.loading')}</div>,
+})
+
+const TranslatedPicker = dynamic(() => import('emoji-picker-react'), {
+  ssr: false,
+  loading: () => <TranslatedLoading />,
+})
 
 /**
  * Floating emoji picker popover, anchored above its (position: relative) parent.
@@ -10,25 +31,24 @@ import type { EmojiStyle } from 'emoji-picker-react'
  * only on the first open (the component renders null until then), and stays
  * mounted afterwards so re-opens are instant.
  */
-const Picker = dynamic(() => import('emoji-picker-react'), {
-  ssr: false,
-  loading: () => (
-    <div className='flex h-[360px] w-full items-center justify-center text-sm text-gray-400'>טוען אימוג׳ים…</div>
-  ),
-})
-
 function EmojiPicker({
   open,
   onClose,
   onPick,
   triggerRef,
+  translated = false,
 }: {
   open: boolean
   /** reason: 'escape' closes via keyboard, 'outside' via click-away. Selection closes via onPick. */
   onClose: (reason: 'escape' | 'outside') => void
   onPick: (emoji: string) => void
   triggerRef: RefObject<HTMLElement | null>
+  /** The caller's screen follows the interface language (the inbox composer). Off: Hebrew, as before (questionnaire settings). */
+  translated?: boolean
 }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
+  const Chosen = translated ? TranslatedPicker : Picker
   const panelRef = useRef<HTMLDivElement>(null)
   const openedOnceRef = useRef(false)
   if (open) openedOnceRef.current = true
@@ -66,7 +86,7 @@ function EmojiPicker({
     <div
       ref={panelRef}
       role='dialog'
-      aria-label='בחירת אימוג׳י'
+      aria-label={t('inbox.emoji.dialog')}
       aria-hidden={!open}
       inert={!open}
       tabIndex={-1}
@@ -74,12 +94,12 @@ function EmojiPicker({
         open ? 'scale-100 opacity-100' : 'pointer-events-none scale-95 opacity-0'
       }`}
     >
-      <Picker
+      <Chosen
         onEmojiClick={(d) => onPick(d.emoji)}
         emojiStyle={'native' as EmojiStyle}
         width='100%'
         height={360}
-        searchPlaceHolder='חיפוש אימוג׳י'
+        searchPlaceHolder={t('inbox.emoji.search')}
         skinTonesDisabled
         previewConfig={{ showPreview: false }}
         lazyLoadEmojis

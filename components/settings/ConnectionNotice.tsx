@@ -17,7 +17,11 @@ const TONES = {
   },
 } as const
 
-export default function ConnectionNotice({ notice }: { notice: Notice }) {
+/**
+ * `reasonsLabel`: the caller's own label above the reasons, when its screen is
+ * translated (the inbox composer). Omitted: the shared Hebrew label, as before.
+ */
+export default function ConnectionNotice({ notice, reasonsLabel = SHARED.reasonsLabel }: { notice: Notice; reasonsLabel?: string }) {
   const t = TONES[notice.tone]
 
   return (
@@ -27,7 +31,7 @@ export default function ConnectionNotice({ notice }: { notice: Notice }) {
 
       {notice.reasons && notice.reasons.length > 0 && (
         <>
-          <p className={`mt-2 text-xs ${t.muted}`}>{SHARED.reasonsLabel}</p>
+          <p className={`mt-2 text-xs ${t.muted}`}>{reasonsLabel}</p>
           <ul className={`mt-0.5 list-disc ps-5 text-sm ${t.body}`}>
             {notice.reasons.map((reason) => (
               <li key={reason}>{reason}</li>

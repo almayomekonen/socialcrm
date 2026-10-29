@@ -1,5 +1,11 @@
+'use client'
+
 import type { ReactNode } from 'react'
-import { formatDate, formatTime } from '@/lib/dates'
+import { formatTime } from '@/lib/dates'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { failureTextForCategory } from '@/lib/inbox/whatsappErrorCopy'
 import type { LeadWhatsappMessage } from '@/db/inboxMessages'
 import { lastCountedDirection } from '@/lib/inbox/humanReply'
 import WhatsappReplyDraft from '@/components/summary/WhatsappReplyDraft'
@@ -40,6 +46,8 @@ export default function WhatsappConversation({
   banner?: ReactNode
   composerFacts?: WhatsappComposerFacts | null
 }) {
+  const t = useT()
+  const day = (at: string) => formatLeadDate(t.locale, at)
   let latestInbound: LeadWhatsappMessage | null = null
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].direction === 'inbound') {
@@ -51,12 +59,12 @@ export default function WhatsappConversation({
 
   // Reactions sit on their message or on a line of their own, never as bubbles
   // (lib/inbox/whatsappThreadView.ts, shared with the mobile thread).
-  const entries = buildThreadEntries(messages)
+  const entries = buildThreadEntries(messages, t.locale)
   const thread = entries
     .map((entry, i) => {
       const { timestamp, direction } = entryMeta(entry)
       const prev = i > 0 ? entryMeta(entries[i - 1]) : null
-      const newDay = !prev || formatDate(prev.timestamp) !== formatDate(timestamp)
+      const newDay = !prev || day(prev.timestamp) !== day(timestamp)
       const groupStart = newDay || !prev || prev.direction !== direction
       return { entry, timestamp, direction, newDay, groupStart }
     })
@@ -85,15 +93,15 @@ export default function WhatsappConversation({
           <span className='flex size-14 items-center justify-center rounded-full bg-white'>
             <ChannelIcon channel='whatsapp' className='size-6' />
           </span>
-          <p className='mt-3 text-base font-medium text-gray-700'>אין הודעות WhatsApp עדיין</p>
+          <p className='mt-3 text-base font-medium text-gray-700'>{t('inbox.conversation.emptyTitle')}</p>
           <p className='mt-1 text-sm text-gray-500'>
-            {leadId != null ? 'כשהליד יכתוב, ההודעות יופיעו כאן.' : 'כשתגיע הודעה, היא תופיע כאן.'}
+            {leadId != null ? t('inbox.conversation.emptyLead') : t('inbox.conversation.emptyContact')}
           </p>
         </div>
       ) : (
         <div
           role='group'
-          aria-label='הודעות השיחה'
+          aria-label={t('inbox.conversation.messages')}
           className={`flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-contain px-4 py-3 ${WALLPAPER}`}
         >
           {thread.map(({ entry, timestamp, direction, newDay, groupStart }) => {
@@ -104,7 +112,7 @@ export default function WhatsappConversation({
                   suppressHydrationWarning
                   className='rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-gray-500'
                 >
-                  {formatDate(timestamp)}
+                  {day(timestamp)}
                 </span>
               </div>
             )
@@ -112,12 +120,12 @@ export default function WhatsappConversation({
               return (
                 <div key={entry.key} className={newDay ? '' : 'mt-1'}>
                   {daySeparator}
-                  <WhatsappReactionNote emoji={entry.emoji} byBusiness={entry.byBusiness} alignEnd={!inbound} />
+                  <WhatsappReactionNote emoji={entry.emoji} byBusiness={entry.byBusiness} alignEnd={!inbound} translated />
                 </div>
               )
             }
             const m = entry.message
-            const body = messageBody(m)
+            const body = messageBody(m, t.locale)
             // A photo IS the bubble: the picture fills it and carries the time in
             // its corner, so the bubble drops its padding and its own time row.
             const { photoBubble, mediaCarriesTime } = bubbleMediaLayout(m)
@@ -137,17 +145,22 @@ export default function WhatsappConversation({
                           : `border-success-border bg-success-bg ${groupStart ? 'rounded-se-none' : ''}`
                     }`}
                   >
-                    <span className='sr-only'>{inbound ? 'הודעה נכנסת' : 'הודעה שנשלחה מהמערכת'}</span>
-                    {entry.quote && <WhatsappQuoteStrip quote={entry.quote} />}
+                    <span className='sr-only'>{inbound ? t('inbox.conversation.inbound') : t('inbox.conversation.outbound')}</span>
+                    {entry.quote && <WhatsappQuoteStrip quote={entry.quote} translated />}
                     {m.attachment && (
                       <WhatsappAttachment
                         messageId={m.id}
                         attachment={m.attachment}
                         timestampLabel={formatTime(m.timestamp)}
+                        translated
                       />
                     )}
                     <div className='flex items-end gap-2'>
-                      <p className='min-w-0 text-sm leading-normal text-gray-800 whitespace-pre-wrap wrap-break-word'>
+                      {/* The message itself: stored text, never translated; in a translated pane it keeps its own direction. */}
+                      <p
+                        className='min-w-0 text-sm leading-normal text-gray-800 whitespace-pre-wrap wrap-break-word'
+                        {...customerTextAttrs(t.locale)}
+                      >
                         <LinkifiedText>{body ?? '—'}</LinkifiedText>
                       </p>
                       {/* A photo and a voice note carry the time inside the media itself,
@@ -164,11 +177,14 @@ export default function WhatsappConversation({
                       {!inbound && <WhatsappMessageStatus status={m.status} failureCategory={m.failureCategory} />}
                     </div>
                     {!inbound && m.status === 'failed' && m.failureText && (
-                      <p className='mt-1 text-[11px] leading-snug text-error-text'>{m.failureText}</p>
+                      // By the persisted CATEGORY (the server's `failureText` is the same copy in Hebrew).
+                      <p className='mt-1 text-[11px] leading-snug text-error-text'>
+                        {m.failureCategory ? failureTextForCategory(m.failureCategory, t.locale) : m.failureText}
+                      </p>
                     )}
                   </div>
                 </div>
-                <WhatsappReactionChips reactions={entry.reactions} alignEnd={!inbound} />
+                <WhatsappReactionChips reactions={entry.reactions} alignEnd={!inbound} translated />
               </div>
             )
           })}
@@ -184,6 +200,7 @@ export default function WhatsappConversation({
               messages={messages}
               facts={composerFacts}
               textComposer={<WhatsappReplyDraft leadId={leadId} conversationId={conversationId} />}
+              translated
             />
           ) : (
             <WhatsappReplyDraft leadId={leadId} conversationId={conversationId} />

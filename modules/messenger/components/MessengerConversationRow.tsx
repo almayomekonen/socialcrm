@@ -3,21 +3,30 @@ import { formatBusinessDate as formatDate } from '@/lib/today/time'
 import ChannelIcon from '@/modules/inbox/components/ChannelIcon'
 import MessengerAvatar from './MessengerAvatar'
 import type { MessengerConversationListItem } from '../types'
+import { customerTextAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * One Messenger conversation in the list. Same anatomy as
  * InboxConversationRow — avatar, name, date, preview, channel footer, unread —
  * so Messenger reads as part of שיחות rather than a second product.
+ *
+ * `locale` is the page's interface language. Names and the preview are the
+ * customer's own text: never translated; in en/ar the preview keeps its own
+ * direction (`customerTextAttrs`), and Hebrew markup is unchanged.
  */
 export default function MessengerConversationRow({
   item,
   selected,
+  locale = 'he',
 }: {
   item: MessengerConversationListItem
   selected: boolean
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const unread = item.unread && !selected
-  const name = item.leadName ?? item.customerName ?? 'פונה מ-Messenger'
+  const name = item.leadName ?? item.customerName ?? t('inbox.messenger.row.fallbackName')
 
   return (
     <Link
@@ -36,8 +45,8 @@ export default function MessengerConversationRow({
           </span>
         </div>
         {item.lastMessageText && (
-          <p className={`mt-0.5 truncate text-xs ${unread ? 'text-gray-700' : 'text-gray-400'}`}>
-            {item.lastDirection === 'outbound' ? 'נשלח: ' : ''}
+          <p className={`mt-0.5 truncate text-xs ${unread ? 'text-gray-700' : 'text-gray-400'}`} {...customerTextAttrs(locale)}>
+            {item.lastDirection === 'outbound' ? t('inbox.messenger.row.sent') : ''}
             {item.lastMessageText}
           </p>
         )}
@@ -45,12 +54,12 @@ export default function MessengerConversationRow({
           <span className='inline-flex items-center gap-1 text-xs text-gray-500'>
             <ChannelIcon channel='messenger' className='size-3' />
             Messenger
-            {item.leadId ? <span className='text-gray-400'>· ליד</span> : null}
+            {item.leadId ? <span className='text-gray-400'>{t('inbox.messenger.row.lead')}</span> : null}
           </span>
           {unread && (
             <span className='inline-flex items-center gap-1 text-[11px] font-medium text-success-text'>
               <span className='size-1.5 rounded-full bg-success' aria-hidden />
-              לא נקרא
+              {t('inbox.messenger.row.unread')}
             </span>
           )}
         </div>

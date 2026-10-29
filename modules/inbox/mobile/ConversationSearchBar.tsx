@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Search over שיחות. URL-backed, exactly like the lead list's filter bar:
@@ -16,6 +17,7 @@ import Icon from '@/lib/Icon'
  */
 export default function ConversationSearchBar({ q, resultCount }: { q: string; resultCount: number }) {
   const router = useRouter()
+  const t = useT()
   const [pending, startTransition] = useTransition()
   const [text, setText] = useState(q)
 
@@ -31,7 +33,7 @@ export default function ConversationSearchBar({ q, resultCount }: { q: string; r
     <div className='sticky top-0 z-20 border-b border-gray-200 bg-white px-4 pb-2.5 pt-3'>
       <form onSubmit={submit} role='search' className='relative'>
         <label htmlFor='conversation-search' className='sr-only'>
-          חיפוש שיחות
+          {t('inbox.toolbar.searchLabel')}
         </label>
         <input
           id='conversation-search'
@@ -40,7 +42,7 @@ export default function ConversationSearchBar({ q, resultCount }: { q: string; r
           enterKeyHint='search'
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder='חיפוש שיחה'
+          placeholder={t('inbox.mobile.list.searchPlaceholder')}
           className='h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-base outline-none focus:border-primary focus:bg-white'
         />
         <Icon
@@ -56,7 +58,7 @@ export default function ConversationSearchBar({ q, resultCount }: { q: string; r
             type='button'
             onClick={() => startTransition(() => router.push('/inbox' as never))}
             className='inline-flex h-11 min-w-11 items-center gap-1 px-1 text-[13px] font-medium text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-            aria-label='נקה חיפוש'
+            aria-label={t('inbox.messenger.search.clear')}
           >
             <span>{`"${q}"`}</span>
             <span aria-hidden className='text-[13px] leading-none text-gray-400'>
@@ -67,7 +69,8 @@ export default function ConversationSearchBar({ q, resultCount }: { q: string; r
       )}
 
       <p aria-live='polite' className='mt-1.5 text-[12px] tabular-nums text-gray-400'>
-        {pending ? 'מעדכן…' : `${resultCount} שיחות`}
+        {/* Digits exactly as before (no grouping); the count picks the plural form. */}
+        {pending ? t('inbox.ownership.updating') : t('inbox.mobile.list.count', { count: String(resultCount) })}
       </p>
     </div>
   )

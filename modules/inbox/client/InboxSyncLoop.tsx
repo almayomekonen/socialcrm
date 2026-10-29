@@ -9,6 +9,7 @@ import { serializeInboxFilters } from './serializeInboxFilters'
 import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
 import { INBOX_RECOVERY_MS } from '@/lib/polling/syncFailure'
 import { shouldApplySyncResponse } from './syncRequestGuard'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { InboxConversationListItem, InboxListFilters } from '@/modules/inbox/types'
 import type { LeadWhatsappMessage, LeadWhatsappMessageStatus } from '@/db/inboxMessages'
 
@@ -28,6 +29,9 @@ export default function InboxSyncLoop({ filters }: { filters: InboxListFilters }
   const sinceRef = useRef<string>(new Date().toISOString())
   const filtersKeyRef = useRef(JSON.stringify(filters))
   const { report } = useCrmSyncHealth()
+  // The page's interface language, sent back so changed rows keep its waiting
+  // copy. Not sent for Hebrew: a Hebrew user's request is exactly what it was.
+  const { locale } = useT()
   const retryRef = useRef<(() => void) | null>(null)
 
   // Drop stale responses when filters change mid-flight (A1 amenity; safe here).
@@ -37,6 +41,7 @@ export default function InboxSyncLoop({ filters }: { filters: InboxListFilters }
     const requestFiltersKey = filtersKeyRef.current
     const params = serializeInboxFilters(filters)
     params.set('since', sinceRef.current)
+    if (locale !== 'he') params.set('locale', locale)
     if (activeConversationId != null) {
       params.set('conversation', String(activeConversationId))
       params.set('after', String(activeLatestMessageId ?? 0))
@@ -86,6 +91,7 @@ export default function InboxSyncLoop({ filters }: { filters: InboxListFilters }
     applyStatusUpdates,
     activeConversationId,
     activeLatestMessageId,
+    locale,
   ])
 
   useAdaptivePoll(poll, {

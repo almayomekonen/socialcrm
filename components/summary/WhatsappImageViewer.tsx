@@ -21,11 +21,17 @@ export default function WhatsappImageViewer({
   onClose,
   src,
   alt,
+  label,
+  translated = false,
 }: {
   open: boolean
   onClose: () => void
   src: string
   alt: string
+  /** The dialog's accessible name, in the caller's language. */
+  label: string
+  /** See ModalPop `translated`: the caller's screen follows the interface language. */
+  translated?: boolean
 }) {
   return (
     <ModalPop
@@ -33,7 +39,8 @@ export default function WhatsappImageViewer({
       onClose={onClose}
       pos='middle'
       closeOutside
-      label='תצוגת תמונה'
+      label={label}
+      translated={translated}
       scrimClassName='bg-black/80'
       className='max-h-[92vh] max-w-[92vw] bg-transparent p-0 shadow-none'
     >

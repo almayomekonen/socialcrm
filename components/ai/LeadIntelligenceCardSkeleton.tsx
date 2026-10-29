@@ -57,7 +57,7 @@ const SKELETON_CSS = `
   }
 `
 
-/** `locale`: the page's interface language (the inbox and mobile pass nothing: Hebrew). */
+/** `locale`: the page's interface language (mobile passes nothing: Hebrew). */
 export default function LeadIntelligenceCardSkeleton({ locale = 'he' }: { locale?: UiLocale }) {
   const t = translatorFor(locale)
   return (

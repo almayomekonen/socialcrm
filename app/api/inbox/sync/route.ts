@@ -9,6 +9,7 @@ import {
   type LeadWhatsappMessageStatus,
 } from '@/db/inboxMessages'
 import { parseInboxFilters } from '@/modules/inbox/filters'
+import { isUiLocale } from '@/lib/i18n/config'
 
 /**
  * The single inbox sync endpoint (used by the one inbox loop): one request →
@@ -35,9 +36,14 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const since = url.searchParams.get('since')
   const filters = parseInboxFilters(Object.fromEntries(url.searchParams))
+  // Display language of the changed rows' waiting copy only (the page's own,
+  // sent back by the desktop loop when it is not Hebrew). Never affects what is
+  // read or returned; anything outside the registry is Hebrew.
+  const requestedLocale = url.searchParams.get('locale')
+  const locale = isUiLocale(requestedLocale) ? requestedLocale : 'he'
 
   const [delta, awareness] = await Promise.all([
-    getInboxDelta(user.agencyId, user.id, since, filters),
+    getInboxDelta(user.agencyId, user.id, since, filters, locale),
     getInboxAwareness(user.agencyId, user.id, since),
   ])
 

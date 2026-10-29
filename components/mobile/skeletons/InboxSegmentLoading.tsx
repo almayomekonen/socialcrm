@@ -11,6 +11,6 @@ export default function InboxSegmentLoading() {
   const phone = useContext(MobileWorkspaceContext)
   const search = useClientSearch()
   if (!phone) return <InboxRouteSkeleton />
-  if (/[?&]conversation=/.test(search)) return <InboxThreadSkeletonMobile />
-  return <InboxListSkeletonMobile />
+  if (/[?&]conversation=/.test(search)) return <InboxThreadSkeletonMobile translated />
+  return <InboxListSkeletonMobile translated />
 }

@@ -2,6 +2,10 @@
 
 import type { ReactNode } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
 
 /**
  * The mobile bottom sheet — filters, action menus, quick pickers.
@@ -29,6 +33,7 @@ export default function BottomSheet({
   children,
   className = '',
   dismissOnScrim = true,
+  translated = false,
 }: {
   open: boolean
   onClose: () => void
@@ -38,7 +43,15 @@ export default function BottomSheet({
   children: ReactNode
   className?: string
   dismissOnScrim?: boolean
+  /**
+   * The caller's sheet follows the interface language (the phone inbox): the
+   * portalled dialog declares it and the close button is named in it. Off by
+   * default — an untranslated sheet keeps its Hebrew and inherits `he`/`rtl`.
+   */
+  translated?: boolean
 }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   return (
     <ModalPop
       open={open}
@@ -48,6 +61,7 @@ export default function BottomSheet({
       labelledBy={titleId}
       hideClose
       className={className}
+      translated={translated}
     >
       {/* Grab handle. Purely affordance — `aria-hidden` because it is not
           operable; dismissal is the scrim, Escape, or the close button. */}
@@ -61,7 +75,7 @@ export default function BottomSheet({
         <button
           type='button'
           onClick={onClose}
-          aria-label='סגירה'
+          aria-label={t('common.dialog.close')}
           className='-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
           <span aria-hidden='true' className='text-2xl leading-none'>

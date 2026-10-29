@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import type { UploadState } from '../useAttachmentUpload'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The file the rep has chosen, before and during sending.
@@ -27,11 +29,14 @@ export default function MessengerAttachmentTray({
   file,
   upload,
   onRemove,
+  locale = 'he',
 }: {
   file: File
   upload: UploadState
   onRemove: () => void
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const [preview, setPreview] = useState<string | null>(null)
 
   useEffect(() => {
@@ -48,11 +53,11 @@ export default function MessengerAttachmentTray({
   const pct = upload.phase === 'uploading' ? upload.progress : upload.phase === 'sending' ? 100 : null
   const status =
     upload.phase === 'sending'
-      ? 'שולח…'
+      ? t('inbox.messenger.attachment.sending')
       : upload.phase === 'uploading'
         ? pct === null
-          ? 'מעלה…'
-          : `מעלה… ${pct}%`
+          ? t('inbox.messenger.attachment.uploading')
+          : t('inbox.messenger.attachment.uploadingPct', { pct: String(pct) })
         : readableSize(file.size)
 
   return (
@@ -76,7 +81,7 @@ export default function MessengerAttachmentTray({
         {busy && (
           <div
             role='progressbar'
-            aria-label='התקדמות העלאה'
+            aria-label={t('inbox.messenger.attachment.progress')}
             // Omitted entirely while indeterminate: a progressbar with
             // aria-valuenow=0 announces "0 percent", which we do not know.
             aria-valuenow={pct ?? undefined}
@@ -95,8 +100,8 @@ export default function MessengerAttachmentTray({
       <button
         type='button'
         onClick={onRemove}
-        aria-label={busy ? 'בטל את העלאת הקובץ' : 'הסר את הקובץ'}
-        title={busy ? 'בטל את העלאת הקובץ' : 'הסר את הקובץ'}
+        aria-label={busy ? t('inbox.messenger.attachment.cancel') : t('inbox.messenger.attachment.remove')}
+        title={busy ? t('inbox.messenger.attachment.cancel') : t('inbox.messenger.attachment.remove')}
         className='flex size-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
       >
         <X aria-hidden className='size-3.5' />

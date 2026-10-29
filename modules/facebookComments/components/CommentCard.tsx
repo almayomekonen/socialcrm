@@ -13,6 +13,9 @@ import CommentThread from './CommentThread'
 import CommentReplyForm from './CommentReplyForm'
 import { badgeStatus, hasLeadSlot } from '../rowState'
 import type { CommentListItem, CommentPost, CommentReply, CommentStatus } from '../types'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * One comment in the comments inbox, as a card: who wrote it, what they wrote,
@@ -28,10 +31,10 @@ import type { CommentListItem, CommentPost, CommentReply, CommentStatus } from '
 
 // Open is the normal state of a comment in this inbox (and what the filter
 // already says), so it carries no badge — a label on every card is noise.
-const STATUS_BADGE: Partial<Record<CommentStatus, { label: string; cls: string }>> = {
-  converted: { label: 'הומר לליד', cls: 'bg-green-50 text-green-700' },
-  ignored: { label: 'התעלמת', cls: 'bg-gray-100 text-gray-600' },
-  deleted: { label: 'נמחקה בפייסבוק', cls: 'bg-gray-100 text-gray-500' },
+const STATUS_BADGE: Partial<Record<CommentStatus, { label: MessageKey; cls: string }>> = {
+  converted: { label: 'inbox.comments.card.badge.converted', cls: 'bg-green-50 text-green-700' },
+  ignored: { label: 'inbox.comments.card.badge.ignored', cls: 'bg-gray-100 text-gray-600' },
+  deleted: { label: 'inbox.comments.card.badge.deleted', cls: 'bg-gray-100 text-gray-500' },
 }
 
 export default function CommentCard({
@@ -41,6 +44,7 @@ export default function CommentCard({
   canReply,
   leavesViewOnConvert = false,
   touch = false,
+  locale = 'he',
 }: {
   comment: CommentListItem
   post: CommentPost | undefined
@@ -51,7 +55,11 @@ export default function CommentCard({
   leavesViewOnConvert?: boolean
   /** Phone: 44px tap targets on every action. */
   touch?: boolean
+  /** The page's interface language for our labels; names and text are the commenter's. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
+  const author = c.authorName ?? t('inbox.comments.card.fallbackAuthor')
   const [composing, setComposing] = useState(false)
   // Replies published from this card, shown at once; the refresh brings the
   // stored copy, and the id keeps the two from appearing twice.
@@ -90,27 +98,32 @@ export default function CommentCard({
 
   return (
     <article
-      aria-label={`תגובה מאת ${c.authorName ?? 'מגיב מפייסבוק'}`}
+      aria-label={t('inbox.comments.card.label', { name: author })}
       className='flex flex-col rounded-lg border border-gray-200 bg-white p-3.5 shadow-xs sm:p-4'
     >
       <header className='flex items-start gap-3'>
-        <MessengerAvatar name={c.authorName} picUrl={c.authorPictureUrl ?? null} size='md' />
+        <MessengerAvatar
+          name={c.authorName}
+          picUrl={c.authorPictureUrl ?? null}
+          size='md'
+          fallback={t('inbox.comments.card.avatarFallback')}
+        />
         <div className='min-w-0 flex-1'>
           <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
-            <span className='truncate text-[15px] font-semibold text-gray-900'>{c.authorName ?? 'מגיב מפייסבוק'}</span>
+            <span className='truncate text-[15px] font-semibold text-gray-900'>{author}</span>
             {/* Desktop keeps the inbox's pill badges; phone records stay rectangular (mobile design). */}
             {badge && (
               <span className={`${touch ? 'rounded-md' : 'rounded-full'} px-2 py-0.5 text-[11px] font-medium ${badge.cls}`}>
-                {badge.label}
+                {t(badge.label)}
               </span>
             )}
           </div>
           <div className='mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-gray-500'>
             <span className='inline-flex items-center gap-1'>
               <ChannelIcon channel='facebook' className='size-3' />
-              פייסבוק
+              {t('inbox.comments.card.channel')}
             </span>
-            {!c.isTopLevel && <span>תגובה לתגובה</span>}
+            {!c.isTopLevel && <span>{t('inbox.comments.card.isReply')}</span>}
             <span aria-hidden>·</span>
             <time className='tabular-nums' dateTime={new Date(when).toISOString()}>
               {formatBusinessDateTime(when)}
@@ -125,6 +138,7 @@ export default function CommentCard({
         attachmentType={c.attachmentType ?? null}
         attachmentUrl={c.attachmentUrl ?? null}
         touch={touch}
+        locale={locale}
       />
 
       <CommentPostContext
@@ -132,9 +146,10 @@ export default function CommentCard({
         facebookUrl={facebookCommentUrl(c.postId, c.commentId)}
         isReply={!c.isTopLevel}
         touch={touch}
+        locale={locale}
       />
 
-      <CommentThread replies={fullThread} excludeCommentId={c.commentId} />
+      <CommentThread replies={fullThread} excludeCommentId={c.commentId} locale={locale} />
 
       <div>
         {(hasLeadSlot(c) || (replyable && !composing)) && (
@@ -147,10 +162,11 @@ export default function CommentCard({
                 commentId={c.commentId}
                 convertedLeadId={c.convertedLeadId}
                 leavesViewOnConvert={leavesViewOnConvert}
+                locale={locale}
               />
             )}
             {replyable && !composing && (
-              <Btn variant='outline' size='small' lbl='ענה לתגובה' onClick={() => setComposing(true)} />
+              <Btn variant='outline' size='small' lbl={t('inbox.comments.card.reply')} onClick={() => setComposing(true)} />
             )}
           </div>
         )}
@@ -162,6 +178,7 @@ export default function CommentCard({
               authorName={c.authorName}
               onSent={onSent}
               onCancel={() => setComposing(false)}
+              locale={locale}
             />
           </div>
         )}

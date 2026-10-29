@@ -1,5 +1,10 @@
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+
 /**
- * Meta WhatsApp error code → rep-facing Hebrew.
+ * Meta WhatsApp error code → rep-facing copy (catalog `inbox.failure.*` /
+ * `inbox.tooltip.*`; Hebrew unless a reader passes the interface locale).
  *
  * This is the ONLY place in the codebase where a Meta error code appears. Nothing
  * downstream — DB column, API payload, or UI — ever sees a number.
@@ -28,12 +33,43 @@ const CODE_CATEGORY: Record<number, WhatsappErrorCategory> = {
   141006: 'account',
 }
 
-const CATEGORY_TEXT: Record<WhatsappErrorCategory, string> = {
-  window_expired: 'ההודעה לא נשלחה — עברו יותר מ־24 שעות מאז שהליד כתב. אפשר להתקשר אליו.',
-  recipient: 'ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.',
-  account: 'ההודעה לא נשלחה — שליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.',
-  generic: 'ההודעה לא נשלחה. נסה שוב.',
+const CATEGORIES: readonly WhatsappErrorCategory[] = ['window_expired', 'recipient', 'account', 'generic']
+
+const FAILURE_KEY: Record<WhatsappErrorCategory, MessageKey> = {
+  window_expired: 'inbox.failure.window_expired',
+  recipient: 'inbox.failure.recipient',
+  account: 'inbox.failure.account',
+  generic: 'inbox.failure.generic',
 }
+
+const TOOLTIP_KEYS: Record<WhatsappErrorCategory, { title: MessageKey; explanation: MessageKey; action: MessageKey }> = {
+  window_expired: {
+    title: 'inbox.tooltip.window_expired.title',
+    explanation: 'inbox.tooltip.window_expired.explanation',
+    action: 'inbox.tooltip.window_expired.action',
+  },
+  recipient: {
+    title: 'inbox.tooltip.recipient.title',
+    explanation: 'inbox.tooltip.recipient.explanation',
+    action: 'inbox.tooltip.recipient.action',
+  },
+  account: {
+    title: 'inbox.tooltip.account.title',
+    explanation: 'inbox.tooltip.account.explanation',
+    action: 'inbox.tooltip.account.action',
+  },
+  generic: {
+    title: 'inbox.tooltip.generic.title',
+    explanation: 'inbox.tooltip.generic.explanation',
+    action: 'inbox.tooltip.generic.action',
+  },
+}
+
+/** Hebrew rep-facing copy per category — what ingestion and every untranslated reader get. */
+const CATEGORY_TEXT = Object.fromEntries(CATEGORIES.map((c) => [c, translatorFor('he')(FAILURE_KEY[c])])) as Record<
+  WhatsappErrorCategory,
+  string
+>
 
 /** Classify an incoming Meta error code. Used at webhook ingestion time. */
 export function mapWhatsappError(code: number | null | undefined): {
@@ -49,12 +85,18 @@ export function mapWhatsappError(code: number | null | undefined): {
  * copy. Used on the read path. An unrecognised key (written by a future version)
  * degrades to generic rather than throwing.
  */
-export function failureTextForCategory(key: string | null | undefined): string | null {
+export function failureTextForCategory(key: string | null | undefined, locale: UiLocale = 'he'): string | null {
   if (!key) return null
-  return CATEGORY_TEXT[key as WhatsappErrorCategory] ?? CATEGORY_TEXT.generic
+  const category = (CATEGORIES as readonly string[]).includes(key) ? (key as WhatsappErrorCategory) : 'generic'
+  return translatorFor(locale)(FAILURE_KEY[category])
 }
 
 export type FailureTooltipCopy = { title: string; explanation: string; action: string }
+
+/** Normalize a persisted/foreign category value to a known one (unknown → generic). */
+export function normalizeFailureCategory(value: string | null | undefined): WhatsappErrorCategory {
+  return value != null && value in TOOLTIP_KEYS ? (value as WhatsappErrorCategory) : 'generic'
+}
 
 /**
  * Product-guidance copy for the failed-message hover/focus tooltip, keyed on the
@@ -69,35 +111,8 @@ export type FailureTooltipCopy = { title: string; explanation: string; action: s
  * inbox surface, so promising it here would be untruthful. Unknown/absent category
  * → generic, so a future key never renders an empty or fabricated cause.
  */
-const FAILURE_TOOLTIP: Record<WhatsappErrorCategory, FailureTooltipCopy> = {
-  window_expired: {
-    title: 'לא ניתן לשלוח את ההודעה',
-    explanation: 'WhatsApp מאפשרת לשלוח הודעה רגילה רק עד 24 שעות מההודעה האחרונה של הלקוח.',
-    action: 'כדי ליצור איתו קשר עכשיו, אפשר להתקשר אליו.',
-  },
-  recipient: {
-    title: 'לא ניתן לשלוח את ההודעה',
-    explanation: 'נראה שהמספר הזה לא זמין ב־WhatsApp.',
-    action: 'בדוק שהמספר נכון או צור קשר עם הלקוח בדרך אחרת.',
-  },
-  account: {
-    title: 'לא ניתן לשלוח הודעות כרגע',
-    explanation: 'WhatsApp לא מאפשרת כרגע לשלוח הודעות מהחשבון המחובר.',
-    action: 'בדוק את חשבון WhatsApp המחובר ל־SocialCRM.',
-  },
-  generic: {
-    title: 'ההודעה לא נשלחה',
-    explanation: 'WhatsApp לא הצליחה לשלוח את ההודעה.',
-    action: 'אפשר לנסות שוב בעוד כמה רגעים.',
-  },
-}
-
-/** Normalize a persisted/foreign category value to a known one (unknown → generic). */
-export function normalizeFailureCategory(value: string | null | undefined): WhatsappErrorCategory {
-  return value != null && value in FAILURE_TOOLTIP ? (value as WhatsappErrorCategory) : 'generic'
-}
-
-/** Resolve the structured tooltip copy for a failure category. */
-export function failureTooltip(category: string | null | undefined): FailureTooltipCopy {
-  return FAILURE_TOOLTIP[normalizeFailureCategory(category)]
+export function failureTooltip(category: string | null | undefined, locale: UiLocale = 'he'): FailureTooltipCopy {
+  const keys = TOOLTIP_KEYS[normalizeFailureCategory(category)]
+  const t = translatorFor(locale)
+  return { title: t(keys.title), explanation: t(keys.explanation), action: t(keys.action) }
 }

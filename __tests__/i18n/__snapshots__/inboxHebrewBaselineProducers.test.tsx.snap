@@ -1,0 +1,793 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — inbox label producers > WhatsApp error copy: every Meta code group, every persisted category, unknown keys, tooltips 1`] = `
+{
+  "failureTextForCategory": [
+    [
+      "window_expired",
+      "ההודעה לא נשלחה — עברו יותר מ־24 שעות מאז שהליד כתב. אפשר להתקשר אליו.",
+    ],
+    [
+      "recipient",
+      "ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.",
+    ],
+    [
+      "account",
+      "ההודעה לא נשלחה — שליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.",
+    ],
+    [
+      "generic",
+      "ההודעה לא נשלחה. נסה שוב.",
+    ],
+    [
+      "future_key",
+      "ההודעה לא נשלחה. נסה שוב.",
+    ],
+    [
+      "null",
+      null,
+    ],
+    [
+      "",
+      null,
+    ],
+  ],
+  "failureTooltip": [
+    [
+      "window_expired",
+      {
+        "action": "כדי ליצור איתו קשר עכשיו, אפשר להתקשר אליו.",
+        "explanation": "WhatsApp מאפשרת לשלוח הודעה רגילה רק עד 24 שעות מההודעה האחרונה של הלקוח.",
+        "title": "לא ניתן לשלוח את ההודעה",
+      },
+    ],
+    [
+      "recipient",
+      {
+        "action": "בדוק שהמספר נכון או צור קשר עם הלקוח בדרך אחרת.",
+        "explanation": "נראה שהמספר הזה לא זמין ב־WhatsApp.",
+        "title": "לא ניתן לשלוח את ההודעה",
+      },
+    ],
+    [
+      "account",
+      {
+        "action": "בדוק את חשבון WhatsApp המחובר ל־SocialCRM.",
+        "explanation": "WhatsApp לא מאפשרת כרגע לשלוח הודעות מהחשבון המחובר.",
+        "title": "לא ניתן לשלוח הודעות כרגע",
+      },
+    ],
+    [
+      "generic",
+      {
+        "action": "אפשר לנסות שוב בעוד כמה רגעים.",
+        "explanation": "WhatsApp לא הצליחה לשלוח את ההודעה.",
+        "title": "ההודעה לא נשלחה",
+      },
+    ],
+    [
+      "future_key",
+      {
+        "action": "אפשר לנסות שוב בעוד כמה רגעים.",
+        "explanation": "WhatsApp לא הצליחה לשלוח את ההודעה.",
+        "title": "ההודעה לא נשלחה",
+      },
+    ],
+    [
+      "null",
+      {
+        "action": "אפשר לנסות שוב בעוד כמה רגעים.",
+        "explanation": "WhatsApp לא הצליחה לשלוח את ההודעה.",
+        "title": "ההודעה לא נשלחה",
+      },
+    ],
+    [
+      "",
+      {
+        "action": "אפשר לנסות שוב בעוד כמה רגעים.",
+        "explanation": "WhatsApp לא הצליחה לשלוח את ההודעה.",
+        "title": "ההודעה לא נשלחה",
+      },
+    ],
+  ],
+  "mapWhatsappError": [
+    [
+      470,
+      {
+        "category": "window_expired",
+        "text": "ההודעה לא נשלחה — עברו יותר מ־24 שעות מאז שהליד כתב. אפשר להתקשר אליו.",
+      },
+    ],
+    [
+      131047,
+      {
+        "category": "window_expired",
+        "text": "ההודעה לא נשלחה — עברו יותר מ־24 שעות מאז שהליד כתב. אפשר להתקשר אליו.",
+      },
+    ],
+    [
+      131051,
+      {
+        "category": "window_expired",
+        "text": "ההודעה לא נשלחה — עברו יותר מ־24 שעות מאז שהליד כתב. אפשר להתקשר אליו.",
+      },
+    ],
+    [
+      131026,
+      {
+        "category": "recipient",
+        "text": "ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.",
+      },
+    ],
+    [
+      131052,
+      {
+        "category": "recipient",
+        "text": "ההודעה לא נשלחה — המספר אינו פעיל ב־WhatsApp.",
+      },
+    ],
+    [
+      131031,
+      {
+        "category": "account",
+        "text": "ההודעה לא נשלחה — שליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.",
+      },
+    ],
+    [
+      131042,
+      {
+        "category": "account",
+        "text": "ההודעה לא נשלחה — שליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.",
+      },
+    ],
+    [
+      131049,
+      {
+        "category": "account",
+        "text": "ההודעה לא נשלחה — שליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.",
+      },
+    ],
+    [
+      141006,
+      {
+        "category": "account",
+        "text": "ההודעה לא נשלחה — שליחת הודעות מושבתת כרגע. נדרשת בדיקה בהגדרות החשבון.",
+      },
+    ],
+    [
+      999,
+      {
+        "category": "generic",
+        "text": "ההודעה לא נשלחה. נסה שוב.",
+      },
+    ],
+    [
+      "null",
+      {
+        "category": "generic",
+        "text": "ההודעה לא נשלחה. נסה שוב.",
+      },
+    ],
+    [
+      "undefined",
+      {
+        "category": "generic",
+        "text": "ההודעה לא נשלחה. נסה שוב.",
+      },
+    ],
+  ],
+  "normalize": [
+    [
+      "window_expired",
+      "window_expired",
+    ],
+    [
+      "recipient",
+      "recipient",
+    ],
+    [
+      "account",
+      "account",
+    ],
+    [
+      "generic",
+      "generic",
+    ],
+    [
+      "future_key",
+      "generic",
+    ],
+    [
+      "null",
+      "generic",
+    ],
+    [
+      "",
+      "generic",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — inbox label producers > composer decision copy and the health notices it shows 1`] = `
+{
+  "SERVICE_WINDOW_COPY": {
+    "closedBody": "עברו יותר מ-24 שעות מאז ההודעה האחרונה של הלקוח. כדי להמשיך את השיחה, יש לשלוח הודעה מוכנה מאושרת.",
+    "closedCta": "בחר הודעה מוכנה",
+    "closedNoTemplate": "חלון ההודעות נסגר. כדי להמשיך את השיחה, נדרשת הודעה מוכנה מאושרת.",
+    "closedTitle": "חלון ההודעות ב-WhatsApp נסגר",
+    "templatesSettings": "להודעות המוכנות",
+    "unknown": "לא ניתן לשלוח הודעת טקסט. אין הודעה נכנסת מהלקוח בשיחה הזו.",
+  },
+  "notices": [
+    [
+      "disconnected",
+      null,
+    ],
+    [
+      "unknown",
+      {
+        "action": "לחבר מחדש ולאמת",
+        "explanation": "החיבור קיים, אבל עדיין לא הצלחנו לוודא שהודעות ולידים נכנסים אליו. עד לאימות, ייתכן שהודעות לא יגיעו.",
+        "nextStep": "כדאי לחבר מחדש כדי לוודא שהחיבור פעיל.",
+        "title": "צריך לאמת את חיבור ה-WhatsApp",
+        "tone": "attention",
+      },
+    ],
+    [
+      "throttled",
+      {
+        "explanation": "מטא הגבילה זמנית את בדיקות הסטטוס. ההודעות והלידים ממשיכים לעבוד כרגיל.",
+        "nextStep": "לא נדרשת פעולה כלשהי. נעדכן עם חזרת השירות.",
+        "title": "החיבור תקין — בדיקת הסטטוס מוגבלת זמנית",
+        "tone": "attention",
+      },
+    ],
+    [
+      "token",
+      {
+        "action": "לחבר מחדש",
+        "explanation": "הודעות ולידים חדשים אינם נכנסים כרגע. כל המידע הקיים במערכת נשמר במלואו.",
+        "nextStep": "חידוש החיבור אורך פחות מדקה ואינו משפיע על נתונים קיימים.",
+        "reasons": [
+          "חלף זמן מהחיבור",
+          "ההרשאה ב-WhatsApp שונתה",
+        ],
+        "title": "החיבור לוואטסאפ פג",
+        "tone": "error",
+      },
+    ],
+    [
+      "webhook",
+      {
+        "action": "להריץ את ההגדרה שוב",
+        "explanation": "לא הצלחנו לוודא שהודעות ולידים מגיעים ל-SocialCRM.",
+        "nextStep": "כדאי להריץ את ההגדרה שוב ולהשלים את כל השלבים עד סגירת החלון.",
+        "title": "החיבור ל-WhatsApp עדיין לא הושלם",
+        "tone": "attention",
+      },
+    ],
+    [
+      "registration_pending",
+      {
+        "action": "מעבר ל-WhatsApp Manager",
+        "explanation": "עד להשלמת ההגדרה, SocialCRM לא יכול לקבל הודעות ולידים דרך החיבור הזה.",
+        "nextStep": "להשלים את האימות ב-WhatsApp Manager. אם מוגדר קוד דו-שלבי, יש להשביתו זמנית.",
+        "reasons": [
+          "המספר טרם אומת",
+          "מוגדר קוד אימות דו-שלבי",
+        ],
+        "secondary": "בדיקה חוזרת",
+        "title": "הגדרת מספר ה-WhatsApp עדיין לא הושלמה",
+        "tone": "attention",
+      },
+    ],
+    [
+      "restricted",
+      {
+        "explanation": "WhatsApp לא מאפשרת כרגע לשלוח הודעות מהחשבון המחובר.",
+        "nextStep": "בדוק את חשבון WhatsApp המחובר ל-SocialCRM.",
+        "title": "לא ניתן לשלוח הודעות כרגע",
+        "tone": "error",
+      },
+    ],
+    [
+      "inbound_only",
+      {
+        "action": "מעבר ל-WhatsApp Manager",
+        "explanation": "עד להשלמת ההגדרה, SocialCRM לא יכול לקבל הודעות ולידים דרך החיבור הזה.",
+        "nextStep": "להשלים את האימות ב-WhatsApp Manager. אם מוגדר קוד דו-שלבי, יש להשביתו זמנית.",
+        "reasons": [
+          "המספר טרם אומת",
+          "מוגדר קוד אימות דו-שלבי",
+        ],
+        "secondary": "בדיקה חוזרת",
+        "title": "הגדרת מספר ה-WhatsApp עדיין לא הושלמה",
+        "tone": "attention",
+      },
+    ],
+    [
+      "operational",
+      null,
+    ],
+  ],
+  "reasonsLabel": "בדרך כלל בגלל:",
+}
+`;
+
+exports[`Hebrew baseline — inbox label producers > intelligence labels, channel labels 1`] = `
+{
+  "ACTION_LABELS": {
+    "answer_question": "ענה לשאלת הליד",
+    "close_lead": "התקדם לסגירה",
+    "escalate_support": "העבר לטיפול שירות",
+    "follow_up": "שלח הודעת המשך",
+    "schedule_demo": "קבע הדגמה",
+    "send_quote": "שלח הצעת מחיר",
+  },
+  "CONFIDENCE_LABELS": {
+    "high": "ביטחון גבוה",
+    "low": "ביטחון נמוך",
+    "medium": "ביטחון בינוני",
+  },
+  "INTENT_LABELS": {
+    "demo": "מבקש הדגמה",
+    "followup": "המשך טיפול",
+    "information": "מבקש מידע",
+    "pricing": "מתעניין במחיר",
+    "signup": "רוצה להצטרף",
+    "support": "בקשת שירות",
+  },
+  "TEMPERATURE_BADGES": {
+    "cold": {
+      "cls": "bg-blue-100 text-blue-700",
+      "label": "ליד קר",
+    },
+    "hot": {
+      "cls": "bg-red-100 text-red-700",
+      "label": "ליד חם",
+    },
+    "warm": {
+      "cls": "bg-amber-100 text-amber-700",
+      "label": "ליד פושר",
+    },
+  },
+  "unknown": "telegram",
+  "whatsapp": "WhatsApp",
+}
+`;
+
+exports[`Hebrew baseline — inbox label producers > thread view: bodies, quotes (every type word), entries; attachment labels 1`] = `
+{
+  "QUOTE_NOT_FOUND": "תגובה להודעה קודמת",
+  "UNNAMED_ATTACHMENT_LABEL": "קובץ מוואטסאפ",
+  "UNNAMED_AUDIO_LABEL": "הקלטה מוואטסאפ",
+  "UNSUPPORTED_MESSAGE_NOTICE": "הודעה מסוג שאינו נתמך עדיין",
+  "entries": [
+    [
+      "m101",
+      null,
+      [
+        {
+          "byBusiness": true,
+          "emoji": "🙏",
+        },
+      ],
+    ],
+    [
+      "m102",
+      null,
+      [
+        {
+          "byBusiness": false,
+          "emoji": "👍",
+        },
+      ],
+    ],
+    [
+      "m103",
+      null,
+      [],
+    ],
+    [
+      "m104",
+      null,
+      [],
+    ],
+    [
+      "m105",
+      null,
+      [],
+    ],
+    [
+      "m106",
+      null,
+      [],
+    ],
+    [
+      "m107",
+      null,
+      [],
+    ],
+    [
+      "m108",
+      null,
+      [],
+    ],
+    [
+      "r110",
+      "❤️",
+      false,
+    ],
+    [
+      "m112",
+      {
+        "preview": "היי יוסי! איך אפשר לעזור?",
+      },
+      [],
+    ],
+    [
+      "m113",
+      {
+        "preview": null,
+      },
+      [],
+    ],
+    [
+      "m114",
+      {
+        "preview": "תמונה",
+      },
+      [],
+    ],
+    [
+      "m115",
+      null,
+      [],
+    ],
+    [
+      "m116",
+      null,
+      [],
+    ],
+    [
+      "m117",
+      null,
+      [],
+    ],
+    [
+      "m118",
+      null,
+      [],
+    ],
+    [
+      "m119",
+      null,
+      [],
+    ],
+    [
+      "m120",
+      null,
+      [],
+    ],
+    [
+      "m121",
+      null,
+      [],
+    ],
+  ],
+  "fileKindLabel": [
+    [
+      "application/pdf",
+      "PDF",
+    ],
+    [
+      "application/msword",
+      "Word",
+    ],
+    [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Word",
+    ],
+    [
+      "application/vnd.ms-excel",
+      "Excel",
+    ],
+    [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Excel",
+    ],
+    [
+      "image/png",
+      "תמונה",
+    ],
+    [
+      "audio/ogg",
+      "הקלטה",
+    ],
+    [
+      "video/mp4",
+      "וידאו",
+    ],
+    [
+      "application/zip",
+      "ZIP",
+    ],
+    [
+      "text",
+      null,
+    ],
+    [
+      "null",
+      null,
+    ],
+  ],
+  "messageBody": [
+    [
+      "image",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "video",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "document",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "audio",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "sticker",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "location",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "contacts",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "interactive",
+      "הודעה מסוג שאינו נתמך עדיין",
+    ],
+    [
+      "text",
+      null,
+    ],
+  ],
+  "quoteNamedDoc": "a.pdf",
+  "quotePreview": [
+    [
+      "image",
+      "תמונה",
+    ],
+    [
+      "video",
+      "סרטון",
+    ],
+    [
+      "document",
+      "מסמך",
+    ],
+    [
+      "audio",
+      "הודעה קולית",
+    ],
+    [
+      "sticker",
+      "מדבקה",
+    ],
+    [
+      "location",
+      "מיקום",
+    ],
+    [
+      "contacts",
+      "איש קשר",
+    ],
+    [
+      "interactive",
+      "הודעה",
+    ],
+    [
+      "text",
+      "הודעה",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — inbox label producers > waiting copy and list rows (real mapper) 1`] = `
+{
+  "replied": null,
+  "rows": [
+    {
+      "attention": "needs_reply",
+      "channel": "whatsapp",
+      "conversationId": 1,
+      "displayName": "יוסי לוי",
+      "intent": "pricing",
+      "lastDirection": "inbound",
+      "lastHumanOutboundAt": null,
+      "lastInboundAt": "2026-10-28T07:00:00.000Z",
+      "lastMessageAt": "2026-10-28T07:00:00.000Z",
+      "lastMessagePreview": "כמה עולה החבילה השנתית?",
+      "leadId": 41,
+      "leadName": "יוסי לוי",
+      "leadStatus": "new",
+      "suggestedAction": "send_quote",
+      "temperature": "hot",
+      "unread": true,
+      "waitingTitle": "ממתין לתשובה שלך · 2 שעות",
+      "waitingWindowHint": "נותרו 22 שעות בחלון WhatsApp",
+    },
+    {
+      "attention": "needs_reply",
+      "channel": "whatsapp",
+      "conversationId": 2,
+      "displayName": "רונית כהן",
+      "intent": "demo",
+      "lastDirection": "inbound",
+      "lastHumanOutboundAt": null,
+      "lastInboundAt": "2026-10-27T03:00:00.000Z",
+      "lastMessageAt": "2026-10-27T03:00:00.000Z",
+      "lastMessagePreview": "אפשר לקבוע הדגמה ביום שלישי?",
+      "leadId": 42,
+      "leadName": "רונית כהן",
+      "leadStatus": "new",
+      "suggestedAction": "schedule_demo",
+      "temperature": "warm",
+      "unread": false,
+      "waitingTitle": "ממתין לתשובה שלך · יום",
+      "waitingWindowHint": "חלון WhatsApp נסגר",
+    },
+    {
+      "attention": "replied",
+      "channel": "whatsapp",
+      "conversationId": 3,
+      "displayName": "משה אברהם",
+      "intent": "support",
+      "lastDirection": "outbound",
+      "lastHumanOutboundAt": "2026-10-28T06:00:00.000Z",
+      "lastInboundAt": "2026-10-28T04:00:00.000Z",
+      "lastMessageAt": "2026-10-28T06:00:00.000Z",
+      "lastMessagePreview": "שלחתי לך את ההצעה במייל",
+      "leadId": 43,
+      "leadName": "משה אברהם",
+      "leadStatus": "new",
+      "suggestedAction": "escalate_support",
+      "temperature": "cold",
+      "unread": false,
+      "waitingTitle": null,
+      "waitingWindowHint": null,
+    },
+    {
+      "attention": "needs_reply",
+      "channel": "whatsapp",
+      "conversationId": 4,
+      "displayName": "972500000004",
+      "intent": "information",
+      "lastDirection": "inbound",
+      "lastHumanOutboundAt": null,
+      "lastInboundAt": "2026-10-28T08:20:00.000Z",
+      "lastMessageAt": "2026-10-28T08:20:00.000Z",
+      "lastMessagePreview": "היי, ראיתי את המודעה",
+      "leadId": null,
+      "leadName": null,
+      "leadStatus": "new",
+      "suggestedAction": "follow_up",
+      "temperature": null,
+      "unread": true,
+      "waitingTitle": "ממתין לתשובה שלך · 40 דקות",
+      "waitingWindowHint": "נותרו 23 שעות בחלון WhatsApp",
+    },
+    {
+      "attention": null,
+      "channel": "whatsapp",
+      "conversationId": 5,
+      "displayName": "שרה מזרחי",
+      "intent": "other",
+      "lastDirection": null,
+      "lastHumanOutboundAt": null,
+      "lastInboundAt": null,
+      "lastMessageAt": null,
+      "lastMessagePreview": null,
+      "leadId": 45,
+      "leadName": "שרה מזרחי",
+      "leadStatus": "new",
+      "suggestedAction": "none",
+      "temperature": null,
+      "unread": false,
+      "waitingTitle": null,
+      "waitingWindowHint": null,
+    },
+  ],
+  "samples": [
+    [
+      0.5,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין פחות מדקה",
+        "window": "OPEN",
+        "windowHint": "נותרו 23 שעות בחלון WhatsApp",
+      },
+      "ממתין לתשובה שלך · פחות מדקה",
+    ],
+    [
+      30,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין 30 דקות",
+        "window": "OPEN",
+        "windowHint": "נותרו 23 שעות בחלון WhatsApp",
+      },
+      "ממתין לתשובה שלך · 30 דקות",
+    ],
+    [
+      90,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין שעה",
+        "window": "OPEN",
+        "windowHint": "נותרו 22 שעות בחלון WhatsApp",
+      },
+      "ממתין לתשובה שלך · שעה",
+    ],
+    [
+      300,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין 5 שעות",
+        "window": "OPEN",
+        "windowHint": "נותרו 19 שעות בחלון WhatsApp",
+      },
+      "ממתין לתשובה שלך · 5 שעות",
+    ],
+    [
+      1380,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין 23 שעות",
+        "window": "OPEN",
+        "windowHint": "נותרו שעה בחלון WhatsApp",
+      },
+      "ממתין לתשובה שלך · 23 שעות",
+    ],
+    [
+      1500,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין יום",
+        "window": "CLOSED",
+        "windowHint": "חלון WhatsApp נסגר",
+      },
+      "ממתין לתשובה שלך · יום",
+    ],
+    [
+      2940,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין 2 ימים",
+        "window": "CLOSED",
+        "windowHint": "חלון WhatsApp נסגר",
+      },
+      "ממתין לתשובה שלך · 2 ימים",
+    ],
+    [
+      1439.6,
+      {
+        "title": "ממתין לתשובה שלך",
+        "waitingFor": "ממתין 23 שעות",
+        "window": "OPEN",
+        "windowHint": "נותרו פחות מדקה בחלון WhatsApp",
+      },
+      "ממתין לתשובה שלך · 23 שעות",
+    ],
+  ],
+}
+`;

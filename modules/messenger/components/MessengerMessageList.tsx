@@ -6,6 +6,8 @@ import { loadOlderMessengerMessages } from '../actions'
 import type { MessengerConversationEvent, MessengerMessage } from '../types'
 import MessengerBubble from './MessengerBubble'
 import MessengerEventLine from './MessengerEventLine'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The scrolling message history, with "load earlier".
@@ -34,6 +36,7 @@ export default function MessengerMessageList({
   initial,
   hasMoreInitially,
   events = [],
+  locale = 'he',
 }: {
   conversationId: number
   /** Oldest-first, as the server produced it. */
@@ -41,7 +44,10 @@ export default function MessengerMessageList({
   hasMoreInitially: boolean
   /** Postbacks, referrals and reactions for this conversation, oldest-first. */
   events?: MessengerConversationEvent[]
+  /** The page's interface language (server-resolved, so SSR and hydration agree). */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const [seen, setSeen] = useState<MessengerMessage[]>([])
   const [hasMore, setHasMore] = useState(hasMoreInitially)
   const [loading, setLoading] = useState(false)
@@ -138,7 +144,7 @@ export default function MessengerMessageList({
   return (
     <div
       role='group'
-      aria-label='הודעות השיחה'
+      aria-label={t('inbox.messenger.thread.messages')}
       className='flex min-h-0 flex-1 flex-col-reverse overflow-y-auto px-4 py-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]'
     >
       {rows.map(({ r, newDay }) => (
@@ -154,9 +160,9 @@ export default function MessengerMessageList({
             </div>
           )}
           {r.message ? (
-            <MessengerBubble message={r.message} reactions={reactionsFor.get(r.message.id) ?? []} />
+            <MessengerBubble message={r.message} reactions={reactionsFor.get(r.message.id) ?? []} locale={locale} />
           ) : (
-            <MessengerEventLine event={r.event!} />
+            <MessengerEventLine event={r.event!} locale={locale} />
           )}
         </div>
       ))}
@@ -170,11 +176,11 @@ export default function MessengerMessageList({
             disabled={loading}
             className='rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60'
           >
-            {loading ? 'טוען הודעות קודמות…' : 'טען הודעות קודמות'}
+            {loading ? t('inbox.messenger.thread.loadingOlder') : t('inbox.messenger.thread.loadOlder')}
           </button>
           {failed && (
             <p role='alert' className='text-[11px] text-error-text'>
-              לא ניתן לטעון הודעות קודמות. נסה שוב.
+              {t('inbox.messenger.thread.loadOlderFailed')}
             </p>
           )}
         </div>

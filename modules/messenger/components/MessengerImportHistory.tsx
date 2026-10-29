@@ -5,15 +5,18 @@ import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { useAction } from '@/lib/useAction'
 import { importMessengerConversations, type MessengerProfileFailure } from '../profileActions'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
-const FAILURE_COPY: Record<MessengerProfileFailure, string> = {
-  not_enabled: 'Messenger אינו זמין בחשבון הזה',
-  forbidden: 'רק מנהל יכול לייבא שיחות',
-  not_found: 'הדף לא נמצא',
-  permission_missing: 'חסרה הרשאה לקריאת השיחות מהדף. חבר מחדש את הדף ונסה שוב.',
-  invalid: 'הבקשה אינה תקינה',
-  rate_limited: 'פייסבוק מגביל כרגע את קצב הבקשות. נסה שוב בעוד כמה דקות.',
-  meta_error: 'פייסבוק לא החזיר את השיחות. נסה שוב.',
+const FAILURE_KEYS: Record<MessengerProfileFailure, MessageKey> = {
+  not_enabled: 'inbox.messenger.import.failure.not_enabled',
+  forbidden: 'inbox.messenger.import.failure.forbidden',
+  not_found: 'inbox.messenger.import.failure.not_found',
+  permission_missing: 'inbox.messenger.import.failure.permission_missing',
+  invalid: 'inbox.messenger.import.failure.invalid',
+  rate_limited: 'inbox.messenger.import.failure.rate_limited',
+  meta_error: 'inbox.messenger.import.failure.meta_error',
 }
 
 /**
@@ -29,7 +32,8 @@ const FAILURE_COPY: Record<MessengerProfileFailure, string> = {
  * their history is here and then showing them twenty messages is the kind of
  * small lie that makes someone stop believing the rest of the screen.
  */
-export default function MessengerImportHistory({ pageId }: { pageId: string }) {
+export default function MessengerImportHistory({ pageId, locale = 'he' }: { pageId: string; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   const router = useRouter()
   const [done, setDone] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -41,25 +45,33 @@ export default function MessengerImportHistory({ pageId }: { pageId: string }) {
       setDone(null)
       const result = await importMessengerConversations(pageId)
       if ('reason' in result) {
-        setError(FAILURE_COPY[result.reason] ?? FAILURE_COPY.meta_error)
+        setError(t(FAILURE_KEYS[result.reason] ?? FAILURE_KEYS.meta_error))
         return
       }
       if (result.conversations === 0) {
-        setDone('לא נמצאו שיחות קודמות בדף.')
+        setDone(t('inbox.messenger.import.none'))
         return
       }
-      setDone(
-        `יובאו ${result.conversations} שיחות (${result.messages} הודעות).` +
-          (result.hasMore ? ' יש עוד שיחות בדף — אפשר להריץ שוב.' : ''),
-      )
+      // Counts as text, so Hebrew reads exactly as before (no digit grouping); `count` picks the plural.
+      const counts = {
+        count: result.conversations,
+        conversations: String(result.conversations),
+        messages: String(result.messages),
+      }
+      setDone(result.hasMore ? t('inbox.messenger.import.doneMore', counts) : t('inbox.messenger.import.done', counts))
       router.refresh()
     })
 
   return (
     <div className='grid gap-1.5'>
-      <Btn lbl={loading ? 'מייבא שיחות…' : 'ייבא שיחות קיימות מהדף'} onClick={start} disabled={loading} variant='outline' />
+      <Btn
+        lbl={loading ? t('inbox.messenger.import.running') : t('inbox.messenger.import.start')}
+        onClick={start}
+        disabled={loading}
+        variant='outline'
+      />
       <p className='text-[11px] leading-relaxed text-gray-500'>
-        פייסבוק מאפשר לייבא רק את ההודעות האחרונות בכל שיחה (עד 20), ולא את כל ההיסטוריה.
+        {t('inbox.messenger.import.note')}
       </p>
       {done && (
         <p role='status' className='text-xs text-gray-600'>

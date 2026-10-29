@@ -2,6 +2,9 @@ import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import MetaPermissionButton from '@/components/settings/MetaPermissionButton'
 import type { ConnectionNotice as Notice } from '@/lib/connections/messages'
 import type { InAppBrowser } from '@/lib/device'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { noticeReasonsLabel } from '@/lib/inbox/whatsappComposerDecision'
 
 /**
  * A missing Meta permission: the explanation, and the one action that fixes it.
@@ -14,19 +17,27 @@ export default function MetaPermissionPrompt({
   href,
   canAuthorize,
   inAppBrowser,
+  locale = 'he',
 }: {
   notice: Notice
   href: string
   canAuthorize: boolean
   inAppBrowser?: InAppBrowser
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
     <div className='grid gap-2'>
-      <ConnectionNotice notice={notice} />
+      <ConnectionNotice notice={notice} reasonsLabel={noticeReasonsLabel(locale)} />
       {canAuthorize ? (
-        <MetaPermissionButton href={href} lbl={notice.action ?? 'אשר הרשאה'} inAppBrowser={inAppBrowser} />
+        <MetaPermissionButton
+          href={href}
+          lbl={notice.action ?? t('inbox.metaNotice.prompt.authorize')}
+          inAppBrowser={inAppBrowser}
+          locale={locale}
+        />
       ) : (
-        <p className='text-sm text-gray-600'>מנהל החשבון צריך לאשר את ההרשאה בפייסבוק.</p>
+        <p className='text-sm text-gray-600'>{t('inbox.metaNotice.prompt.adminOnly')}</p>
       )}
     </div>
   )

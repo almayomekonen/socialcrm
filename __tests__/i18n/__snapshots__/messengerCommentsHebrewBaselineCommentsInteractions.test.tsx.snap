@@ -1,0 +1,195 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — comment reply form > open, empty, pending, success (shown in the thread), every failure, thrown, cancel 1`] = `
+{
+  "blocked": "פייסבוק חסם זמנית פרסום תגובות מהדף. כדאי לבדוק את ההתראות בדף הפייסבוק.",
+  "calls": [
+    [
+      "9001",
+      "תודה רבה!",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+    [
+      "9001",
+      "נסיון",
+    ],
+  ],
+  "cancelled": true,
+  "comment_unavailable": "התגובה כבר לא זמינה בפייסבוק. ייתכן שנמחקה או הוסתרה.",
+  "deleted": "התגובה נמחקה בפייסבוק, ולא ניתן להשיב לה",
+  "empty": "כתוב תשובה לפני הפרסום",
+  "form": "<div class="mt-3 grid gap-2"><label for="reply-9001" class="sr-only">תשובה בשם הדף ל־מיכל דוד</label><textarea id="reply-9001" rows="3" placeholder="כתוב תשובה בשם הדף..." class="w-full resize-none field-sizing-content rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"></textarea><div class="flex flex-wrap items-center gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-9 px-3 gap-3 text-[15px]" disabled="" title="כתוב תשובה כדי לפרסם"><span>פרסם תשובה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><span>ביטול</span></button></div></div>",
+  "formClosed": true,
+  "meta_error": "פייסבוק לא אישר את פרסום התשובה. נסה שוב.",
+  "not_enabled": "התכונה אינה זמינה בחשבון הזה",
+  "not_found": "התגובה לא נמצאה",
+  "page_authored": "אי אפשר להשיב לתגובה של הדף עצמו",
+  "pending": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-9 px-3 gap-3 text-[15px]" disabled=""><div aria-hidden="true" class="dark:bg-white bg-white size-[15px] animate-spin " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/spinner.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/spinner.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>מפרסם...</span></button>",
+  "permission_missing": "חסרה הרשאה להשבה לתגובות. אשר את ההרשאה בראש העמוד ונסה שוב.",
+  "rate_limited": "פייסבוק מגביל כרגע את קצב הפעולות. נסה שוב בעוד כמה דקות.",
+  "reconnect_required": "החיבור לדף הפייסבוק פג. חבר מחדש את הדף בהגדרות ונסה שוב.",
+  "refreshes": 1,
+  "thread": "<ul aria-label="תגובות בשרשור" class="mt-3 grid gap-1.5 border-s-2 border-gray-100 ps-3"><li data-reply-id="9101" class="rounded-md px-2.5 py-2 text-sm bg-primary-tint/60"><div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><span class="font-medium text-primary-text">הסטודיו של דנה (הדף שלך)</span><span class="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-primary-text">נשלח מ-SocialCRM</span><time class="ms-auto text-[11px] tabular-nums text-gray-400" datetime="2026-10-28T08:10:00.000Z">28/10/2026, 10:10</time></div><p class="mt-0.5 break-words whitespace-pre-wrap text-gray-700">שלחנו לך פרטים בפרטי</p></li><li data-reply-id="9102" class="rounded-md px-2.5 py-2 text-sm bg-gray-50"><div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><span class="font-medium text-gray-800">אבי רז</span><time class="ms-auto text-[11px] tabular-nums text-gray-400" datetime="2026-10-28T08:20:00.000Z">28/10/2026, 10:20</time></div><p class="mt-0.5 break-words whitespace-pre-wrap text-gray-700">גם אני רוצה</p></li><li data-reply-id="9103" class="rounded-md px-2.5 py-2 text-sm bg-primary-tint/60"><div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><span class="font-medium text-primary-text">הדף (הדף שלך)</span><time class="ms-auto text-[11px] tabular-nums text-gray-400" datetime="2026-10-28T08:30:00.000Z">28/10/2026, 10:30</time></div><p class="mt-0.5 text-gray-400 italic">תוכן התגובה לא התקבל מפייסבוק</p></li><li data-reply-id="9199" class="rounded-md px-2.5 py-2 text-sm bg-primary-tint/60"><div class="flex flex-wrap items-center gap-x-2 gap-y-0.5"><span class="font-medium text-primary-text">הדף (הדף שלך)</span><span class="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-medium text-primary-text">נשלח מ-SocialCRM</span><time class="ms-auto text-[11px] tabular-nums text-gray-400" datetime="2026-10-28T09:00:00.000Z">28/10/2026, 11:00</time></div><p class="mt-0.5 break-words whitespace-pre-wrap text-gray-700">תודה רבה!</p></li></ul>",
+  "thrown": "לא הצלחנו לפרסם את התשובה. בדוק את החיבור ונסה שוב.",
+  "toasts": [
+    [
+      "success",
+      "התשובה פורסמה בפייסבוק",
+    ],
+  ],
+  "too_long": "התשובה ארוכה מדי",
+  "unmapped": "פייסבוק לא אישר את פרסום התשובה. נסה שוב.",
+  "valueKept": "נסיון",
+}
+`;
+
+exports[`Hebrew baseline — convert comment to lead > pending, created, existing, every failure, thrown; toast when the row leaves the "open" filter 1`] = `
+{
+  "calls": [
+    [
+      "9001",
+    ],
+    [
+      "9009",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9006",
+    ],
+    [
+      "9001",
+    ],
+  ],
+  "create_failed": "הליד לא נוצר. נסה שוב.",
+  "created": "<span role="status" class="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span class="font-medium text-green-700">הליד נוצר בהצלחה</span><a class="inline-flex h-9 items-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 hover:bg-gray-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" href="/clients/70/summary">פתח ליד</a></span>",
+  "db_error": "לא הצלחנו להשלים את יצירת הליד. נסה שוב.",
+  "deleted": "התגובה נמחקה בפייסבוק, ולכן לא ניתן ליצור ממנה ליד.",
+  "existing": "התגובה כבר מקושרת לליד קייםפתח ליד",
+  "noReason": "הליד לא נוצר. נסה שוב.",
+  "not_enabled": "יצירת לידים מתגובות אינה זמינה בחשבון הזה.",
+  "not_found": "התגובה לא נמצאה. רענן את הדף ונסה שוב.",
+  "page_authored": "זו תגובה של הדף שלך, ולכן לא ניתן ליצור ממנה ליד.",
+  "pending": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-9 px-3 gap-3 text-[15px] w-fit" disabled=""><div aria-hidden="true" class="dark:bg-white bg-white size-[15px] animate-spin " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/spinner.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/spinner.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>ממיר לליד...</span></button>",
+  "quota_exceeded": "הגעת למכסת הלידים בחבילה הנוכחית. שדרג את החבילה כדי ליצור ליד מהתגובה.",
+  "thrown": "לא הצלחנו להשלים את יצירת הליד. בדוק את החיבור ונסה שוב.",
+  "toasts": [
+    [
+      "success",
+      "הליד נוצר בהצלחה · פתח ליד",
+      8000,
+    ],
+  ],
+  "unmapped": "הליד לא נוצר. נסה שוב.",
+}
+`;
+
+exports[`Hebrew baseline — long comment, load more > show more / less; load more pending, failure, thrown, appended 1`] = `
+{
+  "appended": true,
+  "buttonGone": true,
+  "calls": [
+    [
+      "all",
+      {
+        "id": 1,
+        "receivedAt": "2026-10-27T00:00:00.000Z",
+      },
+    ],
+    [
+      "all",
+      {
+        "id": 1,
+        "receivedAt": "2026-10-27T00:00:00.000Z",
+      },
+    ],
+    [
+      "all",
+      {
+        "id": 1,
+        "receivedAt": "2026-10-27T00:00:00.000Z",
+      },
+    ],
+  ],
+  "expanded": "<button type="button" aria-expanded="true" class="rounded text-xs font-medium text-primary-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 mt-1">הצג פחות</button>",
+  "failed": "לא הצלחנו לטעון עוד תגובות. נסה שוב.",
+  "pending": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><div aria-hidden="true" class="dark:bg-white bg-black size-4 animate-spin " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/spinner.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/spinner.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>טוען תגובות...</span></button>",
+  "thrown": "לא הצלחנו לטעון עוד תגובות. נסה שוב.",
+}
+`;

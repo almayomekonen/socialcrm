@@ -12,7 +12,7 @@ type Props = {
   leadId: number | string
   /**
    * Interface language of the card's CHROME, resolved once by the page. The
-   * inbox and the mobile lead detail pass nothing and stay Hebrew. The AI's own
+   * mobile lead detail passes nothing and stays Hebrew (the inbox passes its page locale). The AI's own
    * text is never translated (decision D3): it is Hebrew, so its blocks
    * re-declare Hebrew inside a translated card.
    */

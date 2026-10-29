@@ -8,6 +8,8 @@ export const common = {
   source: { whatsapp: 'WhatsApp', facebook: 'Facebook', instagram: 'Instagram', website: 'אתר', manual: 'ידני' },
   /** Shared primitives (Phase C): dialog chrome, pickers, the generic table. Text only — direction stays per region. */
   dialog: { close: 'סגירה', closeTitle: 'יציאה ללא שמירה', fallbackName: 'תיבת דו-שיח', confirm: 'אישור', cancel: 'ביטול' },
+  /** Shared mobile sheets (`components/mobile/*`, opt-in `translated`). */
+  sheet: { working: 'מבצע...', selected: { other: 'נבחרו {count}' } },
   picker: { search: 'חיפוש...', selectAll: 'בחר הכל', clearAll: 'הסר הכל' },
   table: {
     columns: 'עמודות לצפיה',

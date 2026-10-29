@@ -1,14 +1,19 @@
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const he = translatorFor('he')
+
 /**
  * Pure display helpers for inbound WhatsApp media. No React, no data access —
  * both the desktop thread and the mobile bubble import these so the two
  * surfaces cannot drift in what they call a file or how they label it.
  */
 
-/** Shown instead of an empty bubble for a message we cannot render yet. */
-export const UNSUPPORTED_MESSAGE_NOTICE = 'הודעה מסוג שאינו נתמך עדיין'
+/** Shown instead of an empty bubble for a message we cannot render yet (Hebrew; readers in a translated region use the catalog key). */
+export const UNSUPPORTED_MESSAGE_NOTICE = he('inbox.media.unsupported')
 
 /** Shown when a file arrived without a filename. */
-export const UNNAMED_ATTACHMENT_LABEL = 'קובץ מוואטסאפ'
+export const UNNAMED_ATTACHMENT_LABEL = he('inbox.media.unnamedFile')
 
 const KIND_BY_MIME: Record<string, string> = {
   'application/pdf': 'PDF',
@@ -22,14 +27,15 @@ const KIND_BY_MIME: Record<string, string> = {
  * Short, human label for the file type. Falls back to the mime top-level group
  * so an unknown subtype still says something true rather than nothing.
  */
-export function fileKindLabel(mimeType: string | null | undefined): string | null {
+export function fileKindLabel(mimeType: string | null | undefined, locale: UiLocale = 'he'): string | null {
   if (!mimeType) return null
   const exact = KIND_BY_MIME[mimeType]
   if (exact) return exact
   const [group, subtype] = mimeType.split('/')
-  if (group === 'image') return 'תמונה'
-  if (group === 'audio') return 'הקלטה'
-  if (group === 'video') return 'וידאו'
+  const t = translatorFor(locale)
+  if (group === 'image') return t('inbox.media.kindImage')
+  if (group === 'audio') return t('inbox.media.kindAudio')
+  if (group === 'video') return t('inbox.media.kindVideo')
   return subtype ? subtype.toUpperCase().slice(0, 12) : null
 }
 
@@ -59,7 +65,7 @@ export function isAudioAttachment(mimeType: string | null | undefined): boolean 
 }
 
 /** Shown for a voice note, which WhatsApp sends with no filename at all. */
-export const UNNAMED_AUDIO_LABEL = 'הקלטה מוואטסאפ'
+export const UNNAMED_AUDIO_LABEL = he('inbox.media.unnamedAudio')
 
 /**
  * A duration we can actually put on a progress bar.

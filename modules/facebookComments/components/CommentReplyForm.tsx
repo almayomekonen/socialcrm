@@ -8,6 +8,9 @@ import { toast } from '@/lib/toast'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { REPLY_MAX_CHARS, type ReplyFailureReason } from '@/lib/facebook/comments/thread'
 import { replyToComment } from '../replyActions'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Reply to one comment as the Page — the composer a card opens on "ענה לתגובה".
@@ -20,34 +23,37 @@ import { replyToComment } from '../replyActions'
  * then shows the reply at once (`onSent`) and the refresh reconciles it with
  * the stored thread. A failure keeps the draft and says what to do.
  */
-const FAILURE_COPY: Record<ReplyFailureReason, string> = {
-  not_enabled: 'התכונה אינה זמינה בחשבון הזה',
-  not_found: 'התגובה לא נמצאה',
-  deleted: 'התגובה נמחקה בפייסבוק, ולא ניתן להשיב לה',
-  page_authored: 'אי אפשר להשיב לתגובה של הדף עצמו',
-  empty: 'כתוב תשובה לפני הפרסום',
-  too_long: 'התשובה ארוכה מדי',
-  permission_missing: 'חסרה הרשאה להשבה לתגובות. אשר את ההרשאה בראש העמוד ונסה שוב.',
-  reconnect_required: 'החיבור לדף הפייסבוק פג. חבר מחדש את הדף בהגדרות ונסה שוב.',
-  comment_unavailable: 'התגובה כבר לא זמינה בפייסבוק. ייתכן שנמחקה או הוסתרה.',
-  rate_limited: 'פייסבוק מגביל כרגע את קצב הפעולות. נסה שוב בעוד כמה דקות.',
-  blocked: 'פייסבוק חסם זמנית פרסום תגובות מהדף. כדאי לבדוק את ההתראות בדף הפייסבוק.',
-  meta_error: 'פייסבוק לא אישר את פרסום התשובה. נסה שוב.',
+const FAILURE_KEYS: Record<ReplyFailureReason, MessageKey> = {
+  not_enabled: 'inbox.comments.reply.failure.not_enabled',
+  not_found: 'inbox.comments.reply.failure.not_found',
+  deleted: 'inbox.comments.reply.failure.deleted',
+  page_authored: 'inbox.comments.reply.failure.page_authored',
+  empty: 'inbox.comments.reply.failure.empty',
+  too_long: 'inbox.comments.reply.failure.too_long',
+  permission_missing: 'inbox.comments.reply.failure.permission_missing',
+  reconnect_required: 'inbox.comments.reply.failure.reconnect_required',
+  comment_unavailable: 'inbox.comments.reply.failure.comment_unavailable',
+  rate_limited: 'inbox.comments.reply.failure.rate_limited',
+  blocked: 'inbox.comments.reply.failure.blocked',
+  meta_error: 'inbox.comments.reply.failure.meta_error',
 }
-const THROWN_COPY = 'לא הצלחנו לפרסם את התשובה. בדוק את החיבור ונסה שוב.'
 
 export default function CommentReplyForm({
   commentId,
   authorName,
   onSent,
   onCancel,
+  locale = 'he',
 }: {
   commentId: string
   authorName: string | null
   /** The reply Meta accepted, so the card can show it without a reload. */
   onSent?: (reply: { replyId: string; message: string }) => void
   onCancel?: () => void
+  /** Our labels and messages; the draft is the rep's own text and is never touched. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const router = useRouter()
   const [draft, setDraft] = useState('')
   const [failure, setFailure] = useState<string | null>(null)
@@ -55,11 +61,18 @@ export default function CommentReplyForm({
   const { loading, run, error, accessDenied } = useAction()
 
   if (accessDenied) {
-    return <SubscriptionExpiredState mode='inline' source='comment_reply' feature='חידוש המנוי מחזיר את ההשבה לתגובות' />
+    return (
+      <SubscriptionExpiredState
+        mode='inline'
+        source='comment_reply'
+        feature={t('inbox.comments.reply.expired')}
+        translated={locale !== 'he'}
+      />
+    )
   }
 
   const empty = draft.trim().length === 0
-  const shownFailure = failure ?? (error ? THROWN_COPY : null)
+  const shownFailure = failure ?? (error ? t('inbox.comments.reply.thrown') : null)
 
   const submit = () => {
     if (inFlight.current || empty) return
@@ -70,11 +83,11 @@ export default function CommentReplyForm({
         const message = draft.trim()
         const result = await replyToComment(commentId, message)
         if ('reason' in result) {
-          setFailure(FAILURE_COPY[result.reason] ?? FAILURE_COPY.meta_error)
+          setFailure(t(FAILURE_KEYS[result.reason] ?? FAILURE_KEYS.meta_error))
           return
         }
         setDraft('')
-        toast('success', 'התשובה פורסמה בפייסבוק')
+        toast('success', t('inbox.comments.reply.published'))
         onSent?.({ replyId: result.replyId, message })
         router.refresh()
       } finally {
@@ -88,7 +101,7 @@ export default function CommentReplyForm({
   return (
     <div className='mt-3 grid gap-2'>
       <label htmlFor={inputId} className='sr-only'>
-        {`תשובה בשם הדף ל${authorName ? `־${authorName}` : 'תגובה'}`}
+        {authorName ? t('inbox.comments.reply.label', { name: authorName }) : t('inbox.comments.reply.labelNoName')}
       </label>
       <textarea
         id={inputId}
@@ -97,7 +110,7 @@ export default function CommentReplyForm({
         rows={3}
         autoFocus
         disabled={loading}
-        placeholder='כתוב תשובה בשם הדף...'
+        placeholder={t('inbox.comments.reply.placeholder')}
         aria-invalid={shownFailure ? true : undefined}
         aria-describedby={shownFailure ? `${inputId}-error` : undefined}
         className='w-full resize-none field-sizing-content rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50'
@@ -109,15 +122,15 @@ export default function CommentReplyForm({
       )}
       <div className='flex flex-wrap items-center gap-2'>
         <Btn
-          lbl={loading ? 'מפרסם...' : 'פרסם תשובה'}
+          lbl={loading ? t('inbox.comments.reply.publishing') : t('inbox.comments.reply.publish')}
           icon={loading ? 'spinner' : undefined}
           iconClassName={loading ? 'animate-spin' : undefined}
           size='small'
           disabled={loading || empty}
-          title={empty ? 'כתוב תשובה כדי לפרסם' : undefined}
+          title={empty ? t('inbox.comments.reply.emptyHint') : undefined}
           onClick={submit}
         />
-        {onCancel && <Btn variant='ghost' size='small' lbl='ביטול' disabled={loading} onClick={onCancel} />}
+        {onCancel && <Btn variant='ghost' size='small' lbl={t('inbox.comments.reply.cancel')} disabled={loading} onClick={onCancel} />}
       </div>
     </div>
   )

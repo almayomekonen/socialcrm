@@ -1,7 +1,11 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { ATTACHMENT_REJECTION_COPY, checkMessengerAttachment } from '@/lib/facebook/messenger/attachmentRules'
+import { attachmentRejectionCopy, checkMessengerAttachment } from '@/lib/facebook/messenger/attachmentRules'
+import type { MessengerSendFailure } from '@/lib/facebook/messenger/rules'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Upload one attachment to `/api/messenger/attachment`, with REAL progress.
@@ -23,10 +27,35 @@ export type UploadState =
   | { phase: 'sending' }
   | { phase: 'error'; message: string }
 
-const NETWORK_FAILED = 'העלאת הקובץ נכשלה. בדוק את החיבור ונסה שוב.'
-const SERVER_REFUSED = 'הקובץ לא נשלח. נסה שוב.'
+/** The send failures the upload route can answer with, as composer copy keys. */
+const FAILURE_KEYS: Record<MessengerSendFailure, MessageKey> = {
+  not_enabled: 'inbox.messenger.failure.not_enabled',
+  not_found: 'inbox.messenger.failure.not_found',
+  empty: 'inbox.messenger.failure.empty',
+  too_long: 'inbox.messenger.failure.too_long',
+  invalid_file: 'inbox.messenger.failure.invalid_file',
+  window_closed: 'inbox.messenger.failure.window_closed',
+  permission_missing: 'inbox.messenger.failure.permission_missing',
+  reconnect_required: 'inbox.messenger.failure.reconnect_required',
+  recipient_unavailable: 'inbox.messenger.failure.recipient_unavailable',
+  rate_limited: 'inbox.messenger.failure.rate_limited',
+  meta_error: 'inbox.messenger.failure.meta_error',
+}
 
-export function useAttachmentUpload(conversationId: number) {
+/**
+ * What a refused upload says. Hebrew is unchanged: the route's own `detail`
+ * (its Hebrew attachment-rule text) or the generic line. Another language
+ * cannot show that Hebrew `detail`, so it says the same thing by the route's
+ * `reason` CODE when there is a detail to replace, and the generic line otherwise.
+ */
+function refusedCopy(body: { reason?: string; detail?: string } | null, locale: UiLocale): string {
+  const t = translatorFor(locale)
+  if (locale === 'he') return body?.detail || t('inbox.messenger.attachment.serverRefused')
+  const key = body?.detail && body.reason ? FAILURE_KEYS[body.reason as MessengerSendFailure] : undefined
+  return t(key ?? 'inbox.messenger.attachment.serverRefused')
+}
+
+export function useAttachmentUpload(conversationId: number, locale: UiLocale = 'he') {
   const [state, setState] = useState<UploadState>({ phase: 'idle' })
   const xhr = useRef<XMLHttpRequest | null>(null)
 
@@ -45,7 +74,7 @@ export function useAttachmentUpload(conversationId: number) {
         // file fails instantly instead of after a 25 MB round trip.
         const check = checkMessengerAttachment({ size: file.size, type: file.type, name: file.name })
         if ('reason' in check) {
-          setState({ phase: 'error', message: ATTACHMENT_REJECTION_COPY[check.reason] })
+          setState({ phase: 'error', message: attachmentRejectionCopy(check.reason, locale) })
           resolve(false)
           return
         }
@@ -72,7 +101,7 @@ export function useAttachmentUpload(conversationId: number) {
 
         req.onerror = () => {
           xhr.current = null
-          setState({ phase: 'error', message: NETWORK_FAILED })
+          setState({ phase: 'error', message: translatorFor(locale)('inbox.messenger.attachment.networkFailed') })
           resolve(false)
         }
         req.onabort = () => {
@@ -81,18 +110,18 @@ export function useAttachmentUpload(conversationId: number) {
         }
         req.onload = () => {
           xhr.current = null
-          const body = req.response as { ok?: boolean; detail?: string; captionFailed?: boolean } | null
+          const body = req.response as { ok?: boolean; reason?: string; detail?: string; captionFailed?: boolean } | null
           if (req.status >= 200 && req.status < 300 && body?.ok) {
             setState({ phase: 'idle' })
             resolve(true)
             return
           }
-          setState({ phase: 'error', message: body?.detail || SERVER_REFUSED })
+          setState({ phase: 'error', message: refusedCopy(body, locale) })
           resolve(false)
         }
         req.send(form)
       }),
-    [conversationId],
+    [conversationId, locale],
   )
 
   return { state, upload, cancel, reset }

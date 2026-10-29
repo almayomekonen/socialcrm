@@ -2,6 +2,7 @@ import InboxChannelSwitch from '@/modules/inbox/components/InboxChannelSwitch'
 import CommentsEmptyState, { type CommentsEmptyKind } from '@/modules/facebookComments/components/CommentsEmptyState'
 import CommentsListMobile from './CommentsListMobile'
 import type { ReactNode } from 'react'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
 import type { CommentListItem, CommentPost, CommentReply, CommentsCursor, CommentStatusFilter } from '../types'
 
 /**
@@ -20,6 +21,7 @@ export default function CommentsInboxMobile({
   showMessenger = false,
   nextCursor = null,
   status = 'all',
+  locale = 'he',
 }: {
   emptyKind: CommentsEmptyKind | null
   comments: CommentListItem[]
@@ -34,11 +36,13 @@ export default function CommentsInboxMobile({
   showMessenger?: boolean
   nextCursor?: CommentsCursor | null
   status?: CommentStatusFilter
+  /** Interface language, resolved once on the server (the comments page). */
+  locale?: UiLocale
 }) {
   return (
-    <div data-testid='facebook-comments-mobile' className='flex flex-col gap-3 p-3'>
+    <div data-testid='facebook-comments-mobile' className='flex flex-col gap-3 p-3' {...regionAttrs(locale)}>
       <div className='[&_a]:min-h-11 [&_a]:rounded-md [&_a]:px-3 [&_a]:text-sm'>
-        <InboxChannelSwitch active='facebook' showMessenger={showMessenger} />
+        <InboxChannelSwitch active='facebook' showMessenger={showMessenger} locale={locale} />
       </div>
 
       {statusFilter && (
@@ -47,7 +51,7 @@ export default function CommentsInboxMobile({
         </div>
       )}
 
-      {emptyKind && <CommentsEmptyState kind={emptyKind} compact />}
+      {emptyKind && <CommentsEmptyState kind={emptyKind} compact locale={locale} />}
 
       {comments.length > 0 && (
         <>
@@ -60,6 +64,7 @@ export default function CommentsInboxMobile({
             leavesViewOnConvert={leavesViewOnConvert}
             nextCursor={nextCursor}
             status={status}
+            locale={locale}
           />
         </>
       )}

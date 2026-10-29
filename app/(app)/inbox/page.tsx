@@ -21,6 +21,9 @@ import CrmSyncBanner from '@/components/clients/CrmSyncBanner'
 import LeadIntelligenceCard from '@/components/ai/LeadIntelligenceCard'
 import LeadIntelligenceCardSkeleton from '@/components/ai/LeadIntelligenceCardSkeleton'
 import ConversationIntelligenceCard from '@/modules/inbox/components/ConversationIntelligenceCard'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 type InboxSearchParams = {
   conversation?: string
@@ -32,7 +35,10 @@ type InboxSearchParams = {
   sort?: string
 }
 
-export const metadata: Metadata = { title: 'שיחות' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('inbox.page.title') }
+}
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<InboxSearchParams> }) {
   const user = await getUser()
@@ -52,12 +58,32 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
    * Returned BEFORE the desktop's parallel reads, so a phone does no wasted work
    * and receives no desktop markup (architecture-rules.md §9).
    */
-  if ((await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)) {
-    return <MobileInboxRoute agencyId={user.agencyId} userId={user.id} q={filters.q ?? ''} conversationId={selectedConversationId} />
+  const mobile = (await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)
+
+  /**
+   * Interface language, resolved once (the same request-memoised read as the
+   * layout), for the phone and desktop branches alike. Hebrew outside the
+   * rollout, with no query. Server pieces take it as a prop; client pieces read
+   * the layout's provider (same value).
+   */
+  const { locale } = await getUiLocaleState(user)
+
+  if (mobile) {
+    return (
+      <MobileInboxRoute
+        agencyId={user.agencyId}
+        userId={user.id}
+        q={filters.q ?? ''}
+        conversationId={selectedConversationId}
+        locale={locale}
+      />
+    )
   }
 
+  const t = translatorFor(locale)
+
   const [firstPage, smartCounts, selected] = await Promise.all([
-    listInboxConversations(user.agencyId, user.id, { filters }),
+    listInboxConversations(user.agencyId, user.id, { filters, locale }),
     getInboxSmartCounts(user.agencyId),
     selectedConversationId ? getInboxConversationById(user.agencyId, selectedConversationId) : Promise.resolve(null),
   ])
@@ -80,7 +106,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       filtersKey={inboxFiltersKey(filters)}
       deltaSyncEnabled={deltaSyncEnabled}
     >
-      <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3'>
+      <div className='flex h-[calc(100dvh-6rem)] min-h-0 gap-3' {...regionAttrs(locale)}>
         <InboxLiveModeLog deltaSyncEnabled={deltaSyncEnabled} refreshMs={refreshMs} />
         {refreshMs != null ? <ConversationRefreshPoller intervalMs={refreshMs} /> : null}
 
@@ -99,7 +125,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
         </aside>
 
         <section
-          aria-label='שיחה'
+          aria-label={t('inbox.page.conversation')}
           className='flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white'
         >
           {selected ? (
@@ -111,9 +137,10 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
               displayName={selected.displayName}
               leadStatus={selected.leadStatus}
               customerWaId={selected.customerWaId}
+              locale={locale}
             />
           ) : (
-            <InboxEmptyState hasConversations={firstPage.items.length > 0} />
+            <InboxEmptyState hasConversations={firstPage.items.length > 0} locale={locale} />
           )}
         </section>
 
@@ -121,10 +148,10 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           {selected && selected.leadId != null ? (
             <>
               <Suspense fallback={null}>
-                <ConversationIntelligenceCard agencyId={user.agencyId} conversationId={selected.conversationId} />
+                <ConversationIntelligenceCard agencyId={user.agencyId} conversationId={selected.conversationId} locale={locale} />
               </Suspense>
-              <Suspense fallback={<LeadIntelligenceCardSkeleton />}>
-                <LeadIntelligenceCard leadId={selected.leadId} />
+              <Suspense fallback={<LeadIntelligenceCardSkeleton locale={locale} />}>
+                <LeadIntelligenceCard leadId={selected.leadId} locale={locale} />
               </Suspense>
             </>
           ) : null}

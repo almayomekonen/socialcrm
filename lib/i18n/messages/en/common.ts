@@ -3,6 +3,7 @@ import type { Messages } from '../../translate'
 export const common: Messages['common'] = {
   source: { whatsapp: 'WhatsApp', facebook: 'Facebook', instagram: 'Instagram', website: 'Website', manual: 'Manual' },
   dialog: { close: 'Close', closeTitle: 'Close without saving', fallbackName: 'Dialog', confirm: 'OK', cancel: 'Cancel' },
+  sheet: { working: 'Working...', selected: { one: '{count} selected', other: '{count} selected' } },
   picker: { search: 'Search…', selectAll: 'Select all', clearAll: 'Clear all' },
   table: {
     columns: 'Visible columns',
