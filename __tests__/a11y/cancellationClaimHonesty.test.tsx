@@ -106,7 +106,7 @@ describe('no surface reports the cancellation as completed', () => {
   })
 
   it('the confirm step describes recording a request, not stopping billing', () => {
-    const modal = readRendered('components/settings/payment/ManagePlanModal.tsx')
+    const modal = readRendered('components/settings/payment/ManagePlanBodies.tsx') // the confirm view (split from ManagePlanModal in Phase E4)
     expect(modal).toContain('בקשת הביטול תירשם')
     expect(modal).not.toContain('המנוי לא יתחדש')
   })
@@ -114,6 +114,7 @@ describe('no surface reports the cancellation as completed', () => {
   it('none of the three surfaces carries any provider claim', () => {
     const sources = [
       'components/settings/payment/ManagePlanModal.tsx',
+      'components/settings/payment/ManagePlanBodies.tsx',
       'components/settings/payment/ProPlanCard.tsx',
       'components/settings/payment/PaymentMethodRow.tsx',
     ]

@@ -49,6 +49,9 @@ vi.mock('next/navigation', () => ({
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8')
 
+/** ManagePlanModal and the two views it renders (split in Phase E4). */
+const readManagePlan = () => ['components/settings/payment/ManagePlanModal.tsx', 'components/settings/payment/ManagePlanBodies.tsx'].map(read).join('\n')
+
 /** CalendarView and the hooks that hold its grid gestures and details-dialog actions (split in Phase E1). */
 const CALENDAR_VIEW_FILES = [
   'components/calendar/CalendarView.tsx',
@@ -303,7 +306,7 @@ describe('shared action runner distinguishes entitlement from a real bug', () =>
 
 describe('manage-plan offers renewal, not cancellation, to an expired customer', () => {
   it('renew is primary and cancel is withheld', () => {
-    const src = read('components/settings/payment/ManagePlanModal.tsx')
+    const src = readManagePlan()
     expect(src).toContain('חידוש מנוי')
     expect(src).toContain("upgradeHref('manage_plan_modal')")
     // Cancel paths are all suppressed while expired.
@@ -392,7 +395,7 @@ describe('narrow audit: the five remaining surfaces', () => {
 
 describe('production audit follow-ups', () => {
   it('manage-plan reports EXPIRED status, not "פעיל", and no future billing date', () => {
-    const src = read('components/settings/payment/ManagePlanModal.tsx')
+    const src = readManagePlan()
     // "החיוב הבא" is reachable ONLY from a genuinely renewing subscription —
     // the single rule that also covers the non-Pro case, which used to fall
     // through the ternary chain to 'פעיל'.

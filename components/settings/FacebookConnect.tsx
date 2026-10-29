@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { FormField } from '@/lib/form'
@@ -11,6 +11,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { FACEBOOK_NOTICES, SHARED, facebookNotice } from '@/lib/connections/messages'
 import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
+import { useFacebookDiscoveryFailures } from '@/components/settings/hooks/useFacebookDiscoveryFailures'
 
 /** Display data only — the Page token stays server-side (lib/facebook/pendingPages.ts). */
 type Page = { id: string; name: string }
@@ -47,29 +48,7 @@ export default function FacebookConnect({
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const { loading, error, setError, run } = useAction()
 
-  // Session-scoped failure memory — breaks the "no_pages → connect → no_pages"
-  // loop (the Oren 2026-07-21 incident: 9 identical failures). Counts repeated
-  // Page-discovery failures in this setup session; after the 2nd we escalate the
-  // guidance rather than re-offering a prominent, likely-futile retry. Cleared
-  // once the flow moves past discovery (Pages found, or connected).
-  const [repeatCount, setRepeatCount] = useState(0)
-  const countedRef = useRef(false)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (connection || pendingPages) {
-      window.sessionStorage.removeItem('fbfail:no_pages')
-      window.sessionStorage.removeItem('fbfail:pages_permission')
-      return
-    }
-    if (countedRef.current) return
-    if (urlError === 'no_pages' || urlError === 'pages_permission') {
-      countedRef.current = true
-      const key = `fbfail:${urlError}`
-      const n = Number(window.sessionStorage.getItem(key) ?? '0') + 1
-      window.sessionStorage.setItem(key, String(n))
-      setRepeatCount(n)
-    }
-  }, [urlError, connection, pendingPages])
+  const repeatCount = useFacebookDiscoveryFailures(urlError, !!(connection || pendingPages))
 
   const { warned: inAppWarned, intercept } = useInAppWarning(inAppBrowser)
   const redirectToOAuth = () => {

@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
-import { FormField } from '@/lib/form'
 import { useAction } from '@/lib/useAction'
 import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
@@ -11,8 +10,8 @@ import { whatsappHealthNotice, whatsappNotice } from '@/lib/connections/messages
 import { whatsappLaunchNoticeCode } from '@/lib/connections/connectFailure'
 import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
+import WhatsappPhonePicker, { type Phone } from '@/components/settings/WhatsappPhonePicker'
 
-type Phone = { id: string; displayPhone: string; verifiedName: string }
 type Connection = { phoneNumberId: string }
 
 type Props = {
@@ -53,7 +52,6 @@ export default function WhatsappConnect({
   const searchParams = useSearchParams()
   const urlError = searchParams.get('wa_error')
 
-  const [selectedPhoneId, setSelectedPhoneId] = useState('')
   // Meta's own words when its window showed an error; rendered by `meta_error`.
   const [metaMessage, setMetaMessage] = useState<string | null>(null)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
@@ -184,40 +182,7 @@ export default function WhatsappConnect({
 
   // State B: OAuth done, phone not yet selected
   if (pendingPhones) {
-    const selected = pendingPhones.find((p) => p.id === selectedPhoneId)
-    const notice = whatsappNotice(error)
-
-    return (
-      <div className='grid gap-4'>
-        {notice && <ConnectionNotice notice={notice} />}
-        <p className='text-sm text-gray-600'>בחר את מספר הטלפון שברצונך לחבר:</p>
-        <FormField lbl='מספר וואטסאפ עסקי'>
-          <select
-            className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
-            value={selectedPhoneId}
-            onChange={(e) => setSelectedPhoneId(e.target.value)}
-          >
-            <option value=''>בחר מספר...</option>
-            {pendingPhones.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.displayPhone} — {p.verifiedName}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        <div data-edu='whatsapp-connect' className='w-fit'>
-        <Btn
-          lbl={loading ? 'מחבר...' : (notice?.action ?? 'חבר וואטסאפ')}
-          icon={loading ? 'spinner' : 'comment-dots'}
-          iconClassName={loading ? 'animate-spin' : undefined}
-          size='medium'
-          disabled={!selectedPhoneId || loading}
-          className='w-fit'
-          onClick={() => selected && connectPhone(selected)}
-        />
-        </div>
-      </div>
-    )
+    return <WhatsappPhonePicker pendingPhones={pendingPhones} notice={whatsappNotice(error)} loading={loading} onConnect={connectPhone} />
   }
 
   // State A: Not connected
