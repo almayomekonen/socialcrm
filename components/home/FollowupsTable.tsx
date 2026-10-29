@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import LeadQuickActions from './LeadQuickActions'
 import type { DueWorklistRow } from '@/db/worklist'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 const PAGE_SIZE = 8
 
@@ -13,16 +15,19 @@ function startOfToday(): number {
   return d.getTime()
 }
 
-function urgencyOf(row: DueWorklistRow, nowMs: number): { label: string; tone: string } {
+function urgencyOf(row: DueWorklistRow, nowMs: number): { label: MessageKey; tone: string } {
   const fu = row.nextFollowUpAt ? new Date(row.nextFollowUpAt).getTime() : null
   if (fu != null && !Number.isNaN(fu) && fu <= nowMs) {
-    return fu < startOfToday() ? { label: 'באיחור', tone: 'text-error-text' } : { label: 'להיום', tone: 'text-warning-text' }
+    return fu < startOfToday()
+      ? { label: 'today.followups.overdue', tone: 'text-error-text' }
+      : { label: 'today.followups.dueToday', tone: 'text-warning-text' }
   }
-  if (row.status === 'new') return { label: 'חדש', tone: 'text-primary-text' }
-  return { label: 'ממתין', tone: 'text-gray-400' }
+  if (row.status === 'new') return { label: 'today.followups.new', tone: 'text-primary-text' }
+  return { label: 'today.followups.waiting', tone: 'text-gray-400' }
 }
 
 export default function FollowupsTable({ rows, total, whatsappConnected }: { rows: DueWorklistRow[]; total: number; whatsappConnected?: boolean }) {
+  const t = useT()
   const [page, setPage] = useState(0)
 
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set())
@@ -37,12 +42,12 @@ export default function FollowupsTable({ rows, total, whatsappConnected }: { row
   return (
     <div className='rounded-lg border border-gray-200 bg-white'>
       <div className='flex items-baseline justify-between px-4 pt-3'>
-        <h2 className='text-sm font-medium text-gray-700'>מעקבים</h2>
-        <span className='text-xs text-gray-400 tabular-nums'>{total} בהמשך</span>
+        <h2 className='text-sm font-medium text-gray-700'>{t('today.followups.title')}</h2>
+        <span className='text-xs text-gray-400 tabular-nums'>{t('today.followups.later', { count: total })}</span>
       </div>
 
       {visible.length === 0 ? (
-        <p className='px-4 py-8 text-center text-sm text-gray-400'>אין מעקבים נוספים כרגע</p>
+        <p className='px-4 py-8 text-center text-sm text-gray-400'>{t('today.followups.empty')}</p>
       ) : (
         <ul className='mt-1 h-88 divide-y divide-gray-50 overflow-y-auto'>
           {slice.map((row) => {
@@ -53,7 +58,7 @@ export default function FollowupsTable({ rows, total, whatsappConnected }: { row
                   <Link href={`/clients/${row.id}/summary`} className='text-sm text-gray-800 truncate hover:underline'>
                     {row.name || '—'}
                   </Link>
-                  <span className={`text-xs shrink-0 ${u.tone}`}>{u.label}</span>
+                  <span className={`text-xs shrink-0 ${u.tone}`}>{t(u.label)}</span>
                   {row.followUpNote && <span className='text-xs text-gray-400 truncate'>· {row.followUpNote}</span>}
                 </div>
                 <LeadQuickActions
@@ -79,10 +84,10 @@ export default function FollowupsTable({ rows, total, whatsappConnected }: { row
             disabled={current === 0}
             className='rounded-md px-3 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40'
           >
-            הקודם
+            {t('today.followups.previous')}
           </button>
           <span className='text-xs text-gray-400 tabular-nums'>
-            עמוד {current + 1} מתוך {pageCount}
+            {t('today.followups.page', { current: current + 1, total: pageCount })}
           </span>
           <button
             type='button'
@@ -90,7 +95,7 @@ export default function FollowupsTable({ rows, total, whatsappConnected }: { row
             disabled={current >= pageCount - 1}
             className='rounded-md px-3 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40'
           >
-            הבא
+            {t('today.followups.next')}
           </button>
         </div>
       )}

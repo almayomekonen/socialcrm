@@ -4,6 +4,8 @@
  * __tests__/i18n/sharedDefaults.test.tsx).
  */
 export const common = {
+  /** Lead-source channel labels (lib/leads/leadSourceLabel.ts). Brand names stay in Latin script where the brand does. */
+  source: { whatsapp: 'WhatsApp', facebook: 'Facebook', instagram: 'Instagram', website: 'אתר', manual: 'ידני' },
   save: 'שמירה',
   toast: {
     success: 'בוצע בהצלחה!',

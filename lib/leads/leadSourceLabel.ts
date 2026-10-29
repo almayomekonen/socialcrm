@@ -22,14 +22,18 @@
  * hand-tagged website lead and an auto-ingested one read identically.
  */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
+
 export type LeadSourceChannel = 'whatsapp' | 'facebook' | 'instagram' | 'website' | 'manual'
 
-const CHANNEL_LABEL: Record<LeadSourceChannel, string> = {
-  whatsapp: 'WhatsApp',
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  website: 'אתר',
-  manual: 'ידני',
+const CHANNEL_KEY: Record<LeadSourceChannel, MessageKey> = {
+  whatsapp: 'common.source.whatsapp',
+  facebook: 'common.source.facebook',
+  instagram: 'common.source.instagram',
+  website: 'common.source.website',
+  manual: 'common.source.manual',
 }
 
 /**
@@ -68,15 +72,19 @@ export function leadSourceChannel(source: string | null | undefined): LeadSource
 
 /**
  * User-facing label for a stored `leadSource`:
- *  - known channel (composite or plain) → localized channel label
- *  - null / undefined / empty → 'ידני'
- *  - unknown non-empty free text → preserved verbatim
+ *  - known channel (composite or plain) → channel label (`common.source.*`)
+ *  - null / undefined / empty → the manual label ('ידני')
+ *  - unknown non-empty free text → preserved verbatim (external data, never translated)
+ *
+ * Labels are in the interface `locale`; Hebrew by default, which is what MCP,
+ * AI prompts and the leads table get (they pass nothing).
  */
-export function leadSourceLabel(source: string | null | undefined): string {
+export function leadSourceLabel(source: string | null | undefined, locale: UiLocale = 'he'): string {
+  const t = translatorFor(locale)
   const channel = leadSourceChannel(source)
-  if (channel) return CHANNEL_LABEL[channel]
+  if (channel) return t(CHANNEL_KEY[channel])
   // channel === null ⇒ source is a non-empty unrecognized value; keep it.
-  return (source ?? '').trim() || 'ידני'
+  return (source ?? '').trim() || t('common.source.manual')
 }
 
 /**

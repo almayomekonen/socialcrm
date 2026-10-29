@@ -8,6 +8,7 @@ import { pickTopRecommended, recommendReason } from '@/lib/leads/recommend'
 import { findOldestWaitingWhatsappConversation } from '@/db/inboxWaiting'
 import { mergeWaitingSpotlight, type TodayRecommendation } from '@/modules/today/waitingSpotlight'
 import type { Roles } from '@/types/roles'
+import type { UiLocale } from '@/lib/i18n/config'
 
 /**
  * Today's data, resolved once for BOTH presentations.
@@ -72,6 +73,8 @@ export async function resolveTodaySnapshot(
   gotPermIds: number[],
   nowMs: number,
   recommendCount = 3,
+  /** Interface language for the reasons/eyebrows. Hebrew by default. */
+  locale: UiLocale = 'he',
 ): Promise<Omit<TodaySnapshot, 'hasLeads'>> {
   const [due, dueCount, newLeads, meetings, doneToday, newLeadsCount, upcomingCount, waiter] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,10 +94,11 @@ export async function resolveTodaySnapshot(
   ])
 
   const recommended = mergeWaitingSpotlight(
-    pickTopRecommended(due, newLeads, recommendCount, nowMs),
+    pickTopRecommended(due, newLeads, recommendCount, nowMs, locale),
     waiter,
     nowMs,
     recommendCount,
+    locale,
   )
 
   const recommendedIds = new Set(recommended.map((r) => r.lead.id))
@@ -131,6 +135,6 @@ export async function resolveTodaySnapshot(
  * clock, so calling it here keeps the decision on the server and ships the
  * label as data.
  */
-export function reasonForDueRow(row: DueWorklistRow, nowMs: number): string {
-  return recommendReason(row, nowMs)
+export function reasonForDueRow(row: DueWorklistRow, nowMs: number, locale: UiLocale = 'he'): string {
+  return recommendReason(row, nowMs, locale)
 }

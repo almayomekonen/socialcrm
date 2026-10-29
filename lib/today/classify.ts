@@ -16,6 +16,7 @@ import { leadSourceLabel } from '@/lib/leads/leadSourceLabel'
 import { reasonFor } from './labels'
 import type { BriefItem, LeadFact, NowCtx, QualifyingState, TargetSurface } from './types'
 import { isWaitingForReply } from './waitingReply'
+import type { UiLocale } from '@/lib/i18n/config'
 
 function isTerminal(status: string | null): boolean {
   return status != null && (TERMINAL_STATUSES as readonly string[]).includes(status)
@@ -88,7 +89,7 @@ function tiebreakKey(f: LeadFact, state: QualifyingState): number {
  * Classify every fact, drop non-qualifiers, dedupe by id (keeping the
  * highest-priority state), and order by priority then intra-state tiebreak then id.
  */
-export function orderAndDedupe(facts: readonly LeadFact[], ctx: NowCtx): BriefItem[] {
+export function orderAndDedupe(facts: readonly LeadFact[], ctx: NowCtx, locale: UiLocale = 'he'): BriefItem[] {
   const byId = new Map<number, { fact: LeadFact; state: QualifyingState }>()
   for (const fact of facts) {
     const state = classifyLead(fact, ctx)
@@ -110,8 +111,8 @@ export function orderAndDedupe(facts: readonly LeadFact[], ctx: NowCtx): BriefIt
       name: fact.name,
       phone: fact.phone,
       state,
-      reason: reasonFor(state),
+      reason: reasonFor(state, locale),
       targetSurface: targetSurfaceFor(state),
-      source: fact.leadSource ? leadSourceLabel(fact.leadSource) : null,
+      source: fact.leadSource ? leadSourceLabel(fact.leadSource, locale) : null,
     }))
 }

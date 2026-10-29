@@ -1,4 +1,6 @@
 import Sparkline from './Sparkline'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 // One KPI tile (RSC). The delta chip compares with the previous equal period and
 // is omitted when there is no baseline — never a fake "0%".
@@ -11,9 +13,10 @@ type Props = {
   upIsGood?: boolean
   spark: (number | null)[]
   color: string
+  locale?: UiLocale
 }
 
-export default function KpiCard({ label, value, sub, delta, upIsGood = true, spark, color }: Props) {
+export default function KpiCard({ label, value, sub, delta, upIsGood = true, spark, color, locale = 'he' }: Props) {
   const good = delta == null || delta === 0 ? null : delta > 0 === upIsGood
   const tone = good == null ? 'bg-neutral-bg text-neutral-text' : good ? 'bg-success-bg text-success-text' : 'bg-error-bg text-error-text'
   return (
@@ -23,7 +26,7 @@ export default function KpiCard({ label, value, sub, delta, upIsGood = true, spa
         {delta != null && (
           <span dir='ltr' className={`rounded-lg px-[7px] py-0.5 text-xs font-bold whitespace-nowrap tabular-nums ${tone}`}>
             {`${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta)}%`}
-            <span className='sr-only'> לעומת התקופה הקודמת</span>
+            <span className='sr-only'> {translatorFor(locale)('today.analytics.vsPrevious')}</span>
           </span>
         )}
       </div>

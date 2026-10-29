@@ -2,6 +2,8 @@
 // The SQL layer (db/reports/dashboardStats.ts) returns raw rows; everything that
 // turns them into what the cards show lives here so it is unit-testable.
 
+import type { UiLocale } from '@/lib/i18n/config'
+import { intlLocale } from '@/lib/i18n/translate'
 import { businessDateString } from '@/lib/today/time'
 import { DAY_MS } from '@/lib/today/constants'
 import { leadSourceChannel } from '@/lib/leads/leadSourceLabel'
@@ -93,9 +95,17 @@ export function buildFunnel(byStatus: Record<string, number>) {
 const WEEKDAY = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
 
 /** "2026-10-22" → { short: "22.10", long: "יום ה׳ · 22.10" }. Pure: derived from the key, no clock. */
-export function dayLabels(key: string) {
+export function dayLabels(key: string, locale: UiLocale = 'he') {
   const [y, m, d] = key.split('-').map(Number)
-  const weekday = new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay()
-  const short = `${d}.${m}`
-  return { short, long: `יום ${WEEKDAY[weekday]} · ${short}` }
+  const noon = new Date(Date.UTC(y, m - 1, d, 12))
+  if (locale === 'he') {
+    const short = `${d}.${m}`
+    return { short, long: `יום ${WEEKDAY[noon.getUTCDay()]} · ${short}` }
+  }
+  // `key` is a calendar date, not an instant: format it in UTC so no zone can
+  // shift it to a neighbouring day.
+  const tag = intlLocale(locale)
+  const short = new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'numeric', timeZone: 'UTC' }).format(noon)
+  const weekday = new Intl.DateTimeFormat(tag, { weekday: 'short', timeZone: 'UTC' }).format(noon)
+  return { short, long: `${weekday} · ${short}` }
 }

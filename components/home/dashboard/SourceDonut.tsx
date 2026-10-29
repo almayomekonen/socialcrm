@@ -5,6 +5,8 @@ import { PieChart } from '@/lib/charts/MultiPie/PieChart'
 import { RADIUS_MAPS, getScaledRadius } from '@/lib/charts/MultiPie/utils'
 import type { ProcessedPie } from '@/lib/charts/MultiPie/types'
 import type { SourceGroup, SourceSlice } from '@/lib/dashboard/stats'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 // Lead sources for the period, drawn with the app's existing pie renderer
 // (lib/charts/MultiPie). Hovering a ring segment or a legend row highlights it.
@@ -16,13 +18,23 @@ export const SOURCE_COLOR: Record<SourceGroup, string> = {
   other: 'var(--color-neutral-dot)',
 }
 
+/** Label by the slice's stable group key (`other` → `others`: see he/today.ts). */
+const SOURCE_KEY: Record<SourceGroup, MessageKey> = {
+  meta: 'today.analytics.source.meta',
+  whatsapp: 'today.analytics.source.whatsapp',
+  website: 'today.analytics.source.website',
+  manual: 'today.analytics.source.manual',
+  other: 'today.analytics.source.others',
+}
+
 export default function SourceDonut({ slices }: { slices: SourceSlice[] }) {
+  const t = useT()
   const [hovered, setHovered] = useState<string | null>(null)
   const total = slices.reduce((a, s) => a + s.count, 0)
   let cum = 0
   const chartData = slices.map((s) => {
     const percentage = (s.count / total) * 100
-    const item = { name: s.label, value: s.count, percentage, color: SOURCE_COLOR[s.key], start: cum, end: cum + percentage }
+    const item = { name: t(SOURCE_KEY[s.key]), value: s.count, percentage, color: SOURCE_COLOR[s.key], start: cum, end: cum + percentage }
     cum += percentage
     return item
   })
@@ -47,7 +59,7 @@ export default function SourceDonut({ slices }: { slices: SourceSlice[] }) {
         />
         <div className='pointer-events-none absolute text-center'>
           <div className='text-[28px] leading-none font-extrabold text-ink tabular-nums'>{total}</div>
-          <div className='mt-1 text-[13px] text-gray-500'>לידים בתקופה</div>
+          <div className='mt-1 text-[13px] text-gray-500'>{t('today.analytics.sourcesTotal')}</div>
         </div>
       </div>
       <ul className='flex flex-col gap-2'>

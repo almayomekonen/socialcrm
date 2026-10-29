@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
+import type { UiLocale } from '@/lib/i18n/config'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import type { MobileTodayModel } from './viewModel'
 import MobileTodayHero from './MobileTodayHero'
 import MobileTodayRow from './MobileTodayRow'
@@ -31,37 +34,49 @@ import LeadListAddControl from '@/modules/leads/mobile/LeadListAddControl'
 export default function MobileToday({
   model,
   whatsappConnected,
+  locale = 'he',
 }: {
   model: MobileTodayModel
   /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
   whatsappConnected?: boolean
+  /** Interface language, resolved once on the server (DashboardPage). */
+  locale?: UiLocale
 }) {
-  const { hero, nextUp, rest, remaining, restTotal, doneToday, meetings, newLeadsCount } = model
+  const { hero, nextUp, rest, remaining, restTotal, doneToday, meetings, newLeadsCount, tones } = model
+  const t = translatorFor(locale)
 
   if (!hero && rest.length === 0 && nextUp.length === 0) {
     return (
       <>
         <LeadListAddControl selecting={false} />
-        <MobileTodayClear doneToday={doneToday} meetings={meetings} newLeadsCount={newLeadsCount} />
+        <MobileTodayClear doneToday={doneToday} meetings={meetings} newLeadsCount={newLeadsCount} locale={locale} />
       </>
     )
   }
 
   return (
-    <div className='flex flex-col gap-2 px-4 pb-4 pt-2'>
+    <div className='flex flex-col gap-2 px-4 pb-4 pt-2' {...regionAttrs(locale)}>
       <LeadListAddControl selecting={false} />
       {hero && (
-        <MobileTodayHero row={hero} remaining={remaining} whatsappConnected={whatsappConnected} />
+        <MobileTodayHero row={hero} tones={tones?.[hero.id]} remaining={remaining} whatsappConnected={whatsappConnected} locale={locale} />
       )}
 
-      {nextUp.length > 0 && <RowSection id='next' title='אחר כך' rows={nextUp} whatsappConnected={whatsappConnected} />}
+      {nextUp.length > 0 && (
+        <RowSection id='next' title={t('today.mobile.later')} rows={nextUp} tones={tones} whatsappConnected={whatsappConnected} />
+      )}
 
       {rest.length > 0 && (
         <>
-          <RowSection id='rest' title={`ממתינים (${restTotal})`} rows={rest} whatsappConnected={whatsappConnected} />
+          <RowSection
+            id='rest'
+            title={t('today.mobile.waitingCount', { count: restTotal })}
+            rows={rest}
+            tones={tones}
+            whatsappConnected={whatsappConnected}
+          />
           {restTotal > rest.length && (
             <p className='px-1 text-[12px] text-gray-400'>
-              {`מוצגים ${rest.length} מתוך ${restTotal}. השאר במסך הלידים.`}
+              {t('today.mobile.showing', { shown: rest.length, total: restTotal })}
             </p>
           )}
         </>
@@ -74,11 +89,13 @@ function RowSection({
   id,
   title,
   rows,
+  tones,
   whatsappConnected,
 }: {
   id: string
   title: string
   rows: MobileTodayModel['rest']
+  tones?: MobileTodayModel['tones']
   whatsappConnected?: boolean
 }) {
   const headingId = `mobile-today-${id}`
@@ -91,7 +108,7 @@ function RowSection({
           and double up at the seams — the job `MobileList` used to do. */}
       <div className='divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white'>
         {rows.map((row) => (
-          <MobileTodayRow key={row.id} row={row} whatsappConnected={whatsappConnected} />
+          <MobileTodayRow key={row.id} row={row} tones={tones?.[row.id]} whatsappConnected={whatsappConnected} />
         ))}
       </div>
     </section>
@@ -107,29 +124,34 @@ function MobileTodayClear({
   doneToday,
   meetings,
   newLeadsCount,
+  locale,
 }: {
   doneToday: number
   meetings: number
   newLeadsCount: number
+  locale: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
-    <div className='flex flex-col items-center gap-4 px-6 py-16 text-center'>
+    <div className='flex flex-col items-center gap-4 px-6 py-16 text-center' {...regionAttrs(locale)}>
       <span className='flex size-14 items-center justify-center rounded-full bg-success-bg'>
         <Icon name='check' type='sol' className='size-6 bg-success' />
       </span>
       <div className='max-w-[300px]'>
-        <h2 className='text-lg font-bold text-ink'>אין עכשיו מה לעשות</h2>
+        <h2 className='text-lg font-bold text-ink'>{t('today.mobile.clearTitle')}</h2>
         <p className='mt-1 text-sm leading-relaxed text-gray-500'>
-          {doneToday > 0 ? `סיימת ${doneToday} היום. ` : ''}
-          כל המעקבים מעודכנים.
+          {doneToday > 0 ? `${t('today.mobile.clearDone', { count: doneToday })} ` : ''}
+          {t('today.mobile.allUpdated')}
         </p>
-        {meetings > 0 && <p className='mt-1 text-sm text-gray-500 tabular-nums'>{`${meetings} פגישות היום`}</p>}
+        {meetings > 0 && (
+          <p className='mt-1 text-sm text-gray-500 tabular-nums'>{t('today.mobile.meetingsToday', { count: meetings })}</p>
+        )}
       </div>
       <Link
         href={'/leads' as Route}
         className='flex min-h-11 items-center rounded-md border border-gray-200 bg-white px-5 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
-        {newLeadsCount > 0 ? `${newLeadsCount} לידים חדשים` : 'כל הלידים'}
+        {newLeadsCount > 0 ? t('today.mobile.newLeads', { count: newLeadsCount }) : t('today.mobile.allLeads')}
       </Link>
     </div>
   )

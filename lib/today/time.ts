@@ -3,6 +3,8 @@
 // hardcoded. Server-only in practice; no client ever calls this.
 
 import { BUSINESS_TZ } from './constants'
+import type { UiLocale } from '@/lib/i18n/config'
+import { intlLocale } from '@/lib/i18n/translate'
 import type { NowCtx } from './types'
 
 /** Start-of-day in `tz` for the instant `ms`, returned as a UTC epoch ms. */
@@ -68,17 +70,27 @@ export function formatBusinessDate(value: Date | string | number, tz: string = B
   return new Intl.DateTimeFormat('he-IL', { timeZone: tz }).format(d).replaceAll('.', '/')
 }
 
-export function formatBusinessTime(value: Date | string | number, tz: string = BUSINESS_TZ): string {
+/**
+ * Hebrew keeps the exact `he-IL` output every existing caller relies on. Other
+ * interface locales use their own conventions but a 24-hour clock, so the
+ * fixed-width time chips (Today meetings) never wrap to "02:00 PM".
+ */
+function businessIntlTag(locale: UiLocale): string {
+  return locale === 'he' ? 'he-IL' : intlLocale(locale)
+}
+
+export function formatBusinessTime(value: Date | string | number, tz: string = BUSINESS_TZ, locale: UiLocale = 'he'): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('he-IL', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(d)
+  const hourCycle = locale === 'he' ? {} : { hourCycle: 'h23' as const }
+  return new Intl.DateTimeFormat(businessIntlTag(locale), { timeZone: tz, hour: '2-digit', minute: '2-digit', ...hourCycle }).format(d)
 }
 
 /** e.g. "יום חמישי, 22 באוקטובר" — the Today header date, in the business timezone. */
-export function formatBusinessLongDate(value: Date | string | number, tz: string = BUSINESS_TZ): string {
+export function formatBusinessLongDate(value: Date | string | number, tz: string = BUSINESS_TZ, locale: UiLocale = 'he'): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('he-IL', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' }).format(d)
+  return new Intl.DateTimeFormat(businessIntlTag(locale), { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long' }).format(d)
 }
 
 export function formatBusinessDateTime(value: Date | string | number, tz: string = BUSINESS_TZ): string {

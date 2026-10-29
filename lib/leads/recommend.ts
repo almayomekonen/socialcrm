@@ -7,6 +7,10 @@
  * It is a SUGGESTION only — the lead also remains visible in its lane.
  */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import { reasonLabel } from '@/lib/today/labels'
+import type { ReasonCode } from '@/lib/today/types'
+
 export type RecommendInput = {
   id: number
   name: string
@@ -17,7 +21,13 @@ export type RecommendInput = {
   lastOutcomeType?: string | null
 }
 
-export type Recommendation = { lead: RecommendInput; reason: string }
+/**
+ * `reason` is display text in the interface locale; `reasonCode` is what logic
+ * reads. Every producer here sets it; it is optional only so hand-built
+ * recommendations (tests, older callers) still type-check — a missing code
+ * means "no tone", never a fallback to reading the text.
+ */
+export type Recommendation = { lead: RecommendInput; reason: string; reasonCode?: ReasonCode }
 
 function startOfDay(nowMs: number): number {
   const d = new Date(nowMs)
@@ -30,31 +40,46 @@ function dueMs(lead: RecommendInput, nowMs: number): number | null {
   return fu != null && !Number.isNaN(fu) && fu <= nowMs ? fu : null
 }
 
-/** Plain-Hebrew explanation for why this lead is surfaced. */
-export function recommendReason(lead: RecommendInput, nowMs: number): string {
+/** Why this lead is surfaced, as a stable code (the decision; no display text). */
+export function recommendReasonCode(lead: RecommendInput, nowMs: number): ReasonCode {
   const due = dueMs(lead, nowMs)
-  if (due != null) return due < startOfDay(nowMs) ? 'מעקב באיחור' : 'מעקב להיום'
+  if (due != null) return due < startOfDay(nowMs) ? 'FOLLOWUP_OVERDUE' : 'FOLLOWUP_DUE_TODAY'
 
   if (lead.status === 'new') {
     const created = lead.createdAt ? new Date(lead.createdAt).getTime() : null
-    return created != null && created >= startOfDay(nowMs) ? 'ליד חדש מהבוקר' : 'ליד חדש'
+    return created != null && created >= startOfDay(nowMs) ? 'NEW_INBOUND_TODAY' : 'NEW_INBOUND'
   }
 
-  if (lead.lastOutcomeType === 'call_no_answer') return 'לא נענה בפעם האחרונה'
-  return 'ממתין לטיפול'
+  if (lead.lastOutcomeType === 'call_no_answer') return 'NO_ANSWER_LAST'
+  return 'OPEN_LOOP_SLA'
+}
+
+/** Plain-language explanation for why this lead is surfaced (Hebrew by default). */
+export function recommendReason(lead: RecommendInput, nowMs: number, locale: UiLocale = 'he'): string {
+  return reasonLabel(recommendReasonCode(lead, nowMs), locale)
+}
+
+function recommend(lead: RecommendInput, nowMs: number, locale: UiLocale): Recommendation {
+  const reasonCode = recommendReasonCode(lead, nowMs)
+  return { lead, reason: reasonLabel(reasonCode, locale), reasonCode }
 }
 
 /**
  * Pick the one recommended lead across the (already-ordered) due worklist and
  * new-leads list. `due` is expected most-overdue-first; `newLeads` newest-first.
  */
-export function pickRecommended(due: RecommendInput[], newLeads: RecommendInput[], nowMs: number): Recommendation | null {
+export function pickRecommended(
+  due: RecommendInput[],
+  newLeads: RecommendInput[],
+  nowMs: number,
+  locale: UiLocale = 'he',
+): Recommendation | null {
   const dueFollowUp = due.find((r) => dueMs(r, nowMs) != null)
-  if (dueFollowUp) return { lead: dueFollowUp, reason: recommendReason(dueFollowUp, nowMs) }
+  if (dueFollowUp) return recommend(dueFollowUp, nowMs, locale)
 
-  if (newLeads.length > 0) return { lead: newLeads[0], reason: recommendReason(newLeads[0], nowMs) }
+  if (newLeads.length > 0) return recommend(newLeads[0], nowMs, locale)
 
-  if (due.length > 0) return { lead: due[0], reason: recommendReason(due[0], nowMs) }
+  if (due.length > 0) return recommend(due[0], nowMs, locale)
 
   return null
 }
@@ -65,11 +90,17 @@ export function pickRecommended(due: RecommendInput[], newLeads: RecommendInput[
  * represented (speed-to-lead) by swapping it into the last slot if none made it.
  * Each item carries its plain-Hebrew reason. Returns up to `n` items.
  */
-export function pickTopRecommended(due: RecommendInput[], newLeads: RecommendInput[], n: number, nowMs: number): Recommendation[] {
-  const items: Recommendation[] = due.slice(0, n).map((lead) => ({ lead, reason: recommendReason(lead, nowMs) }))
+export function pickTopRecommended(
+  due: RecommendInput[],
+  newLeads: RecommendInput[],
+  n: number,
+  nowMs: number,
+  locale: UiLocale = 'he',
+): Recommendation[] {
+  const items: Recommendation[] = due.slice(0, n).map((lead) => recommend(lead, nowMs, locale))
 
   if (newLeads.length > 0 && !items.some((it) => it.lead.status === 'new')) {
-    const fresh: Recommendation = { lead: newLeads[0], reason: recommendReason(newLeads[0], nowMs) }
+    const fresh: Recommendation = recommend(newLeads[0], nowMs, locale)
     if (items.length < n) items.push(fresh)
     else items[items.length - 1] = fresh
   }

@@ -10,6 +10,15 @@ export type QualifyingState =
   | 'OVERDUE_TASK'
   | 'OPEN_LOOP_SLA'
 
+/**
+ * Stable code behind every reason label: the qualifying states plus the two
+ * the legacy worklist uses. Tone and other logic key on this, never on text.
+ */
+export type ReasonCode = QualifyingState | 'NEW_INBOUND_TODAY' | 'NO_ANSWER_LAST'
+
+/** WhatsApp 24h service window, as `resolveWhatsappServiceWindow` reports it. */
+export type WindowState = 'OPEN' | 'CLOSED' | 'UNKNOWN'
+
 export type TargetSurface = 'inbox' | 'lead'
 
 /** The fact fields the classifier needs, one row per candidate lead. */
@@ -39,7 +48,7 @@ export type BriefItem = {
   name: string | null
   phone: string | null
   state: QualifyingState
-  /** Deterministic Hebrew label for the state (computed server-side; the UI renders it). */
+  /** Deterministic label for the state in the interface locale (Hebrew by default), computed server-side. */
   reason: string
   targetSurface: TargetSurface
   /** Exact Inbox thread when the owed action is a waiting WhatsApp reply. */
@@ -49,6 +58,8 @@ export type BriefItem = {
   waitingFor?: string | null
   /** e.g. "נותרו 5 שעות בחלון WhatsApp" — precomputed from the inbound window. */
   windowHint?: string | null
+  /** The window state behind `windowHint` — for logic; never parse the hint. */
+  windowState?: WindowState | null
   /** Lead-source label for the row chip (e.g. "WhatsApp") — precomputed; null when unknown. */
   source?: string | null
 }

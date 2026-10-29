@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
+import type { UiLocale } from '@/lib/i18n/config'
+import { dirFor } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import LeadContactActions from '@/modules/leads/mobile/LeadContactActions'
-import type { MobileTodayRow } from './viewModel'
+import type { MobileTodayRow, MobileTodayTones } from './viewModel'
 import { todayReasonTone, todayToneClass, todayWindowHintTone } from './reasonTone'
 
 /**
@@ -21,23 +24,31 @@ import { todayReasonTone, todayToneClass, todayWindowHintTone } from './reasonTo
  */
 export default function MobileTodayHero({
   row,
+  tones,
   remaining,
   whatsappConnected,
+  locale = 'he',
 }: {
   row: MobileTodayRow
+  /** Resolved from codes on the server (`MobileTodayModel.tones`). */
+  tones?: MobileTodayTones
   remaining?: number
+  locale?: UiLocale
   /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
   whatsappConnected?: boolean
 }) {
   const { id, name, phone, reason, href, eyebrow, windowHint } = row
-  const reasonTone = todayToneClass(todayReasonTone(reason))
-  const hintTone = windowHint ? todayToneClass(todayWindowHintTone(windowHint)) : null
-  const summary = remaining && remaining > 0 ? `${remaining} ממתינים` : ''
+  // Production models carry tones resolved from codes on the server; only a
+  // hand-built row without them falls back to the legacy Hebrew-text mapping.
+  const t = translatorFor(locale)
+  const reasonTone = todayToneClass(tones ? tones.tone : todayReasonTone(reason))
+  const hintTone = windowHint ? todayToneClass(tones ? tones.windowTone : todayWindowHintTone(windowHint)) : null
+  const summary = remaining && remaining > 0 ? t('today.mobile.remaining', { count: remaining }) : ''
 
   return (
     <section aria-labelledby='mobile-today-hero' className='rounded-xl border border-gray-200 bg-white p-3.5'>
       <p id='mobile-today-hero' className='text-sm font-semibold text-primary-text'>
-        {eyebrow || 'התחל כאן'}
+        {eyebrow || t('today.eyebrow.startHere')}
         {summary ? <span className='font-medium text-gray-500'>{` · ${summary}`}</span> : null}
       </p>
 
@@ -64,17 +75,18 @@ export default function MobileTodayHero({
             href={href as Route}
             className='press flex h-11 flex-1 items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            פתח ליד
+            {t('today.mobile.openLead')}
           </Link>
         )}
 
         <Link
           href={href as Route}
-          aria-label={name ? `פתח את ${name}` : 'פתח ליד'}
+          aria-label={name ? t('today.mobile.openName', { name }) : t('today.mobile.openLead')}
           className='press flex h-11 shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-3 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
-          <span className='text-[13px] font-medium text-gray-700'>פתח</span>
-          <Icon name='angle-left' type='sol' className='size-3.5 bg-gray-600' />
+          <span className='text-[13px] font-medium text-gray-700'>{t('today.mobile.open')}</span>
+          {/* Points forward: left in RTL, right in LTR. */}
+          <Icon name='angle-left' type='sol' className='size-3.5 bg-gray-600' flip={dirFor(locale) === 'ltr'} />
         </Link>
       </div>
     </section>
