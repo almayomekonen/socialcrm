@@ -5,6 +5,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
 import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor, regionAttrs } from '@/lib/i18n/config'
 import { beginFirstLeadFlow, claimOpenedEvent, endFirstLeadFlow, isFirstLeadFlow } from './firstLeadFlow'
 
 /**
@@ -38,6 +40,7 @@ export default function FirstLeadCallout({
   // FollowUpControl) is rendered by the server page and is not otherwise touched.
   children?: ReactNode
 }) {
+  const t = useT()
   const sp = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -100,7 +103,8 @@ export default function FirstLeadCallout({
       {showCallout && (
         <div
           role='status'
-          dir='rtl'
+          dir={dirFor(t.locale)}
+          {...regionAttrs(t.locale)}
           className='mb-6 flex items-start gap-3 rounded-lg border border-gray-200 bg-primary-tint px-4 py-3'
         >
           <span className='flex size-8 flex-none items-center justify-center rounded-lg bg-white'>
@@ -110,16 +114,16 @@ export default function FirstLeadCallout({
           <div className='min-w-0 flex-1'>
             {!done ? (
               <>
-                <h2 className='text-sm font-bold text-ink'>הליד הראשון שלך בפנים</h2>
-                <p className='mt-0.5 text-sm text-gray-600'>קבע מתי לחזור אליו, ו־SocialCRM ידאג להחזיר אותו אליך בזמן.</p>
+                <h2 className='text-sm font-bold text-ink'>{t('leadDetail.firstLead.title')}</h2>
+                <p className='mt-0.5 text-sm text-gray-600'>{t('leadDetail.firstLead.body')}</p>
               </>
             ) : (
               <div className='flex flex-wrap items-center justify-between gap-3'>
-                <p className='text-sm font-semibold text-ink'>מעולה. הליד שלך בטיפול.</p>
+                <p className='text-sm font-semibold text-ink'>{t('leadDetail.firstLead.done')}</p>
                 <Btn
                   variant='outline'
                   size='small'
-                  lbl='חזרה ללידים'
+                  lbl={t('leadDetail.firstLead.backToLeads')}
                   onClick={() => {
                     finish()
                     router.push('/leads')
@@ -131,7 +135,7 @@ export default function FirstLeadCallout({
 
           <button
             type='button'
-            aria-label='סגירה'
+            aria-label={t('leadDetail.firstLead.dismiss')}
             onClick={() => {
               finish()
               setDismissed(true)

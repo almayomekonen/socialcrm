@@ -9,7 +9,11 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { setLeadFollowUp, clearLeadFollowUp } from '@/actions/leadFollowUp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { daysFromNow, formatDate } from '@/lib/dates'
+import { daysFromNow } from '@/lib/dates'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
 import { placeFollowUpMenu } from '@/lib/leads/placeFollowUpMenu'
 import { useCanTopLayer, useTopLayerPromotion } from '@/lib/useTopLayer'
 
@@ -19,13 +23,14 @@ type Props = {
   compact?: boolean
 }
 
-const PRESETS: { key: string; lbl: string; days: number }[] = [
-  { key: 'tomorrow', lbl: 'מחר', days: 1 },
-  { key: '3days', lbl: 'בעוד 3 ימים', days: 3 },
-  { key: 'week', lbl: 'בעוד שבוע', days: 7 },
+const PRESETS: { key: string; lbl: MessageKey; days: number }[] = [
+  { key: 'tomorrow', lbl: 'leadDetail.followUp.tomorrow', days: 1 },
+  { key: '3days', lbl: 'leadDetail.followUp.in3Days', days: 3 },
+  { key: 'week', lbl: 'leadDetail.followUp.inWeek', days: 7 },
 ]
 
-const itemCls = 'text-right rounded-md px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50'
+/** Menu items align to the reading start: right in Hebrew/Arabic (the legacy class), left in English. */
+const ALIGN = { rtl: 'text-right', ltr: 'text-left' } as const
 
 function isErr(res: unknown): res is { err: true; msg: string } {
   return !!res && typeof res === 'object' && 'err' in res && (res as { err?: unknown }).err === true
@@ -38,6 +43,12 @@ function localISODate(d: Date): string {
 }
 
 export default function FollowUpControl({ leadId, current, compact }: Props) {
+  const t = useT()
+  // Shared widget (lead summary, meeting dialog); the menu is portalled to <body>,
+  // outside every language region, so it declares its own.
+  const region = useRegionAttrs()
+  const align = ALIGN[dirFor(t.locale)]
+  const itemCls = `${align} rounded-md px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50`
   const router = useRouter()
   /** Entitlement from the shared context — the same answer the server gives. */
   const expired = useAccessDenied()
@@ -102,7 +113,7 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
       // activation KPI covers both devices. Emitted only after the server action
       // succeeded, never on click. Fire-and-forget: analytics never blocks a lead.
       recordLeadActionEvent('lead_action_taken', { surface: 'desktop', action: 'follow_up', leadId }).catch(() => {})
-      toast('success', `נקבע מעקב ל־${formatDate(at)}`)
+      toast('success', t('leadDetail.followUp.toastSet', { date: formatLeadDate(t.locale, at) }))
       close()
       router.refresh()
     })
@@ -112,7 +123,7 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
     startTransition(async () => {
       const res = await clearLeadFollowUp({ id: leadId })
       if (isErr(res)) return toast('error', res.msg)
-      toast('success', 'המעקב הוסר')
+      toast('success', t('leadDetail.followUp.toastCleared'))
       close()
       router.refresh()
     })
@@ -129,24 +140,24 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
    * lead's own page carries it.
    */
   if (expired) {
-    const scheduled = current ? `מעקב: ${formatDate(current)}` : null
+    const scheduled = current ? t('leadDetail.followUp.current', { date: formatLeadDate(t.locale, current) }) : null
     if (compact) {
       return scheduled ? (
-        <span className='text-xs tabular-nums text-gray-500'>{scheduled}</span>
+        <span className='text-xs tabular-nums text-gray-500' {...region}>{scheduled}</span>
       ) : null
     }
     return (
-      <div className='grid gap-2'>
+      <div className='grid gap-2' {...region}>
         {scheduled && <p className='text-sm tabular-nums text-gray-700'>{scheduled}</p>}
-        <SubscriptionExpiredState mode='inline' source='lead_followup' feature='חידוש המנוי מחזיר את קביעת המעקבים' />
+        <SubscriptionExpiredState mode='inline' source='lead_followup' feature={t('leadDetail.followUp.expired')} translated />
       </div>
     )
   }
 
-  const label = current ? `מעקב: ${formatDate(current)}` : 'קבע מעקב'
+  const label = current ? t('leadDetail.followUp.current', { date: formatLeadDate(t.locale, current) }) : t('leadDetail.followUp.set')
 
   return (
-    <div ref={wrapRef} className='inline-flex' data-edu='lead-followup'>
+    <div ref={wrapRef} className='inline-flex' data-edu='lead-followup' {...region}>
       <Btn
         variant={current ? 'soft' : 'outline'}
         size={compact ? 'icon' : undefined}
@@ -166,6 +177,7 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
           <div
             ref={menuRef}
             role='menu'
+            {...region}
             popover={canTopLayer ? 'manual' : undefined}
             style={{
               position: 'fixed',
@@ -183,13 +195,13 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
           >
             {PRESETS.map((p) => (
               <button key={p.key} type='button' role='menuitem' disabled={pending} onClick={() => apply(daysFromNow(p.days))} className={itemCls}>
-                {p.lbl}
+                {t(p.lbl)}
               </button>
             ))}
 
             {!custom ? (
               <button type='button' role='menuitem' disabled={pending} onClick={() => setCustom(true)} className={itemCls}>
-                תאריך אחר…
+                {t('leadDetail.followUp.otherDate')}
               </button>
             ) : (
               <input
@@ -205,8 +217,8 @@ export default function FollowUpControl({ leadId, current, compact }: Props) {
             )}
 
             {current && (
-              <button type='button' role='menuitem' disabled={pending} onClick={clear} className='text-right rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50'>
-                הסר מעקב
+              <button type='button' role='menuitem' disabled={pending} onClick={clear} className={`${align} rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50`}>
+                {t('leadDetail.followUp.remove')}
               </button>
             )}
           </div>,

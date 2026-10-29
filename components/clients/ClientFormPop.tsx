@@ -16,7 +16,6 @@ import { toast } from '@/lib/toast'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 import { useT } from '@/lib/i18n/I18nProvider'
-import { untranslatedAttrs } from '@/lib/i18n/config'
 
 const DUPLICATE_CHECK_DEBOUNCE_MS = 400
 const CONTACT_FIELDS = ['firstName', 'lastName', 'idNum', 'phone', 'secPhone', 'email'] as const
@@ -116,9 +115,8 @@ export default function ClientFormPop({
         way to fix it, and the doomed request is never sent.
       */}
       {expired ? (
-        // The expired-subscription panel is not translated yet: it re-declares Hebrew.
-        <div className='mt-2' {...untranslatedAttrs(t.locale)}>
-          <SubscriptionExpiredState mode='panel' source='create_lead' feature='חידוש המנוי מחזיר את הוספת הלידים.' />
+        <div className='mt-2'>
+          <SubscriptionExpiredState mode='panel' source='create_lead' feature={t('leads.form.expired')} translated />
         </div>
       ) : (
         <form id='clientForm' onSubmit={onSubmit}>

@@ -1,8 +1,10 @@
 import Link from 'next/link'
 import Icon from '@/lib/Icon'
-import { INBOUND_LEAD_COPY } from '@/lib/leads/inboundLeadCopy'
 import { facebookCapturedFieldLabels, type FormAnswerRow } from '@/lib/leads/inboundLeadContextData'
 import LeadFormAnswersList from '@/components/clients/LeadFormAnswersList'
+import { dirFor, regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * Presentational, side-effect-free view for the "this lead arrived automatically"
@@ -35,12 +37,14 @@ type Props = {
   capturedAt?: string | null
   /** Lead Ads only: the customer's answers beyond name/phone/email. */
   formAnswers?: FormAnswerRow[]
+  /** Interface language of the chrome; customer text and Meta answers are shown as they are. */
+  locale?: UiLocale
 }
 
 /** Lead Ads channel mark and headline — Facebook and Instagram share the card. */
 const FORM_CHANNEL = {
-  facebook: { icon: 'facebook', wrap: 'bg-[#1877F2]/10', mark: 'bg-[#1877F2]', headline: INBOUND_LEAD_COPY.facebookHeadline },
-  instagram: { icon: 'instagram', wrap: 'bg-[#E4405F]/10', mark: 'bg-[#E4405F]', headline: INBOUND_LEAD_COPY.instagramHeadline },
+  facebook: { icon: 'facebook', wrap: 'bg-[#1877F2]/10', mark: 'bg-[#1877F2]', headline: 'leadDetail.inbound.facebookHeadline' as MessageKey },
+  instagram: { icon: 'instagram', wrap: 'bg-[#E4405F]/10', mark: 'bg-[#E4405F]', headline: 'leadDetail.inbound.instagramHeadline' as MessageKey },
 } as const
 
 export function InboundLeadContextView({
@@ -52,38 +56,36 @@ export function InboundLeadContextView({
   hasEmail,
   capturedAt,
   formAnswers = [],
+  locale = 'he',
 }: Props) {
+  const t = translatorFor(locale)
+  const region = { dir: dirFor(locale), ...regionAttrs(locale) }
   if (channel === 'facebook' || channel === 'instagram') {
     const form = FORM_CHANNEL[channel]
     // Evidence labels for the categories actually present — never the values.
-    const capturedLabels = facebookCapturedFieldLabels(hasName, hasPhone, hasEmail)
+    const capturedLabels = facebookCapturedFieldLabels(hasName, hasPhone, hasEmail, locale)
     return (
-      <section dir='rtl' className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
+      <section {...region} className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
         <div className='flex items-start gap-3'>
           <span className={`flex size-8 flex-none items-center justify-center rounded-lg ${form.wrap}`}>
             <Icon name={form.icon} type='reg' aria-hidden className={`size-4 ${form.mark}`} />
           </span>
           <div className='min-w-0 flex-1'>
-            <h2 className='text-sm font-semibold text-ink'>{form.headline}</h2>
-            <p className='mt-0.5 text-sm text-gray-600'>{INBOUND_LEAD_COPY.facebookBody}</p>
+            <h2 className='text-sm font-semibold text-ink'>{t(form.headline)}</h2>
+            <p className='mt-0.5 text-sm text-gray-600'>{t('leadDetail.inbound.facebookBody')}</p>
 
             {capturedLabels.length > 0 || capturedAt ? (
               <div className='mt-2 flex flex-col gap-0.5 text-xs text-gray-500'>
                 {capturedLabels.length > 0 ? (
-                  <p>
-                    {INBOUND_LEAD_COPY.capturedFieldsPrefix}: {capturedLabels.join(' · ')}
-                  </p>
+                  <p>{t('leadDetail.inbound.capturedFields', { fields: capturedLabels.join(' · ') })}</p>
                 ) : null}
                 {capturedAt ? (
-                  <p>
-                    {INBOUND_LEAD_COPY.capturedAtPrefix}
-                    {capturedAt}
-                  </p>
+                  <p>{t('leadDetail.inbound.capturedAt', { date: capturedAt })}</p>
                 ) : null}
               </div>
             ) : null}
 
-            <LeadFormAnswersList rows={formAnswers} />
+            <LeadFormAnswersList rows={formAnswers} locale={locale} />
           </div>
         </div>
       </section>
@@ -92,17 +94,17 @@ export function InboundLeadContextView({
 
   // WhatsApp. Supporting copy reflects whether a conversation was captured too.
   const supporting = conversationId
-    ? INBOUND_LEAD_COPY.whatsappWithConversation
-    : INBOUND_LEAD_COPY.whatsappWithoutConversation
+    ? t('leadDetail.inbound.whatsappWithConversation')
+    : t('leadDetail.inbound.whatsappWithoutConversation')
 
   return (
-    <section dir='rtl' className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
+    <section {...region} className='mb-6 rounded-lg border border-gray-200 bg-white p-4'>
       <div className='flex items-start gap-3'>
         <span className='flex size-8 flex-none items-center justify-center rounded-lg bg-[#25D366]/10'>
           <Icon name='whatsapp' type='reg' aria-hidden className='size-4 bg-[#25D366]' />
         </span>
         <div className='min-w-0 flex-1'>
-          <h2 className='text-sm font-semibold text-ink'>{INBOUND_LEAD_COPY.whatsappHeadline}</h2>
+          <h2 className='text-sm font-semibold text-ink'>{t('leadDetail.inbound.whatsappHeadline')}</h2>
           <p className='mt-0.5 text-sm text-gray-600'>{supporting}</p>
 
           {preview ? (
@@ -123,7 +125,7 @@ export function InboundLeadContextView({
               className='mt-3 inline-flex h-9 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800 hover:bg-gray-50'
             >
               <Icon name='whatsapp' type='reg' aria-hidden className='size-3.5 bg-[#25D366]' />
-              {INBOUND_LEAD_COPY.openConversation}
+              {t('leadDetail.inbound.openConversation')}
             </Link>
           ) : null}
         </div>

@@ -8,6 +8,7 @@
 export const form = {
   addTitle: 'הוספת ליד',
   editTitle: 'עריכת ליד',
+  expired: 'חידוש המנוי מחזיר את הוספת הלידים.',
   owner: 'בעל הליד',
   firstName: 'שם פרטי',
   lastName: 'שם משפחה',

@@ -3,6 +3,12 @@
 import Icon from '@/lib/Icon'
 import { upgradeHref } from '@/lib/entitlement/upgradeHref'
 import { useEntitlement } from '@/lib/entitlement/EntitlementContext'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { regionAttrs, untranslatedAttrs } from '@/lib/i18n/config'
+import { formatDate } from '@/lib/i18n/format'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { Translator } from '@/lib/i18n/translate'
+import { BUSINESS_TZ } from '@/lib/today/constants'
 
 /**
  * ONE expired-subscription surface, in three densities.
@@ -35,7 +41,22 @@ import { useEntitlement } from '@/lib/entitlement/EntitlementContext'
 
 export type ExpiredMode = 'page' | 'panel' | 'inline'
 
-const TITLE = 'המנוי שלך הסתיים'
+/**
+ * LANGUAGE. The chrome (title, body, CTA, lapsed date) is in the catalog
+ * (`entitlement.*`). The `feature` line is the CALLER's sentence, and most
+ * callers sit on screens that are not translated yet and pass Hebrew. Gluing
+ * that Hebrew to an English body would produce one mixed sentence, so:
+ *
+ *   default         the whole state is Hebrew whatever the interface language,
+ *                   and its root re-declares Hebrew (`untranslatedAttrs`), so
+ *                   it reads correctly even inside a translated region.
+ *   `translated`    the caller promises `feature` is already in the interface
+ *                   language (`t(...)`); the chrome follows that language and
+ *                   the root declares it (`regionAttrs`).
+ *
+ * For a Hebrew user both are the exact markup this component always rendered.
+ */
+const HEBREW = translatorFor('he')
 
 /**
  * COPY RULE. No dash is used to join words or clauses, and no capability is
@@ -45,13 +66,16 @@ const TITLE = 'המנוי שלך הסתיים'
  *
  * Trial-never-started is a different sentence from a lapsed paid plan.
  */
-function bodyFor(status: string): string {
-  if (status === 'NEVER_STARTED') {
-    return 'הפעלת המנוי פותחת את היכולות המתקדמות. כל הלידים והשיחות שלכם שמורים ונשארים זמינים.'
-  }
-  return 'כל הלידים, השיחות וההיסטוריה שלכם שמורים ונשארים זמינים. חידוש המנוי מחזיר את היכולות המתקדמות מיד.'
+function bodyFor(t: Translator, status: string): string {
+  if (status === 'NEVER_STARTED') return t('entitlement.bodyNeverStarted')
+  return t('entitlement.bodyLapsed')
 }
 
+/** Hebrew keeps its exact legacy date; other languages format in the business timezone. */
+function lapsedDate(t: Translator, expiresAt: string): string {
+  if (t.locale === 'he') return new Date(expiresAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
+  return formatDate(t.locale, expiresAt, BUSINESS_TZ, 'medium')
+}
 
 
 export default function SubscriptionExpiredState({
@@ -61,24 +85,29 @@ export default function SubscriptionExpiredState({
   /** Optional one-line override naming the specific capability that is paused. */
   feature,
   className = '',
+  /** The caller's `feature` is in the interface language; see LANGUAGE above. */
+  translated = false,
 }: {
   mode?: ExpiredMode
   source?: string
   feature?: string
   className?: string
+  translated?: boolean
 }) {
   const { status, expiresAt } = useEntitlement()
+  const ui = useT()
+  const t = translated ? ui : HEBREW
+  const region = translated ? regionAttrs(ui.locale) : untranslatedAttrs(ui.locale)
+  const title = t('entitlement.title')
 
-  const lapsed = expiresAt
-    ? new Date(expiresAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
-    : null
+  const lapsed = expiresAt ? lapsedDate(t, expiresAt) : null
 
   const cta = (
     <a
       href={upgradeHref(source)}
       className='press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
     >
-      חידוש מנוי
+      {t('entitlement.renew')}
     </a>
   )
 
@@ -86,6 +115,7 @@ export default function SubscriptionExpiredState({
     return (
       <div
         data-testid='subscription-expired-inline'
+        {...region}
         className={`flex flex-wrap items-center gap-3 rounded-lg border border-warning-border bg-warning-bg px-3.5 py-3 ${className}`}
       >
         <Icon name='lock' type='sol' className='size-4 shrink-0 bg-warning-text' />
@@ -95,13 +125,13 @@ export default function SubscriptionExpiredState({
             fragment. The `feature` a caller passes IS the sentence, phrased as
             what renewing restores, so it reads on its own beside the CTA.
           */}
-          {feature ?? TITLE}
+          {feature ?? title}
         </p>
         <a
           href={upgradeHref(source)}
           className='shrink-0 text-[13px] font-semibold text-warning-text underline underline-offset-2'
         >
-          חידוש מנוי
+          {t('entitlement.renew')}
         </a>
       </div>
     )
@@ -112,6 +142,7 @@ export default function SubscriptionExpiredState({
   return (
     <div
       data-testid='subscription-expired-state'
+      {...region}
       className={`flex flex-col items-center gap-4 text-center ${pad} ${className}`}
     >
       <span className='flex size-14 items-center justify-center rounded-full bg-gray-100'>
@@ -119,9 +150,9 @@ export default function SubscriptionExpiredState({
       </span>
 
       <div className='max-w-[380px]'>
-        <h2 className='text-lg font-bold text-ink'>{TITLE}</h2>
-        <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>{feature ? `${feature} ${bodyFor(status)}` : bodyFor(status)}</p>
-        {lapsed && <p className='mt-1.5 text-[13px] text-gray-400'>{`תוקף המנוי הסתיים בתאריך ${lapsed}`}</p>}
+        <h2 className='text-lg font-bold text-ink'>{title}</h2>
+        <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>{feature ? `${feature} ${bodyFor(t, status)}` : bodyFor(t, status)}</p>
+        {lapsed && <p className='mt-1.5 text-[13px] text-gray-400'>{t('entitlement.lapsedOn', { date: lapsed })}</p>}
       </div>
 
       {cta}

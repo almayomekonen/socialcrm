@@ -13,9 +13,12 @@ import OutcomeControl from '@/components/leads/OutcomeControl'
 import FirstLeadCallout from '@/components/clients/FirstLeadCallout'
 import InboundLeadContext from '@/components/clients/InboundLeadContext'
 import LeadAdAttribution from '@/components/clients/LeadAdAttribution'
-import { STATUS_STYLES } from '@/lib/leads/statusStyles'
+import { STATUS_STYLES, leadStatusLabel } from '@/lib/leads/statusStyles'
 import { outcomeLabel } from '@/lib/leads/outcomeRules'
-import { formatDate } from '@/lib/dates'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
 import { getMobileLeadDetail } from '@/modules/leads/queries'
@@ -67,6 +70,10 @@ export default async function page({ params, searchParams }) {
     )
   }
 
+  // Resolved once by the same request-memoised call the (app) layout makes, so
+  // the server-rendered chrome and the client provider agree.
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   const [tasks, lead] = await Promise.all([
     get5TasksByClientId(clientId),
     getFullLead({
@@ -75,10 +82,10 @@ export default async function page({ params, searchParams }) {
     }),
   ])
   const nextFollowUpAt = lead?.nextFollowUpAt ?? null
-  const lastOutcome = outcomeLabel(lead?.lastOutcomeType)
+  const lastOutcome = outcomeLabel(lead?.lastOutcomeType, locale)
   const statusStyle = lead?.status ? STATUS_STYLES[lead.status] : null
   return (
-    <div>
+    <div {...regionAttrs(locale)}>
       <AutoTour id='lead' enabled />
       {/* "This lead arrived automatically" context — shown only for genuine
           webhook-ingested (whatsapp:/facebook:) leads. Independent of the
@@ -92,11 +99,12 @@ export default async function page({ params, searchParams }) {
           lastName={lead?.lastName ?? null}
           phone={lead?.phone ?? null}
           email={lead?.email ?? null}
+          locale={locale}
         />
       </Suspense>
       {/* Which Meta campaign / ad this lead came from — only when Meta said so. */}
       <Suspense fallback={null}>
-        <LeadAdAttribution leadId={Number(clientId)} />
+        <LeadAdAttribution leadId={Number(clientId)} locale={locale} />
       </Suspense>
       <Suspense fallback={null}>
         <FirstLeadCallout leadId={Number(clientId)} hasFollowUp={!!nextFollowUpAt}>
@@ -108,7 +116,7 @@ export default async function page({ params, searchParams }) {
                   className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
                 >
                   <span className={`size-1.5 rounded-full ${statusStyle.dot}`} />
-                  {statusStyle.label}
+                  {leadStatusLabel(lead?.status, locale) ?? statusStyle.label}
                 </span>
               ) : (
                 <span />
@@ -116,13 +124,15 @@ export default async function page({ params, searchParams }) {
               <FollowUpControl leadId={Number(clientId)} current={nextFollowUpAt} />
             </div>
             <p className='text-sm text-gray-800 truncate tabular-nums mt-2'>
-              {nextFollowUpAt ? `מעקב הבא: ${formatDate(nextFollowUpAt)}` : 'לא נקבע מעקב'}
+              {nextFollowUpAt
+                ? t('leadDetail.summary.nextFollowUp', { date: formatLeadDate(locale, nextFollowUpAt) })
+                : t('leadDetail.summary.noFollowUp')}
               {lead?.followUpNote ? ` · ${lead.followUpNote}` : ''}
             </p>
             {lastOutcome && (
               <p className='text-xs text-gray-500 truncate tabular-nums mt-0.5'>
-                אינטראקציה אחרונה: {lastOutcome}
-                {lead?.lastActivityAt ? ` · ${formatDate(lead.lastActivityAt)}` : ''}
+                {t('leadDetail.summary.lastInteraction', { outcome: lastOutcome })}
+                {lead?.lastActivityAt ? ` · ${formatLeadDate(locale, lead.lastActivityAt)}` : ''}
               </p>
             )}
             <div className='mt-3 pt-3 border-t border-gray-100'>
@@ -134,12 +144,12 @@ export default async function page({ params, searchParams }) {
       <Suspense fallback={null}>
         <SendReadyMessageSection leadId={Number(clientId)} />
       </Suspense>
-      <Suspense fallback={<LeadIntelligenceCardSkeleton />}>
-        <LeadIntelligenceCard leadId={clientId} />
+      <Suspense fallback={<LeadIntelligenceCardSkeleton locale={locale} />}>
+        <LeadIntelligenceCard leadId={clientId} locale={locale} />
       </Suspense>
       <div className='grid xl:grid-cols-2 gap-8'>
-        <Tasks tasks={tasks} clientId={clientId} />
-        <Activity clientId={clientId} />
+        <Tasks tasks={tasks} clientId={clientId} locale={locale} />
+        <Activity clientId={clientId} locale={locale} />
       </div>
     </div>
   )

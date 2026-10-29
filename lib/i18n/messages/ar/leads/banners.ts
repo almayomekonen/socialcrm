@@ -16,6 +16,7 @@ export const banners: L['banners'] = {
   upgradeNow: 'الترقية الآن',
   syncProblem: 'مشكلة في الاتصال. نعيد المحاولة',
   retry: 'حاول مرة أخرى',
+  syncExpired: 'تجديد الاشتراك يعيد المزامنة المباشرة',
 }
 
 export const intake: L['intake'] = {

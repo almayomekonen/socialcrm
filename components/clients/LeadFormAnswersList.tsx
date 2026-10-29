@@ -1,5 +1,6 @@
-import { INBOUND_LEAD_COPY } from '@/lib/leads/inboundLeadCopy'
 import type { FormAnswerRow } from '@/lib/leads/inboundLeadContextData'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * "תשובות מהטופס" — what the customer answered in the Lead Ads form, inside the
@@ -13,11 +14,13 @@ import type { FormAnswerRow } from '@/lib/leads/inboundLeadContextData'
  * ("when do you want to start?" never becomes "?when…"). Renders nothing when
  * there are none.
  */
-export default function LeadFormAnswersList({ rows }: { rows: FormAnswerRow[] }) {
+export default function LeadFormAnswersList({ rows, locale = 'he' }: { rows: FormAnswerRow[]; locale?: UiLocale }) {
   if (rows.length === 0) return null
+  // Our heading and "not answered" follow `locale` (Hebrew for the mobile card); the answers are the customer's.
+  const t = translatorFor(locale)
   return (
     <div className='mt-3'>
-      <h3 className='text-xs font-medium text-gray-500'>{INBOUND_LEAD_COPY.formAnswersHeading}</h3>
+      <h3 className='text-xs font-medium text-gray-500'>{t('leadDetail.inbound.formAnswersHeading')}</h3>
       <dl className='mt-1.5 divide-y divide-gray-100 rounded-md border border-gray-100 bg-gray-50'>
         {rows.map((row, i) => (
           <div key={`${i}:${row.label}`} className='flex flex-col gap-0.5 px-3 py-2'>
@@ -25,7 +28,7 @@ export default function LeadFormAnswersList({ rows }: { rows: FormAnswerRow[] })
               <bdi>{row.label}</bdi>
             </dt>
             <dd className='break-words text-sm leading-relaxed text-gray-800'>
-              {row.values.length > 0 ? <bdi>{row.values.join(' · ')}</bdi> : INBOUND_LEAD_COPY.formAnswerEmpty}
+              {row.values.length > 0 ? <bdi>{row.values.join(' · ')}</bdi> : t('leadDetail.inbound.formAnswerEmpty')}
             </dd>
           </div>
         ))}

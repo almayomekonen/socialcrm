@@ -5,6 +5,7 @@ type L = Messages['leads']
 export const form: L['form'] = {
   addTitle: 'Add lead',
   editTitle: 'Edit lead',
+  expired: 'Renewing your subscription brings back adding leads.',
   owner: 'Lead owner',
   firstName: 'First name',
   lastName: 'Last name',

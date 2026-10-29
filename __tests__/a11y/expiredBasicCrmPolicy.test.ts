@@ -367,7 +367,7 @@ describe('Tier 3: preview is allowed, the expensive call is not', () => {
     expect(card.indexOf('await getAgencyProductAccess(user.agencyId)')).toBeLessThan(
       card.indexOf('await getLeadIntelligence(leadId)'),
     )
-    expect(card).toContain('return <LeadIntelligenceTeaser />')
+    expect(card).toContain('return <LeadIntelligenceTeaser locale={locale} />')
     expect(read('lib/ai/access.ts')).toContain('getAgencyProductAccess')
   })
 
@@ -390,10 +390,11 @@ describe('Tier 3: preview is allowed, the expensive call is not', () => {
 
 describe('expired copy speaks in value, and never joins words with a dash', () => {
   const COPY_FILES = [
-    'components/entitlement/SubscriptionExpiredState.tsx',
+    // The shared state's copy and the AI card's chrome live in the catalog now.
+    'lib/i18n/messages/he/entitlement.ts',
     'components/settings/payment/PaymentMethodRow.tsx',
     'components/clients/CrmSyncBanner.tsx',
-    'components/ai/LeadIntelligenceCard.tsx',
+    'lib/i18n/messages/he/leadDetail/intelligence.ts',
   ]
 
   /** Rendered Hebrew only: comments and identifiers are out of scope. */
@@ -415,14 +416,14 @@ describe('expired copy speaks in value, and never joins words with a dash', () =
   })
 
   it('the shared state tells the customer what renewing gives back', () => {
-    const src = read('components/entitlement/SubscriptionExpiredState.tsx')
+    const src = read('lib/i18n/messages/he/entitlement.ts')
     expect(src).toContain('חידוש המנוי מחזיר את היכולות המתקדמות מיד.')
     expect(src).toContain('נשארים זמינים')
   })
 
   it('no locked surface describes itself with a bare "מושהה"', () => {
     // Rendered lines only: the comments deliberately quote the old wording.
-    for (const line of renderedHebrew('components/entitlement/SubscriptionExpiredState.tsx')) {
+    for (const line of renderedHebrew('lib/i18n/messages/he/entitlement.ts')) {
       expect(line, line.trim()).not.toMatch(/מושה/)
     }
     const all = require('node:child_process')
@@ -1165,12 +1166,12 @@ describe('a screen carries at most one persistent subscription notice', () => {
   it('the lead page keeps exactly one, beside the follow-up control', () => {
     const followUp = read('components/leads/FollowUpControl.tsx')
     expect(followUp).toContain("source='lead_followup'")
-    expect(followUp).toContain('חידוש המנוי מחזיר את קביעת המעקבים')
+    expect(followUp).toContain("feature={t('leadDetail.followUp.expired')}")
   })
 
   it('the AI summary card teases the value rather than adding a second notice', () => {
     const card = read('components/ai/LeadIntelligenceCard.tsx')
-    expect(card).toContain('return <LeadIntelligenceTeaser />')
+    expect(card).toContain('return <LeadIntelligenceTeaser locale={locale} />')
     expect(card).not.toContain('SubscriptionExpiredState')
     // The teaser raises the subscription on interaction, never as standing copy.
     const teaser = read('components/ai/LeadIntelligenceTeaser.tsx')
@@ -1182,11 +1183,11 @@ describe('a screen carries at most one persistent subscription notice', () => {
   it('and it never falls back to the generic retry copy for entitlement', () => {
     const card = read('components/ai/LeadIntelligenceCard.tsx')
     const entitlement = card.indexOf("res.reason === 'subscription-required'")
-    const retry = card.indexOf('העוזר החכם לא זמין כרגע')
+    const retry = card.indexOf("t('leadDetail.intelligence.unavailable')")
     expect(entitlement).toBeGreaterThan(-1)
     expect(entitlement).toBeLessThan(retry) // the entitlement branch returns first
     // The retry line survives for genuine AI failures.
-    expect(card).toContain('העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.')
+    expect(card).toContain("t('leadDetail.intelligence.unavailable')")
   })
 
   /**

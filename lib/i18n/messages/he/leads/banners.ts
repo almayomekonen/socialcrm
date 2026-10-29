@@ -9,6 +9,7 @@ export const banners = {
   upgradeNow: 'שדרג עכשיו',
   syncProblem: 'בעיית חיבור. מנסים שוב',
   retry: 'נסה שוב',
+  syncExpired: 'חידוש המנוי מחזיר את הסנכרון החי',
 } as const
 
 /** `lib/automations/connectors/intakeErrors.ts`, by `IngestRejection` code. */

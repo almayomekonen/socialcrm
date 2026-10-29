@@ -4,10 +4,38 @@ import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { getLeadIntelligence } from '@/actions/ai/leadIntelligence'
 import LeadIntelligenceTeaser from './LeadIntelligenceTeaser'
 import RefreshLeadIntelligenceButton from './RefreshLeadIntelligenceButton'
+import { dirFor, regionAttrs, untranslatedAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey, Translator } from '@/lib/i18n/translate'
 
 type Props = {
   leadId: number | string
+  /**
+   * Interface language of the card's CHROME, resolved once by the page. The
+   * inbox and the mobile lead detail pass nothing and stay Hebrew. The AI's own
+   * text is never translated (decision D3): it is Hebrew, so its blocks
+   * re-declare Hebrew inside a translated card.
+   */
+  locale?: UiLocale
 }
+
+/** The fixed `SourceCategory` values the model picks from, labelled by value. Anything else is shown as it came. */
+const SOURCE_KEY: Record<string, MessageKey> = {
+  'סטטוס הליד': 'leadDetail.intelligence.source.status',
+  'פעילות אחרונה': 'leadDetail.intelligence.source.activity',
+  'היסטוריית המשימות': 'leadDetail.intelligence.source.tasks',
+  'פרטי הליד': 'leadDetail.intelligence.source.details',
+  'מקור הליד': 'leadDetail.intelligence.source.origin',
+  'הטיפול בליד': 'leadDetail.intelligence.source.handling',
+}
+
+function sourceLabel(t: Translator, value: string): string {
+  const key = SOURCE_KEY[value]
+  return key ? t(key) : value
+}
+
+/** The recommended-action rule sits on the reading start: right in RTL (the legacy classes), left in LTR. */
+const ACTION_RULE = { rtl: 'border-r-2 border-info-border pr-3', ltr: 'border-l-2 border-info-border pl-3' } as const
 
 const MIN_HEIGHT = 200
 
@@ -29,7 +57,10 @@ const STAGGER_STYLE = `
   }
 `
 
-export default async function LeadIntelligenceCard({ leadId }: Props) {
+export default async function LeadIntelligenceCard({ leadId, locale = 'he' }: Props) {
+  const t = translatorFor(locale)
+  const region = regionAttrs(locale)
+  const aiText = untranslatedAttrs(locale)
   /**
    * ENTITLEMENT IS RESOLVED BEFORE THE AI PATH IS ENTERED, ON PURPOSE.
    *
@@ -48,7 +79,7 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
    */
   const user = await requireAgencyUser()
   if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return <LeadIntelligenceTeaser />
+    return <LeadIntelligenceTeaser locale={locale} />
   }
 
   const res = await getLeadIntelligence(leadId)
@@ -72,21 +103,21 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
      * capability and raises the subscription only on interaction.
      */
     if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {
-      return <LeadIntelligenceTeaser />
+      return <LeadIntelligenceTeaser locale={locale} />
     }
 
     return (
-      <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8' style={{ minHeight: MIN_HEIGHT }}>
+      <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8' style={{ minHeight: MIN_HEIGHT }} {...region}>
         <div className='flex items-center justify-between mb-2'>
           <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
             <Sparkles aria-hidden className='size-3.5 text-accent' />
-            תקציר חכם
+            {t('leadDetail.intelligence.title')}
           </p>
-          <RefreshLeadIntelligenceButton leadId={leadId} />
+          <RefreshLeadIntelligenceButton leadId={leadId} locale={locale} />
         </div>
         <p className='flex items-center gap-1.5 text-sm text-gray-500'>
           <AlertCircle aria-hidden className='size-4 shrink-0 text-gray-400' />
-          העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.
+          {t('leadDetail.intelligence.unavailable')}
         </p>
       </div>
     )
@@ -95,25 +126,27 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
   const { summary, keyInsights, suggestedNextAction, sources, confidence } = res.data
 
   return (
-    <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8' style={{ minHeight: MIN_HEIGHT }}>
+    <div className='rounded-lg border border-gray-200 bg-white p-5 mb-8' style={{ minHeight: MIN_HEIGHT }} {...region}>
       <style>{STAGGER_STYLE}</style>
 
       <div className='flex items-center justify-between mb-3'>
         <div className='flex items-center gap-2'>
           <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500'>
             <Sparkles aria-hidden className='size-3.5 text-accent' />
-            תקציר חכם
+            {t('leadDetail.intelligence.title')}
           </p>
-          <ConfidencePill confidence={confidence} />
+          <ConfidencePill confidence={confidence} t={t} />
         </div>
-        <RefreshLeadIntelligenceButton leadId={leadId} />
+        <RefreshLeadIntelligenceButton leadId={leadId} locale={locale} />
       </div>
 
       <div data-li-reveal className='space-y-4'>
-        <p className='text-sm leading-relaxed text-gray-900'>{summary}</p>
+        <p className='text-sm leading-relaxed text-gray-900' {...aiText}>
+          {summary}
+        </p>
 
         {keyInsights.length > 0 ? (
-          <ul className='text-sm leading-relaxed text-gray-700 space-y-1.5 list-disc pr-5'>
+          <ul className='text-sm leading-relaxed text-gray-700 space-y-1.5 list-disc pr-5' {...aiText}>
             {keyInsights.map((insight, i) => (
               <li key={i}>{insight}</li>
             ))}
@@ -122,17 +155,23 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
           <div />
         )}
 
-        <div className='border-r-2 border-info-border pr-3'>
+        <div className={ACTION_RULE[dirFor(locale)]}>
           <p className='flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-1'>
             <Lightbulb aria-hidden className='size-3.5 text-accent' />
-            פעולה מומלצת
+            {t('leadDetail.intelligence.nextAction')}
           </p>
-          <p className='text-sm font-medium text-gray-900'>{suggestedNextAction.title}</p>
-          <p className='text-xs text-gray-500 mt-0.5 leading-relaxed'>{suggestedNextAction.reason}</p>
+          <p className='text-sm font-medium text-gray-900' {...aiText}>
+            {suggestedNextAction.title}
+          </p>
+          <p className='text-xs text-gray-500 mt-0.5 leading-relaxed' {...aiText}>
+            {suggestedNextAction.reason}
+          </p>
         </div>
 
         {sources.length > 0 ? (
-          <p className='text-[10px] text-gray-400 tracking-wide'>מבוסס על: {sources.join(' · ')}</p>
+          <p className='text-[10px] text-gray-400 tracking-wide'>
+            {t('leadDetail.intelligence.basedOn', { sources: sources.map((v) => sourceLabel(t, v)).join(' · ') })}
+          </p>
         ) : (
           <div />
         )}
@@ -141,8 +180,13 @@ export default async function LeadIntelligenceCard({ leadId }: Props) {
   )
 }
 
-function ConfidencePill({ confidence }: { confidence: 'low' | 'medium' | 'high' }) {
-  const label = confidence === 'high' ? 'ביטחון גבוה' : confidence === 'medium' ? 'ביטחון בינוני' : 'ביטחון נמוך'
+function ConfidencePill({ confidence, t }: { confidence: 'low' | 'medium' | 'high'; t: Translator }) {
+  const label =
+    confidence === 'high'
+      ? t('leadDetail.intelligence.confidence.high')
+      : confidence === 'medium'
+        ? t('leadDetail.intelligence.confidence.medium')
+        : t('leadDetail.intelligence.confidence.low')
   return (
     <span className='px-2 py-0.5 text-[11px] rounded-full bg-gray-100 text-gray-600'>{label}</span>
   )

@@ -6,6 +6,7 @@ import {
   loadWhatsAppInboundPreview,
 } from '@/lib/leads/inboundLeadContextData'
 import { InboundLeadContextView } from './InboundLeadContextView'
+import type { UiLocale } from '@/lib/i18n/config'
 
 /**
  * "This lead arrived automatically" context surface for the lead summary.
@@ -34,6 +35,7 @@ export default async function InboundLeadContext({
   lastName,
   phone,
   email,
+  locale = 'he',
 }: {
   leadId: number
   leadSource: string | null | undefined
@@ -42,6 +44,8 @@ export default async function InboundLeadContext({
   lastName?: string | null
   phone?: string | null
   email?: string | null
+  /** Interface language (resolved once by the page); Hebrew by default. */
+  locale?: UiLocale
 }) {
   const channel = inboundChannelFromSource(leadSource)
   // Lead Ads: Facebook and Instagram forms arrive through the same webhook and
@@ -56,13 +60,14 @@ export default async function InboundLeadContext({
         hasName={hasName}
         hasPhone={hasPhone}
         hasEmail={hasEmail}
-        capturedAt={formatCaptureAt(createdAt)}
-        formAnswers={await loadLeadFormAnswers(leadId)}
+        capturedAt={formatCaptureAt(createdAt, locale)}
+        formAnswers={await loadLeadFormAnswers(leadId, locale)}
+        locale={locale}
       />
     )
   }
   if (channel !== 'whatsapp') return null // manual / plain / unknown → nothing
 
   const { conversationId, preview } = await loadWhatsAppInboundPreview(leadId)
-  return <InboundLeadContextView channel='whatsapp' conversationId={conversationId} preview={preview} />
+  return <InboundLeadContextView channel='whatsapp' conversationId={conversationId} preview={preview} locale={locale} />
 }

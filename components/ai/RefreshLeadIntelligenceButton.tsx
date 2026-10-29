@@ -4,12 +4,17 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import { refreshLeadIntelligence } from '@/actions/ai/leadIntelligenceRefresh'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 type Props = {
   leadId: number | string
+  /** The card's chrome language (passed by `LeadIntelligenceCard`); Hebrew by default. */
+  locale?: UiLocale
 }
 
-export default function RefreshLeadIntelligenceButton({ leadId }: Props) {
+export default function RefreshLeadIntelligenceButton({ leadId, locale = 'he' }: Props) {
+  const tr = translatorFor(locale)
   const router = useRouter()
   const expired = useAccessDenied()
   const [isPending, startTransition] = useTransition()
@@ -30,9 +35,9 @@ export default function RefreshLeadIntelligenceButton({ leadId }: Props) {
         return
       }
       if (res.reason === 'rate-limited') {
-        setMessage('נסה שוב בעוד דקה')
+        setMessage(tr('leadDetail.intelligence.refresh.rateLimited'))
       } else {
-        setMessage('לא ניתן לרענן כרגע')
+        setMessage(tr('leadDetail.intelligence.refresh.failed'))
       }
     })
   }
@@ -68,7 +73,7 @@ export default function RefreshLeadIntelligenceButton({ leadId }: Props) {
         disabled={isPending}
         className='tap-44 text-[11px] text-gray-500 hover:text-gray-800 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors'
       >
-        {isPending ? 'מרענן…' : 'רענן תובנות'}
+        {isPending ? tr('leadDetail.intelligence.refresh.pending') : tr('leadDetail.intelligence.refresh.action')}
       </button>
     </div>
   )

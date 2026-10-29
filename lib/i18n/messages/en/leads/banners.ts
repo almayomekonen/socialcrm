@@ -12,6 +12,7 @@ export const banners: L['banners'] = {
   upgradeNow: 'Upgrade now',
   syncProblem: 'Connection problem. Retrying',
   retry: 'Try again',
+  syncExpired: 'Renewing your subscription brings back live sync',
 }
 
 export const intake: L['intake'] = {

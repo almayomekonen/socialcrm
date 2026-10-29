@@ -5,7 +5,6 @@ import type { CrmSyncSource } from '@/lib/polling/syncFailure'
 import { isAccessDenied } from '@/lib/entitlement/pollGate'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { useT } from '@/lib/i18n/I18nProvider'
-import { untranslatedAttrs } from '@/lib/i18n/config'
 
 type Props = {
   sources: CrmSyncSource[]
@@ -42,9 +41,8 @@ export default function CrmSyncBanner({ sources, compact = false }: Props) {
    */
   if (isAccessDenied()) {
     return (
-      // The expired-subscription panel is not translated yet: it re-declares Hebrew.
-      <div className={compact ? 'border-b border-gray-200 px-3 py-2' : 'mb-4'} {...untranslatedAttrs(t.locale)}>
-        <SubscriptionExpiredState mode='inline' source='crm_sync_banner' feature='חידוש המנוי מחזיר את הסנכרון החי' />
+      <div className={compact ? 'border-b border-gray-200 px-3 py-2' : 'mb-4'}>
+        <SubscriptionExpiredState mode='inline' source='crm_sync_banner' feature={t('leads.banners.syncExpired')} translated />
       </div>
     )
   }

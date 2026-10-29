@@ -15,6 +15,7 @@ const leadsN = (suffix: string) => ({
 export const form: L['form'] = {
   addTitle: 'إضافة عميل محتمل',
   editTitle: 'تعديل العميل المحتمل',
+  expired: 'تجديد الاشتراك يعيد إمكانية إضافة العملاء المحتملين.',
   owner: 'مالك العميل المحتمل',
   firstName: 'الاسم الأول',
   lastName: 'اسم العائلة',

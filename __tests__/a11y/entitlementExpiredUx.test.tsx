@@ -782,12 +782,12 @@ describe('the lead summary card reads the entitlement reason it was already give
   it('teases the value for either entitlement reason', () => {
     const src = card()
     expect(src).toContain("if (res.reason === 'subscription-required' || res.reason === 'trial-not-started') {")
-    expect(src).toContain('return <LeadIntelligenceTeaser />')
+    expect(src).toContain('return <LeadIntelligenceTeaser locale={locale} />')
     expect(src).not.toContain('SubscriptionExpiredState')
   })
 
   it('keeps the retry line for genuine AI failures', () => {
-    expect(card()).toContain('העוזר החכם לא זמין כרגע. נסו שוב בעוד דקה.')
+    expect(card()).toContain("t('leadDetail.intelligence.unavailable')")
   })
 
   it('still renders nothing when AI is off or the agency is not allowlisted', () => {

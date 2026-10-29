@@ -17,5 +17,7 @@ import { language } from './language'
 import { common } from './common'
 import { today } from './today'
 import { leads } from './leads'
+import { leadDetail } from './leadDetail'
+import { entitlement } from './entitlement'
 
-export const he = { shell, roles, settingsNav, language, common, today, leads } as const
+export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement } as const
