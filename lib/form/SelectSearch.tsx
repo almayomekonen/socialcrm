@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Input } from '.'
 import { debounce } from '@/lib/hooksNEvents'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useSelectSearchKeyboard } from './useSelectSearchKeyboard'
 
 type Props = {
@@ -52,7 +53,7 @@ export function SelectSearch({
   lbl = '',
   val = 'id',
   show = 'name',
-  placeholder = 'חיפוש...',
+  placeholder: placeholderProp,
   className = '',
   selected = null,
   initShow = null,
@@ -64,6 +65,9 @@ export function SelectSearch({
   selectText,
   required = true,
 }: Props) {
+  const t = useT()
+  // Default placeholder in the interface language (Hebrew 'חיפוש...' outside a provider).
+  const placeholder = placeholderProp ?? t('common.picker.search')
   const debouncedSearch = useMemo(
     () =>
       debounce(async (value, setter) => {
@@ -256,7 +260,7 @@ export function SelectSearch({
               onMouseDown={() => onSelect(el)}
               onMouseEnter={() => setHighlight(i)}
               type='button'
-              className={`px-3 py-0.5 rounded w-full whitespace-nowrap text-right ${
+              className={`px-3 py-0.5 rounded w-full whitespace-nowrap text-start ${
                 i === highlight ? 'bg-gray-100' : 'hover:bg-gray-100'
               }`}
             >

@@ -5,6 +5,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { contactLeadViaWhatsapp } from '@/modules/leads/contactLead'
 import { ActionsMenu } from '../funcs'
 import { leadRowActions, type LeadActionCode } from './leadActions'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The ⋮ popover for one row. Every entry is dispatched by its action CODE;
@@ -26,6 +27,7 @@ export default function LeadRowActionsMenu({
   onDelete: () => void
 }) {
   const router = useRouter()
+  const t = useT()
 
   return (
     <ActionsMenu id={id}>
@@ -34,7 +36,7 @@ export default function LeadRowActionsMenu({
           <Btn
             variant='simple'
             size='simple'
-            lbl='פתח ליד'
+            lbl={t('leads.action.open')}
             onClick={() => router.push(`/clients/${client.id}/summary`)}
           />
         </div>
@@ -43,7 +45,7 @@ export default function LeadRowActionsMenu({
         <>
           <div>
             <div className='h-px bg-gray-200 w-full' />
-            <Btn variant='simple' size='simple' lbl='התקשר' onClick={() => window.location.href = `tel:${client.phone}`} />
+            <Btn variant='simple' size='simple' lbl={t('leads.contact.call')} onClick={() => window.location.href = `tel:${client.phone}`} />
           </div>
           <div>
             <div className='h-px bg-gray-200 w-full' />
@@ -56,7 +58,7 @@ export default function LeadRowActionsMenu({
           </div>
         </>
       )}
-      {leadRowActions(client?.status, hasMultipleUsers).map(({ code, label }) => (
+      {leadRowActions(client?.status, hasMultipleUsers, t.locale).map(({ code, label }) => (
         <div key={code}>
           <div className='h-px bg-gray-200 w-full' />
           <Btn variant='simple' size='simple' lbl={label} onClick={() => onAction(code)} />
@@ -67,7 +69,7 @@ export default function LeadRowActionsMenu({
         <Btn
           variant='simple'
           size='simple'
-          lbl='מחיקה'
+          lbl={t('leads.action.delete')}
           className='text-red-600 hover:bg-red-600'
           onClick={onDelete}
         />

@@ -71,9 +71,22 @@ export function leadSourceChannel(source: string | null | undefined): LeadSource
 }
 
 /**
+ * The other fixed values the manual create form offers (`leadSourceCreateOpt`
+ * in types/lists.ts) and stores verbatim in Hebrew. They are product
+ * vocabulary, not customer free text, so they display in the interface
+ * language; the stored value never changes. Hebrew renders the same word.
+ */
+const CREATE_FORM_SOURCE_KEY: Record<string, MessageKey> = {
+  'המלצה': 'leads.form.sourceOption.referral',
+  'ייבוא': 'leads.form.sourceOption.import',
+  'אחר': 'leads.form.sourceOption.misc',
+}
+
+/**
  * User-facing label for a stored `leadSource`:
  *  - known channel (composite or plain) → channel label (`common.source.*`)
  *  - null / undefined / empty → the manual label ('ידני')
+ *  - the create form's fixed Hebrew values (המלצה / ייבוא / אחר) → their label
  *  - unknown non-empty free text → preserved verbatim (external data, never translated)
  *
  * Labels are in the interface `locale`; Hebrew by default, which is what MCP,
@@ -83,8 +96,12 @@ export function leadSourceLabel(source: string | null | undefined, locale: UiLoc
   const t = translatorFor(locale)
   const channel = leadSourceChannel(source)
   if (channel) return t(CHANNEL_KEY[channel])
-  // channel === null ⇒ source is a non-empty unrecognized value; keep it.
-  return (source ?? '').trim() || t('common.source.manual')
+  // channel === null ⇒ source is a non-empty unrecognized value; keep it —
+  // unless it is one of the create form's own fixed values.
+  const trimmed = (source ?? '').trim()
+  const fixed = CREATE_FORM_SOURCE_KEY[trimmed]
+  if (fixed) return t(fixed)
+  return trimmed || t('common.source.manual')
 }
 
 /**

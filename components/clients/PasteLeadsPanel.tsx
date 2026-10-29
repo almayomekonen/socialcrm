@@ -3,7 +3,9 @@
 import { useMemo, useState, useTransition } from 'react'
 import { addLeads } from '@/actions/clients'
 import { parsePastedLeads } from '@/lib/leads/pastedLeads'
-import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
+import { firstRunCopy } from '@/lib/activation/firstRunCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor, regionAttrs } from '@/lib/i18n/config'
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
 
@@ -29,6 +31,8 @@ export default function PasteLeadsPanel({
 }: {
   onImported?: (inserted: number, firstId?: number) => void
 }) {
+  const t = useT()
+  const C = firstRunCopy(t.locale)
   const [text, setText] = useState('')
   const [pending, startTransition] = useTransition()
 
@@ -44,13 +48,13 @@ export default function PasteLeadsPanel({
       try {
         res = await addLeads(parsed.rows, 'paste')
       } catch {
-        toast('error', 'לא הצלחנו להוסיף את הלידים. נסו שוב.')
+        toast('error', t('leads.firstRun.paste.failed'))
         return
       }
       if ('error' in res) {
         // Quota is the one refusal with its own product surface; say what it is
         // rather than failing vaguely.
-        toast('error', `הגעתם למכסת הלידים (${res.limit}). לא הוספנו את הרשימה.`)
+        toast('error', t('leads.firstRun.paste.quota', { limit: String(res.limit) }))
         return
       }
       setText('')
@@ -59,7 +63,7 @@ export default function PasteLeadsPanel({
   }
 
   return (
-    <div dir='rtl' className='flex flex-col gap-3'>
+    <div dir={dirFor(t.locale)} {...regionAttrs(t.locale)} className='flex flex-col gap-3'>
       <label htmlFor='paste-leads' className='text-sm font-medium text-ink'>
         {C.paste.label}
       </label>

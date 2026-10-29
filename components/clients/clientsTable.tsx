@@ -19,7 +19,9 @@ import { useLeadActions } from './hooks/useLeadActions'
 import { useLeadSelection } from './hooks/useLeadSelection'
 import { useOpenDialogFromQuery } from './hooks/useOpenDialogFromQuery'
 import { getHeaders, initialColumns } from './table/headers'
-import { formatLastContact, formatLeadSource, formatLeadStatus, formatNextAction, formatState } from './table/cells'
+import { CustomerBadge, formatLastContact, formatLeadSource, formatLeadStatus, formatNextAction, formatState } from './table/cells'
+import { useLocalizedColumns } from './table/useLocalizedColumns'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useLeadSearch, useSearchTabFollow } from './table/useLeadSearch'
 import { useLeadDelete } from './table/useLeadDelete'
 import LeadsToolbar, { type SortMode } from './table/LeadsToolbar'
@@ -34,6 +36,7 @@ export { getHeaders } from './table/headers'
  * menu, dialogs, cell formatters and column definitions live in `./table/`.
  */
 export default function ClientsTable({ data, user, leads = false, globalLatestUpdatedAt = '', formProps = null, fillHeight = false, columnAvailability = null, whatsappConnected = undefined }) {
+  const t = useT()
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchTerm = parseLeadSearch({ q: searchParams.get('q') })
@@ -81,6 +84,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
   const { selectedIds } = selection
 
   const [columns, setColumns] = useState(() => initialColumns(user, tblId, getHeaders(leads, hasMultipleUsers)))
+  const shown = useLocalizedColumns(columns, setColumns, (next) => saveTblPref(tblId, next)) // stored shape stays `columns`
 
   const dialogs = useLeadDialogs()
   const { curClient, setCurClient, show, openAddForm } = dialogs
@@ -118,12 +122,12 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
 
   const config = {
     tblId,
-    columns,
+    columns: shown.columns,
     hiddenKeys,
-    setColumns,
+    setColumns: shown.setColumns,
     state: filteredData,
     setState: setLiveLeads,
-    moreHeads: () => <th className='sticky left-0 z-10 bg-gray-100 text-center'>פעולות</th>,
+    moreHeads: () => <th className='sticky left-0 z-10 bg-gray-100 text-center'>{t('leads.table.actions')}</th>,
     moreRows: (client) => (
       <td className='sticky left-0 z-10 bg-white'>
         <DotsMenu id='clientActions' onClick={() => setCurClient(client)} />
@@ -139,9 +143,7 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
       formatLastContact,
     },
     addTrCls: (item) => item.id === highlightedId ? 'bg-green-50 transition-all duration-500' : '',
-    getColumns(columns) {
-      saveTblPref(tblId, columns)
-    },
+    getColumns: (next) => shown.save(next as any),
     emptyState,
     clsBody: deleting ? 'opacity-50 pointer-events-none' : '',
   } as ConfigT
@@ -240,11 +242,7 @@ function formatName(name, obj, forLeads = false) {
       <Link href={`/clients/${obj.id}/summary`} className='underline font-semibold' data-edu={forLeads ? LEAD_OPEN_EDU : undefined}>
         {name}
       </Link>
-      {obj.lead === false && (
-        <span className='text-xs px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium whitespace-nowrap'>
-          לקוח
-        </span>
-      )}
+      {obj.lead === false && <CustomerBadge />}
     </span>
   )
 }

@@ -10,6 +10,7 @@ import { ConfigT } from '@/lib/table'
 import { SelectClientGrpActions } from '../funcs'
 import SelectClientLists from '../SelectClientLists'
 import { suggestionName } from './useLeadSearch'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export type SortMode = 'priority' | 'newest'
 
@@ -52,6 +53,8 @@ export default function LeadsToolbar({
   exportControl: ReactNode
   onAdd: () => void
 }) {
+  const t = useT()
+  const n = String(selectedCount)
   return (
     <div className={`flex justify-between gap-2 mb-2 items-end ${fillHeight ? 'shrink-0' : ''}`}>
       <div className='flex gap-0 items-end'>
@@ -68,13 +71,13 @@ export default function LeadsToolbar({
           selectText={suggestionName}
           initShow={search.boxTerm}
         />
-        <Btn variant='outline' size='icon' icon='eraser' aria-label='נקה חיפוש' href='?' scroll={false} className='rounded-s-none border-s-0' />
+        <Btn variant='outline' size='icon' icon='eraser' aria-label={t('leads.toolbar.clearSearch')} href='?' scroll={false} className='rounded-s-none border-s-0' />
         {/* The status tabs count the FILTERED set, so under a search their
             zeros need a number beside them that says why. Only while a
             search is active — an unfiltered workspace needs no caption. */}
         {searchTerm && (
           <p aria-live='polite' className='ms-2 self-center text-[12px] tabular-nums whitespace-nowrap text-gray-500'>
-            {resultCount === 1 ? 'תוצאה אחת' : `${resultCount} תוצאות`}
+            {t('leads.toolbar.results', { count: String(resultCount) })}
           </p>
         )}
       </div>
@@ -88,7 +91,7 @@ export default function LeadsToolbar({
             icon={assigning ? 'spinner' : 'user-check'}
             iconClassName={assigning ? 'animate-spin' : ''}
             disabled={assigning}
-            lbl={assigning ? `משייך... (${selectedCount})` : `שיוך לנציג (${selectedCount})`}
+            lbl={assigning ? t('leads.toolbar.assigning', { n }) : t('leads.toolbar.assign', { n })}
             onClick={onBulkAssign}
           />
         )}
@@ -100,31 +103,31 @@ export default function LeadsToolbar({
             disabled={deleting}
             lbl={
               deleting
-                ? `מוחק... (${selectedCount})`
+                ? t('leads.toolbar.deleting', { n })
                 : leads
                   ? selectedCount === visibleCount
-                    ? `מחק הכל (${selectedCount})`
-                    : `מחק (${selectedCount})`
-                  : `מחק לקוחות (${selectedCount})`
+                    ? t('leads.toolbar.deleteAll', { n })
+                    : t('leads.toolbar.delete', { n })
+                  : t('leads.toolbar.deleteCustomers', { n })
             }
             onClick={onBulkDelete}
           />
         )}
         <Select
           options={[
-            { id: 'priority', name: 'מיון: דחופים ביותר' },
-            { id: 'newest', name: 'מיון: חדשים ביותר' },
+            { id: 'priority', name: t('leads.toolbar.sortPriority') },
+            { id: 'newest', name: t('leads.toolbar.sortNewest') },
           ]}
           value={sortMode}
           onChange={(e) => onSortChange(e.target.value as SortMode)}
           required={false}
-          aria-label='מיון לידים'
+          aria-label={t('leads.toolbar.sortAria')}
         />
         <ShowColumns config={config} />
         <SelectClientGrpActions user={user} />
         <SelectClientLists />
         {exportControl}
-        <Btn data-edu={leads ? 'leads-add' : undefined} lbl={leads ? 'ליד חדש' : 'לקוח חדש'} icon='plus' onClick={onAdd} />
+        <Btn data-edu={leads ? 'leads-add' : undefined} lbl={leads ? t('leads.toolbar.newLead') : t('leads.toolbar.newCustomer')} icon='plus' onClick={onAdd} />
       </div>
     </div>
   )

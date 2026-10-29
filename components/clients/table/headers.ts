@@ -1,33 +1,59 @@
 /** Column definitions for the leads / clients table, and the saved-preference merge. */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
+
 export type LeadColumn = { key: string; label: string; format?: string; noShow?: boolean }
 
-export function getHeaders(leads, hasMultipleUsers = true) {
+/** Header text by column KEY. `user.tblPref` stores its own `label`; display reads this map. */
+const HEADER_KEY: Record<string, MessageKey> = {
+  name: 'leads.table.header.name',
+  phone: 'leads.table.header.phone',
+  status: 'leads.table.header.status',
+  nextAction: 'leads.table.header.nextAction',
+  leadSource: 'leads.table.header.leadSource',
+  userName: 'leads.table.header.userName',
+  handlerName: 'leads.table.header.handlerName',
+  email: 'leads.table.header.email',
+  idNum: 'leads.table.header.idNum',
+  secPhone: 'leads.table.header.secPhone',
+  birthDate: 'leads.table.header.birthDate',
+  gender: 'leads.table.header.gender',
+  leadStatus: 'leads.table.header.leadStatus',
+  lastContact: 'leads.table.header.lastContact',
+}
+
+/** The header for a column key in `locale`, or `null` for a key this table does not define. */
+export function columnLabel(key: string, locale: UiLocale = 'he'): string | null {
+  const k = HEADER_KEY[key]
+  return k ? translatorFor(locale)(k) : null
+}
+
+export function getHeaders(leads, hasMultipleUsers = true, locale: UiLocale = 'he'): LeadColumn[] {
+  const col = (key: string, extra: Omit<LeadColumn, 'key' | 'label'> = {}): LeadColumn => ({
+    key,
+    label: columnLabel(key, locale) as string,
+    ...extra,
+  })
   const headers = [
-    { key: 'name', label: 'שם מלא', format: 'formatName' },
-    { key: 'phone', label: 'מספר טלפון' },
-    { key: 'status', label: 'סטטוס', format: 'formatStatus' },
-    { key: 'nextAction', label: 'פעולה הבאה', format: 'formatNextAction' },
-    { key: 'leadSource', label: 'מקור', format: 'formatLeadSource' },
-    ...(hasMultipleUsers
-      ? [
-          { key: 'userName', label: 'בעל הליד' },
-          { key: 'handlerName', label: 'אחראי נוסף (לא חובה)' },
-        ]
-      : []),
-    { key: 'email', label: 'מייל' },
+    col('name', { format: 'formatName' }),
+    col('phone'),
+    col('status', { format: 'formatStatus' }),
+    col('nextAction', { format: 'formatNextAction' }),
+    col('leadSource', { format: 'formatLeadSource' }),
+    ...(hasMultipleUsers ? [col('userName'), col('handlerName')] : []),
+    col('email'),
     // Optional, opt-in columns — hidden by default (noShow), available via the Columns selector.
-    { key: 'idNum', label: 'תעודת זהות', noShow: true },
-    { key: 'secPhone', label: 'טלפון נוסף', noShow: true },
-    { key: 'birthDate', label: 'תאריך לידה', format: 'formatDate', noShow: true },
-    { key: 'gender', label: 'מין', noShow: true },
+    col('idNum', { noShow: true }),
+    col('secPhone', { noShow: true }),
+    col('birthDate', { format: 'formatDate', noShow: true }),
+    col('gender', { noShow: true }),
   ]
   if (leads) {
-    headers.push(
-      { key: 'leadStatus', label: 'מצב ליד', format: 'formatLeadStatus' },
-    )
+    headers.push(col('leadStatus', { format: 'formatLeadStatus' }))
   }
-  headers.push({ key: 'lastContact', label: 'מגע אחרון', format: 'formatLastContact' })
+  headers.push(col('lastContact', { format: 'formatLastContact' }))
   return headers
 }
 

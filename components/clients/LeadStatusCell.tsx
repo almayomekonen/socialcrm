@@ -13,7 +13,8 @@ import { Select } from '@/lib/form'
  * SERVER COMPONENTS SHOULD IMPORT FROM `lib/leads/statusStyles` DIRECTLY.
  */
 export { STATUS_STYLES, STATUS_OPTIONS, statusStyle, type LeadStatusStyle } from '@/lib/leads/statusStyles'
-import { STATUS_STYLES, STATUS_OPTIONS } from '@/lib/leads/statusStyles'
+import { STATUS_STYLES, statusOptions } from '@/lib/leads/statusStyles'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   status: string | null | undefined
@@ -23,12 +24,17 @@ type Props = {
   leads?: boolean
 }
 
-const CLIENT_STATUS_OPTIONS = STATUS_OPTIONS.map((o) => (o.value === 'new' ? { ...o, label: 'לקוח' } : o))
-
+/**
+ * Option VALUES are status codes; only the visible text is localized, so the
+ * change handler always receives the code (`'contacted'`), never a label.
+ */
 function LeadStatusCell({ status, obj, updatingId, onStatusChange, leads = true }: Props) {
+  const t = useT()
   const isUpdating = updatingId === obj.id
   const s = STATUS_STYLES[status ?? 'new'] || STATUS_STYLES.new
-  const options = leads ? STATUS_OPTIONS : CLIENT_STATUS_OPTIONS
+  const all = statusOptions(t.locale)
+  // On /clients the `new` option reads as "customer" (a closed lead), as before.
+  const options = leads ? all : all.map((o) => (o.value === 'new' ? { ...o, label: t('leads.table.customer') } : o))
   return (
     <Select
       options={options}

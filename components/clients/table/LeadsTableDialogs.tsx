@@ -8,8 +8,13 @@ import ClientFormPop from '../ClientFormPop'
 import TransferClientForm from '../TransferClientForm'
 import BulkAssignLeadsForm from '../BulkAssignLeadsForm'
 import type { LeadDialogName } from './useLeadDialogs'
+import { useT } from '@/lib/i18n/I18nProvider'
 
-/** The table's modal forms: add/edit, bulk assign, transfer, import, deal. */
+/**
+ * The table's modal forms: add/edit, bulk assign, transfer, import, deal.
+ * Every dialog here except the deal form (Phase E, still Hebrew) is translated
+ * and declares the interface language.
+ */
 export function LeadsTableDialogs({
   open,
   close,
@@ -29,26 +34,27 @@ export function LeadsTableDialogs({
   closeAssign: () => void
   performBulkAssign: (userId: number) => void
 }) {
+  const t = useT()
   return (
     <>
-      <ModalPop open={open.form} label='פרטי ליד' pos='middle' onClose={() => close('form')}>
+      <ModalPop open={open.form} label={t('leads.dialog.leadDetails')} pos='middle' onClose={() => close('form')} translated>
         <ClientFormPop client={curClient} onClose={() => close('form')} />
       </ModalPop>
 
-      <ModalPop open={assignOpen} label='שיוך לידים לנציג' pos='middle' onClose={closeAssign}>
+      <ModalPop open={assignOpen} label={t('leads.dialog.bulkAssign')} pos='middle' onClose={closeAssign} translated>
         <BulkAssignLeadsForm count={selectedCount} onAssign={performBulkAssign} onCancel={closeAssign} />
       </ModalPop>
 
-      <ModalPop open={open.transfer} label='שיוך ליד לנציג' pos='middle' onClose={() => close('transfer')}>
+      <ModalPop open={open.transfer} label={t('leads.dialog.assignOne')} pos='middle' onClose={() => close('transfer')} translated>
         <TransferClientForm client={curClient} />
       </ModalPop>
 
-      <ModalPop open={open.upload} label='העלאת לידים' pos='middle' onClose={() => close('upload')}>
+      <ModalPop open={open.upload} label={t('leads.dialog.upload')} pos='middle' onClose={() => close('upload')} translated>
         <UploadClientData />
       </ModalPop>
 
       {formProps && (
-        <ModalPop open={open.sale} label='טופס עסקה' onClose={() => close('sale')}>
+        <ModalPop open={open.sale} label={t('leads.dialog.deal')} onClose={() => close('sale')}>
           <SaleForm
             props={formProps}
             curSale={curClient ? ({ clientId: curClient.id, clientData: curClient.name } as any) : undefined}
@@ -88,13 +94,16 @@ export function LeadsTableConfirms({
   deleteErrMsg: string | null
   clearDeleteErr: () => void
 }) {
+  const t = useT()
+  const del = t('leads.action.delete')
   return (
     <>
       <ConfirmPop
         open={bulkConfirmOpen}
         destructive
-        confirmLbl='מחיקה'
-        msg={`למחוק ${selectedCount} ${leads ? 'לידים' : 'לקוחות'}?`}
+        confirmLbl={del}
+        msg={t(leads ? 'leads.dialog.bulkDeleteLeads' : 'leads.dialog.bulkDeleteCustomers', { count: String(selectedCount) })}
+        translated
         onClose={closeBulkConfirm}
         onConfirm={performBulkDelete}
       />
@@ -102,8 +111,9 @@ export function LeadsTableConfirms({
       <ConfirmPop
         open={!!confirmDeleteLead}
         destructive
-        confirmLbl='מחיקה'
-        msg={`האם למחוק ליד ${confirmDeleteLead?.name}?`}
+        confirmLbl={del}
+        msg={t('leads.dialog.deleteLead', { name: `${confirmDeleteLead?.name}` })}
+        translated
         onClose={cancelDelete}
         onConfirm={performDelete}
       />
@@ -114,6 +124,7 @@ export function LeadsTableConfirms({
         onClose={clearDeleteErr}
         onConfirm={clearDeleteErr}
         msg={deleteErrMsg ?? ''}
+        translated
       />
 
       <ConfirmPop
@@ -122,6 +133,7 @@ export function LeadsTableConfirms({
         onClose={closeBulkInfo}
         onConfirm={closeBulkInfo}
         msg={bulkInfoMsg ?? ''}
+        translated
       />
     </>
   )

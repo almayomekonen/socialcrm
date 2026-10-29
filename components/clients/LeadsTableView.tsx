@@ -3,6 +3,9 @@
 import React from 'react'
 import Table, { ConfigT } from '@/lib/table'
 import { STATUS_STYLES } from './LeadStatusCell'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
+import { leadStatusLabel } from '@/lib/leads/statusStyles'
 
 type Props = {
   leads: boolean
@@ -25,11 +28,13 @@ export default function LeadsTableView({
   children,
   fillHeight = false,
 }: Props) {
+  const { locale } = useT()
   return (
     <>
       {leads && (
-        <div className='flex gap-1 mb-3 border-b border-gray-200 shrink-0' dir='rtl' data-edu='lead-status-tabs'>
-          {Object.entries(STATUS_STYLES).map(([key, { label, dot, text, bg, border }]) => {
+        <div className='flex gap-1 mb-3 border-b border-gray-200 shrink-0' dir={dirFor(locale)} data-edu='lead-status-tabs'>
+          {Object.entries(STATUS_STYLES).map(([key, { dot, text, bg, border }]) => {
+            const label = leadStatusLabel(key, locale)
             const count = mergedState.filter((l) => l.status === key).length
             const isActive = activeTab === key
             return (

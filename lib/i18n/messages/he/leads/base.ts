@@ -1,9 +1,9 @@
 /**
- * Leads — Phase B covers only the shared lead widgets rendered ON the
- * dashboard (call-outcome control, mobile contact actions, add-lead control).
- * The rest of the leads area is Phase C. Hebrew copied verbatim.
+ * Leads — the shared lead widgets first translated in Phase B (call-outcome
+ * control, mobile contact actions, add-lead control). Keys unchanged since.
+ * Hebrew copied verbatim.
  */
-export const leads = {
+export const base = {
   add: 'הוספת ליד',
   outcome: {
     noAnswer: 'לא ענה',

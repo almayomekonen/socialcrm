@@ -404,8 +404,8 @@ describe('production audit follow-ups', () => {
     expect(src).toContain('isAccessDenied()')
     expect(src).toContain('SubscriptionExpiredState')
     // The generic connection copy and its retry must survive for non-403 failures.
-    expect(src).toContain('בעיית חיבור. מנסים שוב')
-    expect(src).toContain('נסה שוב')
+    expect(src).toContain("t('leads.banners.syncProblem')")
+    expect(src).toContain("t('leads.banners.retry')")
     // …but only AFTER the entitlement branch has returned. Compare against the
     // JSX occurrence, not the explanatory comment above the gate.
     const code = src
@@ -414,7 +414,7 @@ describe('production audit follow-ups', () => {
       .join('\n')
     const gate = code.indexOf('if (isAccessDenied())')
     expect(gate).toBeGreaterThan(-1)
-    expect(gate).toBeLessThan(code.indexOf('בעיית חיבור'))
+    expect(gate).toBeLessThan(code.indexOf("t('leads.banners.syncProblem')"))
   })
 
   it('only a 403 latches the gate — a 500 stays a generic failure', () => {

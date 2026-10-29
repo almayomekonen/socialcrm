@@ -4,6 +4,8 @@ import { useCrmSyncHealth } from '@/lib/polling/CrmSyncHealthContext'
 import type { CrmSyncSource } from '@/lib/polling/syncFailure'
 import { isAccessDenied } from '@/lib/entitlement/pollGate'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { untranslatedAttrs } from '@/lib/i18n/config'
 
 type Props = {
   sources: CrmSyncSource[]
@@ -16,6 +18,7 @@ type Props = {
  * Shows after consecutive failure threshold; Retry triggers immediate poll.
  */
 export default function CrmSyncBanner({ sources, compact = false }: Props) {
+  const t = useT()
   const { get, isBannerVisible } = useCrmSyncHealth()
   const active = sources.find((s) => isBannerVisible(s))
   if (!active) return null
@@ -39,7 +42,8 @@ export default function CrmSyncBanner({ sources, compact = false }: Props) {
    */
   if (isAccessDenied()) {
     return (
-      <div className={compact ? 'border-b border-gray-200 px-3 py-2' : 'mb-4'}>
+      // The expired-subscription panel is not translated yet: it re-declares Hebrew.
+      <div className={compact ? 'border-b border-gray-200 px-3 py-2' : 'mb-4'} {...untranslatedAttrs(t.locale)}>
         <SubscriptionExpiredState mode='inline' source='crm_sync_banner' feature='חידוש המנוי מחזיר את הסנכרון החי' />
       </div>
     )
@@ -58,7 +62,7 @@ export default function CrmSyncBanner({ sources, compact = false }: Props) {
       }
     >
       <p className={`font-semibold text-amber-900 ${compact ? 'text-xs leading-snug' : 'text-sm'}`}>
-        בעיית חיבור. מנסים שוב
+        {t('leads.banners.syncProblem')}
       </p>
       {health.retry && (
         <button
@@ -70,7 +74,7 @@ export default function CrmSyncBanner({ sources, compact = false }: Props) {
               : 'shrink-0 rounded-md bg-solid px-4 py-2 text-sm font-semibold text-white hover:bg-solid/85'
           }
         >
-          נסה שוב
+          {t('leads.banners.retry')}
         </button>
       )}
     </div>

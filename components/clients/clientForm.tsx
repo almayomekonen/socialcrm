@@ -7,6 +7,27 @@ import { isExtOffice } from '@/types/roles'
 import { useUser } from '@/lib/hooksNEvents'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import AccordionItem from '@/lib/AccordionItem'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { leadStatusFormLabel } from '@/lib/leads/statusStyles'
+
+/**
+ * Display labels for the stored option VALUES. The form submits the stored
+ * Hebrew value unchanged (`types/lists.ts`); only the visible text follows the
+ * interface language. Hebrew renders exactly the stored value, as before.
+ */
+const GENDER_KEY: Record<string, MessageKey> = {
+  'זכר': 'leads.form.genderOption.male',
+  'נקבה': 'leads.form.genderOption.female',
+}
+const SOURCE_KEY: Record<string, MessageKey> = {
+  'ידני': 'leads.form.sourceOption.manual',
+  'אתר': 'leads.form.sourceOption.website',
+  'המלצה': 'leads.form.sourceOption.referral',
+  'ייבוא': 'leads.form.sourceOption.import',
+  'אחר': 'leads.form.sourceOption.misc',
+}
+const FORM_STATUS_CODES = ['new', 'contacted', 'interested', 'closed', 'lost'] as const
 
 export default function ClientForm({
   data,
@@ -17,8 +38,11 @@ export default function ClientForm({
   prefix?: string
   onContactBlur?: (name: string, value: string) => void
 }) {
+  const t = useT()
   const user = useUser()
   if (!user) return null
+  const optionsFor = (values: string[], keys: Record<string, MessageKey>) =>
+    values.map((v) => ({ id: v, name: keys[v] ? t(keys[v]) : v }))
   const { handlers, users } = useProps()
   const hasMultipleUsers = false
   const isEdit = !!data?.id
@@ -33,7 +57,7 @@ export default function ClientForm({
             {hasMultipleUsers ? (
               <SelectSearch
                 name='userId'
-                lbl='בעל הליד'
+                lbl={t('leads.form.owner')}
                 className='w-52'
                 options={users}
                 selected={!isExtOffice(user.role) ? user.id : null}
@@ -47,13 +71,13 @@ export default function ClientForm({
         {/* Row 1 — identity. Names are the primary fields; gender is the narrow column. */}
         <div className='flex w-full gap-3'>
           <div className='flex-3 min-w-0'>
-            <Input name='firstName' lbl='שם פרטי' defaultValue={data?.firstName} onBlur={handleBlur} />
+            <Input name='firstName' lbl={t('leads.form.firstName')} defaultValue={data?.firstName} onBlur={handleBlur} />
           </div>
           <div className='flex-3 min-w-0'>
-            <Input name='lastName' lbl='שם משפחה' defaultValue={data?.lastName} onBlur={handleBlur} />
+            <Input name='lastName' lbl={t('leads.form.lastName')} defaultValue={data?.lastName} onBlur={handleBlur} />
           </div>
           <div className='flex-2 min-w-0'>
-            <Select lbl='מין' name='gender' options={genderOpt} defaultValue={data?.gender} required={false} />
+            <Select lbl={t('leads.form.gender')} name='gender' options={optionsFor(genderOpt, GENDER_KEY)} defaultValue={data?.gender} required={false} />
           </div>
         </div>
 
@@ -62,7 +86,7 @@ export default function ClientForm({
           <div className='flex-3 min-w-0'>
             <Input
               name='phone'
-              lbl='טלפון נייד'
+              lbl={t('leads.form.phone')}
               type='tel'
               defaultValue={data?.phone}
               required={false}
@@ -70,10 +94,10 @@ export default function ClientForm({
             />
           </div>
           <div className='flex-3 min-w-0'>
-            <Input name='email' lbl='מייל' type='email' defaultValue={data?.email} required={false} onBlur={handleBlur} />
+            <Input name='email' lbl={t('leads.form.email')} type='email' defaultValue={data?.email} required={false} onBlur={handleBlur} />
           </div>
           <div className='flex-2 min-w-0'>
-            <Input name='birthDate' lbl='תאריך לידה' type='date' defaultValue={data?.birthDate} required={false} />
+            <Input name='birthDate' lbl={t('leads.form.birthDate')} type='date' defaultValue={data?.birthDate} required={false} />
           </div>
         </div>
 
@@ -86,12 +110,12 @@ export default function ClientForm({
               are preserved and never silently overwritten.
             */}
             {isEdit ? (
-              <Input name='leadSource' lbl='מקור הליד' defaultValue={data?.leadSource} required={false} />
+              <Input name='leadSource' lbl={t('leads.form.leadSource')} defaultValue={data?.leadSource} required={false} />
             ) : (
               <Select
                 name='leadSource'
-                lbl='מקור הליד'
-                options={leadSourceCreateOpt}
+                lbl={t('leads.form.leadSource')}
+                options={optionsFor(leadSourceCreateOpt, SOURCE_KEY)}
                 defaultValue='ידני'
                 required={false}
               />
@@ -101,7 +125,7 @@ export default function ClientForm({
           {hasMultipleUsers && (
             <div className='flex-3 min-w-0'>
               <Select
-                lbl='אחראי נוסף (לא חובה)'
+                lbl={t('leads.form.handler')}
                 name='handlerId'
                 options={handlers}
                 defaultValue={data?.handlerId ?? user.id}
@@ -111,15 +135,9 @@ export default function ClientForm({
           )}
           <div className='flex-3 min-w-0'>
             <Select
-              options={[
-                { name: 'חדש', id: 'new' },
-                { name: 'בטיפול', id: 'contacted' },
-                { name: 'מתעניין', id: 'interested' },
-                { name: 'נסגר', id: 'closed' },
-                { name: 'לא רלוונטי', id: 'lost' },
-              ]}
+              options={FORM_STATUS_CODES.map((code) => ({ name: leadStatusFormLabel(code, t.locale), id: code }))}
               name='status'
-              lbl='סטטוס'
+              lbl={t('leads.form.status')}
               defaultValue={data?.status ?? 'new'}
               required={false}
             />
@@ -130,16 +148,16 @@ export default function ClientForm({
               <Select
                 options={[
                   {
-                    name: 'לקוח',
+                    name: t('leads.table.customer'),
                     id: false,
                   },
                   {
-                    name: 'ליד',
+                    name: t('leads.form.kindLead'),
                     id: true,
                   },
                 ]}
                 name='lead'
-                lbl='סטטוס'
+                lbl={t('leads.form.status')}
                 defaultValue={data?.lead ?? true}
                 required={false}
               />
@@ -154,13 +172,13 @@ export default function ClientForm({
             keeps them mounted, so existing values display when expanded, and entered values are
             preserved and still submit when collapsed. */}
         <div className='accordion w-full'>
-          <AccordionItem title='מידע נוסף' bodyClass='p-4 pt-1'>
+          <AccordionItem title={t('leads.form.moreInfo')} bodyClass='p-4 pt-1'>
             <div className='flex w-full gap-3'>
               <div className='flex-3 min-w-0'>
                 <Input
                   name='idNum'
                   type='number'
-                  lbl="מס' תעודת זהות"
+                  lbl={t('leads.form.idNum')}
                   defaultValue={data?.idNum}
                   required={false}
                   onBlur={handleBlur}
@@ -169,7 +187,7 @@ export default function ClientForm({
               <div className='flex-3 min-w-0'>
                 <Input
                   name='secPhone'
-                  lbl='טלפון נוסף'
+                  lbl={t('leads.form.secPhone')}
                   type='tel'
                   defaultValue={data?.secPhone}
                   required={false}

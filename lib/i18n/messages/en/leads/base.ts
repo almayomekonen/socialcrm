@@ -1,6 +1,6 @@
-import type { Messages } from '../../translate'
+import type { Messages } from '../../../translate'
 
-export const leads: Messages['leads'] = {
+export const base: Pick<Messages['leads'], 'add' | 'outcome' | 'contact'> = {
   add: 'Add lead',
   outcome: {
     noAnswer: 'No answer',

@@ -1,5 +1,8 @@
 import { SYNC_FAILURE_THRESHOLD, shouldShowSyncBanner } from '@/lib/polling/syncFailure'
 import type { IngestRejection } from './ingest'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * LEAD-INTAKE FAILURES, in the customer's terms.
@@ -69,26 +72,45 @@ export type IntakeErrorCopy = {
  * being lost, and which connection is at fault. A truthful sentence with no
  * button beats a button that lies.
  */
-export const INTAKE_ERRORS: Partial<Record<IngestRejection, IntakeErrorCopy>> = {
+/**
+ * The copy itself lives in the catalog (`leads.intake.<reason>.*`, Hebrew source
+ * in lib/i18n/messages/he/leads/banners.ts), keyed by the same REJECTION codes.
+ * The map's KEYS are what decide which reasons are customer-facing.
+ */
+const INTAKE_ERROR_KEYS: Partial<Record<IngestRejection, { title: MessageKey; explanation: MessageKey; short: MessageKey }>> = {
   invalid_signature: {
-    title: 'יש בעיה בחיבור לטופס באתר',
-    explanation: 'התקבל ניסיון לשלוח ליד מהטופס באתר שלך, אבל החיבור לא אומת ולכן הליד לא נכנס למערכת.',
-    short: 'פניות מהטופס מגיעות אבל לא נכנסות למערכת.',
+    title: 'leads.intake.invalid_signature.title',
+    explanation: 'leads.intake.invalid_signature.explanation',
+    short: 'leads.intake.invalid_signature.short',
   },
   unreadable_payload: {
-    title: 'יש בעיה בחיבור לטופס באתר',
-    explanation: 'התקבלה פנייה מהטופס באתר שלך במבנה שלא הצלחנו לקרוא, ולכן הליד לא נכנס למערכת.',
-    short: 'פניות מהטופס מגיעות במבנה שאינו נקרא.',
+    title: 'leads.intake.unreadable_payload.title',
+    explanation: 'leads.intake.unreadable_payload.explanation',
+    short: 'leads.intake.unreadable_payload.short',
   },
 }
+
+function copyFor(reason: IngestRejection, locale: UiLocale): IntakeErrorCopy | undefined {
+  const keys = INTAKE_ERROR_KEYS[reason]
+  if (!keys) return undefined
+  const t = translatorFor(locale)
+  return { title: t(keys.title), explanation: t(keys.explanation), short: t(keys.short) }
+}
+
+/** The Hebrew copy (the connections card and every caller that passes no locale). */
+export const INTAKE_ERRORS: Partial<Record<IngestRejection, IntakeErrorCopy>> = Object.fromEntries(
+  (Object.keys(INTAKE_ERROR_KEYS) as IngestRejection[]).map((reason) => [reason, copyFor(reason, 'he')]),
+)
 
 /** Whether a refusal is one the customer can be told about at all. */
 export function isCustomerFacingRejection(reason: string | null | undefined): reason is IngestRejection {
   return Boolean(reason && reason in INTAKE_ERRORS)
 }
 
-export function intakeErrorCopy(reason: string | null | undefined): IntakeErrorCopy | null {
-  return isCustomerFacingRejection(reason) ? (INTAKE_ERRORS[reason] ?? null) : null
+/** Customer copy for a refusal, in the interface `locale` (Hebrew by default). */
+export function intakeErrorCopy(reason: string | null | undefined, locale: UiLocale = 'he'): IntakeErrorCopy | null {
+  if (!isCustomerFacingRejection(reason)) return null
+  return locale === 'he' ? (INTAKE_ERRORS[reason] ?? null) : (copyFor(reason, locale) ?? null)
 }
 
 /** The house threshold, re-exported so callers never hardcode a second one. */

@@ -3,8 +3,10 @@ import { Btn } from '@/lib/btns/Btn'
 import { Select } from '@/lib/form'
 import ListForm from './listForm'
 import { useProps } from '@/lib/hooksNEvents'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function SelectClientLists() {
+  const t = useT()
   const { clientLists, params } = useProps()
 
   const listIdParam = params.listId || ''
@@ -12,7 +14,7 @@ export default function SelectClientLists() {
   return (
     <div className='flex gap-0'>
       <Select
-        placeholder='רשימות'
+        placeholder={t('leads.toolbar.lists')}
         options={clientLists.map((list) => ({
           id: list.id,
           title: `${list.title} (${list.clientIds.length})`,
@@ -26,7 +28,7 @@ export default function SelectClientLists() {
 
       {listIdParam && (
         <Btn
-          title='ערוך רשימה'
+          title={t('leads.toolbar.editList')}
           variant='outline'
           size='icon'
           className='rounded-none border-s-0 shadow-none'
@@ -36,7 +38,7 @@ export default function SelectClientLists() {
       )}
 
       <Btn
-        title='רשימה חדשה'
+        title={t('leads.toolbar.newList')}
         variant='outline'
         size='icon'
         className='rounded-s-none border-s-0 shadow-none'

@@ -12,10 +12,14 @@ import OverQuotaBanner from '@/components/quota/OverQuotaBanner'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import { parseLeadFilters } from '@/modules/leads/filters'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = {
-  title: 'נתוני לקוחות',
-  description: 'כל נתוני הלקוחות',
+/** Tab title in the interface language — Hebrew ('נתוני לקוחות') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('leads.page.clientsTitle'), description: t('leads.page.clientsDescription') }
 }
 
 export default async function ClientsPage({ searchParams }) {
@@ -32,6 +36,8 @@ export default async function ClientsPage({ searchParams }) {
    */
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='clients' />
 
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   const [handlers, settings, clientLists, globalLatestUpdatedAt, allUsers, quota, wa] = await Promise.all([
     getPerms(user),
     getDefaultSettings(user.id),
@@ -70,8 +76,9 @@ export default async function ClientsPage({ searchParams }) {
         users: handlers.allPermUsers,
       }}
       className='flex flex-col min-h-0 h-full'
+      regionAttrs={regionAttrs(locale)}
     >
-      <p className='text-sm text-gray-500 mb-2 shrink-0'>לקוחות הם לידים שסגרו עסקה</p>
+      <p className='text-sm text-gray-500 mb-2 shrink-0'>{t('leads.page.clientsExplainer')}</p>
 
       <OverQuotaBanner count={quota.overQuotaCount} />
 

@@ -3,6 +3,9 @@ import type { UiLocale } from '@/lib/i18n/config'
 import type { Allowance } from './leakScan'
 import { DASHBOARD_CUSTOMER_DATA, STATS, dashboardEnv } from './dashboardFixtures'
 import { resolveAsync } from './dashboardHarness'
+import { FAILING_INTAKE, LEADS_CUSTOMER_DATA, LEADS_DEFAULTS, leadsEnv } from './leadsEnv'
+import { clientsPage, leadsPage, shell } from './leadsHarness'
+import { ROWS, makeLead } from './leadsFixtures'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -20,6 +23,24 @@ import { resolveAsync } from './dashboardHarness'
  */
 
 export const FIXTURE_USER = { id: 7, name: 'דנה כהן', role: 'ADMIN', agencyId: 103 }
+
+/** A leads-surface allowance: only a value declared as fixture customer data may be allowed. */
+function leadsData(...texts: string[]): Allowance[] {
+  return texts.map((text) => {
+    if (!LEADS_CUSTOMER_DATA.includes(text)) throw new Error(`not declared as customer data: ${text}`)
+    return { text, reason: 'customer-data' as const }
+  })
+}
+
+/** Run a page's server reads under `overrides`, then restore the defaults other surfaces expect. */
+async function withLeadsEnv<T>(overrides: Partial<typeof LEADS_DEFAULTS>, build: () => Promise<T>): Promise<T> {
+  Object.assign(leadsEnv, LEADS_DEFAULTS, overrides)
+  try {
+    return await build()
+  } finally {
+    Object.assign(leadsEnv, LEADS_DEFAULTS)
+  }
+}
 
 export type Surface = {
   name: string
@@ -71,6 +92,100 @@ export const SURFACES: Surface[] = [
       )
     },
     allowed: [{ text: 'עברית', reason: 'endonym' }],
+  },
+  // ── Phase C: /leads and /clients list surfaces ──────────────────────────
+  {
+    name: 'leads list — table, toolbar, status tabs, every banner',
+    route: '/leads',
+    render: async (locale) => {
+      const page = await withLeadsEnv({ meta: { connected: true, needsReconnect: true }, intakeFacts: FAILING_INTAKE }, () =>
+        leadsPage({ firstImport: '24', firstLeadId: '5', firstImportSkipped: '3' }),
+      )
+      return shell(locale, page)
+    },
+    // The `new` tab: three leads; the saved-list picker shows each list's title.
+    allowed: leadsData('דנה כהן', 'יוסי לוי', 'מיכל אברהם', 'לקוחות חמים', 'מהקמפיין'),
+  },
+  {
+    name: 'clients list (closed leads)',
+    route: '/clients',
+    render: async (locale) => {
+      const page = await withLeadsEnv({ rows: ROWS.filter((r) => r.status === 'closed') }, () => clientsPage())
+      return shell(locale, page)
+    },
+    allowed: leadsData('נועה ביטון', 'לקוחות חמים', 'מהקמפיין'),
+  },
+  {
+    name: 'leads first run (desktop, empty workspace)',
+    route: '/leads',
+    render: async (locale) => {
+      return shell(locale, await withLeadsEnv({ hasLeads: false }, () => leadsPage()))
+    },
+    allowed: [],
+  },
+  {
+    name: 'leads first run (mobile, empty workspace)',
+    route: '/leads (phone)',
+    render: async (locale) => {
+      const { default: LeadsFirstRunMobile } = await import('@/modules/leads/mobile/LeadsFirstRunMobile')
+      return shell(locale, <LeadsFirstRunMobile metaConnected={false} whatsappConnected={false} />)
+    },
+    allowed: [],
+  },
+  {
+    name: 'leads table empty states',
+    route: '/leads',
+    render: async (locale) => {
+      const { default: Empty } = await import('@/components/clients/LeadsTableEmptyState')
+      const noop = () => {}
+      const base = { filteredCount: 0, activeTab: 'new', setActiveTab: noop, onClearScope: noop, onAddLead: noop, onUploadLeads: noop }
+      const rows = [{ status: 'contacted' }, { status: 'lost' }]
+      return shell(
+        locale,
+        <>
+          <Empty {...base} leads rows={[]} scoped={false} />
+          <Empty {...base} leads={false} rows={[]} scoped={false} />
+          <Empty {...base} leads rows={[]} scoped scopeKind='search' />
+          <Empty {...base} leads={false} rows={[]} scoped scopeKind='filter' />
+          <Empty {...base} leads rows={rows} scoped={false} />
+        </>,
+      )
+    },
+    allowed: [],
+  },
+  {
+    name: 'lead forms — add/edit, duplicates, assign, transfer, list, import, paste, sync',
+    route: '/leads (dialogs)',
+    render: async (locale) => {
+      const { default: ClientFormPop } = await import('@/components/clients/ClientFormPop')
+      const { default: DuplicateLeadBanner } = await import('@/components/clients/DuplicateLeadBanner')
+      const { default: BulkAssignLeadsForm } = await import('@/components/clients/BulkAssignLeadsForm')
+      const { default: TransferClientForm } = await import('@/components/clients/TransferClientForm')
+      const { default: ListForm } = await import('@/components/clients/listForm')
+      const { default: UploadClientData } = await import('@/components/settings/UploadClientData')
+      const { default: PasteLeadsPanel } = await import('@/components/clients/PasteLeadsPanel')
+      const { default: LeadsTableSkeleton } = await import('@/components/clients/LeadsTableSkeleton')
+      const matches = [
+        { id: 9, name: 'אבי מזרחי', status: 'contacted', phone: '0501234567', email: 'avi@example.test', confidence: 'certain' as const, signals: ['phone', 'idNum'] as ('phone' | 'idNum')[] },
+        { id: 10, name: '', status: 'lost', phone: null, email: 'x@example.test', confidence: 'probable' as const, signals: ['email'] as 'email'[] },
+      ]
+      return shell(
+        locale,
+        <>
+          <ClientFormPop />
+          <ClientFormPop client={makeLead({ id: 4, firstName: 'אבי', lastName: 'מזרחי', gender: 'זכר' })} />
+          <DuplicateLeadBanner matches={matches} onDismiss={() => {}} />
+          <BulkAssignLeadsForm count={7} onAssign={() => {}} onCancel={() => {}} />
+          <TransferClientForm client={ROWS[0]} />
+          <ListForm />
+          <UploadClientData />
+          <PasteLeadsPanel />
+          <LeadsTableSkeleton />
+        </>,
+        { search: 'listId=31' },
+      )
+    },
+    allowed: leadsData('אבי מזרחי', 'נציג ראשי'),
   },
   ...(
     [

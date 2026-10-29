@@ -2,6 +2,8 @@
 
 import { Btn } from '@/lib/btns/Btn'
 import { STATUS_STYLES } from './LeadStatusCell'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { leadStatusLabel } from '@/lib/leads/statusStyles'
 
 /**
  * What the lead / client table says when it has no rows to draw.
@@ -93,18 +95,18 @@ function ScopedEmpty({
   scopeKind: 'search' | 'filter'
   onClearScope: () => void
 }) {
-  const noun = leads ? 'הלידים' : 'הלקוחות'
+  const t = useT()
   return (
     <>
-      <p className='text-lg font-semibold'>{leads ? 'לא נמצאו לידים מתאימים' : 'לא נמצאו לקוחות מתאימים'}</p>
+      <p className='text-lg font-semibold'>{leads ? t('leads.empty.noMatchLeads') : t('leads.empty.noMatchCustomers')}</p>
       <p className='text-sm text-gray-500'>
         {scopeKind === 'search'
-          ? `החיפוש הנוכחי מצמצם את הרשימה. ${noun} שלך במערכת ולא אבדו.`
-          : `הסינון הנוכחי מצמצם את הרשימה. ${noun} שלך במערכת ולא אבדו.`}
+          ? t(leads ? 'leads.empty.searchNarrowsLeads' : 'leads.empty.searchNarrowsCustomers')
+          : t(leads ? 'leads.empty.filterNarrowsLeads' : 'leads.empty.filterNarrowsCustomers')}
       </p>
       <div className='flex gap-3 justify-center'>
         <Btn
-          lbl={scopeKind === 'search' ? 'נקה חיפוש' : leads ? 'הצג את כל הלידים' : 'הצג את כל הלקוחות'}
+          lbl={scopeKind === 'search' ? t('leads.toolbar.clearSearch') : leads ? t('leads.empty.showAllLeads') : t('leads.empty.showAllCustomers')}
           icon='eraser'
           onClick={onClearScope}
         />
@@ -123,15 +125,16 @@ function WorkspaceEmpty({
   onAddLead: () => void
   onUploadLeads: () => void
 }) {
+  const t = useT()
   return (
     <>
-      <p className='text-lg font-semibold'>{leads ? 'אין עדיין לידים' : 'אין לקוחות עדיין'}</p>
+      <p className='text-lg font-semibold'>{leads ? t('leads.empty.noLeadsYet') : t('leads.empty.noCustomersYet')}</p>
       <p className='text-sm text-gray-500'>
-        {leads ? 'חבר פייסבוק או הוסף ליד ידנית' : 'אפשר להתחיל על ידי יצירת ליד או העלאת קובץ'}
+        {leads ? t('leads.empty.leadsHint') : t('leads.empty.customersHint')}
       </p>
       <div className='flex gap-3 justify-center'>
-        <Btn lbl='הוסף ליד' icon='plus' onClick={onAddLead} />
-        <Btn lbl='העלה לידים' variant='soft' onClick={onUploadLeads} />
+        <Btn lbl={t('leads.empty.addLead')} icon='plus' onClick={onAddLead} />
+        <Btn lbl={t('leads.empty.uploadLeads')} variant='soft' onClick={onUploadLeads} />
       </div>
     </>
   )
@@ -151,6 +154,7 @@ function TabEmpty({
   onAddLead: () => void
   onUploadLeads: () => void
 }) {
+  const t = useT()
   const countByStatus = Object.keys(STATUS_STYLES).reduce(
     (acc, key) => ({ ...acc, [key]: rows.filter((l) => l.status === key).length }),
     {} as Record<string, number>,
@@ -167,23 +171,26 @@ function TabEmpty({
 
   return (
     <>
-      <p className='text-sm text-gray-500'>אין לידים בסטטוס זה כרגע</p>
+      <p className='text-sm text-gray-500'>{t('leads.empty.tabEmpty')}</p>
       {topStatus && (
         <div className='flex gap-3 justify-center'>
           <Btn
-            lbl={`הצג לידים ב"${STATUS_STYLES[topStatus].label}" (${countByStatus[topStatus]})`}
+            lbl={t('leads.empty.showInStatus', {
+              status: leadStatusLabel(topStatus, t.locale) as string,
+              n: String(countByStatus[topStatus]),
+            })}
             onClick={() => setActiveTab(topStatus)}
           />
-          <Btn variant='outline' lbl='הצג את כל הלידים' onClick={() => firstWithLeads && setActiveTab(firstWithLeads)} />
+          <Btn variant='outline' lbl={t('leads.empty.showAllLeads')} onClick={() => firstWithLeads && setActiveTab(firstWithLeads)} />
         </div>
       )}
       <p className='text-sm text-gray-600'>
         <button type='button' className='underline hover:text-gray-800' onClick={onAddLead}>
-          הוסף ליד ידנית
+          {t('leads.empty.addManually')}
         </button>
-        {' או '}
+        {t('leads.empty.or')}
         <button type='button' className='underline hover:text-gray-800' onClick={onUploadLeads}>
-          העלה קובץ לידים
+          {t('leads.empty.uploadFile')}
         </button>
       </p>
     </>

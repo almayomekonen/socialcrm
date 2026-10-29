@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLeadPolling } from '@/lib/hooksNEvents'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Args = {
   data: any
@@ -12,6 +13,7 @@ type Args = {
 }
 
 export function useLeadsState({ data, leads, activeTab, globalLatestUpdatedAt }: Args) {
+  const t = useT()
   const safeData = Array.isArray(data) ? data : []
   const [liveLeads, setLiveLeads] = useState<any[]>([])
   const [deletedIds, setDeletedIds] = useState<Set<number>>(new Set())
@@ -83,10 +85,10 @@ export function useLeadsState({ data, leads, activeTab, globalLatestUpdatedAt }:
 
   useEffect(() => {
     if (newLeadsCount > 0) {
-      toast('success', newLeadsCount === 1 ? 'ליד חדש הגיע' : `${newLeadsCount} לידים חדשים הגיעו`)
+      toast('success', t('leads.dialog.newArrived', { count: String(newLeadsCount) }))
       setNewLeadsCount(0)
     }
-  }, [newLeadsCount])
+  }, [newLeadsCount, t])
 
   useEffect(() => {
     const serverById = new Map<number, any>(safeData.map((d) => [d.id, d]))

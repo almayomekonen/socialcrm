@@ -1,6 +1,8 @@
 import { MultiSelectSearch } from '../form/MultiSelectSearch'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function ShowColumns({ config }) {
+  const t = useT()
   const { columns, setColumns } = config
 
   function onOpt(opt) {
@@ -25,7 +27,7 @@ export default function ShowColumns({ config }) {
       selected={selected}
       options={options}
       onSelectOpt={onOpt}
-      lbl='עמודות לצפיה'
+      lbl={t('common.table.columns')}
       // This toolbar control sits near the top of the page, inside main's
       // overflow-y-auto (+ .workspace-grid overflow:hidden). The default upward
       // [data-tip] tooltip is clipped there, so open it downward instead —

@@ -4,6 +4,8 @@ import { JSX, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { twMerge } from 'tailwind-merge'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { regionAttrs } from '@/lib/i18n/config'
 
 // Elements that can receive keyboard focus inside the dialog. Used for the focus
 // trap and for moving focus in on open.
@@ -28,7 +30,9 @@ export default function ModalPop({
   labelledBy,
   describedBy,
   scrimClassName,
+  translated = false,
 }: Props): JSX.Element {
+  const t = useT()
   // Portals require `document`, so wait for client-side mount before rendering.
   // Without the gate, SSR would crash on `document.body` and hydration would
   // mismatch on the empty fragment.
@@ -194,9 +198,10 @@ export default function ModalPop({
         ref={contentRef}
         role='dialog'
         aria-modal='true'
-        aria-label={labelledBy ? undefined : (label ?? 'תיבת דו-שיח')}
+        aria-label={labelledBy ? undefined : (label ?? t('common.dialog.fallbackName'))}
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
+        {...(translated ? regionAttrs(t.locale) : {})}
         tabIndex={-1}
         onKeyDown={onKeyDown}
         onClick={(e) => e.stopPropagation()}
@@ -224,7 +229,7 @@ export default function ModalPop({
         )}
       >
         {!hideClose && (
-          <button className='absolute top-2 left-2' title='יציאה ללא שמירה' aria-label='סגירה' onClick={onClose}>
+          <button className='absolute top-2 left-2' title={t('common.dialog.closeTitle')} aria-label={t('common.dialog.close')} onClick={onClose}>
             <Icon name='circle-xmark' className='size-[22px] bg-red-700' />
           </button>
         )}
@@ -263,4 +268,11 @@ type Props = {
    * against neutral surroundings rather than the page bleeding through.
    */
   scrimClassName?: string
+  /**
+   * The dialog's CONTENT is translated: it declares the interface language
+   * (`lang`/`dir`). Off by default — an untranslated Hebrew dialog must keep
+   * inheriting `he`/`rtl` from <html> (the portal sits outside every region).
+   * The close-button labels follow the interface language either way.
+   */
+  translated?: boolean
 }
