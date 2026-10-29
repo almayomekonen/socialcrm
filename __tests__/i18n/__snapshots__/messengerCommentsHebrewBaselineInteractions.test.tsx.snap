@@ -1,0 +1,339 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — Messenger composer > attachments: tray, caption label, rule rejections, upload success / server refusal / network failure, remove 1`] = `
+{
+  "afterRemove": false,
+  "afterSuccess": {
+    "tray": false,
+    "value": "",
+  },
+  "blocked": "לא ניתן לשלוח קובץ מסוג זה",
+  "captionLabel": "כיתוב לקובץ (לא חובה)",
+  "captionPlaceholder": "הוסף כיתוב (לא חובה)...",
+  "empty": "הקובץ ריק",
+  "network": "העלאת הקובץ נכשלה. בדוק את החיבור ונסה שוב.",
+  "sent": [
+    {
+      "caption": "כיתוב",
+      "conversationId": "1",
+      "file": "doc.pdf",
+      "url": "/api/messenger/attachment",
+    },
+    {
+      "caption": "כיתוב",
+      "conversationId": "1",
+      "file": "doc.pdf",
+      "url": "/api/messenger/attachment",
+    },
+    {
+      "caption": "כיתוב",
+      "conversationId": "1",
+      "file": "doc.pdf",
+      "url": "/api/messenger/attachment",
+    },
+    {
+      "caption": "כיתוב",
+      "conversationId": "1",
+      "file": "doc.pdf",
+      "url": "/api/messenger/attachment",
+    },
+  ],
+  "serverDetail": "הקובץ גדול מדי. המגבלה היא 25MB.",
+  "serverNoDetail": "הקובץ לא נשלח. נסה שוב.",
+  "toasts": [
+    [
+      "success",
+      "הקובץ נשלח ב-Messenger",
+    ],
+  ],
+  "tooLarge": "הקובץ גדול מדי. המגבלה היא 25MB.",
+  "tray": "<div class="mb-2 flex items-center gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2"><img alt="" aria-hidden="true" class="size-10 shrink-0 rounded object-cover" src="blob:«url»"><div class="min-w-0 flex-1"><p class="truncate text-xs font-medium text-gray-800">תמונה.png</p><p class="mt-0.5 text-[11px] text-gray-500">2.0MB</p></div><button type="button" aria-label="הסר את הקובץ" title="הסר את הקובץ" class="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x size-3.5" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>",
+}
+`;
+
+exports[`Hebrew baseline — Messenger composer > text: success, every failure reason, detail wins, value kept on failure 1`] = `
+{
+  "calls": [
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+    [
+      1,
+      "שלום",
+    ],
+  ],
+  "detail": "פירוט מהשרת",
+  "empty": "כתוב הודעה לפני השליחה",
+  "invalid_file": "לא ניתן לשלוח את הקובץ הזה",
+  "meta_error": "פייסבוק לא אישר את שליחת ההודעה. נסה שוב.",
+  "not_enabled": "Messenger אינו זמין בחשבון הזה",
+  "not_found": "השיחה לא נמצאה",
+  "pendingLabel": "שולח הודעה",
+  "permission_missing": "חסרה הרשאה לשליחת הודעות Messenger. אשר את ההרשאה ונסה שוב.",
+  "rate_limited": "פייסבוק מגביל כרגע את קצב השליחה. נסה שוב בעוד כמה דקות.",
+  "recipient_unavailable": "לא ניתן לשלוח לפונה הזה כרגע. ייתכן שחסם את הדף או שהחשבון אינו זמין.",
+  "reconnect_required": "החיבור לדף הפייסבוק פג. חבר מחדש את הדף בהגדרות ונסה שוב.",
+  "refreshes": 1,
+  "sendTitleEmpty": "כתוב הודעה או צרף קובץ כדי לשלוח",
+  "sendTitleReady": "שלח הודעה",
+  "toasts": [
+    [
+      "success",
+      "ההודעה נשלחה ב-Messenger",
+    ],
+  ],
+  "too_long": "ההודעה ארוכה מדי (עד 2,000 תווים)",
+  "unmapped": "פייסבוק לא אישר את שליחת ההודעה. נסה שוב.",
+  "valueAfterFailures": "שלום",
+  "valueAfterSuccess": "",
+  "window_closed": "עברו יותר מ-24 שעות מההודעה האחרונה של הפונה, ולכן פייסבוק לא מאפשר לשלוח. אפשר להשיב כשהפונה יכתוב שוב.",
+}
+`;
+
+exports[`Hebrew baseline — Messenger composer > tray phases (idle size, indeterminate, percent, sending) and their remove labels 1`] = `
+{
+  "idle": "<div class="mb-2 flex items-center gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2"><span aria-hidden="true" class="flex size-10 shrink-0 items-center justify-center rounded bg-gray-200 text-[10px] font-medium text-gray-600">PDF</span><div class="min-w-0 flex-1"><p class="truncate text-xs font-medium text-gray-800">report.pdf</p><p class="mt-0.5 text-[11px] text-gray-500">3.0MB</p></div><button type="button" aria-label="הסר את הקובץ" title="הסר את הקובץ" class="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x size-3.5" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>",
+  "indeterminate": "<div class="mb-2 flex items-center gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2"><span aria-hidden="true" class="flex size-10 shrink-0 items-center justify-center rounded bg-gray-200 text-[10px] font-medium text-gray-600">PDF</span><div class="min-w-0 flex-1"><p class="truncate text-xs font-medium text-gray-800">report.pdf</p><p role="status" class="mt-0.5 text-[11px] text-gray-500">מעלה…</p><div role="progressbar" aria-label="התקדמות העלאה" aria-valuemin="0" aria-valuemax="100" class="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200"><div class="h-full bg-primary transition-[width] duration-200 w-1/3 animate-pulse"></div></div></div><button type="button" aria-label="בטל את העלאת הקובץ" title="בטל את העלאת הקובץ" class="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x size-3.5" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>",
+  "percent": "<div class="mb-2 flex items-center gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2"><span aria-hidden="true" class="flex size-10 shrink-0 items-center justify-center rounded bg-gray-200 text-[10px] font-medium text-gray-600">PDF</span><div class="min-w-0 flex-1"><p class="truncate text-xs font-medium text-gray-800">report.pdf</p><p role="status" class="mt-0.5 text-[11px] text-gray-500">מעלה… 42%</p><div role="progressbar" aria-label="התקדמות העלאה" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100" class="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200"><div class="h-full bg-primary transition-[width] duration-200 " style="width: 42%;"></div></div></div><button type="button" aria-label="בטל את העלאת הקובץ" title="בטל את העלאת הקובץ" class="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x size-3.5" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>",
+  "sending": "<div class="mb-2 flex items-center gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2"><span aria-hidden="true" class="flex size-10 shrink-0 items-center justify-center rounded bg-gray-200 text-[10px] font-medium text-gray-600">PDF</span><div class="min-w-0 flex-1"><p class="truncate text-xs font-medium text-gray-800">report.pdf</p><p role="status" class="mt-0.5 text-[11px] text-gray-500">שולח…</p><div role="progressbar" aria-label="התקדמות העלאה" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" class="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200"><div class="h-full bg-primary transition-[width] duration-200 " style="width: 100%;"></div></div></div><button type="button" aria-label="בטל את העלאת הקובץ" title="בטל את העלאת הקובץ" class="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x size-3.5" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>",
+  "smallKb": "<div class="mb-2 flex items-center gap-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2"><span aria-hidden="true" class="flex size-10 shrink-0 items-center justify-center rounded bg-gray-200 text-[10px] font-medium text-gray-600">TXT</span><div class="min-w-0 flex-1"><p class="truncate text-xs font-medium text-gray-800">x.txt</p><p class="mt-0.5 text-[11px] text-gray-500">3KB</p></div><button type="button" aria-label="הסר את הקובץ" title="הסר את הקובץ" class="flex size-7 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x size-3.5" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>",
+}
+`;
+
+exports[`Hebrew baseline — Messenger lead actions, history import, search > create (pending, success, every failure), link (success, failure) 1`] = `
+{
+  "createCalls": [
+    [
+      2,
+    ],
+    [
+      2,
+    ],
+    [
+      2,
+    ],
+    [
+      2,
+    ],
+    [
+      2,
+    ],
+    [
+      2,
+    ],
+  ],
+  "linkCalls": [
+    [
+      2,
+      55,
+    ],
+    [
+      2,
+      55,
+    ],
+  ],
+  "pending": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px] w-fit" disabled=""><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] animate-spin " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/spinner.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/spinner.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>יוצר ליד...</span></button>",
+  "toasts": [
+    [
+      "success",
+      "הליד נוצר בהצלחה",
+    ],
+    [
+      "error",
+      "Messenger אינו זמין בחשבון הזה",
+    ],
+    [
+      "error",
+      "השיחה או הליד לא נמצאו",
+    ],
+    [
+      "error",
+      "הגעת למכסת הלידים בחבילה הנוכחית",
+    ],
+    [
+      "error",
+      "לא ניתן ליצור ליד מהשיחה. נסה שוב.",
+    ],
+    [
+      "error",
+      "לא ניתן ליצור ליד מהשיחה. נסה שוב.",
+    ],
+    [
+      "success",
+      "השיחה קושרה לליד",
+    ],
+    [
+      "error",
+      "השיחה או הליד לא נמצאו",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — Messenger lead actions, history import, search > import history: pending, imported (more / none), every failure reason 1`] = `
+{
+  "calls": [
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+    [
+      "p1",
+    ],
+  ],
+  "forbidden": "רק מנהל יכול לייבא שיחות",
+  "invalid": "הבקשה אינה תקינה",
+  "meta_error": "פייסבוק לא החזיר את השיחות. נסה שוב.",
+  "more": "יובאו 3 שיחות (12 הודעות). יש עוד שיחות בדף — אפשר להריץ שוב.",
+  "none": "לא נמצאו שיחות קודמות בדף.",
+  "not_enabled": "Messenger אינו זמין בחשבון הזה",
+  "not_found": "הדף לא נמצא",
+  "one": "יובאו 1 שיחות (2 הודעות).",
+  "pending": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>מייבא שיחות…</span></button>",
+  "permission_missing": "חסרה הרשאה לקריאת השיחות מהדף. חבר מחדש את הדף ונסה שוב.",
+  "rate_limited": "פייסבוק מגביל כרגע את קצב הבקשות. נסה שוב בעוד כמה דקות.",
+  "refreshes": 2,
+  "unmapped": "פייסבוק לא החזיר את השיחות. נסה שוב.",
+}
+`;
+
+exports[`Hebrew baseline — Messenger lead actions, history import, search > search: typing updates the URL, Escape and the clear button empty it 1`] = `
+{
+  "clear": "<button type="button" aria-label="נקה חיפוש" title="נקה חיפוש" class="absolute end-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x size-3.5" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>",
+  "placeholder": "חיפוש לפי שם או תוכן",
+  "replaces": [
+    "/inbox/messenger?q=%D7%A0%D7%95%D7%A2%D7%94",
+    "/inbox/messenger",
+    "/inbox/messenger",
+  ],
+  "value": "",
+}
+`;
+
+exports[`Hebrew baseline — saved replies, earlier messages, closed-window composer > load earlier: pending label, failure (result and thrown), success merges 1`] = `
+{
+  "calls": [
+    [
+      1,
+      1,
+    ],
+    [
+      1,
+      1,
+    ],
+    [
+      1,
+      1,
+    ],
+  ],
+  "failed": "לא ניתן לטעון הודעות קודמות. נסה שוב.",
+  "merged": true,
+  "pending": "<button type="button" class="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-60" disabled="">טוען הודעות קודמות…</button>",
+  "thrown": "לא ניתן לטעון הודעות קודמות. נסה שוב.",
+}
+`;
+
+exports[`Hebrew baseline — saved replies, earlier messages, closed-window composer > picker: open, keyboard, Escape returns focus, insert (plain) vs send (structured), send failure 1`] = `
+{
+  "activeAfterDown": [
+    "false",
+    "true",
+  ],
+  "calls": [
+    [
+      1,
+      2,
+    ],
+    [
+      1,
+      2,
+    ],
+  ],
+  "closed": true,
+  "failure": "פייסבוק מגביל כרגע את קצב השליחה. נסה שוב בעוד כמה דקות.",
+  "focusReturned": true,
+  "inserted": "אנחנו פתוחים א׳-ה׳ 9:00-18:00",
+  "listbox": "<div role="listbox" aria-label="תשובות שמורות" tabindex="-1" class="absolute bottom-11 start-0 z-20 max-h-64 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white p-1 shadow-lg"><button type="button" role="option" aria-selected="true" class="block w-full rounded-md px-2.5 py-1.5 text-start transition-colors bg-primary-soft"><span class="block truncate text-sm font-medium text-gray-900">שעות פעילות</span><span class="mt-0.5 block truncate text-xs text-gray-500">אנחנו פתוחים א׳-ה׳ 9:00-18:00</span><span class="mt-0.5 block text-[10px] text-gray-400">ייכנס לתיבת הכתיבה לעריכה</span></button><button type="button" role="option" aria-selected="false" class="block w-full rounded-md px-2.5 py-1.5 text-start transition-colors hover:bg-gray-50"><span class="block truncate text-sm font-medium text-gray-900">קביעת תור</span><span class="mt-0.5 block truncate text-xs text-gray-500">רוצה לקבוע תור?</span><span class="mt-0.5 block text-[10px] text-gray-400">נשלח מיד — כולל כפתורים או קובץ</span></button></div>",
+  "toasts": [
+    [
+      "success",
+      "התשובה נשלחה ב-Messenger",
+    ],
+  ],
+}
+`;

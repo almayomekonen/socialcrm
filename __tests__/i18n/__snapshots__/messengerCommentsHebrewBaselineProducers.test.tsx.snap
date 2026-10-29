@@ -1,0 +1,269 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — Messenger / Comments label producers > Meta notices shown on these routes, and the shared reasons label 1`] = `
+{
+  "notices": {
+    "comment_replies_declined": {
+      "action": "לנסות שוב",
+      "explanation": "במסך האישור של פייסבוק ההרשאה לניהול תגובות לא סומנה, ולכן אי אפשר לפרסם תשובה מכאן.",
+      "nextStep": "אפשר לנסות שוב ולסמן את ההרשאה. בינתיים אפשר להשיב ישירות בפייסבוק.",
+      "reasons": [
+        "ההרשאה לא סומנה במסך האישור של Facebook",
+      ],
+      "title": "ההרשאה להשבה לתגובות לא אושרה",
+      "tone": "attention",
+    },
+    "comment_replies_permission": {
+      "action": "אשר הרשאה להשבה לתגובות",
+      "explanation": "התגובות ממשיכות להגיע כרגיל. כדי לפרסם תשובה בשם הדף ישירות מ-SocialCRM, פייסבוק דורש אישור לניהול תגובות בדף.",
+      "nextStep": "לאשר את ההרשאה במסך של פייסבוק. החיבור והלידים הקיימים לא ייפגעו.",
+      "title": "כדי להשיב לתגובות מכאן צריך לאשר הרשאה",
+      "tone": "attention",
+    },
+    "expired": {
+      "action": "לחבר מחדש",
+      "explanation": "לידים חדשים אינם נכנסים כרגע. כל המידע הקיים במערכת נשמר במלואו.",
+      "nextStep": "חידוש החיבור אורך פחות מדקה ואינו משפיע על נתונים קיימים.",
+      "reasons": [
+        "חלפו כ-60 יום מהחיבור",
+        "הסיסמה בפייסבוק שונתה",
+      ],
+      "title": "החיבור לפייסבוק פג",
+      "tone": "attention",
+    },
+    "in_app_browser": {
+      "action": "לנסות בכל זאת",
+      "explanation": "בתוך אינסטגרם, חלון ההתחברות של Meta לא תמיד נפתח או חוזר למערכת.",
+      "nextStep": "לפתוח את getsocialcrm.com ב-Safari או ב-Chrome, להתחבר ולנסות שוב.",
+      "title": "כדאי לפתוח את האתר בדפדפן",
+      "tone": "attention",
+    },
+    "messenger_declined": {
+      "action": "לנסות שוב",
+      "explanation": "במסך האישור של פייסבוק ההרשאה לניהול הודעות לא סומנה, ולכן הודעות Messenger לא יגיעו לכאן.",
+      "nextStep": "אפשר לנסות שוב ולסמן את ההרשאה.",
+      "reasons": [
+        "ההרשאה לא סומנה במסך האישור של Facebook",
+      ],
+      "title": "ההרשאה ל-Messenger לא אושרה",
+      "tone": "attention",
+    },
+    "messenger_not_subscribed": {
+      "action": "חבר מחדש את הדף ל-Messenger",
+      "explanation": "פייסבוק עדיין לא שולחת ל-SocialCRM את הודעות ה-Messenger של הדף, ולכן הודעות חדשות לא יופיעו כאן.",
+      "nextStep": "לחבר מחדש את הדף בפייסבוק. החיבור והלידים הקיימים לא ייפגעו.",
+      "title": "הודעות Messenger עדיין לא מגיעות לכאן",
+      "tone": "attention",
+    },
+    "messenger_permission": {
+      "action": "אשר הרשאה ל-Messenger",
+      "explanation": "הדף מחובר והלידים ממשיכים להגיע כרגיל. כדי שהודעות Messenger מהדף יופיעו כאן ושתוכל להשיב להן, פייסבוק דורש אישור לניהול הודעות הדף.",
+      "nextStep": "לאשר את ההרשאה במסך של פייסבוק. החיבור והלידים הקיימים לא ייפגעו.",
+      "title": "כדי לקבל ולשלוח הודעות Messenger צריך לאשר הרשאה",
+      "tone": "attention",
+    },
+  },
+  "reasonsLabel": "בדרך כלל בגלל:",
+}
+`;
+
+exports[`Hebrew baseline — Messenger / Comments label producers > event lines: every postback / referral source / opt-in / reaction shape 1`] = `
+[
+  [
+    "referral",
+    "ADS",
+    "summer",
+    "הגיע ממודעה (summer)",
+  ],
+  [
+    "postback",
+    null,
+    "GET_STARTED",
+    "התחיל שיחה",
+  ],
+  [
+    "postback",
+    "לקבוע תור",
+    "BOOK",
+    "בחר: לקבוע תור",
+  ],
+  [
+    "postback",
+    null,
+    "MENU_X",
+    "בחר אפשרות מהתפריט",
+  ],
+  [
+    "referral",
+    "SOMETHING_NEW",
+    null,
+    "הגיע מקישור",
+  ],
+  [
+    "referral",
+    "SHORTLINK",
+    null,
+    "הגיע מקישור m.me",
+  ],
+  [
+    "optin",
+    null,
+    null,
+    "אישר לקבל הודעות",
+  ],
+  [
+    "reaction",
+    "react",
+    "❤️",
+    null,
+  ],
+  [
+    "reaction",
+    "react",
+    null,
+    null,
+  ],
+  [
+    "referral",
+    "MESSENGER_CODE",
+    null,
+    "סרק קוד Messenger",
+  ],
+  [
+    "referral",
+    "DISCOVER_TAB",
+    "x",
+    "הגיע מלשונית הגילוי (x)",
+  ],
+  [
+    "referral",
+    "CUSTOMER_CHAT_PLUGIN",
+    null,
+    "פתח צ׳אט מהאתר",
+  ],
+  [
+    "referral",
+    null,
+    "ref1",
+    "הגיע מקישור (ref1)",
+  ],
+]
+`;
+
+exports[`Hebrew baseline — Messenger / Comments label producers > window and window hint; attachment rule rejections; structured validation; rich-content previews 1`] = `
+{
+  "checks": [
+    {
+      "reason": "empty",
+    },
+    {
+      "reason": "too_large",
+    },
+    {
+      "reason": "blocked_type",
+    },
+    {
+      "type": "image",
+    },
+  ],
+  "hints": [
+    [
+      null,
+      null,
+    ],
+    [
+      30,
+      null,
+    ],
+    [
+      23.5,
+      "חלון המענה ייסגר בפחות משעה",
+    ],
+    [
+      22.9,
+      "אפשר להשיב עוד כ-1 שעות",
+    ],
+    [
+      20,
+      "אפשר להשיב עוד כ-4 שעות",
+    ],
+    [
+      1,
+      "אפשר להשיב עוד כ-23 שעות",
+    ],
+    [
+      0,
+      "אפשר להשיב עוד כ-24 שעות",
+    ],
+  ],
+  "previews": [
+    "[כרטיסים]",
+    "[קובץ מצורף]",
+    "שלום",
+  ],
+  "rejections": {
+    "blocked_type": "לא ניתן לשלוח קובץ מסוג זה",
+    "empty": "הקובץ ריק",
+    "too_large": "הקובץ גדול מדי. המגבלה היא 25MB.",
+  },
+  "validation": {
+    "attachAndTemplate": {
+      "error": "אפשר לשלוח קובץ מצורף או תבנית, לא את שניהם באותה הודעה",
+    },
+    "attachUrl": {
+      "error": "כתובת הקובץ חייבת להתחיל ב-https",
+    },
+    "both": {
+      "error": "אפשר לשלוח כפתורים או כרטיסים, לא את שניהם באותה הודעה",
+    },
+    "buttonLong": {
+      "error": "טקסט של כפתור ארוך מדי (עד 20 תווים)",
+    },
+    "buttonNoTitle": {
+      "error": "לכל כפתור צריך טקסט",
+    },
+    "buttonPayload": {
+      "error": "לכפתור פעולה צריך ערך",
+    },
+    "buttonUrl": {
+      "error": "כתובת הקישור בכפתור חייבת להתחיל ב-https",
+    },
+    "buttonsTooMany": {
+      "error": "אפשר עד 3 כפתורים בהודעה",
+    },
+    "cardButtons": {
+      "error": "אפשר עד 3 כפתורים בכרטיס",
+    },
+    "cardImage": {
+      "error": "כתובת תמונה בכרטיס חייבת להתחיל ב-https",
+    },
+    "cardLong": {
+      "error": "כותרת כרטיס ארוכה מדי (עד 80 תווים)",
+    },
+    "cardNoTitle": {
+      "error": "לכל כרטיס צריך כותרת",
+    },
+    "cardSubtitle": {
+      "error": "תיאור כרטיס ארוך מדי (עד 80 תווים)",
+    },
+    "cardsTooMany": {
+      "error": "אפשר עד 10 כרטיסים",
+    },
+    "ok": {
+      "ok": true,
+    },
+    "quickLong": {
+      "error": "טקסט של תשובה מהירה ארוך מדי (עד 20 תווים)",
+    },
+    "quickNoTitle": {
+      "error": "לכל תשובה מהירה צריך טקסט",
+    },
+    "quickPayload": {
+      "error": "ערך התשובה המהירה ארוך מדי",
+    },
+    "quickTooMany": {
+      "error": "אפשר עד 13 תשובות מהירות",
+    },
+  },
+}
+`;
