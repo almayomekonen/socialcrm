@@ -15,6 +15,7 @@ import {
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import { isPositiveLeadId } from './contactJob'
+import { withAiOperation } from '@/lib/ai/usage/context'
 import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
 import { generateQualifyTurn } from './qualify'
@@ -345,7 +346,11 @@ export async function runAutoResponseWorker(
     waTrace('WORKER_STARTED', traceCtx, { jobId: job.id, attempt: job.attempts, maxAttempts: job.maxAttempts })
     let outcome: Outcome | 'error' = 'error'
     try {
-      const r = await processJob(job, deps)
+      // Usage ledger: every provider request made for this job is recorded under it.
+      const r = await withAiOperation(
+        { kind: 'auto_response_job', id: String(job.id), agencyId: job.agencyId, conversationId: job.conversationId, leadId: job.leadId },
+        () => processJob(job, deps),
+      )
       outcome = r
       if (r === 'sent') sent++
       else if (r === 'skipped') skipped++
