@@ -3,9 +3,13 @@ import { formatDate } from '@/lib/dates'
 import { ToolTip } from '../../lib/Tooltip'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
+import { withAdminDefaultDateRange, withoutDateRange } from '@/lib/filter/adminDefaultDateRange'
+import type { Roles } from '@/types/roles'
 
-export function FilterChips({ filter }) {
+export function FilterChips({ filter: urlFilter, role }: { filter: any; role?: Roles }) {
   const router = useRouter()
+  // Show the filter the server applies, including an admin's default month.
+  const filter = withAdminDefaultDateRange(urlFilter ?? {}, role)
 
   const chips = [
     {
@@ -59,8 +63,9 @@ export function FilterChips({ filter }) {
     const chip = chips.find((c) => c.label === lbl)
     if (!chip) return
 
-    const tmp = { ...filter }
-    chip.keysToRemove.forEach((key) => delete tmp[key])
+    let tmp = { ...filter }
+    if (lbl === 'ת.פנייה') tmp = withoutDateRange(tmp, role)
+    else chip.keysToRemove.forEach((key) => delete tmp[key])
     router.replace(`?filter=${JSON.stringify(tmp)}`)
   }
 

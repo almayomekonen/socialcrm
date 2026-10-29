@@ -34,7 +34,7 @@ export default function FilterBtn({ user, filter }) {
 
   return (
     <div className='flex gap-0 '>
-      <FilterChips filter={filter} />
+      <FilterChips filter={filter} role={user?.role} />
       <div className=' d flex gap-0 ms-2'>
         <Btn lbl='סינון' popoverTarget='filterPop' icon='filter' className='rounded-e-none gap-4 px-6 ' />
         <Btn
