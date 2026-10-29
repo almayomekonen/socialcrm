@@ -1,7 +1,8 @@
 import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
-import { formatDateTime } from '@/lib/dates'
 import SyncStatusBadge from './SyncStatusBadge'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { formatLeadDateTime } from '@/lib/leads/leadDate'
 
 /**
  * The post-create confirmation for a new meeting.
@@ -10,6 +11,9 @@ import SyncStatusBadge from './SyncStatusBadge'
  * the lead picker landed (architecture-rules §1/§8). The seam is real rather than
  * arithmetic: the dialog COLLECTS a meeting and this REPORTS one that already
  * exists — different state, different job, no shared logic.
+ *
+ * Follows the interface language; the title is data. Times: Hebrew keeps the
+ * legacy `formatDateTime`, other languages the business time zone.
  */
 
 export type SuccessData = {
@@ -22,15 +26,18 @@ export type SuccessData = {
 }
 
 export default function SuccessView({ data, onClose }: { data: SuccessData; onClose: () => void }) {
+  const t = useT()
   const synced = data.syncStatus === 'synced'
-  const headline = synced ? 'הפגישה נוצרה' : 'הפגישה נשמרה'
+  const headline = synced ? t('calendar.success.created') : t('calendar.success.saved')
   const subline = synced
     ? data.attendeeCount > 0
-      ? 'הזמנות וקישור Google Meet נשלחו'
-      : 'הפגישה סונכרנה ליומן Google'
+      ? t('calendar.success.invitesSent')
+      : t('calendar.success.synced')
     : data.syncStatus === 'reauth_required'
-      ? 'נדרש חיבור מחדש ליומן לסנכרון ההזמנות'
-      : 'הסנכרון ליומן Google נכשל — ניתן לנסות שוב מתוך הפגישה ביומן'
+      ? t('calendar.success.reauth')
+      : t('calendar.success.failed')
+  const when = (at: Date) => formatLeadDateTime(t.locale, at)
+  const count = { count: String(data.attendeeCount) }
 
   return (
     <div className='grid gap-4 pt-2'>
@@ -53,19 +60,18 @@ export default function SuccessView({ data, onClose }: { data: SuccessData; onCl
       </div>
 
       <div className='rounded-lg border border-gray-200 bg-gray-50/60 p-4 grid gap-3'>
-        <SummaryRow lbl='כותרת'>{data.title}</SummaryRow>
-        <SummaryRow lbl='זמן'>
+        <SummaryRow lbl={t('calendar.success.title')}>{data.title}</SummaryRow>
+        <SummaryRow lbl={t('calendar.success.time')}>
           <span className='tabular-nums'>
-            {formatDateTime(data.startAt)} – {formatDateTime(data.endAt)}
+            {when(data.startAt)} – {when(data.endAt)}
           </span>
         </SummaryRow>
         {data.attendeeCount > 0 && (
-          <SummaryRow lbl='משתתפים'>
-            {data.attendeeCount} {data.attendeeCount === 1 ? 'משתתף' : 'משתתפים'}
-            {synced && ' · Google שלחה הזמנה'}
+          <SummaryRow lbl={t('calendar.success.attendees')}>
+            {synced ? t('calendar.success.attendeeCountInvited', count) : t('calendar.success.attendeeCount', count)}
           </SummaryRow>
         )}
-        <SummaryRow lbl='סטטוס סנכרון'>
+        <SummaryRow lbl={t('calendar.success.syncStatus')}>
           <SyncStatusBadge status={data.syncStatus} />
         </SummaryRow>
       </div>
@@ -77,12 +83,12 @@ export default function SuccessView({ data, onClose }: { data: SuccessData; onCl
           rel='noreferrer'
           className='inline-flex items-center justify-center h-10 px-4 rounded-md bg-solid text-white font-semibold hover:bg-solid/85'
         >
-          פתח Google Meet
+          {t('calendar.success.openMeet')}
         </a>
       )}
 
       <div className='flex justify-end'>
-        <Btn lbl='סגור' variant='outline' onClick={onClose} />
+        <Btn lbl={t('calendar.success.close')} variant='outline' onClick={onClose} />
       </div>
     </div>
   )

@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
 import { FormField } from '@/lib/form'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{1,255}$/
 const SEPARATORS = /[,;\s\n]+/
@@ -20,7 +21,7 @@ type Props = {
  * own draft buffer and inline error. Commit on Enter, comma, semicolon,
  * Tab, blur, or a multi-email paste. Backspace on an empty draft removes
  * the last chip. Duplicates silently dropped; invalid emails surface a
- * single inline message.
+ * single inline message. Messages follow the interface language; addresses are data.
  */
 export default function AttendeeChipsInput({
   value,
@@ -30,6 +31,8 @@ export default function AttendeeChipsInput({
   placeholder,
   disabled,
 }: Props) {
+  const t = useT()
+  const invalidOne = (email: string) => t('calendar.form.chips.invalidOne', { email })
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -67,7 +70,7 @@ export default function AttendeeChipsInput({
       e.preventDefault()
       const { committed, invalid } = commit(draft)
       if (invalid.length > 0) {
-        setError(`כתובת לא תקינה: ${invalid[0]}`)
+        setError(invalidOne(invalid[0]))
       } else if (committed > 0) {
         setDraft('')
         setError(null)
@@ -75,7 +78,7 @@ export default function AttendeeChipsInput({
     } else if (e.key === 'Tab' && draft.trim()) {
       const { committed, invalid } = commit(draft)
       if (committed > 0) setDraft('')
-      if (invalid.length > 0) setError(`כתובת לא תקינה: ${invalid[0]}`)
+      if (invalid.length > 0) setError(invalidOne(invalid[0]))
     } else if (e.key === 'Backspace' && draft === '' && value.length > 0) {
       onChange(value.slice(0, -1))
       setError(null)
@@ -91,8 +94,8 @@ export default function AttendeeChipsInput({
     if (invalid.length > 0) {
       setError(
         invalid.length === 1
-          ? `כתובת לא תקינה: ${invalid[0]}`
-          : `${invalid.length} כתובות לא תקינות הושמטו`,
+          ? invalidOne(invalid[0])
+          : t('calendar.form.chips.invalidMany', { count: String(invalid.length) }),
       )
     } else if (committed > 0) {
       setError(null)
@@ -106,7 +109,7 @@ export default function AttendeeChipsInput({
       setDraft('')
       setError(null)
     } else if (invalid.length > 0) {
-      setError(`כתובת לא תקינה: ${invalid[0]}`)
+      setError(invalidOne(invalid[0]))
     }
   }
 
@@ -162,6 +165,7 @@ function Chip({
   onRemove: () => void
   disabled?: boolean
 }) {
+  const t = useT()
   return (
     <span className='inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full'>
       <span className='truncate max-w-[220px] font-medium' title={email}>
@@ -171,7 +175,7 @@ function Chip({
         <button
           type='button'
           onClick={onRemove}
-          aria-label={`הסר ${email}`}
+          aria-label={t('calendar.form.chips.remove', { email })}
           className='inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors'
         >
           <svg viewBox='0 0 8 8' className='size-2.5' aria-hidden='true'>

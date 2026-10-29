@@ -1073,7 +1073,7 @@ describe('the calendar stays readable and stops offering doomed mutations', () =
    */
   it('keeps create, drag and resize live, and answers them with the Pro prompt', () => {
     const src = view()
-    expect(src).toContain("<Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />")
+    expect(src).toContain("<Btn lbl={t('calendar.page.newMeeting')} onClick={() => openNewMeeting()} />")
     expect(src).toContain('selectable={true}')
     expect(src).toContain('editable={true}')
     expect(src).toContain('if (expired) return promptCreate()')
@@ -1105,11 +1105,13 @@ describe('the calendar stays readable and stops offering doomed mutations', () =
     expect(dlg).toContain("const canRetry = meeting.syncStatus === 'failed'")
     expect(dlg).toContain("const isScheduled = meeting.status === 'scheduled'")
     expect(dlg).toContain('onClick={expired ? promptEdit : onEdit}')
-    expect(dlg).toContain('{formatDateTime(meeting.startAt)}')
+    expect(dlg).toContain('{formatLeadDateTime(locale, meeting.startAt)}')
   })
 
   it('leaves the genuine calendar error copy alone', () => {
-    expect(read('components/calendar/hooks/useMeetingOutcomeActions.ts')).toContain('אירעה שגיאה. נסה שוב.')
+    // The line is a catalog key since Phase E1; its Hebrew is unchanged.
+    expect(read('components/calendar/hooks/useMeetingOutcomeActions.ts')).toContain("toast('error', t('calendar.outcome.unexpected'))")
+    expect(read('lib/i18n/messages/he/calendar/details.ts')).toContain("unexpected: 'אירעה שגיאה. נסה שוב.'")
   })
 })
 

@@ -18,6 +18,9 @@ import MeetingDetailsDialog from '@/components/calendar/MeetingDetailsDialog'
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8')
 
+/** The Hebrew catalog holding the calendar page / Pro-prompt copy (Phase E1). */
+const CALENDAR_PAGE_COPY = 'lib/i18n/messages/he/calendar/page.ts'
+
 /** CalendarView and the hooks that hold its grid gestures and details-dialog actions (split in Phase E1). */
 const CALENDAR_VIEW_FILES = [
   'components/calendar/CalendarView.tsx',
@@ -155,14 +158,16 @@ describe('every write answers with the Pro prompt, never the error boundary', ()
   })
 
   it.each([
-    ['cancel', 'handleCancel', 'ביטול פגישות זמין עם Pro'],
-    ['retry the calendar sync', 'handleRetry', 'סנכרון יומן זמין עם Pro'],
-  ])('%s prompts before the action runs', (_l, fn, title) => {
+    ['cancel', 'handleCancel', "t('calendar.pro.cancel.title')", 'ביטול פגישות זמין עם Pro'],
+    ['retry the calendar sync', 'handleRetry', "t('calendar.pro.retry.title')", 'סנכרון יומן זמין עם Pro'],
+  ])('%s prompts before the action runs', (_l, fn, title, hebrew) => {
     const src = view()
     const at = src.indexOf(`async function ${fn}(`)
     const body = src.slice(at, at + 420)
     expect(body, fn).toContain('if (expired) {')
+    // The title is a catalog key since Phase E1; its Hebrew is the same sentence.
     expect(body, fn).toContain(title)
+    expect(read(CALENDAR_PAGE_COPY), fn).toContain(`title: '${hebrew}'`)
   })
 
   it('edit and outcome prompt from the details dialog', () => {
@@ -184,7 +189,7 @@ describe('every write answers with the Pro prompt, never the error boundary', ()
     const src = view()
     expect(src).toContain('selectable={true}')
     expect(src).toContain('editable={true}')
-    expect(src).toContain("<Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />")
+    expect(src).toContain("<Btn lbl={t('calendar.page.newMeeting')} onClick={() => openNewMeeting()} />")
   })
 })
 
@@ -244,8 +249,8 @@ describe('Calendar carries no standing subscription banner', () => {
 
   it('the create affordance is identical for every customer', () => {
     const src = view()
-    expect(src).toContain("<Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />")
-    expect(src).not.toContain("{!expired && <Btn lbl='פגישה חדשה'")
+    expect(src).toContain("<Btn lbl={t('calendar.page.newMeeting')} onClick={() => openNewMeeting()} />")
+    expect(src).not.toContain("{!expired && <Btn lbl={t('calendar.page.newMeeting')}")
   })
 
   it('nothing is greyed out or withheld on the calendar surface', () => {
@@ -260,8 +265,8 @@ describe('Calendar carries no standing subscription banner', () => {
   it.each([
     ['create', 'promptCreate()'],
     ['move', 'promptMove()'],
-    ['cancel', 'ביטול פגישות זמין עם Pro'],
-    ['sync retry', 'סנכרון יומן זמין עם Pro'],
+    ['cancel', "t('calendar.pro.cancel.title')"],
+    ['sync retry', "t('calendar.pro.retry.title')"],
   ])('%s is still answered by the Pro prompt', (_l, marker) => {
     expect(view()).toContain(marker)
   })

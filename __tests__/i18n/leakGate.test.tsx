@@ -41,7 +41,8 @@ vi.mock('@/lib/access/productAccess', async () => {
   return { getAgencyProductAccess: async () => ({ hasAccess: detailEnv.hasAccess }) }
 })
 // /dashboard reads (I/O only; every producer and component runs for real).
-vi.mock('@/db/filter', async () => ({ getPerms: async () => (await import('./leadsEnv')).LEADS_PAGE_PERMS }))
+// `gavePermUsers`: the global /tasks page (Phase E1) also lists the reps who gave permission.
+vi.mock('@/db/filter', async () => ({ getPerms: async () => ({ ...(await import('./leadsEnv')).LEADS_PAGE_PERMS, gavePermUsers: [] }) }))
 vi.mock('@/db/clients', async () => {
   const { leadsEnv, CLIENT_LISTS } = await import('./leadsEnv')
   return {
@@ -108,6 +109,7 @@ vi.mock('@/actions/clients', () => ({
   fetchLeadsSince: async () => [],
   searchContacts: async () => [],
   searchLeads: async () => [],
+  getLeadById: async () => null,
   updateLead: async () => ({ ok: true }),
   deleteLead: async () => ({ ok: true }),
   deleteManyLeads: async () => ({ deletedCount: 0, blockedCount: 0, blockedLeads: [] }),
@@ -157,6 +159,8 @@ vi.mock('@/db/tasks', async () => {
     getTaskTmplts: async () => tabsEnv.taskTmplts,
     getTaskById: async () => (tabsEnv.taskDetail ? structuredClone(tabsEnv.taskDetail) : undefined),
     getTasksByClientId: async () => [{ id: 2, title: 'שיחת המשך' }],
+    // Global /tasks (Phase E1).
+    getTasks: async () => (await import('./globalTasksFilesEnv')).globalEnv.tasks,
   }
 })
 vi.mock('@/modules/inbox/queries', async () => {
@@ -207,7 +211,16 @@ vi.mock('@/modules/leads/mobile/LeadDetailMobile', () => ({ default: () => null 
 
 // /clients/[clientId]/{tasks,files,billing} reads (I/O only; the pages, tables, Drive section and list run for real).
 vi.mock('next/dynamic', async () => ({ default: (await import('./leadTabsHarness')).nextDynamicMock }))
-vi.mock('@/db/files', async () => ({ getFilesByClientId: async () => (await import('./leadTabsEnv')).tabsEnv.files }))
+vi.mock('@/db/files', async () => ({
+  getFilesByClientId: async () => (await import('./leadTabsEnv')).tabsEnv.files,
+  // Global /files (Phase E1).
+  getFiles: async () => (await import('./globalTasksFilesEnv')).globalEnv.files,
+}))
+// /calendar reads and actions (Phase E1; I/O only — the page, view and producers run for real).
+vi.mock('@/db/googleCalendarConnections', async () => ({
+  getCalendarConnectionByUserId: async () => (await import('./calendarEnv')).calEnv.connection,
+}))
+vi.mock('@/actions/calendar', async () => (await import('./calendarEnv')).calendarActionsModule())
 vi.mock('@/actions/tasks', () => ({ addTask: async () => 1, addTaskFromTmplt: async () => 1, updateFullTask: async () => {}, updateFullTaskTmplt: async () => {}, deleteTask: async () => {} }))
 vi.mock('@/actions/files', () => ({ deleteFile: async () => {}, addFilesToTask: async () => {}, addFiles: async () => [], getPresigned: async () => [] }))
 vi.mock('@/actions/leadDriveFiles', async () => ({
@@ -285,6 +298,8 @@ afterEach(async () => {
   ;(await import('./leadTabsEnv')).resetTabsEnv()
   ;(await import('./inboxEnv')).resetInboxEnv()
   ;(await import('./messengerCommentsEnv')).resetMessengerCommentsEnv()
+  ;(await import('./globalTasksFilesEnv')).resetGlobalEnv()
+  ;(await import('./calendarEnv')).resetCalEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

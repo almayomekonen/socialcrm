@@ -12,6 +12,8 @@ import {
   type MeetingEditDTO,
 } from '@/actions/calendar'
 import AttendeeChipsInput from './AttendeeChipsInput'
+import { editMeetingFeedback } from './editMeetingFeedback'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   meetingId: number
@@ -35,9 +37,13 @@ function toLocalInput(iso: string): string {
  * AND resets every attendee's responseStatus to 'needsAction'. Sending the
  * unchanged list on every save would silently undo all the accept/decline
  * RSVPs that came in since the meeting was created.
+ *
+ * Follows the interface language; results are read by code. Title and
+ * attendee addresses are data.
  */
 export default function MeetingEditDialog({ meetingId, onClose }: Props) {
   const router = useRouter()
+  const t = useT()
   const [, startTransition] = useTransition()
 
   const [loading, setLoading] = useState(true)
@@ -64,11 +70,11 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
         setEndInput(toLocalInput(result.meeting.endAt))
         setAttendeeEmails(result.meeting.attendees.map((a) => a.email))
       } else if (result.reason === 'not_found') {
-        setLoadError('הפגישה לא נמצאה')
+        setLoadError(t('calendar.form.edit.notFound'))
       } else if (result.reason === 'not_owner') {
-        setLoadError('אינך מורשה לערוך פגישה זו')
+        setLoadError(t('calendar.form.edit.notOwner'))
       } else {
-        setLoadError('טעינת הפגישה נכשלה')
+        setLoadError(t('calendar.form.edit.loadFailed'))
       }
       setLoading(false)
     })
@@ -83,21 +89,21 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
     setErrMsg(null)
 
     const trimmedTitle = title.trim()
-    if (!trimmedTitle) return setErrMsg('יש להזין כותרת לפגישה')
+    if (!trimmedTitle) return setErrMsg(t('calendar.form.invalid.noTitle'))
 
     const startAt = new Date(startInput)
     const endAt = new Date(endInput)
     if (!Number.isFinite(startAt.getTime()) || !Number.isFinite(endAt.getTime())) {
-      return setErrMsg('יש להזין תאריך ושעה תקינים')
+      return setErrMsg(t('calendar.form.invalid.badDate'))
     }
     if (endAt.getTime() <= startAt.getTime()) {
-      return setErrMsg('שעת הסיום חייבת להיות אחרי שעת ההתחלה')
+      return setErrMsg(t('calendar.form.invalid.endBeforeStart'))
     }
     // Same past-date rule as create / drag — explicit edits to a past start
     // are almost always fumbles. Resize/drag of an in-progress meeting still
     // works through their own handlers; this is for full form edits.
     if (startAt.getTime() < Date.now()) {
-      return setErrMsg('לא ניתן להעביר פגישה לתאריך שעבר')
+      return setErrMsg(t('calendar.form.invalid.pastEdit'))
     }
 
     // Dirty detection — only include changed keys in the patch. This avoids
@@ -115,7 +121,7 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
 
     if (!titleChanged && !startChanged && !endChanged && !attendeesChanged) {
       // Nothing to save — close as a no-op rather than fire an empty patch.
-      toast('success', 'לא בוצעו שינויים')
+      toast('success', t('calendar.form.edit.noChanges'))
       onClose()
       return
     }
@@ -139,52 +145,17 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
         sendUpdates: 'all',
       })
 
-      if (result.ok === true) {
-        if (result.syncStatus === 'synced') {
-          toast('success', 'הפגישה עודכנה וסונכרנה ליומן Google')
-        } else if (result.syncStatus === 'not_synced') {
-          toast('success', 'הפגישה עודכנה ב-CRM (לא מסונכרנת ליומן Google)')
-        } else if (result.syncStatus === 'reauth_required') {
-          toast('error', 'הפגישה עודכנה ב-CRM. נדרש חיבור מחדש ליומן Google.')
-        } else {
-          toast('error', 'הפגישה עודכנה ב-CRM. סנכרון ליומן Google נכשל.')
-        }
+      const fb = editMeetingFeedback(result)
+      if (fb.saved) {
+        toast(fb.tone, t(fb.message))
         startTransition(() => router.refresh())
         onClose()
         return
       }
-
-      if (result.reason === 'conflict') {
-        toast('error', 'הפגישה עודכנה ב-CRM. סנכרון ליומן Google נכשל (נדרש רענון).')
-        startTransition(() => router.refresh())
-        onClose()
-        return
-      }
-      if (result.reason === 'not_owner') {
-        setErrMsg('אינך מורשה לערוך פגישה זו')
-        return
-      }
-      if (result.reason === 'not_found') {
-        setErrMsg('הפגישה לא נמצאה')
-        return
-      }
-      // invalid_input with various `details`.
-      if (result.details === 'duration_too_short') {
-        setErrMsg('משך הפגישה חייב להיות לפחות 5 דקות')
-        return
-      }
-      if (result.details === 'end_before_start') {
-        setErrMsg('שעת הסיום חייבת להיות אחרי שעת ההתחלה')
-        return
-      }
-      if (result.details === 'cancelled') {
-        setErrMsg('לא ניתן לערוך פגישה מבוטלת')
-        return
-      }
-      setErrMsg('עדכון הפגישה נכשל')
+      setErrMsg(t(fb.message))
     } catch (err) {
       console.warn('[MeetingEditDialog] submit error', err)
-      setErrMsg('אירעה שגיאה. נסה שוב.')
+      setErrMsg(t('calendar.form.unexpected'))
     } finally {
       setBusy(false)
     }
@@ -196,7 +167,7 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
   }
 
   return (
-    <ModalPop open onClose={handleClose} label='עריכת פגישה' pos='middle' className='w-[480px] max-w-[95vw]'>
+    <ModalPop open onClose={handleClose} label={t('calendar.form.editTitle')} pos='middle' className='w-[480px] max-w-[95vw]' translated>
       {loading ? (
         <div className='grid gap-3 pt-2'>
           <div className='h-6 bg-gray-100 rounded animate-pulse' />
@@ -209,19 +180,19 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
         </div>
       ) : loadError ? (
         <div className='grid gap-4 pt-2'>
-          <h2 className='text-xl font-bold'>שגיאה</h2>
+          <h2 className='text-xl font-bold'>{t('calendar.form.error')}</h2>
           <p className='text-sm text-gray-600'>{loadError}</p>
           <div className='flex justify-end'>
-            <Btn lbl='סגור' variant='outline' onClick={onClose} />
+            <Btn lbl={t('calendar.form.close')} variant='outline' onClick={onClose} />
           </div>
         </div>
       ) : (
         <form onSubmit={onSubmit} className='grid gap-4 pt-2'>
-          <h2 className='text-xl font-bold'>עריכת פגישה</h2>
+          <h2 className='text-xl font-bold'>{t('calendar.form.editTitle')}</h2>
 
           <Input
             name='title'
-            lbl='כותרת'
+            lbl={t('calendar.form.titleLabel')}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             disabled={busy}
@@ -232,7 +203,7 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
             <Input
               name='startAt'
               type='datetime-local'
-              lbl='התחלה'
+              lbl={t('calendar.form.start')}
               value={startInput}
               onChange={(e) => setStartInput(e.target.value)}
               disabled={busy}
@@ -240,7 +211,7 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
             <Input
               name='endAt'
               type='datetime-local'
-              lbl='סיום'
+              lbl={t('calendar.form.end')}
               value={endInput}
               onChange={(e) => setEndInput(e.target.value)}
               disabled={busy}
@@ -250,15 +221,15 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
           <AttendeeChipsInput
             value={attendeeEmails}
             onChange={setAttendeeEmails}
-            lbl='משתתפים'
-            placeholder='הוסף אימייל ולחץ Enter'
+            lbl={t('calendar.form.attendees')}
+            placeholder={t('calendar.form.attendeesPlaceholder')}
             disabled={busy}
           />
 
           <p className='text-xs text-gray-500 leading-relaxed -mt-2'>
-            שינויים בכותרת או בזמן יישלחו לכל המשתתפים. שינויים ברשימת המשתתפים יוסיפו או יסירו אנשים מהפגישה.
+            {t('calendar.form.editNotice')}
             <br />
-            אזור זמן: {browserTimezone}
+            {t('calendar.form.timezone', { zone: browserTimezone })}
           </p>
 
           {errMsg && (
@@ -268,8 +239,8 @@ export default function MeetingEditDialog({ meetingId, onClose }: Props) {
           )}
 
           <div className='flex justify-end gap-2'>
-            <Btn lbl='ביטול' variant='outline' type='button' onClick={handleClose} disabled={busy} />
-            <Btn lbl={busy ? 'שומר…' : 'שמור שינויים'} type='submit' disabled={busy} />
+            <Btn lbl={t('calendar.form.cancel')} variant='outline' type='button' onClick={handleClose} disabled={busy} />
+            <Btn lbl={busy ? t('calendar.form.saving') : t('calendar.form.save')} type='submit' disabled={busy} />
           </div>
         </form>
       )}

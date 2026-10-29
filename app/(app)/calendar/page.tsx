@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
+import { getUser } from '@/db/auth'
 import { getCalendarConnectionByUserId } from '@/db/googleCalendarConnections'
 import { listUpcomingMeetings } from '@/actions/calendar'
 import { Btn } from '@/lib/btns/Btn'
@@ -7,8 +8,15 @@ import Icon from '@/lib/Icon'
 import CalendarView from '@/components/calendar/CalendarView'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'פגישות' }
+/** Tab title in the interface language — Hebrew ('פגישות') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('calendar.page.title') }
+}
 
 export default async function CalendarPage() {
   const user = await requireAgencyUser()
@@ -21,6 +29,9 @@ export default async function CalendarPage() {
    */
   if (await isMobileWorkspaceRequest(user.agencyId)) return <MobileDesktopOnly section='calendar' />
 
+  // Resolved once by the same request-memoised call the (app) layout makes.
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   const conn = await getCalendarConnectionByUserId(user.id)
 
   // Per ux-guidelines §11: render exactly one state at a time. If the user
@@ -28,9 +39,9 @@ export default async function CalendarPage() {
   // the meetings list is not rendered at all.
   if (!conn || conn.sync_status === 'disabled') {
     return (
-      <div className='p-5'>
-        <h1 className='title'>פגישות</h1>
-        <NotConnectedState />
+      <div className='p-5' {...regionAttrs(locale)}>
+        <h1 className='title'>{t('calendar.page.heading')}</h1>
+        <NotConnectedState locale={locale} />
       </div>
     )
   }
@@ -47,25 +58,23 @@ export default async function CalendarPage() {
   const needsReauth = conn.sync_status === 'reauth_required'
 
   return (
-    <div className='p-5'>
+    <div className='p-5' {...regionAttrs(locale)}>
       <CalendarView meetings={meetings} needsReauth={needsReauth} />
     </div>
   )
 }
 
-function NotConnectedState() {
+function NotConnectedState({ locale }: { locale: UiLocale }) {
+  const t = translatorFor(locale)
   return (
     <div className='mt-6 max-w-lg rounded-lg border border-gray-200 bg-white p-8 grid gap-4 text-center'>
       <Icon name='calendar' className='size-12 bg-gray-400 mx-auto' />
       <div className='grid gap-1'>
-        <h2 className='text-xl font-bold'>חבר את היומן שלך</h2>
-        <p className='text-gray-600 text-sm leading-relaxed'>
-          חבר את חשבון Google שלך כדי לנהל פגישות עם לידים, ליצור קישורי Meet אוטומטית
-          ולסנכרן ליומן Google.
-        </p>
+        <h2 className='text-xl font-bold'>{t('calendar.page.notConnected.title')}</h2>
+        <p className='text-gray-600 text-sm leading-relaxed'>{t('calendar.page.notConnected.body')}</p>
       </div>
       <div className='flex justify-center'>
-        <Btn lbl='לחיבור היומן' href='/settings/integrations?section=google-calendar' />
+        <Btn lbl={t('calendar.page.notConnected.cta')} href='/settings/integrations?section=google-calendar' />
       </div>
     </div>
   )

@@ -153,8 +153,8 @@ function formatFileSize(mb) {
   return toMB(mb) + 'MB'
 }
 
-/** Size filter options: the stored byte limits, labelled in the interface language (Hebrew: `fileSizes` itself). */
-function sizeOptions(locale: UiLocale) {
+/** Size filter options: the stored byte limits, labelled in the interface language (Hebrew: `fileSizes` itself). Shared with the global /files table. */
+export function sizeOptions(locale: UiLocale) {
   if (locale === 'he') return fileSizes
   const t = translatorFor(locale)
   return fileSizes.map((s) => ({ ...s, name: t('leadTabs.files.sizeUpTo', { size: `${s.id / 1024 / 1024}MB` }) }))
@@ -170,7 +170,8 @@ const FILE_HEADER_KEY: Record<string, MessageKey> = {
   createdByName: 'leadTabs.files.header.createdByName',
 }
 
-function fileColumnLabel(key: string, locale: UiLocale): string | null {
+/** Shared with the global /files table. */
+export function fileColumnLabel(key: string, locale: UiLocale): string | null {
   const k = FILE_HEADER_KEY[key]
   return k ? translatorFor(locale)(k) : null
 }

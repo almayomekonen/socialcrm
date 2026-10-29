@@ -6,14 +6,16 @@ import type { EventDropArg } from '@fullcalendar/core'
 import type { EventResizeDoneArg } from '@fullcalendar/interaction'
 import { toast } from '@/lib/toast'
 import { updateMeeting, type MeetingSummaryDTO } from '@/actions/calendar'
-import { REFUSAL_COPY, rescheduleFeedback } from './rescheduleFeedback'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { REFUSAL_KEY, rescheduleFeedback } from './rescheduleFeedback'
 
 /**
  * The calendar grid's reschedule gestures: drag (move) and resize (change the
  * end). Extracted from CalendarView, which had crossed the 350-line hard limit
  * (architecture-rules §1/§5). Same guards in the same order, same reverts,
  * same toasts; the result → toast mapping the two shared lives in
- * `rescheduleFeedback`.
+ * `rescheduleFeedback`. Toasts follow the interface language (Hebrew outside a
+ * provider).
  *
  * `expired` / `promptMove` come from the view, which owns the entitlement
  * answer for every paid action on the page.
@@ -30,6 +32,7 @@ type Opts = {
 
 export function useMeetingReschedule({ expired, promptMove }: Opts) {
   const router = useRouter()
+  const t = useT()
   // Single busy flag covers drag AND resize — they're mutually exclusive
   // gestures, and the visual treatment (dim + progress cursor) is identical.
   const [dragBusy, setDragBusy] = useState(false)
@@ -57,7 +60,7 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
 
     if (meeting.status !== 'scheduled') {
       arg.revert()
-      toast('error', REFUSAL_COPY.moveMarked)
+      toast('error', t(REFUSAL_KEY.moveMarked))
       return
     }
 
@@ -82,7 +85,7 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
     // week view where vertical drag can cross day boundaries).
     if (newStart.getTime() < Date.now()) {
       arg.revert()
-      toast('error', REFUSAL_COPY.movePast)
+      toast('error', t(REFUSAL_KEY.movePast))
       return
     }
 
@@ -90,7 +93,7 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
       arg.revert()
       // Silent revert would look like the calendar is broken — tell the user
       // why their drop didn't stick.
-      toast('error', REFUSAL_COPY.busy)
+      toast('error', t(REFUSAL_KEY.busy))
       return
     }
     setDragBusy(true)
@@ -109,7 +112,7 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
     } catch (err) {
       console.warn('[calendar.drag] unexpected error', err)
       arg.revert()
-      toast('error', REFUSAL_COPY.unexpected)
+      toast('error', t(REFUSAL_KEY.unexpected))
     } finally {
       setDragBusy(false)
     }
@@ -144,7 +147,7 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
 
     if (meeting.status !== 'scheduled') {
       arg.revert()
-      toast('error', REFUSAL_COPY.resizeMarked)
+      toast('error', t(REFUSAL_KEY.resizeMarked))
       return
     }
 
@@ -158,13 +161,13 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
     // Mirror the action's 5-minute floor here to fail fast without a round-trip.
     if (newDurationMs < MIN_DURATION_MS) {
       arg.revert()
-      toast('error', REFUSAL_COPY.tooShort)
+      toast('error', t(REFUSAL_KEY.tooShort))
       return
     }
 
     if (dragBusy) {
       arg.revert()
-      toast('error', REFUSAL_COPY.busy)
+      toast('error', t(REFUSAL_KEY.busy))
       return
     }
     setDragBusy(true)
@@ -180,7 +183,7 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
     } catch (err) {
       console.warn('[calendar.resize] unexpected error', err)
       arg.revert()
-      toast('error', REFUSAL_COPY.unexpected)
+      toast('error', t(REFUSAL_KEY.unexpected))
     } finally {
       setDragBusy(false)
     }
@@ -193,12 +196,12 @@ export function useMeetingReschedule({ expired, promptMove }: Opts) {
    */
   function settle(arg: { revert: () => void }, fb: ReturnType<typeof rescheduleFeedback>) {
     if (fb.kept) {
-      toast(fb.tone, fb.message)
+      toast(fb.tone, t(fb.message))
       startTransition(() => router.refresh())
       return
     }
     arg.revert()
-    toast(fb.tone, fb.message)
+    toast(fb.tone, t(fb.message))
   }
 
   return { dragBusy, handleEventDrop, handleEventResize }

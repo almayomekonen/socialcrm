@@ -7,12 +7,15 @@ import { Suspense } from 'react'
 import { getPerms } from '@/db/filter'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
 
 const AddTaskForm = dynamic(() => import('@/components/tasks/addTaskForm'))
 
-export const metadata: Metadata = {
-  title: 'משימות', 
-  description: 'כל משימות הלידים',
+/** Tab title in the interface language — Hebrew ('משימות') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('tasks.page.title'), description: t('tasks.page.description') }
 }
 
 export default async function TasksPage({ searchParams }) {
@@ -25,6 +28,8 @@ export default async function TasksPage({ searchParams }) {
    */
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='tasks' />
 
+  // Resolved once by the same request-memoised call the (app) layout makes.
+  const { locale } = await getUiLocaleState(user)
   let { filter } = await searchParams
   filter = filter ? JSON.parse(filter) : {}
   if (!filter.userId) filter.userId = user.id
@@ -34,10 +39,10 @@ export default async function TasksPage({ searchParams }) {
   const users = [...gotPermUsers, ...gavePermUsers]
 
   return (
-    <div className='flex flex-col min-h-0 h-full'>
+    <div className='flex flex-col min-h-0 h-full' {...regionAttrs(locale)}>
       <TasksTable user={user} fillHeight key={Math.random()} data={tasks} users={users} filter={filter} />
       <Suspense>
-        <AddTaskForm clientId={null} />
+        <AddTaskForm clientId={null} translated />
       </Suspense>
     </div>
   )

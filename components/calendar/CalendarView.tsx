@@ -5,13 +5,11 @@ import dynamic from 'next/dynamic'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import heLocale from '@fullcalendar/core/locales/he'
 import type { EventInput, EventClickArg, DateSelectArg } from '@fullcalendar/core'
 import type { DateClickArg } from '@fullcalendar/interaction'
 import './calendar.css'
 
 import { Btn } from '@/lib/btns/Btn'
-import Icon from '@/lib/Icon'
 import { proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import type { MeetingSummaryDTO } from '@/actions/calendar'
@@ -21,15 +19,24 @@ import MeetingEditDialog from './MeetingEditDialog'
 import { toEventInput, renderEventContent } from './eventRendering'
 import { useMeetingReschedule } from './hooks/useMeetingReschedule'
 import { useMeetingSyncActions } from './hooks/useMeetingSyncActions'
+import CalendarReauthBanner from './CalendarReauthBanner'
+import { fullCalendarLocale } from './fullCalendarLocale'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 
 const FullCalendar = dynamic(() => import('@fullcalendar/react'), {
   ssr: false,
-  loading: () => (
-    <div className='h-[600px] grid place-items-center text-sm text-gray-500'>
-      טוען יומן…
-    </div>
-  ),
+  loading: () => <CalendarLoading />,
 })
+
+function CalendarLoading() {
+  const t = useT()
+  return (
+    <div className='h-[600px] grid place-items-center text-sm text-gray-500'>
+      {t('calendar.page.loading')}
+    </div>
+  )
+}
 
 type Props = {
   meetings: MeetingSummaryDTO[]
@@ -37,6 +44,7 @@ type Props = {
 }
 
 export default function CalendarView({ meetings, needsReauth = false }: Props) {
+  const t = useT()
   /** Entitlement from the shared context — the same answer the server gives. */
   const expired = useAccessDenied()
   /**
@@ -45,10 +53,8 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
    * renewal restores rather than reporting a failure.
    */
   const proPrompt = (title: string, body: string, source: string) => proToast({ title, body, source })
-  const promptCreate = () =>
-    proPrompt('יצירת פגישות זמינה עם Pro', 'חידוש המנוי יחזיר את האפשרות לקבוע פגישות.', 'calendar_create')
-  const promptMove = () =>
-    proPrompt('עריכת פגישות זמינה עם Pro', 'חידוש המנוי יחזיר את האפשרות לערוך פגישות.', 'calendar_move')
+  const promptCreate = () => proPrompt(t('calendar.pro.create.title'), t('calendar.pro.create.body'), 'calendar_create')
+  const promptMove = () => proPrompt(t('calendar.pro.move.title'), t('calendar.pro.move.body'), 'calendar_move')
   const [formOpen, setFormOpen] = useState(false)
   const [formDefaults, setFormDefaults] = useState<{ start: Date; end: Date } | null>(null)
   const [detail, setDetail] = useState<MeetingSummaryDTO | null>(null)
@@ -108,7 +114,7 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
   return (
     <div className='grid gap-4'>
       <div className='flex items-center justify-between gap-3 flex-wrap'>
-        <h1 className='title'>פגישות</h1>
+        <h1 className='title'>{t('calendar.page.heading')}</h1>
         {/*
           The affordance stays exactly as it is for every customer. Calendar is
           a working CRM surface after a subscription lapses, not a locked page:
@@ -118,29 +124,11 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
           reaching for something rather than by reading a banner they did not
           ask for.
         */}
-        <Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />
+        <Btn lbl={t('calendar.page.newMeeting')} onClick={() => openNewMeeting()} />
       </div>
 
 
-      {needsReauth && (
-        <div className='rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-3 flex-wrap sm:flex-nowrap'>
-          <Icon
-            name='triangle-exclamation'
-            type='reg'
-            className='size-5 bg-amber-700 mt-0.5 shrink-0'
-          />
-          <div className='flex-1 min-w-0'>
-            <p className='font-medium'>החיבור ליומן Google פג</p>
-            <p className='text-xs mt-0.5'>פגישות חדשות לא יסונכרנו עד החיבור מחדש.</p>
-          </div>
-          <Btn
-            lbl='חבר מחדש'
-            variant='outline'
-            href='/settings/integrations?section=google-calendar'
-            size='small'
-          />
-        </div>
-      )}
+      {needsReauth && <CalendarReauthBanner />}
 
       <div
         className={`rounded-lg border border-gray-200 bg-white p-3 sm:p-5 shadow-sm calendar-shell${
@@ -155,9 +143,14 @@ export default function CalendarView({ meetings, needsReauth = false }: Props) {
             center: 'title',
             end: 'dayGridMonth,timeGridWeek,timeGridDay',
           }}
-          buttonText={{ today: 'היום', month: 'חודש', week: 'שבוע', day: 'יום' }}
-          locale={heLocale}
-          direction='rtl'
+          buttonText={{
+            today: t('calendar.page.grid.today'),
+            month: t('calendar.page.grid.month'),
+            week: t('calendar.page.grid.week'),
+            day: t('calendar.page.grid.day'),
+          }}
+          locale={fullCalendarLocale(t.locale)}
+          direction={dirFor(t.locale)}
           firstDay={0}
           height='auto'
           contentHeight={680}
