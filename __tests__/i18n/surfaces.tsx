@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react'
 import type { UiLocale } from '@/lib/i18n/config'
 import type { Allowance } from './leakScan'
+import { DASHBOARD_CUSTOMER_DATA, STATS, dashboardEnv } from './dashboardFixtures'
+import { resolveAsync } from './dashboardHarness'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -70,4 +72,30 @@ export const SURFACES: Surface[] = [
     },
     allowed: [{ text: 'עברית', reason: 'endonym' }],
   },
+  ...(
+    [
+      ['desktop, Today brief v2 + analytics', { mobile: false, v2: true, stats: STATS }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],
+      ['desktop, analytics unavailable', { mobile: false, v2: true, stats: null }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],
+      ['desktop, legacy worklist', { mobile: false, v2: false, stats: STATS }, ['דנה כהן']],
+      ['mobile, Today brief v2', { mobile: true, v2: true, stats: STATS }, ['דנה כהן', 'יוסי לוי', 'רונית']],
+      ['mobile, legacy worklist', { mobile: true, v2: false, stats: STATS }, ['דנה כהן']],
+    ] as const
+  ).map(
+    ([variant, env, data]): Surface => ({
+      name: `dashboard — ${variant}`,
+      route: '/dashboard',
+      render: async (locale) => {
+        Object.assign(dashboardEnv, env)
+        const { I18nProvider } = await import('@/lib/i18n/I18nProvider')
+        const { default: DashboardPage } = await import('@/components/home/DashboardPage')
+        const page = await resolveAsync(await DashboardPage({ searchParams: Promise.resolve({}) }))
+        // The (app) layout provides the client-side translator for the same locale.
+        return <I18nProvider locale={locale}>{page}</I18nProvider>
+      },
+      allowed: data.map((text) => {
+        if (!DASHBOARD_CUSTOMER_DATA.includes(text)) throw new Error(`not declared as customer data: ${text}`)
+        return { text, reason: 'customer-data' as const }
+      }),
+    }),
+  ),
 ]

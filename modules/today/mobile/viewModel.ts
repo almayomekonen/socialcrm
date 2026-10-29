@@ -1,5 +1,10 @@
 import type { TodaySnapshot } from '@/modules/today/queries'
 import { reasonForDueRow } from '@/modules/today/queries'
+import { recommendReasonCode } from '@/lib/leads/recommend'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { ReasonCode, WindowState } from '@/lib/today/types'
+import { toneForReason, toneForWindow, type TodayReasonTone } from './reasonTone'
 import type { TodayBrief } from '@/lib/today/types'
 
 /**
@@ -34,6 +39,9 @@ export type MobileTodayRow = {
   cta?: 'call' | 'open_conversation'
 }
 
+/** Tones resolved on the server from codes (reason code, WhatsApp window state). */
+export type MobileTodayTones = { tone: TodayReasonTone; windowTone: TodayReasonTone }
+
 export type MobileTodayModel = {
   hero: MobileTodayRow | null
   nextUp: MobileTodayRow[]
@@ -45,6 +53,12 @@ export type MobileTodayModel = {
   meetings: number
   newLeadsCount: number
   source: 'brief_v2' | 'worklist_v1'
+  /**
+   * Per-row tones by row id, resolved from CODES so no row's text is ever read.
+   * Kept beside the rows (not in them) so the row shape is unchanged. A model
+   * without it (hand-built) falls back to the legacy Hebrew-text tone.
+   */
+  tones?: Record<number, MobileTodayTones>
 }
 
 const leadHref = (id: number) => `/clients/${id}/summary`
@@ -93,6 +107,7 @@ function assemble(args: {
   meetings: number
   newLeadsCount: number
   source: MobileTodayModel['source']
+  tones: Record<number, MobileTodayTones>
 }): MobileTodayModel {
   const { ordered, overflow = [], ...counts } = args
 
@@ -102,6 +117,10 @@ function assemble(args: {
     rest: [...ordered.slice(1 + NEXT_UP_MAX), ...overflow],
     ...counts,
   }
+}
+
+function tonesFor(input: { reasonCode?: ReasonCode | null; windowState?: WindowState | null }): MobileTodayTones {
+  return { tone: toneForReason(input.reasonCode), windowTone: toneForWindow(input.windowState) }
 }
 
 function toRow(input: {
@@ -132,7 +151,10 @@ function toRow(input: {
 }
 
 /** v2 — the Today Brief. `items` is already ordered, deduped and labelled. */
-export function modelFromBrief(brief: TodayBrief): MobileTodayModel {
+export function modelFromBrief(brief: TodayBrief, locale: UiLocale = 'he'): MobileTodayModel {
+  const t = translatorFor(locale)
+  const tones: Record<number, MobileTodayTones> = {}
+  for (const i of brief.items) tones[i.id] = tonesFor({ reasonCode: i.state, windowState: i.windowState })
   const rows: MobileTodayRow[] = brief.items.map((i) =>
     toRow({
       id: i.id,
@@ -140,7 +162,7 @@ export function modelFromBrief(brief: TodayBrief): MobileTodayModel {
       phone: i.phone,
       reason: i.waitingFor ?? i.reason,
       href: leadHref(i.id),
-      eyebrow: i.conversationId ? 'צריך לטפל עכשיו' : null,
+      eyebrow: i.conversationId ? t('today.eyebrow.needsAction') : null,
       windowHint: i.windowHint,
       conversationId: i.conversationId,
     }),
@@ -169,11 +191,19 @@ export function modelFromBrief(brief: TodayBrief): MobileTodayModel {
      */
     newLeadsCount: 0,
     source: 'brief_v2',
+    tones,
   })
 }
 
 /** v1 — the legacy worklist. Same picks the desktop dashboard renders. */
-export function modelFromSnapshot(snapshot: Omit<TodaySnapshot, 'hasLeads'>, nowMs: number): MobileTodayModel {
+export function modelFromSnapshot(
+  snapshot: Omit<TodaySnapshot, 'hasLeads'>,
+  nowMs: number,
+  locale: UiLocale = 'he',
+): MobileTodayModel {
+  const tones: Record<number, MobileTodayTones> = {}
+  for (const item of snapshot.recommended) tones[item.lead.id] = tonesFor(item)
+  for (const row of snapshot.tableRows) tones[row.id] = tonesFor({ reasonCode: recommendReasonCode(row, nowMs) })
   const recommended: MobileTodayRow[] = snapshot.recommended.map((item) =>
     toRow({
       id: item.lead.id,
@@ -191,7 +221,7 @@ export function modelFromSnapshot(snapshot: Omit<TodaySnapshot, 'hasLeads'>, now
     id: row.id,
     name: row.name,
     phone: row.phone,
-    reason: reasonForDueRow(row, nowMs),
+    reason: reasonForDueRow(row, nowMs, locale),
     href: leadHref(row.id),
   }))
 
@@ -211,5 +241,6 @@ export function modelFromSnapshot(snapshot: Omit<TodaySnapshot, 'hasLeads'>, now
     meetings: snapshot.meetings.length,
     newLeadsCount: snapshot.newLeadsCount,
     source: 'worklist_v1',
+    tones,
   })
 }

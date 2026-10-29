@@ -3,6 +3,8 @@ import Icon from '@/lib/Icon'
 import LeadAvatar from '@/components/ui/lead-avatar'
 import type { BriefItem } from '@/lib/today/types'
 import { WAIT_TONE } from './waitTone'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 // Presentational (RSC). The rest of the brief — dense rows, no pagination
 // (INV-15). The wait chip's tone is chosen from the precomputed state and it
@@ -10,18 +12,19 @@ import { WAIT_TONE } from './waitTone'
 const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const iconBtn = `inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-border bg-surface transition-colors ${focusRing}`
 
-export default function BriefList({ items }: { items: BriefItem[] }) {
+export default function BriefList({ items, locale = 'he' }: { items: BriefItem[]; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   return (
     <section className='min-w-0 flex-[2_1_560px] overflow-hidden rounded-2xl border border-border bg-surface'>
       <div className='flex items-center justify-between gap-3 px-[22px] pt-[18px] pb-3'>
         <div className='flex items-center gap-2.5'>
-          <h2 className='text-lg font-bold text-ink'>צריך לטפל עכשיו</h2>
+          <h2 className='text-lg font-bold text-ink'>{t('today.list.title')}</h2>
           <span className='rounded-[10px] bg-error-bg px-2 py-0.5 text-xs font-bold text-error-text tabular-nums'>
             {items.length}
           </span>
         </div>
         <Link href='/leads' className={`text-sm font-semibold text-primary-text hover:text-primary ${focusRing}`}>
-          לכל הלידים ←
+          {t('today.list.allLeads')}
         </Link>
       </div>
       <ul>
@@ -35,7 +38,7 @@ export default function BriefList({ items }: { items: BriefItem[] }) {
               key={it.id}
               className='flex items-center gap-3.5 border-t border-gray-100 px-[22px] py-3 transition-colors hover:bg-bg'
             >
-              <LeadAvatar name={it.name} size='md' />
+              <LeadAvatar name={it.name} size='md' fallback={t('today.list.avatarFallback')} />
               <div className='min-w-0 flex-1'>
                 <Link
                   href={href}
@@ -63,7 +66,7 @@ export default function BriefList({ items }: { items: BriefItem[] }) {
                 {openConversation && (
                   <Link
                     href={href}
-                    aria-label={`פתח שיחת WhatsApp עם ${it.name || 'ליד'}`}
+                    aria-label={t('today.list.whatsappWith', { name: it.name || t('today.mission.leadFallback') })}
                     className={`${iconBtn} hover:border-success-border hover:bg-success-bg`}
                   >
                     <Icon name='whatsapp' type='sol' className='size-[17px] bg-success' />
@@ -72,7 +75,7 @@ export default function BriefList({ items }: { items: BriefItem[] }) {
                 {it.phone && (
                   <a
                     href={`tel:${it.phone}`}
-                    aria-label={`התקשר ל${it.name || 'ליד'}`}
+                    aria-label={t('today.mission.callName', { name: it.name || t('today.mission.leadFallback') })}
                     className={`group ${iconBtn} hover:bg-primary-tint`}
                   >
                     <Icon name='phone' className='size-4 bg-ink group-hover:bg-primary-text' />

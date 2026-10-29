@@ -1149,7 +1149,8 @@ describe('lead follow-up and outcome controls gate before dispatch', () => {
 
   it.each([
     ['components/leads/FollowUpControl.tsx', "data-edu='lead-followup'"],
-    ['components/leads/OutcomeControl.tsx', 'תוצאת שיחה:'],
+    // The label moved to the i18n catalog (Phase B); its JSX call site is the same anchor.
+    ['components/leads/OutcomeControl.tsx', "t('leads.outcome.titleLabel')"],
   ])('%s gates before its controls render, not after a click fails', (file, marker) => {
     const src = read(file)
     expect(src.indexOf('if (expired) {')).toBeLessThan(src.indexOf(marker))

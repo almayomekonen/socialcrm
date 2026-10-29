@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { openLeadWhatsappInInbox, WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { resolveLeadContactPlan } from '@/modules/leads/contactPlan'
@@ -79,6 +80,7 @@ export default function LeadContactActions({
   /** Workspace WhatsApp connection. Omit when unknown — keeps the in-app path. */
   whatsappConnected?: boolean
 }) {
+  const t = useT()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [busy, setBusy] = useState(false)
@@ -136,11 +138,11 @@ export default function LeadContactActions({
   const onUnusableNumber = () => {
     contactClicked(leadId, 'mobile', 'whatsapp_native')
     contactBlocked(leadId, 'mobile', 'no_phone')
-    toast('message', 'לליד אין מספר טלפון תקין לוואטסאפ')
+    toast('message', t('leads.contact.noValidPhone'))
   }
 
   const working = busy || pending
-  const waLabel = name ? `וואטסאפ ל${name}` : 'וואטסאפ'
+  const waLabel = name ? t('leads.contact.whatsappName', { name }) : t('leads.contact.whatsapp')
 
   if (size === 'bar') {
     const barClass =
@@ -150,17 +152,17 @@ export default function LeadContactActions({
         {phone && (
           <a
             href={`tel:${phone}`}
-            aria-label={name ? `התקשר ל${name}` : 'התקשר'}
+            aria-label={name ? t('leads.contact.callName', { name }) : t('leads.contact.call')}
             className='press flex h-11 flex-1 items-center justify-center gap-2 rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
             <Icon name='phone' type='sol' className='size-4 bg-white' />
-            <span>התקשר</span>
+            <span>{t('leads.contact.call')}</span>
           </a>
         )}
         {plan.kind === 'native' ? (
           <a href={plan.href} onClick={onNativeHandoff} aria-label={waLabel} className={barClass}>
             <Icon name='whatsapp' type='sol' className='size-4 bg-white' />
-            <span>וואטסאפ</span>
+            <span>{t('leads.contact.whatsapp')}</span>
           </a>
         ) : (
           <button
@@ -175,7 +177,7 @@ export default function LeadContactActions({
               type='sol'
               className={`size-4 bg-white ${working ? 'animate-spin' : ''}`}
             />
-            <span>{working ? 'פותח…' : 'וואטסאפ'}</span>
+            <span>{working ? t('leads.contact.opening') : t('leads.contact.whatsapp')}</span>
           </button>
         )}
       </div>
@@ -236,7 +238,7 @@ export default function LeadContactActions({
         <a
           href={`tel:${phone}`}
           onClick={(e) => e.stopPropagation()}
-          aria-label={name ? `התקשר ל${name}` : 'התקשר'}
+          aria-label={name ? t('leads.contact.callName', { name }) : t('leads.contact.call')}
           className='press flex size-11 items-center justify-center rounded-full active:bg-primary-tint focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
           <Icon name='phone' type='sol' className='size-5 bg-primary' />

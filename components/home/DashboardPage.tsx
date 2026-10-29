@@ -22,10 +22,21 @@ import { parseDashboardRange } from '@/lib/dashboard/stats'
 import AnalyticsOverview from '@/components/home/dashboard/AnalyticsOverview'
 import FunnelCard from '@/components/home/dashboard/FunnelCard'
 import { AnalyticsOverviewSkeleton, FunnelSkeleton } from '@/components/home/dashboard/AnalyticsSkeleton'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 export default async function DashboardPage({ searchParams }: { searchParams?: Promise<{ range?: string | string[] }> }) {
   const user = await getUser()
   if (!user) redirect('/auth')
+
+  // SERVER LOCALE PROPAGATION. Resolved once, by the same request-memoised call
+  // the (app) layout makes, so page and layout always agree (Hebrew, with no
+  // query, outside the UI_LOCALE_* rollout). Only the plain `locale` is passed
+  // on: data builders turn it into display strings, server components into a
+  // translator; client components read the layout's provider (same value).
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
 
   // Same single source of truth the layout gate uses — the two can never
   // disagree about whether this request is the mobile workspace.
@@ -63,6 +74,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
       const brief = await buildTodayBrief(
         { scope: { user: { role: user.role }, gotPermIds }, agencyId: user.agencyId, userId: user.id, firstName },
         Date.now(),
+        { locale },
       )
       logBriefServed({
         agencyId: user.agencyId,
@@ -74,7 +86,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
       // Mobile renders the SAME brief through the mobile presentation, so an
       // agency on v2 is never told to call one person on its phone and a
       // different one on its laptop.
-      if (mobile) return <MobileToday model={modelFromBrief(brief)} whatsappConnected={whatsappConnected} />
+      if (mobile) return <MobileToday model={modelFromBrief(brief, locale)} whatsappConnected={whatsappConnected} locale={locale} />
 
       // Desktop analytics (KPIs, charts, funnel) stream in after the brief. One
       // promise feeds both boundaries; a failure renders an explicit error card
@@ -91,14 +103,15 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
       return (
         <TodayBriefView
           brief={brief}
+          locale={locale}
           overview={
-            <Suspense key={range} fallback={<AnalyticsOverviewSkeleton />}>
-              <AnalyticsOverview stats={stats} />
+            <Suspense key={range} fallback={<AnalyticsOverviewSkeleton locale={locale} />}>
+              <AnalyticsOverview stats={stats} locale={locale} />
             </Suspense>
           }
           funnel={
             <Suspense fallback={<FunnelSkeleton />}>
-              <FunnelCard stats={stats} />
+              <FunnelCard stats={stats} locale={locale} />
             </Suspense>
           }
         />
@@ -114,21 +127,21 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
   }
 
   const now = Date.now()
-  const snapshot = await resolveTodaySnapshot(user, gotPermIds, now)
+  const snapshot = await resolveTodaySnapshot(user, gotPermIds, now, undefined, locale)
 
-  if (mobile) return <MobileToday model={modelFromSnapshot(snapshot, now)} whatsappConnected={whatsappConnected} />
+  if (mobile) return <MobileToday model={modelFromSnapshot(snapshot, now, locale)} whatsappConnected={whatsappConnected} locale={locale} />
 
   const { recommended, tableRows, tableTotal, dueCount, doneToday, meetings, newLeadsCount, upcomingCount, progressPct } =
     snapshot
 
   return (
-    <div className='mb-8 grid gap-4'>
+    <div className='mb-8 grid gap-4' {...regionAttrs(locale)}>
       <div>
-        <h1 className='title mb-1'>היום</h1>
+        <h1 className='title mb-1'>{t('today.title')}</h1>
         <p className='text-sm text-gray-700 tabular-nums'>
-          <span className='font-medium text-gray-900'>{`${doneToday} טופלו`}</span>
-          {` · ${dueCount} נותרו`}
-          {meetings.length > 0 ? ` · ${meetings.length} פגישות` : ''}
+          <span className='font-medium text-gray-900'>{t('today.legacy.handled', { count: doneToday })}</span>
+          {` · ${t('today.legacy.remaining', { count: dueCount })}`}
+          {meetings.length > 0 ? ` · ${t('today.legacy.meetings', { count: meetings.length })}` : ''}
         </p>
         <div className='mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200'>
           <div className='h-full rounded-full bg-primary transition-all' style={{ width: `${progressPct}%` }} />
@@ -147,7 +160,13 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
 
       <FollowupsTable rows={tableRows} total={tableTotal} whatsappConnected={whatsappConnected} />
 
-      <QuickLinks dueCount={dueCount} newCount={newLeadsCount} upcomingCount={upcomingCount} meetingsCount={meetings.length} />
+      <QuickLinks
+        dueCount={dueCount}
+        newCount={newLeadsCount}
+        upcomingCount={upcomingCount}
+        meetingsCount={meetings.length}
+        locale={locale}
+      />
     </div>
   )
 }

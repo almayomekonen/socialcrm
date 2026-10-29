@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 
 // New leads (bars) vs leads that got a human reply (line), one column per
 // business day. Time runs left → right regardless of page direction. Labels are
@@ -22,6 +24,7 @@ function niceMax(raw: number): number {
 }
 
 export default function LeadsTrendChart({ points, showReplied = true }: { points: TrendPoint[]; showReplied?: boolean }) {
+  const t = useT()
   const [active, setActive] = useState<number | null>(null)
   const n = points.length
   const max = niceMax(Math.max(...points.map((p) => Math.max(p.newLeads, showReplied ? p.replied : 0))))
@@ -46,7 +49,7 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
       dir='ltr'
       role='group'
       tabIndex={0}
-      aria-label='לידים חדשים ולידים שנענו לפי יום. מקשי החצים עוברים בין הימים.'
+      aria-label={t('today.analytics.chartLabel')}
       onKeyDown={onKeyDown}
       onFocus={() => setActive((a) => a ?? n - 1)}
       onBlur={() => setActive(null)}
@@ -95,14 +98,16 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
 
       {tip && (
         <div
-          dir='rtl'
+          // The chart canvas stays LTR (time runs left→right); the tooltip text
+          // follows the interface language.
+          dir={dirFor(t.locale)}
           role='status'
           className='pointer-events-none absolute top-0 -translate-x-1/2 rounded-[10px] bg-ink px-3 py-2 text-[13px] whitespace-nowrap text-white shadow-overlay'
           style={{ left: `${(cx(active!) / VB_W) * 100}%` }}
         >
           <div className='mb-0.5 font-bold'>{tip.long}</div>
-          <div className='tabular-nums'>{tip.newLeads} לידים חדשים</div>
-          {showReplied && <div className='text-success-border tabular-nums'>{tip.replied} נענו</div>}
+          <div className='tabular-nums'>{t('today.analytics.tipNew', { count: tip.newLeads })}</div>
+          {showReplied && <div className='text-success-border tabular-nums'>{t('today.analytics.tipReplied', { count: tip.replied })}</div>}
         </div>
       )}
     </div>

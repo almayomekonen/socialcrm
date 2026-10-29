@@ -18,7 +18,15 @@ import { intlLocale, type Messages } from './translate'
 export type CoverageIssue = { locale: UiLocale; key: string; kind: string; detail?: string }
 
 /** Strings that are legitimately the same in every language (brand / product terms). */
-const ALLOWED_SAME = new Set<string>([])
+const ALLOWED_SAME = new Set<string>([
+  // Brand names, written the same way in Hebrew and English UI.
+  'common.source.whatsapp',
+  'common.source.facebook',
+  'common.source.instagram',
+  'today.analytics.source.whatsapp',
+  // Pure punctuation pattern; the words come from other keys.
+  'today.greetingWithName',
+])
 
 type Leaf = string | Record<string, string>
 

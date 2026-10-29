@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Btn } from '@/lib/btns/Btn'
 import OutcomeControl from '@/components/leads/OutcomeControl'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Recommended leads — the focal point of the dashboard.
@@ -27,6 +28,7 @@ function inboxHref(conversationId: number) {
 export default function RecommendedLeads({ items }: { items: RecommendedItem[] }) {
   // Optimistic completion: a logged lead disappears immediately; the server
   // refresh reconciles by sending fresh `items`, at which point we clear the set.
+  const t = useT()
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set())
   useEffect(() => setCompletedIds(new Set()), [items])
   const complete = (id: number) => setCompletedIds((s) => new Set(s).add(id))
@@ -40,7 +42,7 @@ export default function RecommendedLeads({ items }: { items: RecommendedItem[] }
   return (
     <div className='rounded-lg border border-gray-200 bg-white p-4'>
       {/* Hero — the obvious starting point */}
-      <p className='text-xs font-medium text-primary-text mb-1'>{hero.eyebrow || 'התחל כאן'}</p>
+      <p className='text-xs font-medium text-primary-text mb-1'>{hero.eyebrow || t('today.eyebrow.startHere')}</p>
       <div className='flex items-center justify-between gap-3'>
         <div className='min-w-0'>
           <Link href={heroHref} className='block text-lg font-semibold truncate hover:underline'>
@@ -55,14 +57,14 @@ export default function RecommendedLeads({ items }: { items: RecommendedItem[] }
         <div className='flex items-center gap-2 shrink-0'>
           <OutcomeControl leadId={hero.lead.id} compact onCompleted={() => complete(hero.lead.id)} />
           {heroInboxHref ? (
-            <Btn variant='solid' size='medium' href={heroInboxHref} lbl='פתח שיחה' />
+            <Btn variant='solid' size='medium' href={heroInboxHref} lbl={t('today.mission.openConversation')} />
           ) : (
             hero.lead.phone && (
               <Btn
                 variant='solid'
                 size='medium'
                 icon='phone'
-                lbl='התקשר'
+                lbl={t('today.actions.call')}
                 onClick={() => (window.location.href = `tel:${hero.lead.phone}`)}
               />
             )
@@ -91,7 +93,7 @@ export default function RecommendedLeads({ items }: { items: RecommendedItem[] }
                     variant='outline'
                     size='icon'
                     icon='phone'
-                    aria-label='התקשר'
+                    aria-label={t('today.actions.call')}
                     onClick={() => (window.location.href = `tel:${lead.phone}`)}
                   />
                 )}

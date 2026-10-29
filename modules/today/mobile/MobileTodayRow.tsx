@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import LeadContactActions from '@/modules/leads/mobile/LeadContactActions'
-import type { MobileTodayRow as Row } from './viewModel'
+import type { MobileTodayRow as Row, MobileTodayTones } from './viewModel'
 import { todayReasonTone, todayToneClass, todayWindowHintTone } from './reasonTone'
 
 /**
@@ -39,15 +39,20 @@ import { todayReasonTone, todayToneClass, todayWindowHintTone } from './reasonTo
  */
 export default function MobileTodayRow({
   row,
+  tones,
   whatsappConnected,
 }: {
   row: Row
+  /** Resolved from codes on the server (`MobileTodayModel.tones`). */
+  tones?: MobileTodayTones
   /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
   whatsappConnected?: boolean
 }) {
   const { id, name, phone, reason, href, windowHint } = row
-  const reasonTone = todayToneClass(todayReasonTone(reason))
-  const hintTone = windowHint ? todayToneClass(todayWindowHintTone(windowHint)) : null
+  // Production models carry tones resolved from codes on the server; only a
+  // hand-built row without them falls back to the legacy Hebrew-text mapping.
+  const reasonTone = todayToneClass(tones ? tones.tone : todayReasonTone(reason))
+  const hintTone = windowHint ? todayToneClass(tones ? tones.windowTone : todayWindowHintTone(windowHint)) : null
 
   return (
     /* Padding lives on the Link, not this wrapper — the same lesson

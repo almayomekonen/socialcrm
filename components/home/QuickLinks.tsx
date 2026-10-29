@@ -1,21 +1,26 @@
 import Link from 'next/link'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 export default function QuickLinks({
   dueCount,
   newCount,
   upcomingCount,
   meetingsCount,
+  locale = 'he',
 }: {
   dueCount: number
   newCount: number
   upcomingCount: number
   meetingsCount: number
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const items = [
-    { label: 'כל המעקבים', count: dueCount, href: '/leads?view=due' },
-    { label: 'לידים חדשים', count: newCount, href: '/leads' },
-    { label: 'מעקבים קרובים', count: upcomingCount, href: '/leads' },
-    { label: 'פגישות היום', count: meetingsCount, href: '/calendar' },
+    { label: t('today.quickLinks.allFollowups'), count: dueCount, href: '/leads?view=due' },
+    { label: t('today.quickLinks.newLeads'), count: newCount, href: '/leads' },
+    { label: t('today.quickLinks.upcoming'), count: upcomingCount, href: '/leads' },
+    { label: t('today.quickLinks.meetingsToday'), count: meetingsCount, href: '/calendar' },
   ]
 
   return (

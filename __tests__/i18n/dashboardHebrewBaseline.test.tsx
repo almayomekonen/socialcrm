@@ -144,20 +144,31 @@ describe('Hebrew baseline — server-side label producers (default arguments)', 
       due: DUE_ROWS, dueCount: 3, newLeadsCount: 1, upcomingCount: 4, doneToday: 2, meetings: [],
       recommended, tableRows: DUE_ROWS.filter((r) => !recommended.some((x) => x.lead.id === r.id)), tableTotal: 2, progressPct: 40,
     }
-    expect({
+    // Phase B adds locale-independent CODE fields next to the display strings.
+    // They did not exist when this baseline was recorded, so they are dropped
+    // before comparing; every pre-existing field must still match exactly.
+    const PHASE_B_CODE_FIELDS = new Set(['reasonCode', 'windowState', 'tones'])
+    const withoutCodes = (v: unknown): unknown => {
+      if (Array.isArray(v)) return v.map(withoutCodes)
+      if (v instanceof Date || v === null || typeof v !== 'object') return v
+      return Object.fromEntries(
+        Object.entries(v).filter(([k]) => !PHASE_B_CODE_FIELDS.has(k)).map(([k, x]) => [k, withoutCodes(x)]),
+      )
+    }
+    expect(withoutCodes({
       reasons: states.map((s) => reasonFor(s)),
       greetings: [3, 8, 13, 20].map((h) => greetingFor(Date.parse(`2026-10-28T${String(h - 2).padStart(2, '0')}:00:00Z`))),
       durations: ages.map(formatCoarseDurationHe),
       waiting: ages.map((a) => waitingReplyCopy({ lastInboundAt: NOW - a, lastHumanOutboundAt: null, nowMs: NOW, channel: 'whatsapp' })),
       recommend: [...DUE_ROWS, ...NEW_LEADS].map((r) => recommendReason(r, NOW)),
-      sources: ['whatsapp:1', 'facebook:1', 'instagram:1', 'contact_form_7:x', 'manual', null, 'utm_campaign_x'].map(leadSourceLabel),
-      days: ['2026-10-25', '2026-10-26', '2026-10-31'].map(dayLabels),
+      sources: ['whatsapp:1', 'facebook:1', 'instagram:1', 'contact_form_7:x', 'manual', null, 'utm_campaign_x'].map((s) => leadSourceLabel(s)),
+      days: ['2026-10-25', '2026-10-26', '2026-10-31'].map((d) => dayLabels(d)),
       dates: [formatBusinessLongDate(NOW), formatBusinessTime(NOW)],
       brief,
       recommended,
       mobileBrief: modelFromBrief(brief),
       mobileSnapshot: modelFromSnapshot(snapshot, NOW),
-    }).toMatchSnapshot()
+    })).toMatchSnapshot()
   })
 })
 

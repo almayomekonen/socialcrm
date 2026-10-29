@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useSetMobileHeaderAction } from '@/components/mobile/MobileHeaderAction'
 import LeadFormMobile from './LeadFormMobile'
 import LeadImportMobile from './LeadImportMobile'
@@ -59,11 +60,12 @@ export default function LeadListAddControl({ selecting }: { selecting: boolean }
 }
 
 function LeadsAddButton({ onClick }: { onClick: () => void }) {
+  const t = useT()
   return (
     <button
       type='button'
       data-testid='leads-add-action'
-      aria-label='הוספת ליד'
+      aria-label={t('leads.add')}
       aria-haspopup='dialog'
       onClick={onClick}
       onContextMenu={(e) => e.preventDefault()}

@@ -1,6 +1,7 @@
 import type { Messages } from '../../translate'
 
 export const common: Messages['common'] = {
+  source: { whatsapp: 'واتساب', facebook: 'فيسبوك', instagram: 'إنستغرام', website: 'الموقع', manual: 'يدوي' },
   save: 'حفظ',
   toast: {
     success: 'تم بنجاح',

@@ -15,5 +15,7 @@ import { roles } from './roles'
 import { settingsNav } from './settingsNav'
 import { language } from './language'
 import { common } from './common'
+import { today } from './today'
+import { leads } from './leads'
 
-export const he = { shell, roles, settingsNav, language, common } as const
+export const he = { shell, roles, settingsNav, language, common, today, leads } as const

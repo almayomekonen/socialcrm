@@ -1,20 +1,23 @@
 import Link from 'next/link'
 import type { MeetingItem } from '@/lib/today/types'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 // Presentational (RSC). The fixed shape of the day — a separate lane, never part
 // of the "needs you" count (INV-14). The time label is precomputed by the service
 // in the business timezone; a meeting without one renders its title only.
 
-export default function BriefMeetings({ meetings }: { meetings: MeetingItem[] }) {
+export default function BriefMeetings({ meetings, locale = 'he' }: { meetings: MeetingItem[]; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   return (
     <section className='flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface px-[22px] py-5'>
       <div className='flex items-baseline justify-between'>
-        <h2 className='text-lg font-bold text-ink'>פגישות היום</h2>
+        <h2 className='text-lg font-bold text-ink'>{t('today.meetings.title')}</h2>
         <Link
           href='/calendar'
           className='text-sm font-semibold text-primary-text hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
         >
-          ליומן
+          {t('today.meetings.calendar')}
         </Link>
       </div>
       <ul className='flex flex-col gap-3'>
@@ -26,7 +29,7 @@ export default function BriefMeetings({ meetings }: { meetings: MeetingItem[] })
               </span>
             )}
             <span className='min-w-0'>
-              <span className='block truncate text-[15px] font-semibold text-ink'>{m.title || 'פגישה'}</span>
+              <span className='block truncate text-[15px] font-semibold text-ink'>{m.title || t('today.meetings.untitled')}</span>
               {m.subtitle && <span className='block truncate text-[13px] text-gray-500'>{m.subtitle}</span>}
             </span>
           </li>

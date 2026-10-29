@@ -1,4 +1,5 @@
 import type { LeadFact } from '@/lib/today/types'
+import type { Roles } from '@/types/roles'
 import type { DueWorklistRow } from '@/db/worklist'
 import type { DashboardStats } from '@/lib/dashboard/stats'
 
@@ -40,7 +41,7 @@ export const MEETINGS = [
   { id: 12, title: '', startAt: '2026-10-28T15:30:00Z', leadId: null, leadName: null, meetUrl: null },
 ]
 
-export const VIEWER = { scope: { user: { role: 'ADMIN' as const }, gotPermIds: [] as number[] }, agencyId: 103, userId: 9001, firstName: 'דנה' }
+export const VIEWER = { scope: { user: { role: 'ADMIN' as Roles }, gotPermIds: [] as number[] }, agencyId: 103, userId: 9001, firstName: 'דנה' }
 
 export const DUE_ROWS: DueWorklistRow[] = [
   { id: 2, name: 'Sarah Miller', phone: '0527654321', status: 'contacted', leadSource: 'facebook:lead-123', nextFollowUpAt: new Date(DAY_START - 5 * H), followUpNote: 'להתקשר אחרי 16:00', statusChangedAt: null, lastOutcomeType: null, lastActivityAt: null },
@@ -78,3 +79,26 @@ export const STATS: DashboardStats = {
   lost: 3,
   closeRate: 5 / 8,
 }
+
+/**
+ * Which /dashboard variant the mocked page renders. Tests that mock the page's
+ * reads (`dashboardHebrewBaseline`, `leakGate`, `dashboardLocales`) read this
+ * from their vi.mock factories.
+ */
+export const dashboardEnv = { mobile: false, v2: true, stats: STATS as DashboardStats | null }
+
+/**
+ * Hebrew the /dashboard renders that is DATA, not interface: customer names
+ * (and the avatar initials derived from them), the viewer's own first name, a
+ * meeting title and a follow-up note — all user-authored. Nothing else Hebrew
+ * may appear on a translated dashboard.
+ */
+export const DASHBOARD_CUSTOMER_DATA = [
+  'דנה כהן',
+  'דנה',
+  'יוסי לוי',
+  'רונית',
+  'שיחת היכרות',
+  'יל',
+  'ר',
+]
