@@ -1,5 +1,8 @@
 import type { AdsFailure } from '@/lib/facebook/ads/insights'
 import type { ConnectionNotice } from '@/lib/connections/messages'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Every non-data state of the ad report, each distinct — "no activity" is never
@@ -120,4 +123,89 @@ export function noConnectionNotice(adsError: string | undefined): AdsNoticeKind 
   if (adsError === 'declined' || adsError === 'denied') return 'declined'
   if (adsError === 'token' || adsError === 'save' || adsError === 'state') return 'connect_failed'
   return 'connect'
+}
+
+/** Catalog keys of each notice (`performance.adsNotices.*`), written out so the key checker sees every one. */
+type NoticeKeys = { title: MessageKey; explanation: MessageKey; reasons?: MessageKey[]; nextStep?: MessageKey; action?: MessageKey }
+const NOTICE_KEYS: Record<AdsNoticeKind, NoticeKeys> = {
+  connect: {
+    title: 'performance.adsNotices.connect.title',
+    explanation: 'performance.adsNotices.connect.explanation',
+    nextStep: 'performance.adsNotices.connect.nextStep',
+    action: 'performance.adsNotices.connect.action',
+  },
+  connect_failed: {
+    title: 'performance.adsNotices.connectFailed.title',
+    explanation: 'performance.adsNotices.connectFailed.explanation',
+    reasons: ['performance.adsNotices.connectFailed.reason1', 'performance.adsNotices.connectFailed.reason2'],
+    nextStep: 'performance.adsNotices.connectFailed.nextStep',
+    action: 'performance.adsNotices.connectFailed.action',
+  },
+  declined: {
+    title: 'performance.adsNotices.declined.title',
+    explanation: 'performance.adsNotices.declined.explanation',
+    nextStep: 'performance.adsNotices.declined.nextStep',
+    action: 'performance.adsNotices.declined.action',
+  },
+  expired: {
+    title: 'performance.adsNotices.expired.title',
+    explanation: 'performance.adsNotices.expired.explanation',
+    nextStep: 'performance.adsNotices.expired.nextStep',
+    action: 'performance.adsNotices.expired.action',
+  },
+  no_accounts: {
+    title: 'performance.adsNotices.noAccounts.title',
+    explanation: 'performance.adsNotices.noAccounts.explanation',
+    reasons: ['performance.adsNotices.noAccounts.reason1', 'performance.adsNotices.noAccounts.reason2'],
+    nextStep: 'performance.adsNotices.noAccounts.nextStep',
+    action: 'performance.adsNotices.noAccounts.action',
+  },
+  permission: {
+    title: 'performance.adsNotices.permission.title',
+    explanation: 'performance.adsNotices.permission.explanation',
+    reasons: ['performance.adsNotices.permission.reason1', 'performance.adsNotices.permission.reason2'],
+    nextStep: 'performance.adsNotices.permission.nextStep',
+    action: 'performance.adsNotices.permission.action',
+  },
+  rate_limited: {
+    title: 'performance.adsNotices.rateLimited.title',
+    explanation: 'performance.adsNotices.rateLimited.explanation',
+    nextStep: 'performance.adsNotices.rateLimited.nextStep',
+    action: 'performance.adsNotices.rateLimited.action',
+  },
+  meta_error: {
+    title: 'performance.adsNotices.metaError.title',
+    explanation: 'performance.adsNotices.metaError.explanation',
+    nextStep: 'performance.adsNotices.metaError.nextStep',
+    action: 'performance.adsNotices.metaError.action',
+  },
+  no_activity: {
+    title: 'performance.adsNotices.noActivity.title',
+    explanation: 'performance.adsNotices.noActivity.explanation',
+    nextStep: 'performance.adsNotices.noActivity.nextStep',
+  },
+  invalid_range: {
+    title: 'performance.adsNotices.invalidRange.title',
+    explanation: 'performance.adsNotices.invalidRange.explanation',
+  },
+}
+
+/**
+ * The notice for `kind` in the interface language. Hebrew returns the
+ * `ADS_NOTICES` entry itself (byte-identical); other languages get the same
+ * tone and call to action, worded from `performance.adsNotices.*`.
+ */
+export function adsNotice(kind: AdsNoticeKind, locale: UiLocale = 'he'): ConnectionNotice & { cta?: 'connect' | 'retry' } {
+  const base = ADS_NOTICES[kind]
+  if (locale === 'he') return base
+  const t = translatorFor(locale)
+  const k = NOTICE_KEYS[kind]
+  return {
+    ...base,
+    title: t(k.title),
+    explanation: t(k.explanation),
+    ...(k.reasons ? { reasons: k.reasons.map((key) => t(key)) } : {}),
+    ...(k.nextStep ? { nextStep: t(k.nextStep) } : {}),
+    ...(k.action ? { action: t(k.action) } : {}),
+  }
 }

@@ -1,6 +1,8 @@
 import Icon from '@/lib/Icon'
 import { formatAdsCount, formatAdsDay, formatAdsMoney } from '@/lib/facebook/ads/format'
 import { DAILY_MAX_DAYS, type AdsReport } from '@/lib/facebook/ads/report'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Daily trend, behind a disclosure so the default view stays short. Spend per day
@@ -12,16 +14,19 @@ export default function AdsDailyTrend({
   daily,
   currency,
   showLeads,
+  locale = 'he',
 }: {
   daily: AdsReport['daily']
   currency: string | null
   showLeads: boolean
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   if (daily === 'too_long') {
-    return <p className='text-sm text-gray-500'>המגמה היומית זמינה לטווחים של עד {DAILY_MAX_DAYS} ימים.</p>
+    return <p className='text-sm text-gray-500'>{t('performance.ads.trend.tooLong', { days: String(DAILY_MAX_DAYS) })}</p>
   }
   if (daily === 'unavailable') {
-    return <p className='text-sm text-gray-500'>המגמה היומית לא נטענה מ-Meta. שאר הנתונים בדוח תקינים.</p>
+    return <p className='text-sm text-gray-500'>{t('performance.ads.trend.unavailable')}</p>
   }
   if (daily.length === 0) return null
 
@@ -31,16 +36,16 @@ export default function AdsDailyTrend({
     <details className='group/trend rounded-lg border border-gray-200 bg-white'>
       <summary className='flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-base font-semibold text-gray-900 [&::-webkit-details-marker]:hidden'>
         <Icon name='chevron-down' type='reg' className='size-3 bg-gray-700 transition-transform duration-200 group-open/trend:rotate-180' />
-        מגמה יומית ({daily.length} ימים)
+        {t('performance.ads.trend.title', { count: String(daily.length) })}
       </summary>
       <div className='overflow-x-auto border-t border-gray-100'>
         <table className='w-full text-sm'>
           <thead>
             <tr className='text-right text-gray-500'>
-              <th className='px-4 py-2 font-medium'>יום</th>
-              <th className='px-4 py-2 font-medium'>הוצאה</th>
-              <th className='px-4 py-2 font-medium'>קליקים על קישור</th>
-              {showLeads && <th className='px-4 py-2 font-medium'>לידים (לפי Meta)</th>}
+              <th className='px-4 py-2 font-medium'>{t('performance.ads.trend.day')}</th>
+              <th className='px-4 py-2 font-medium'>{t('performance.ads.trend.spend')}</th>
+              <th className='px-4 py-2 font-medium'>{t('performance.ads.trend.linkClicks')}</th>
+              {showLeads && <th className='px-4 py-2 font-medium'>{t('performance.ads.trend.leads')}</th>}
             </tr>
           </thead>
           <tbody>

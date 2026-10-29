@@ -2,6 +2,7 @@
 
 import Icon from '@/lib/Icon'
 import { useImageFailed } from '@/lib/useImageFailed'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The ad's creative as Meta returned it, or a quiet fallback. Meta's CDN URLs
@@ -10,6 +11,7 @@ import { useImageFailed } from '@/lib/useImageFailed'
  * image keeps its aspect ratio and is letterboxed, never stretched or cropped.
  */
 export default function AdCreativeImage({ url, isVideo, name }: { url: string | null; isVideo: boolean; name: string }) {
+  const t = useT()
   const image = useImageFailed()
   const show = url && !image.failed
   return (
@@ -18,7 +20,7 @@ export default function AdCreativeImage({ url, isVideo, name }: { url: string | 
         // eslint-disable-next-line @next/next/no-img-element -- expiring Meta CDN URL, not a static asset
         <img
           src={url}
-          alt={`המודעה ${name}`}
+          alt={t('performance.adsIntel.creative.alt', { name })}
           loading='lazy'
           decoding='async'
           referrerPolicy='no-referrer'
@@ -29,11 +31,11 @@ export default function AdCreativeImage({ url, isVideo, name }: { url: string | 
       ) : (
         <div className='grid justify-items-center gap-1 text-gray-400'>
           <Icon name='image' type='lit' className='size-7 bg-gray-300' />
-          <span className='text-xs'>אין תמונה זמינה למודעה</span>
+          <span className='text-xs'>{t('performance.adsIntel.creative.none')}</span>
         </div>
       )}
       {isVideo && (
-        <span className='absolute start-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white'>סרטון</span>
+        <span className='absolute start-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white'>{t('performance.adsIntel.creative.video')}</span>
       )}
     </div>
   )

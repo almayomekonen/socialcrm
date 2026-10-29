@@ -4,6 +4,8 @@ import type { CrmOutcome } from '@/lib/facebook/ads/crmOutcomes'
 import { CrmLine, MetaLine } from './AdsOutcomeLines'
 import AdCreativeImage from './AdCreativeImage'
 import AdVideoPreview from './AdVideoPreview'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Ads as recognisable cards: the creative first, then Meta's numbers and the
@@ -27,6 +29,7 @@ export default function AdsCreativeGrid({
   outcomes,
   currency,
   videoPreview = false,
+  locale = 'he',
 }: {
   title: string
   hint?: string
@@ -35,7 +38,9 @@ export default function AdsCreativeGrid({
   outcomes: Record<string, CrmOutcome>
   currency: string | null
   videoPreview?: boolean
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   if (rows.length === 0) return null
   return (
     <section aria-label={title} className='@container/ads grid gap-3'>
@@ -60,10 +65,10 @@ export default function AdsCreativeGrid({
               <h3 className='mt-2 truncate text-sm font-semibold text-gray-900' title={row.name}>
                 {row.name}
               </h3>
-              {row.campaignName && <p className='truncate text-xs text-gray-500'>קמפיין: {row.campaignName}</p>}
+              {row.campaignName && <p className='truncate text-xs text-gray-500'>{t('performance.adsIntel.campaignOf', { name: row.campaignName })}</p>}
               <div className='mt-2 grid gap-2'>
-                <MetaLine spend={row.spend} result={row.result} currency={currency} />
-                <CrmLine outcome={outcomes[row.id]} spend={row.spend} currency={currency} />
+                <MetaLine spend={row.spend} result={row.result} currency={currency} locale={locale} />
+                <CrmLine outcome={outcomes[row.id]} spend={row.spend} currency={currency} locale={locale} />
               </div>
             </li>
           )

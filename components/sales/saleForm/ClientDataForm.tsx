@@ -10,6 +10,7 @@ import { SelectSearch } from '@/lib/form/SelectSearch'
 import { isIdNumValid } from '@/lib/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   curSale?: Deal & { clientData: string }
@@ -17,6 +18,7 @@ type Props = {
 
 export default function ClientDataForm({ curSale }: Props) {
   console.log('curSale', curSale)
+  const t = useT()
   const user = useUser()
   if (!user) return null
   const [client, setClient] = useState(curSale ? { details: curSale?.clientData, id: curSale?.clientId } : null)
@@ -24,23 +26,23 @@ export default function ClientDataForm({ curSale }: Props) {
     <div>
       <div className='flex w-full justify-between items-end border-b pb-2 mb-4 mobile:gap-y-2'>
         <div className='flex'>
-          <h2 className='text-lg'>פרטי ליד</h2>
+          <h2 className='text-lg'>{t('deals.form.lead.section')}</h2>
         </div>
       </div>
       <section className='flex items-end'>
         <SelectSearch
           inputCls='w-52'
           key={client?.id}
-          lbl='ליד'
+          lbl={t('deals.form.lead.label')}
           initShow={client?.details}
           selected={client?.id}
           show='details'
           val='id'
-          placeholder='חיפוש ליד קיים..'
+          placeholder={t('deals.form.lead.search')}
           name='clientId'
           searchFunc={searchContacts}
         />
-        <Btn type='button' icon='plus' variant='outline' lbl='ליד חדש' popoverTarget='clientSaleForm' />
+        <Btn type='button' icon='plus' variant='outline' lbl={t('deals.form.lead.create')} popoverTarget='clientSaleForm' />
       </section>
       <ClientSaleFormPop user={user} setClient={setClient} />
     </div>
@@ -48,6 +50,7 @@ export default function ClientDataForm({ curSale }: Props) {
 }
 
 function ClientSaleFormPop({ user, setClient }) {
+  const t = useT()
   const firstNameRef = useRef(null)
   const lastNameRef = useRef(null)
   const idNumRef = useRef(null)
@@ -63,10 +66,10 @@ function ClientSaleFormPop({ user, setClient }) {
       handlerId: user.id,
     }
 
-    if (!data.firstName || !data.lastName || !data.idNum) return setErrMsg('יש למלא את כל השדות')
-    if (!isIdNumValid(data.idNum)) return setErrMsg('תעודת זהות לא תקינה')
+    if (!data.firstName || !data.lastName || !data.idNum) return setErrMsg(t('deals.form.lead.error.missing'))
+    if (!isIdNumValid(data.idNum)) return setErrMsg(t('deals.form.lead.error.invalidId'))
     const existingClient = await getLeadByIdNum(data.idNum)
-    if (existingClient) return setErrMsg(`תעודת זהות זו משוייכת לליד ${existingClient.name}`)
+    if (existingClient) return setErrMsg(t('deals.form.lead.error.idTaken', { name: String(existingClient.name) }))
 
     const res = await upsertLead(user.id, data, null, false)
     if ((res as any)?.error === 'quota_exceeded') {
@@ -83,19 +86,20 @@ function ClientSaleFormPop({ user, setClient }) {
   }
   return (
     <div id='clientSaleForm' popover='auto' className='pop w-75'>
-      <Title lbl='יצירת ליד חדש' className='mb-4 w-full' />
+      <Title lbl={t('deals.form.lead.createTitle')} className='mb-4 w-full' />
       <div className='grid gap-2'>
-        <Input name='firstName' ref={firstNameRef} lbl='שם פרטי' required={false} />
-        <Input name='lastName' ref={lastNameRef} lbl='שם משפחה' required={false} />
-        <Input type='number' name='idNum' ref={idNumRef} lbl='תעודת זהות' required={false} />
+        <Input name='firstName' ref={firstNameRef} lbl={t('deals.form.lead.firstName')} required={false} />
+        <Input name='lastName' ref={lastNameRef} lbl={t('deals.form.lead.lastName')} required={false} />
+        <Input type='number' name='idNum' ref={idNumRef} lbl={t('deals.form.lead.idNum')} required={false} />
       </div>
-      <Btn type='button' className='mt-4 w-full' lbl='שמירה' onClick={onSubmit} icon='floppy-disk' />
+      <Btn type='button' className='mt-4 w-full' lbl={t('deals.form.lead.save')} onClick={onSubmit} icon='floppy-disk' />
       <ConfirmPop
         open={!!errMsg}
         hideCancel
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
       <QuotaPaywallModal state={paywall} onClose={() => setPaywall(null)} />
     </div>

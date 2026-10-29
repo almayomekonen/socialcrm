@@ -6,6 +6,9 @@ import { formatBusinessDateTime } from '@/lib/today/time'
 import AdsSignals from './AdsSignals'
 import AdsCampaignCards from './AdsCampaignCards'
 import AdsCreativeGrid from './AdsCreativeGrid'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { formatLeadDateTime } from '@/lib/leads/leadDate'
 
 /**
  * The part of the report that connects Meta to SocialCRM: factual signals,
@@ -18,27 +21,32 @@ export default function AdsIntelligence({
   campaigns,
   breakdown,
   currency,
+  locale = 'he',
 }: {
   data: AdsIntelligenceData
   campaigns: AdsCampaignRow[]
   breakdown: AdsResult<AdsBreakdown> | null
   currency: string | null
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
+  // Hebrew keeps its business-time format; other languages word it in BUSINESS_TZ too.
+  const when = (at: string) => (locale === 'he' ? formatBusinessDateTime(at) : formatLeadDateTime(locale, at))
   const drilled = breakdown && 'value' in breakdown ? breakdown.value : null
   return (
     <div className='grid grid-cols-[minmax(0,1fr)] gap-6'>
       {data.freshness?.stale && (
         <p role='status' className='rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700'>
-          Meta לא זמינה כרגע. מוצגים הנתונים האחרונים שהתקבלו, מ-{formatBusinessDateTime(data.freshness.fetchedAt)}.
+          {t('performance.adsIntel.stale', { time: when(data.freshness.fetchedAt) })}
         </p>
       )}
 
-      <AdsSignals signals={data.signals} />
+      <AdsSignals signals={data.signals} locale={locale} />
 
       {breakdown === null && (
         <>
           <AdsCampaignCards
-            title='Meta ו-SocialCRM לפי קמפיין'
+            title={t('performance.adsIntel.byCampaign')}
             rows={campaigns.map((c) => ({
               id: c.id,
               name: c.name,
@@ -49,18 +57,19 @@ export default function AdsIntelligence({
             }))}
             outcomes={data.outcomes.campaign}
             currency={currency}
-            emptyText='לא נמצאו קמפיינים עם פעילות בטווח הזה.'
-            drill={{ label: 'קבוצות המודעות בקמפיין', to: (row) => ({ campaign: row.id }) }}
+            emptyText={t('performance.ads.table.noCampaigns')}
+            drill={{ label: t('performance.adsIntel.campaignAdsets'), to: (row) => ({ campaign: row.id }) }}
+            locale={locale}
           />
           {data.outsideReport > 0 && (
             <p className='text-xs text-gray-500'>
-              עוד {data.outsideReport} לידים מ-Meta נקלטו בתקופה הזו מקמפיינים שאינם בחשבון המודעות שנבחר.
+              {t('performance.adsIntel.outside', { count: String(data.outsideReport) })}
             </p>
           )}
           {data.topAds && (
             <AdsCreativeGrid
-              title='המודעות עם ההוצאה הגבוהה ביותר'
-              hint='עד 12 מודעות בתקופה, לפי ההוצאה ב-Meta.'
+              title={t('performance.adsIntel.topAds')}
+              hint={t('performance.adsIntel.topAdsHint')}
               rows={data.topAds.map((a) => ({
                 id: a.id,
                 name: a.name,
@@ -72,6 +81,7 @@ export default function AdsIntelligence({
               outcomes={data.outcomes.ad}
               currency={currency}
               videoPreview
+              locale={locale}
             />
           )}
         </>
@@ -79,22 +89,24 @@ export default function AdsIntelligence({
 
       {drilled?.level === 'adset' && (
         <AdsCampaignCards
-          title='Meta ו-SocialCRM לפי קבוצת מודעות'
+          title={t('performance.adsIntel.byAdset')}
           rows={drilled.rows.map((r) => ({ id: r.id, name: r.name, status: r.status, spend: r.metrics.spend, result: r.result }))}
           outcomes={data.outcomes.adset}
           currency={currency}
-          emptyText='לא נמצאה פעילות ברמה הזו בטווח התאריכים שנבחר.'
-          drill={{ label: 'המודעות בקבוצה', to: (row) => ({ adset: row.id }) }}
+          emptyText={t('performance.ads.table.noLevel')}
+          drill={{ label: t('performance.adsIntel.adsetAds'), to: (row) => ({ adset: row.id }) }}
+          locale={locale}
         />
       )}
 
       {drilled?.level === 'ad' && (
         <AdsCreativeGrid
-          title='המודעות בקבוצת המודעות'
+          title={t('performance.adsIntel.adsOfAdset')}
           rows={drilled.rows.map((r) => ({ id: r.id, name: r.name, spend: r.metrics.spend, result: r.result }))}
           creatives={data.creatives}
           outcomes={data.outcomes.ad}
           currency={currency}
+          locale={locale}
         />
       )}
     </div>

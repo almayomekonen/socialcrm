@@ -5,10 +5,11 @@ import { isMngr } from '@/types/roles'
 import { getTablePref } from '@/db/salesTbl'
 import { getSumBranchesByUser } from '@/db/sumSales'
 import GeneralTable from '@/components/sumSales/GeneralTable'
+import { getServerT } from '@/lib/i18n/server'
 
 export default async function SumSalePage({ searchParams }) {
   const user = await getUser()
-  if (!isMngr(user.role)) return <div>not allowed</div>
+  if (!isMngr(user.role)) return <div>{(await getServerT(user))('performance.page.agentsDenied')}</div>
 
   const filter = await resolveActiveFilter('performance', user?.id, (await searchParams).filter)
 

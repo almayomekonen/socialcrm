@@ -1,0 +1,22 @@
+/** The deal import dialog (`UploadDealsData`). Hebrew verbatim. Server-made rejection reasons are shown as they come. */
+export const importer = {
+  proTitle: 'ייבוא עסקאות זמין עם Pro',
+  proBody: 'חידוש המנוי יחזיר את ייבוא העסקאות מקובץ.',
+  unreadable: 'לא הצלחנו לקרוא את הקובץ. ודא שזה קובץ Excel תקין ונסה שוב.',
+  failed: 'ייבוא העסקאות נכשל. לא נשמרו עסקאות — נסה שוב.',
+  confirm: { other: 'נמצאו {count} עסקאות תקינות. לייבא את העסקאות?' },
+  confirmWithWrong: { other: 'נמצאו {count} עסקאות תקינות ו-{wrong} שורות לא תקינות שלא ייובאו. לייבא את העסקאות?' },
+  confirmButton: 'ייבוא עסקאות',
+  fileTitle: 'קובץ Excel (xlsx, xls)',
+  fileHint: 'שורה ראשונה: סכום, טלפון או מייל — ואפשר גם שם, סטטוס, תאריך עסקה, שם עסקה, הערות.',
+  processing: 'מעבד...',
+  choose: 'בחירת קובץ Excel',
+  chooseLabel: 'בחירת קובץ עסקאות',
+  imported: { other: 'יובאו בהצלחה {count} עסקאות' },
+  none: 'לא יובאו עסקאות',
+  createdLeads: { other: 'נוצרו {count} לידים חדשים' },
+  duplicates: { other: 'דולגו {count} עסקאות שכבר קיימות' },
+  rejectedCount: 'שורות שלא יובאו: {count}',
+  rejectedTitle: 'שורות שלא יובאו',
+  rejectedRow: 'שורה {row}: {reason}',
+} as const

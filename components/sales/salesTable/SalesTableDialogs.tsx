@@ -5,6 +5,15 @@ import UploadDealsData from '@/components/sales/UploadDealsData'
 import ModalPop from '@/lib/modals/ModalPop'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { ActionsMenu, getActions } from './funcs'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
+
+/** Row-menu text by action CODE (the `getActions()` key the click is switched on). */
+const ACTION_LABEL: Record<string, MessageKey> = {
+  מחיקה: 'deals.table.menu.delete',
+  עריכה: 'deals.table.menu.edit',
+  'הוספה למועדפים': 'deals.table.menu.addFavorite',
+}
 
 /**
  * The deals table's overlays: the import dialog, the row actions menu (edit /
@@ -42,9 +51,11 @@ export default function SalesTableDialogs({
   bulkInfoMsg: string | null
   setBulkInfoMsg: (v: string | null) => void
 }) {
+  const t = useT()
+  const label = (code: string) => (ACTION_LABEL[code] ? t(ACTION_LABEL[code]) : code)
   return (
     <>
-    <ModalPop open={openUpload} label='ייבוא עסקאות' pos='middle' onClose={() => setOpenUpload(false)}>
+    <ModalPop open={openUpload} label={t('deals.table.import')} pos='middle' translated onClose={() => setOpenUpload(false)}>
       {openUpload && <UploadDealsData />}
     </ModalPop>
 
@@ -56,7 +67,7 @@ export default function SalesTableDialogs({
             <Btn
               variant='simple'
               size='simple'
-              lbl={lbl}
+              lbl={label(lbl)}
               onClick={() => {
                 switch (lbl) {
                   case 'עריכה':
@@ -68,12 +79,12 @@ export default function SalesTableDialogs({
                     break
 
                   default:
-                    action.func(curSale, isFav)
+                    action.func(curSale, isFav, t)
                 }
               }}
             />
           ) : (
-            <Btn variant='simple' lbl={lbl} />
+            <Btn variant='simple' lbl={label(lbl)} />
           )}
         </div>
       ))}
@@ -82,8 +93,9 @@ export default function SalesTableDialogs({
     <ConfirmPop
       open={confirmBulkDelete}
       destructive
-      confirmLbl='מחיקה'
-      msg={`למחוק ${selectedIds.length} עסקאות?`}
+      confirmLbl={t('deals.table.confirmDelete')}
+      msg={t('deals.table.bulkConfirm', { count: String(selectedIds.length) })}
+      translated
       onClose={() => setConfirmBulkDelete(false)}
       onConfirm={performBulkDelete}
     />
@@ -91,8 +103,9 @@ export default function SalesTableDialogs({
     <ConfirmPop
       open={!!confirmDeleteSale}
       destructive
-      confirmLbl='מחיקה'
-      msg={`בטוח למחוק עסקה של ${confirmDeleteSale?.clientData} ?`}
+      confirmLbl={t('deals.table.confirmDelete')}
+      msg={t('deals.table.deleteOneConfirm', { name: String(confirmDeleteSale?.clientData) })}
+      translated
       onClose={() => setConfirmDeleteSale(null)}
       onConfirm={performSaleDelete}
     />
@@ -103,6 +116,7 @@ export default function SalesTableDialogs({
       onClose={() => setBulkInfoMsg(null)}
       onConfirm={() => setBulkInfoMsg(null)}
       msg={bulkInfoMsg ?? ''}
+      translated
     />
     </>
   )

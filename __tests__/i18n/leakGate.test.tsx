@@ -42,7 +42,8 @@ vi.mock('@/lib/access/productAccess', async () => {
 })
 // /dashboard reads (I/O only; every producer and component runs for real).
 // `gavePermUsers`: the global /tasks page (Phase E1) also lists the reps who gave permission.
-vi.mock('@/db/filter', async () => ({ getPerms: async () => ({ ...(await import('./leadsEnv')).LEADS_PAGE_PERMS, gavePermUsers: [] }) }))
+// `getPermsAndFilter`: /deals and /sum_sales (Phase E2).
+vi.mock('@/db/filter', async () => ({ getPerms: async () => ({ ...(await import('./leadsEnv')).LEADS_PAGE_PERMS, gavePermUsers: [] }), getPermsAndFilter: (await import('./dealsMocks')).filterDbModule().getPermsAndFilter }))
 vi.mock('@/db/clients', async () => {
   const { leadsEnv, CLIENT_LISTS } = await import('./leadsEnv')
   return {
@@ -96,6 +97,7 @@ vi.mock('@/db/usersNTeams', async () => ({
   getDefaultSettings: async () => ({}),
   getUsers: async () => (await import('./leadsEnv')).USERS,
   getUserNameById: async () => (await import('./leadDetailEnv')).detailEnv.handlerName,
+  getTeamNUserNames: (await import('./dealsMocks')).usersNTeamsModule().getTeamNUserNames, // /promotion/[id] (Phase E2)
 }))
 vi.mock('@/lib/quota', async () => {
   const { leadsEnv } = await import('./leadsEnv')
@@ -106,22 +108,12 @@ vi.mock('@/db/automations/connectionDelivery', async () => {
   return { deliveryFacts: async () => leadsEnv.intakeFacts }
 })
 vi.mock('@/actions/clients', () => ({
-  fetchLeadsSince: async () => [],
-  searchContacts: async () => [],
-  searchLeads: async () => [],
-  getLeadById: async () => null,
-  updateLead: async () => ({ ok: true }),
-  deleteLead: async () => ({ ok: true }),
+  fetchLeadsSince: async () => [], searchContacts: async () => [], searchLeads: async () => [], getLeadById: async () => null,
+  updateLead: async () => ({ ok: true }), deleteLead: async () => ({ ok: true }),
   deleteManyLeads: async () => ({ deletedCount: 0, blockedCount: 0, blockedLeads: [] }),
-  assignLeadsToRep: async () => ({ assignedCount: 0, skippedCount: 0 }),
-  transferLeadToRep: async () => ({ ok: true }),
-  getLeadByIdNum: async () => null,
-  upsertLead: async () => ({ ok: true }),
-  addLeads: async () => ({ inserted: 0 }),
-  importLeadsFromCsv: async () => ({ inserted: 0 }),
-  uploadLeadData: async () => ({}),
-  upsertLeadList: async () => ({}),
-  deleteLeadList: async () => ({}),
+  assignLeadsToRep: async () => ({ assignedCount: 0, skippedCount: 0 }), transferLeadToRep: async () => ({ ok: true }),
+  getLeadByIdNum: async () => null, upsertLead: async () => ({ ok: true }), addLeads: async () => ({ inserted: 0 }),
+  importLeadsFromCsv: async () => ({ inserted: 0 }), uploadLeadData: async () => ({}), upsertLeadList: async () => ({}), deleteLeadList: async () => ({}),
 }))
 vi.mock('@/actions/global', () => ({ saveTblPref: async () => ({ ok: true }) }))
 vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: async () => [] }))
@@ -179,13 +171,16 @@ vi.mock('@/db/inboxMessages', async () => {
 })
 vi.mock('@/db/leadFormAnswers', async () => ({ formAnswersForLead: async () => (await import('./leadDetailEnv')).detailEnv.formAnswers }))
 vi.mock('@/db/adsCrmOutcomes', async () => ({ getLeadAdAttribution: async () => (await import('./leadDetailEnv')).detailEnv.attribution }))
-vi.mock('@/db/adsSnapshots', async () => ({ readCreativeForAd: async () => (await import('./leadDetailEnv')).detailEnv.creative }))
+// `readSnapshot` / `writeSnapshot`: the ads report's (empty) snapshot cache (Phase E2).
+vi.mock('@/db/adsSnapshots', async () => ({ readCreativeForAd: async () => (await import('./leadDetailEnv')).detailEnv.creative, readSnapshot: async () => null, writeSnapshot: async () => {} }))
 vi.mock('@/lib/facebook/permissions', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
   const { messengerEnv, commentsEnv } = await import('./messengerCommentsEnv')
+  const deals = await import('./dealsEnv')
   return {
     ...(await vi.importActual<typeof import('@/lib/facebook/permissions')>('@/lib/facebook/permissions')),
-    isFacebookAdsReportingEnabledForAgency: () => detailEnv.adsReporting,
+    // The lead page's ad line; the /sum_sales ads tab and page (Phase E2) read the deals fixtures' flag.
+    isFacebookAdsReportingEnabledForAgency: () => detailEnv.adsReporting || (deals.dealsEnv.pathname.startsWith('/sum_sales') && deals.dealsEnv.adsEnabled),
     // Messenger is on by default (the inbox fixtures); the Messenger/Comments surfaces vary both.
     isFacebookMessengerEnabledForAgency: () => messengerEnv.enabled,
     isFacebookCommentRepliesEnabledForAgency: () => commentsEnv.repliesEnabled,
@@ -206,7 +201,6 @@ vi.mock('@/actions/leadFollowUp', () => ({ setLeadFollowUp: async () => ({}), cl
 vi.mock('@/actions/whatsapp/templates/sendTemplateToLead', () => ({ sendTemplateToLead: async () => ({ ok: true }) }))
 // Out of this phase: the Copilot lead context, the deal form (Phase E), the mobile lead detail (Phase F).
 vi.mock('@/components/copilot/CopilotLeadContext', () => ({ default: () => null }))
-vi.mock('@/components/sales/saleForm/SaleForm', () => ({ default: () => null }))
 vi.mock('@/modules/leads/mobile/LeadDetailMobile', () => ({ default: () => null }))
 
 // /clients/[clientId]/{tasks,files,billing} reads (I/O only; the pages, tables, Drive section and list run for real).
@@ -238,7 +232,8 @@ vi.mock('@/config/db', async () => {
   // `select` is the Messenger / Comments pages' facebook_pages read (their fixtures).
   const mc = (await import('./messengerCommentsMocks')).dbModule().db()
   const q = { where: () => q, whereIn: () => q, first: async () => (tabsEnv.leadFound ? { id: 41 } : undefined), select: mc.select }
-  return { db: () => q }
+  const chain = (await import('./dealsMocks')).fakeSql() // /promotion/[id] builds an (unexecuted) query on `db` itself
+  return { db: new Proxy(() => q, { get: (_t, prop) => chain[prop] }) }
 })
 vi.mock('@/db/billing/invoices', async () => ({ listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices }))
 
@@ -280,6 +275,24 @@ vi.mock('@/modules/facebookComments/actions', async () => (await import('./messe
 vi.mock('@/modules/facebookComments/replyActions', async () => (await import('./messengerCommentsMocks')).replyActionsModule())
 vi.mock('@/modules/facebookComments/listActions', async () => (await import('./messengerCommentsMocks')).listActionsModule())
 
+// /deals, /sum_sales, /promotion reads and actions (Phase E2; I/O only — pages, tables, charts and producers run for real).
+vi.mock('@/lib/filter/resolveActiveFilter', async () => (await import('./dealsMocks')).resolveActiveFilterModule())
+vi.mock('@/db/salesTbl', async () => (await import('./dealsMocks')).salesTblDbModule())
+vi.mock('@/db/sumSales', async () => (await import('./dealsMocks')).sumSalesDbModule())
+vi.mock('@/db/sum_pie', async () => (await import('./dealsMocks')).sumPieModule())
+vi.mock('@/db/promos', async () => (await import('./dealsMocks')).promosDbModule())
+vi.mock('@/actions/salesTbl', async () => (await import('./dealsMocks')).salesTblActionsModule())
+vi.mock('@/actions/dealImport', async () => (await import('./dealsMocks')).dealImportModule())
+vi.mock('@/actions/saleForm', async () => (await import('./dealsMocks')).saleFormActionsModule())
+vi.mock('@/actions/filter', async () => (await import('./dealsMocks')).filterActionsModule())
+vi.mock('@/modules/adsReporting/actions', async () => (await import('./dealsMocks')).adsActionsModule())
+vi.mock('@/db/facebookAds', async () => (await import('./dealsMocks')).adsDbModule())
+vi.mock('@/lib/facebook/ads/cached', async () => (await import('./dealsMocks')).adsCachedModule())
+vi.mock('@/lib/facebook/ads/insights', async () => (await import('./dealsMocks')).adsInsightsModule())
+vi.mock('@/lib/facebook/ads/report', async () => (await import('./dealsMocks')).adsReportModule())
+vi.mock('@/lib/facebook/ads/breakdown', async () => (await import('./dealsMocks')).adsBreakdownModule())
+vi.mock('@/lib/facebook/ads/intelligence', async () => (await import('./dealsMocks')).adsIntelligenceModule())
+
 const { SURFACES } = await import('./surfaces')
 
 const saved = { ...process.env }
@@ -300,6 +313,7 @@ afterEach(async () => {
   ;(await import('./messengerCommentsEnv')).resetMessengerCommentsEnv()
   ;(await import('./globalTasksFilesEnv')).resetGlobalEnv()
   ;(await import('./calendarEnv')).resetCalEnv()
+  ;(await import('./dealsEnv')).resetDealsEnv(), (await import('./adsEnv')).resetAdsEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

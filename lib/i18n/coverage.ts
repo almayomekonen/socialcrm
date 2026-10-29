@@ -30,6 +30,9 @@ const ALLOWED_SAME = new Set<string>([
   'leadTabs.billing.identity',
   // Pure placeholder pattern (an event source + Meta's referral ref); both parts come from elsewhere.
   'inbox.messenger.event.withRef',
+  // Marketing acronyms used as product names in every language (deal product list).
+  'deals.product.seo',
+  'deals.product.ppc',
 ])
 
 type Leaf = string | Record<string, string>

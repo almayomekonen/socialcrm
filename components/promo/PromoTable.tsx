@@ -6,6 +6,9 @@ import Search from '@/lib/table/Search'
 import ShowColumns from '@/lib/table/ShowColumns'
 import SelectFilterUserPromo from './SelectFilterUserPromo'
 import dynamic from 'next/dynamic'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { useLocalizedColumns } from '@/components/clients/table/useLocalizedColumns'
+import { promoColumnLabel } from './funcs'
 
 const ExportTable = dynamic(() => import('@/lib/table/export'), { ssr: false })
 
@@ -28,11 +31,13 @@ export default function PromoTable({ data, promo }: Props) {
   // TABLE
   // -------------------------
   const [state, setState] = useState(data)
-  const [columns, setColumns] = useState(promoHeaders())
+  const [columns, setColumns] = useState<{ key: string; label: string; format?: string }[]>(promoHeaders())
+  // Headers by row KEY in the interface language (display only); the export keeps the keys.
+  const localized = useLocalizedColumns(columns, setColumns, () => {}, promoColumnLabel)
 
   const config = {
-    columns,
-    setColumns,
+    columns: localized.columns,
+    setColumns: localized.setColumns,
     data,
     state,
     setState,

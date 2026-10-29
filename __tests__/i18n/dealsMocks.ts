@@ -175,7 +175,9 @@ export const clientsActionsModule = () => ({
 
 export const filterActionsModule = () => ({ addSavedFilters: record('addSavedFilters') })
 export const globalActionsModule = () => ({ saveTblPref: record('saveTblPref') })
-export const toastModule = () => ({
+export const toastModule = async () => ({
+  // The rest of the real module (setToastDefaults is called by I18nProvider).
+  ...(await vi.importActual<typeof import('@/lib/toast')>('@/lib/toast')),
   toast: (...args: unknown[]) => dealsSpies.toasts.push(args),
   proToast: (...args: unknown[]) => dealsSpies.toasts.push(['pro', ...args]),
 })
@@ -183,3 +185,29 @@ export const adsActionsModule = () => ({
   disconnectAdsReporting: async () => (dealsSpies.calls.push(['disconnectAdsReporting']), dealsSpies.disconnectAds()),
   getAdPreview: async (...a: unknown[]) => dealsSpies.getAdPreview(...a),
 })
+
+/** The ads report's Meta reads (Phase E2), from the ads fixtures (adsEnv.ts). */
+export const adsDbModule = async () => {
+  const { adsEnv } = await import('./adsEnv')
+  return { getAdConnection: async () => adsEnv.connection, setSelectedAdAccount: async () => {} }
+}
+export const adsCachedModule = () => ({
+  cachedAdsRead: async (_s: unknown, _k: unknown, _t: unknown, read: () => Promise<{ ok: boolean; value?: unknown }>) => {
+    const r = await read()
+    return 'value' in r && r.ok ? { value: { value: r.value, fetchedAt: '2026-10-15T06:30:00.000Z', stale: false } } : r
+  },
+  reportTtlMs: () => 1,
+})
+export const adsInsightsModule = async () => ({
+  ...(await vi.importActual<typeof import('@/lib/facebook/ads/insights')>('@/lib/facebook/ads/insights')),
+  listAdAccounts: async () => (await import('./adsEnv')).adsEnv.accounts,
+})
+export const adsReportModule = () => ({ DAILY_MAX_DAYS: 92, getAdsReport: async () => (await import('./adsEnv')).adsEnv.report })
+export const adsBreakdownModule = () => ({ getAdsBreakdown: async () => (await import('./adsEnv')).adsEnv.breakdown })
+export const adsIntelligenceModule = async () => {
+  const env = await import('./adsEnv')
+  return {
+    loadAdsIntelligence: async (input: { locale?: string }) => (env.adsEnv.intel ? env.intel(input.locale) : null),
+    loadCrmOnlyCampaigns: async () => env.adsEnv.crmOnly,
+  }
+}

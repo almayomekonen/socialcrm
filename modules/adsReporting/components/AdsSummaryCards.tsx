@@ -3,6 +3,9 @@ import { costPer, returnOnAdSpend, type AdsMetrics } from '@/lib/facebook/ads/me
 import { relativeChange } from '@/lib/facebook/ads/periods'
 import { formatAdsChange, formatAdsCount, formatAdsMoney, formatAdsPercent, formatAdsRatio, formatAdsRoas } from '@/lib/facebook/ads/format'
 import type { AdsCampaignRow } from '@/lib/facebook/ads/report'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { Translator } from '@/lib/i18n/translate'
 
 /**
  * The account summary a business owner reads first: what was spent and what it
@@ -23,7 +26,7 @@ type Box = { title: string; value: string; hint?: string; change?: string | null
 /** The previous period had exactly 0 of this — a percentage of nothing is not a number, so say so. */
 const FROM_ZERO = 'from-zero'
 
-function StatBox({ box, compare }: { box: Box; compare: boolean }) {
+function StatBox({ box, compare, t }: { box: Box; compare: boolean; t: Translator }) {
   return (
     <div className={`num-box grid gap-1 px-6 py-5 ${box.strong ? 'bg-softy border-soft text-solid font-bold' : ''}`}>
       <span>{box.title}</span>
@@ -34,13 +37,13 @@ function StatBox({ box, compare }: { box: Box; compare: boolean }) {
       {compare && (
         <span className='text-xs font-normal text-gray-500'>
           {box.change === FROM_ZERO ? (
-            '0 בתקופה הקודמת'
+            t('performance.ads.summary.fromZero')
           ) : box.change ? (
             <>
-              <span dir='ltr'>{box.change}</span> לעומת התקופה הקודמת
+              <span dir='ltr'>{box.change}</span> {t('performance.ads.summary.vsPrevious')}
             </>
           ) : (
-            'אין נתון להשוואה'
+            t('performance.ads.summary.noCompare')
           )}
         </span>
       )}
@@ -66,13 +69,16 @@ export default function AdsSummaryCards({
   previous,
   campaigns,
   currency,
+  locale = 'he',
 }: {
   totals: AdsMetrics
   /** Previous period totals; null when Meta returned no delivery then; undefined when not compared. */
   previous: AdsMetrics | null | undefined
   campaigns: AdsCampaignRow[]
   currency: string | null
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const compare = previous !== undefined
   const change = (pick: (m: AdsMetrics) => number | null) => {
     if (!previous) return null
@@ -90,56 +96,59 @@ export default function AdsSummaryCards({
   )
 
   const primary: Box[] = [
-    { title: 'הוצאה', value: formatAdsMoney(totals.spend, currency), change: change((m) => m.spend), strong: true },
+    { title: t('performance.ads.summary.spend'), value: formatAdsMoney(totals.spend, currency), change: change((m) => m.spend), strong: true },
     ...(showLeads
-      ? [{ title: 'לידים (לפי Meta)', value: formatAdsCount(totals.leads), hint: `עלות לליד בקמפייני לידים: ${formatAdsMoney(costPerLead, currency)}`, change: change((m) => m.leads) }]
+      ? [{ title: t('performance.ads.summary.leads'), value: formatAdsCount(totals.leads), hint: t('performance.ads.summary.costPerLead', { value: formatAdsMoney(costPerLead, currency) }), change: change((m) => m.leads) }]
       : []),
     ...(showPurchases
       ? [
           {
-            title: 'רכישות (לפי Meta)',
+            title: t('performance.ads.summary.purchases'),
             value: formatAdsCount(totals.purchases),
-            hint: `ערך: ${formatAdsMoney(totals.purchaseValue, currency)} · החזר על ההוצאה (ROAS): ${formatAdsRoas(returnOnAdSpend(totals.purchaseValue, totals.spend))}`,
+            hint: t('performance.ads.summary.purchaseHint', {
+              value: formatAdsMoney(totals.purchaseValue, currency),
+              roas: formatAdsRoas(returnOnAdSpend(totals.purchaseValue, totals.spend)),
+            }),
             change: change((m) => m.purchases),
           },
         ]
       : []),
-    { title: 'קליקים על קישור', value: formatAdsCount(totals.linkClicks), hint: `עלות לקליק על קישור: ${formatAdsMoney(totals.linkCpc, currency)}`, change: change((m) => m.linkClicks) },
-    { title: 'אחוז הקלקה על קישור', value: formatAdsPercent(totals.linkCtr), change: change((m) => m.linkCtr) },
+    { title: t('performance.ads.summary.linkClicks'), value: formatAdsCount(totals.linkClicks), hint: t('performance.ads.summary.linkCpc', { value: formatAdsMoney(totals.linkCpc, currency) }), change: change((m) => m.linkClicks) },
+    { title: t('performance.ads.summary.linkCtr'), value: formatAdsPercent(totals.linkCtr), change: change((m) => m.linkCtr) },
   ]
   const delivery: Box[] = [
-    { title: 'חשיפות', value: formatAdsCount(totals.impressions), change: change((m) => m.impressions) },
-    { title: 'אנשים שנחשפו', value: formatAdsCount(totals.reach), change: change((m) => m.reach) },
-    { title: 'תדירות', value: formatAdsRatio(totals.frequency), hint: 'ממוצע חשיפות לאדם', change: change((m) => m.frequency) },
+    { title: t('performance.ads.summary.impressions'), value: formatAdsCount(totals.impressions), change: change((m) => m.impressions) },
+    { title: t('performance.ads.summary.reach'), value: formatAdsCount(totals.reach), change: change((m) => m.reach) },
+    { title: t('performance.ads.summary.frequency'), value: formatAdsRatio(totals.frequency), hint: t('performance.ads.summary.frequencyHint'), change: change((m) => m.frequency) },
   ]
   const more: Box[] = [
-    { title: 'כל הקליקים', value: formatAdsCount(totals.clicks), hint: 'כל קליק על המודעה, כולל לייקים והרחבה' },
-    { title: 'אחוז הקלקה (כל הקליקים)', value: formatAdsPercent(totals.ctr) },
-    { title: 'עלות לקליק (כל הקליקים)', value: formatAdsMoney(totals.cpc, currency) },
-    { title: 'עלות ל-1,000 חשיפות', value: formatAdsMoney(totals.cpm, currency) },
-    ...((totals.messagingConversations ?? 0) > 0 ? [{ title: 'שיחות שהתחילו', value: formatAdsCount(totals.messagingConversations) }] : []),
+    { title: t('performance.ads.summary.clicks'), value: formatAdsCount(totals.clicks), hint: t('performance.ads.summary.clicksHint') },
+    { title: t('performance.ads.summary.ctr'), value: formatAdsPercent(totals.ctr) },
+    { title: t('performance.ads.summary.cpc'), value: formatAdsMoney(totals.cpc, currency) },
+    { title: t('performance.ads.summary.cpm'), value: formatAdsMoney(totals.cpm, currency) },
+    ...((totals.messagingConversations ?? 0) > 0 ? [{ title: t('performance.ads.summary.conversations'), value: formatAdsCount(totals.messagingConversations) }] : []),
   ]
 
   return (
-    <section aria-label='סיכום החשבון' className='grid gap-4'>
+    <section aria-label={t('performance.ads.summary.label')} className='grid gap-4'>
       <div className='flex flex-wrap gap-4 min-w-0 mobile:grid grid-cols-2'>
         {primary.map((b) => (
-          <StatBox key={b.title} box={b} compare={compare} />
+          <StatBox key={b.title} box={b} compare={compare} t={t} />
         ))}
       </div>
       <div className='flex flex-wrap gap-4 min-w-0 mobile:grid grid-cols-2'>
         {delivery.map((b) => (
-          <StatBox key={b.title} box={b} compare={compare} />
+          <StatBox key={b.title} box={b} compare={compare} t={t} />
         ))}
       </div>
       <details className='group/more'>
         <summary className='flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm text-solid [&::-webkit-details-marker]:hidden'>
           <Icon name='chevron-down' type='reg' className='size-3 bg-solid transition-transform duration-200 group-open/more:rotate-180' />
-          מדדים נוספים
+          {t('performance.ads.summary.more')}
         </summary>
         <div className='mt-3 flex flex-wrap gap-4 min-w-0 mobile:grid grid-cols-2'>
           {more.map((b) => (
-            <StatBox key={b.title} box={b} compare={false} />
+            <StatBox key={b.title} box={b} compare={false} t={t} />
           ))}
         </div>
       </details>

@@ -1,4 +1,5 @@
 import { PRDCT_TYPES } from '@/types/lists'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 export function isPayExist(data) {
   if (data.prdcts.some((p) => p.amount)) return false
@@ -38,12 +39,12 @@ export function getUserDefault(curSale, user, officeGotPerm) {
   else return user.role === 'OFFICE' ? officeGotPerm[0]?.id : user?.id
 }
 
-/** The deal form's first failing check, in the order the form has always applied them; null when the deal can be saved. */
-export function saleValidationError(sale): string | null {
-  if (!sale.users?.userId) return 'שגיאה, יש לבחור נציג'
-  if (!sale.clientId) return 'שגיאה, יש לבחור ליד'
-  if (isPayExist(sale)) return 'שגיאה, יש למלא סכום לפחות למוצר אחד'
-  if (isAmountHigh(sale.prdcts)) return 'שגיאה, סכום העסקה גבוה מדי'
-  if (isSameUser(sale.users)) return 'שגיאה, לא ניתן לבצע שת"פ עם אותו הנציג'
+/** The deal form's first failing check (as a message key), in the order the form has always applied them; null when the deal can be saved. */
+export function saleValidationError(sale): MessageKey | null {
+  if (!sale.users?.userId) return 'deals.form.error.noRep'
+  if (!sale.clientId) return 'deals.form.error.noLead'
+  if (isPayExist(sale)) return 'deals.form.error.noAmount'
+  if (isAmountHigh(sale.prdcts)) return 'deals.form.error.tooHigh'
+  if (isSameUser(sale.users)) return 'deals.form.error.sameRep'
   return null
 }

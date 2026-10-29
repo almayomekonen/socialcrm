@@ -8,6 +8,8 @@ import { getUserDefault } from './funcs'
 import { DealsView } from '@/types/db/tables'
 import { Input, Select } from '@/lib/form'
 import { SelectSearch } from '@/lib/form/SelectSearch'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dealActionLabel, dealLeadSourceLabel, labelledOptions } from '@/lib/deals/labels'
 
 /**
  * The deal form's rep / collaboration and sale-detail fields. Hidden in the
@@ -40,6 +42,7 @@ export default function SaleDetailsFields({
   otherSource: any
   setOtherSource: (v: boolean) => void
 }) {
+  const t = useT()
   // SECTION: Users Details — hidden for SocialCRM simplified flow. Inputs stay mounted so defaults submit.
   return (
     <section className='hidden'>
@@ -58,11 +61,11 @@ export default function SaleDetailsFields({
                 href='/settings/self_edit?tab=ext_users'
                 variant='outline'
                 size='small'
-                lbl='הוספת שותף חיצוני'
+                lbl={t('deals.form.addPartner')}
                 type='button'
                 className=' h-7 text-xs mb-1'
               />
-              <Btn lbl='בטל שת"פ' icon='trash' onClick={() => setShare(false)} variant='outline' type='button' />
+              <Btn lbl={t('deals.form.cancelCollab')} icon='trash' onClick={() => setShare(false)} variant='outline' type='button' />
             </div>
           </>
         ) : (
@@ -70,12 +73,12 @@ export default function SaleDetailsFields({
             <SelectSearch
               name='users.userId'
               options={user.role === 'OFFICE' ? officeGotPerm : allReps}
-              placeholder='חיפוש נציג...'
-              lbl='נציג'
+              placeholder={t('deals.form.repSearch')}
+              lbl={t('deals.form.rep')}
               className='w-52'
               selected={getUserDefault(curSale, user, officeGotPerm)}
             />
-            <Btn lbl='שת"פ' icon='plus' onClick={() => setShare(true)} variant='outline' type='button' />
+            <Btn lbl={t('deals.form.collab')} icon='plus' onClick={() => setShare(true)} variant='outline' type='button' />
           </>
         )}
       </div>
@@ -83,26 +86,26 @@ export default function SaleDetailsFields({
       {/* SECTION: Sale Details */}
       <div className='grid grid-cols-3 items-end gap-4 mb-8 mobile:gap-4 mobile:grid'>
         <div>
-          <p className='lbl mb-1'>סוג עסקה</p>
+          <p className='lbl mb-1'>{t('deals.form.saleType')}</p>
           <Select
             name='action'
-            options={['מכירה', 'הצטרפות']}
+            options={labelledOptions(['מכירה', 'הצטרפות'], dealActionLabel, t.locale)}
             className='mobile:w-full'
             onChange={(e) => setIsAsignUser(e.target.value === 'הצטרפות')}
             value={isAsignUser ? 'הצטרפות' : 'מכירה'}
           />
         </div>
         <Input
-          lbl='תאריך פנייה'
+          lbl={t('deals.form.offerDate')}
           name='offrDt'
           type='date'
           className='mobile:w-full'
           defaultValue={curSale?.offrDt || (new Date() as any)}
         />
-        <SelectSearch name='handlerId' options={allUsers} lbl='אחראי עסקה' selected={curSale?.handlerId || user?.id} />
+        <SelectSearch name='handlerId' options={allUsers} lbl={t('deals.form.handler')} selected={curSale?.handlerId || user?.id} />
         <section>
           <div className='flex gap-2 justify-between'>
-            <p className='mb-1 ms-1 lbl'>מקור</p>
+            <p className='mb-1 ms-1 lbl'>{t('deals.form.source')}</p>
             <label className='mb-1 ms-1 flex gap-2 cursor-pointer'>
               <input
                 type='checkbox'
@@ -112,22 +115,22 @@ export default function SaleDetailsFields({
                 className='size-3 accent-solid'
                 checked={otherSource || false}
               />
-              <p className='lbl'>אחר</p>
+              <p className='lbl'>{t('deals.form.otherSource')}</p>
             </label>
           </div>
           <div className='inline-flex items-center gap-1 rounded-md border border-gray-200 w-auto'>
             {otherSource ? (
               <Input
                 name='leadSource'
-                placeholder='הקלד מקור אחר'
+                placeholder={t('deals.form.otherSourcePlaceholder')}
                 className='w-52 h-10 border-0'
                 defaultValue={curSale?.leadSource}
               />
             ) : (
               <Select
                 name='leadSource'
-                options={leadSources}
-                placeholder='בחירת מקור'
+                options={labelledOptions(leadSources, dealLeadSourceLabel, t.locale)}
+                placeholder={t('deals.form.sourcePlaceholder')}
                 required={false}
                 className='w-52 border-0'
                 defaultValue={curSale?.leadSource}

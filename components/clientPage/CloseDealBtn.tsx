@@ -14,8 +14,8 @@ export default function CloseDealBtn({ clientId, clientName, formProps }) {
   return (
     <>
       <Btn lbl={t('leadDetail.header.closeDeal')} icon='money-check-dollar-pen' onClick={() => setOpen(true)} />
-      {/* The deal form (components/sales, Phase E) is still Hebrew: its dialog stays an untranslated one. */}
-      <ModalPop open={open} onClose={close} label='סגירת עסקה'>
+      {/* The deal form follows the interface language (Phase E2): the dialog declares it. */}
+      <ModalPop open={open} onClose={close} label={t('deals.form.closeDealDialog')} translated>
         <SaleForm
           props={formProps}
           curSale={{ clientId, clientData: clientName } as any}

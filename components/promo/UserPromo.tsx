@@ -1,12 +1,19 @@
-import { formatDate, toInputDate } from '@/lib/dates'
+import { toInputDate } from '@/lib/dates'
 import { formatCurrency, formatShortCurrency } from '@/lib/funcs'
 import { FileDisplay } from '../files/funcs'
 import Link from 'next/link'
 import { isAgent } from '@/types/roles'
 import { getUser } from '@/db/auth'
 import { getTeamNUserNames } from '@/db/usersNTeams'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { dealBranchLabel } from '@/lib/deals/labels'
 
-export default async function UserPromo({ curUser, promo }) {
+/** Campaign title, description, prizes and rep / team names are data; amounts stay ILS (deals have no currency). */
+export default async function UserPromo({ curUser, promo, locale = 'he' }: { curUser: any; promo: any; locale?: UiLocale }) {
+  const t = translatorFor(locale)
+  const day = (d) => formatLeadDate(locale, d)
   const user = await getUser()
   const goals = Object.keys(promo.goals.target)
   const target = promo.goals.target
@@ -43,22 +50,22 @@ export default async function UserPromo({ curUser, promo }) {
           <p className='whitespace-pre-wrap'>{promo.desc}</p>
 
           <p className='text-sm text-gray-600 mt-4'>
-            תקופת המבצע: {formatDate(promo.start)} - {formatDate(promo.end)}
+            {t('performance.promotion.period', { start: day(promo.start), end: day(promo.end) })}
           </p>
 
-          {promo.isPromoGrp && <p className='text-sm text-gray-600'>קמפיין למנהל</p>}
+          {promo.isPromoGrp && <p className='text-sm text-gray-600'>{t('performance.promotion.managerCampaign')}</p>}
 
           {promo?.files?.length > 0 && (
             <div>
-              <p className='text-sm text-gray-600 mt-2'>תקנון:</p>
+              <p className='text-sm text-gray-600 mt-2'>{t('performance.promotion.rules')}</p>
               <FileDisplay tooltipClass='h-35' files={promo.files} className='mt-1' />
             </div>
           )}
           <div className='flex mt-4 gap-2'>
             {conditions.map((filter, i) => (
               <Link className='btn h-7 text-sm' key={i} href={`/?filter=${JSON.stringify(filter)}`}>
-                {filter.branch || 'עמלה כוללת'}
-                <p className='text-xs '>עסקאות</p>
+                {filter.branch ? dealBranchLabel(filter.branch, locale) : t('performance.promotion.totalCommission')}
+                <p className='text-xs '>{t('performance.promotion.deals')}</p>
               </Link>
             ))}
           </div>
@@ -79,12 +86,12 @@ export default async function UserPromo({ curUser, promo }) {
                     <div>
                       <div className='flex justify-between prog items-end'>
                         <span className='mb-1'>
-                          <p className='font-semibold'>{goal}</p>
-                          <p className='text-sm text-gray-600'>{formatDate(promo.start)}</p>
+                          <p className='font-semibold'>{dealBranchLabel(goal, locale)}</p>
+                          <p className='text-sm text-gray-600'>{day(promo.start)}</p>
                         </span>
                         <span className='mb-1 text-left'>
                           <p className='font-semibold'>{formatCurrency(user[goal])}</p>
-                          <p className='text-sm text-gray-600 text-left'>{formatDate(promo.end)}</p>
+                          <p className='text-sm text-gray-600 text-left'>{day(promo.end)}</p>
                         </span>
                       </div>
 

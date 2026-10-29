@@ -22,7 +22,10 @@ export default function MultiPie({
   hideForPies = {},
   hideTooltip = false,
   size,
+  display = {},
 }: MultiPieProps) {
+  const nameLabel = display.name ?? ((n: string) => n)
+  const pieLabel = display.pie ?? ((l: string) => l)
   const processedData = usePieData({ data, minPercentage, color, asPie, split })
 
   const [hovered, setHovered] = useState<{ data?: any; legend?: any } | null>(null)
@@ -61,7 +64,7 @@ export default function MultiPie({
             <div className='text-right mb-4 grid w-fit gap-1.5'>
               {visiblePies.map((p) => (
                 <p key={p.label} className='bg-gray-100 p-1 px-2 rounded'>
-                  סה"כ{processedData.numPies > 1 ? ` ${p.label}: ` : ':'} <b>{formatCurrency(p.total)}</b>
+                  {display.total ?? 'סה"כ'}{processedData.numPies > 1 ? ` ${pieLabel(p.label)}: ` : ':'} <b>{formatCurrency(p.total)}</b>
                 </p>
               ))}
             </div>
@@ -85,6 +88,8 @@ export default function MultiPie({
             onClick={onClick}
             onHover={handleHover}
             hideConfigs={hideForPies}
+            nameLabel={nameLabel}
+            pieLabel={pieLabel}
           />
         </div>
       </div>
@@ -94,6 +99,8 @@ export default function MultiPie({
           hovered={hovered || {}}
           pos={pos}
           otherLabel={processedData.otherLabel || ''}
+          nameLabel={nameLabel}
+          pieLabel={pieLabel}
           data={{
             pies: processedData.processedPies || [],
             combined: processedData.combinedLegendData,

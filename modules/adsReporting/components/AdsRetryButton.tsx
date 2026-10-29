@@ -4,13 +4,15 @@ import { useContext, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { AdsSelectionContext } from './AdsReportShell'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * "נסה שוב" for a failed Meta read: re-runs the SAME selection. Inside the report
  * shell it goes through the shell (so "מעדכן נתונים…" shows); elsewhere — e.g.
  * the account list failed before any report exists — it refreshes on its own.
  */
-export default function AdsRetryButton({ lbl = 'נסה שוב' }: { lbl?: string }) {
+export default function AdsRetryButton({ lbl }: { lbl?: string }) {
+  const t = useT()
   const shell = useContext(AdsSelectionContext)
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -18,7 +20,7 @@ export default function AdsRetryButton({ lbl = 'נסה שוב' }: { lbl?: string
 
   return (
     <Btn
-      lbl={busy ? 'טוען מחדש…' : lbl}
+      lbl={busy ? t('performance.ads.error.reloading') : (lbl ?? t('performance.ads.retry'))}
       icon={busy ? 'spinner' : 'rotate-right'}
       iconClassName={busy ? 'animate-spin' : undefined}
       variant='outline'

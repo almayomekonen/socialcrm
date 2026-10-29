@@ -5,10 +5,12 @@ import { Metadata } from 'next'
 import { getTablePref } from '@/db/salesTbl'
 import { getSumBranchesByCompany } from '@/db/sumSales'
 import GeneralTable from '@/components/sumSales/GeneralTable'
+import { getServerT } from '@/lib/i18n/server'
 
-export const metadata: Metadata = {
-  title: 'סיכום עסקאות לפי ספקים',
-  description: 'סיכום עסקאות של נציגים לפי ספקים',
+/** Tab title in the interface language — Hebrew outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('performance.page.companiesTitle'), description: t('performance.page.companiesDescription') }
 }
 
 export default async function SumCompaniesSalePage({ searchParams }) {

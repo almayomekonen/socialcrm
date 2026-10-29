@@ -1,6 +1,20 @@
 import { Select } from '@/lib/form'
 import { useState } from 'react'
 import SelectStartEndDate from './SelectStartEndDate'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dateRangeLabel, labelledOptions } from '@/lib/deals/labels'
+
+/** The STORED presets (lib/dates `getDateRange` reads these values); only their text is labelled. */
+const RANGES = [
+  'כל התאריכים',
+  'החודש הנוכחי',
+  'החודש הקודם',
+  'השבוע הנוכחי',
+  'השבוע הקודם',
+  'השנה הנוכחית',
+  'השנה הקודמת',
+  'מותאם אישית',
+]
 
 export default function SelectDateRange({
   filter,
@@ -17,6 +31,7 @@ export default function SelectDateRange({
   className?: string
   lbl?: string
 }) {
+  const t = useT()
   const [customeDate, setCustomeDate] = useState(filter[name] === 'מותאם אישית')
 
   function dateRangeChange(e) {
@@ -29,16 +44,7 @@ export default function SelectDateRange({
       <Select
         name={name}
         lbl={lbl}
-        options={[
-          'כל התאריכים',
-          'החודש הנוכחי',
-          'החודש הקודם',
-          'השבוע הנוכחי',
-          'השבוע הקודם',
-          'השנה הנוכחית',
-          'השנה הקודמת',
-          'מותאם אישית',
-        ]}
+        options={labelledOptions(RANGES, dateRangeLabel, t.locale)}
         defaultValue={filter?.[name]}
         onChange={dateRangeChange}
         required={false}

@@ -3,6 +3,7 @@ import Icon from '@/lib/Icon'
 import { userType } from '@/types/types'
 import { getUserDefault } from './funcs'
 import { SelectSearch } from '@/lib/form/SelectSearch'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   allReps: any[]
@@ -13,6 +14,7 @@ type Props = {
 }
 
 export default function Collab({ allReps, allRepsWithExt, user, curSale, officeGotPerm }: Props) {
+  const t = useT()
   const prcnt1Ref = useRef(null)
   const prcnt2Ref = useRef(null)
 
@@ -23,10 +25,10 @@ export default function Collab({ allReps, allRepsWithExt, user, curSale, officeG
       <section>
         <div className='inline-flex items-end'>
           <SelectSearch
-            lbl='נציג 1'
+            lbl={t('deals.form.rep1')}
             name='users.userId'
             options={user.role === 'OFFICE' ? officeGotPerm : allReps}
-            placeholder='חיפוש נציג...'
+            placeholder={t('deals.form.repSearch')}
             className='w-[168px]'
             inputCls='rounded-l-none border-l-0'
             selected={getUserDefault(curSale, user, officeGotPerm)}
@@ -58,10 +60,10 @@ export default function Collab({ allReps, allRepsWithExt, user, curSale, officeG
       <section>
         <div className='inline-flex items-end'>
           <SelectSearch
-            lbl='נציג 2'
+            lbl={t('deals.form.rep2')}
             name='users.user2Id'
             options={allRepsWithExt}
-            placeholder='חיפוש נציג...'
+            placeholder={t('deals.form.repSearch')}
             className='w-[168px] border-0'
             inputCls='rounded-l-none border-l-0'
             selected={curSale?.userIds?.[1] || allRepsWithExt[0]?.id}

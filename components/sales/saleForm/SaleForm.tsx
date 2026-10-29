@@ -19,6 +19,7 @@ import { SubmitButton } from '@/lib/btns/SubmitBtn'
 import { omitOffice, omitOfficeExt } from '@/lib/funcs'
 import { getObjFormData } from '@/lib/form/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export { getUserDefault } from './funcs'
 
@@ -36,6 +37,7 @@ type Props = {
 export default function SaleForm({ props, curSale, onClose }: Props) {
   const { user, officeGotPerm, allUsers } = props
   const router = useRouter()
+  const t = useT()
   /**
    * PRE-GATE. `insertSale` is requireProductAccess-guarded and the submit runs
    * through `api()`, which catches everything into a generic error toast — so
@@ -74,7 +76,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
     console.log('sale', sale)
 
     const invalid = saleValidationError(sale)
-    if (invalid) return setErrMsg(invalid)
+    if (invalid) return setErrMsg(t(invalid))
 
     const toReturn = await hasSaleOnClient({ sale });
     if (!toReturn) return
@@ -96,7 +98,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
   }
 
   async function saveSale(sale: any) {
-    const res = await api(insertSale, sale, curSale?.id ? 'העסקה עודכנה בהצלחה' : 'העסקה נוספה בהצלחה')
+    const res = await api(insertSale, sale, curSale?.id ? t('deals.form.toast.updated') : t('deals.form.toast.added'))
     if (res?.err) return
     reset()
     router.push('/deals')
@@ -119,13 +121,13 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
   }
 
   if (expired) {
-    return <SubscriptionExpiredState mode='panel' source='close_deal' feature='חידוש המנוי מחזיר את סגירת העסקאות.' />
+    return <SubscriptionExpiredState mode='panel' source='close_deal' feature={t('deals.form.expiredFeature')} translated />
   }
 
   return (
     <form ref={formRef} onSubmit={handleSave} className='max-w-3xl'>
       <Title
-        lbl={curSale?.id ? 'עריכת עסקה' : 'עסקה חדשה'}
+        lbl={curSale?.id ? t('deals.form.titleEdit') : t('deals.form.titleNew')}
         icon='money-check-dollar-pen'
         className='w-full border-gray-200'
         iconClassName='size-7'
@@ -155,9 +157,9 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
           <ProductFields key={i} i={i} isAsignUser={isAsignUser} curSale={curSale} />
         ))}
         <div className='flex gap-4'>
-          <Btn lbl='מוצר נוסף' icon='plus' variant='outline' onClick={addProduct} type='button' />
+          <Btn lbl={t('deals.form.addProduct')} icon='plus' variant='outline' onClick={addProduct} type='button' />
           {prdcts.length > 1 && (
-            <Btn lbl='הסרת מוצר' icon='trash' variant='outline' onClick={() => removeProduct(prdcts.length - 1)} type='button' />
+            <Btn lbl={t('deals.form.removeProduct')} icon='trash' variant='outline' onClick={() => removeProduct(prdcts.length - 1)} type='button' />
           )}
         </div>
       </section>
@@ -170,6 +172,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
         onClose={() => setPrdctExistsConfirm(null)}
         onConfirm={onPrdctExistsConfirm}
         msg={prdctExistsConfirm?.msg ?? ''}
+        translated
       />
 
       <ConfirmPop
@@ -178,6 +181,7 @@ export default function SaleForm({ props, curSale, onClose }: Props) {
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </form>
   )

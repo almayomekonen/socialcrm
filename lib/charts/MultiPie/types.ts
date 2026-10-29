@@ -56,4 +56,17 @@ export type MultiPieProps = {
   hideForPies?: Record<string, HideConfig>
   size?: number
   hideTooltip?: boolean
+  /**
+   * Display text only (the interface language): slice names and pie labels stay the
+   * identity keys `onClick` / `hideForPies` read. Absent → shown as given, and the
+   * total reads the Hebrew 'סה"כ' — every existing caller is unchanged.
+   */
+  display?: PieDisplay
+}
+
+export type PieDisplay = {
+  name?: (name: string) => string
+  pie?: (label: string) => string
+  /** The word before each pie total ('סה"כ'). */
+  total?: string
 }

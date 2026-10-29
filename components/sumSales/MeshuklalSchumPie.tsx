@@ -7,9 +7,21 @@ import { useUser } from '@/lib/hooksNEvents'
 import { getYearDaysPassed } from '@/lib/dates'
 import KetzevShnatiNTkufa from './KetzevShnatiNTkufa'
 import { BRANCHES } from '@/types/lists'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dealBranchLabel } from '@/lib/deals/labels'
+import type { MessageKey } from '@/lib/i18n/translate'
+
+/** Pie names are the keys `hideForPies` reads; their text comes from here. */
+const PIE: Record<string, MessageKey> = { עמלה: 'performance.overview.pieCommission', הכנסה: 'performance.overview.pieIncome' }
 
 export default function MeshuklalSchumPie({ data, goalsAndTotals, rawFilter, className = '' }) {
   const user = useUser()
+  const t = useT()
+  const display = {
+    name: (name: string) => dealBranchLabel(name, t.locale),
+    pie: (label: string) => (PIE[label] ? t(PIE[label]) : label),
+    total: t('performance.overview.total'),
+  }
   const { meshuklal = [], tfuca = [], cmsnPrdcts = {}, tfucaPrdcts = {} } = data || {}
 
   const ketzevShnati = {}
@@ -45,7 +57,8 @@ export default function MeshuklalSchumPie({ data, goalsAndTotals, rawFilter, cla
           hideForPies={{
             הכנסה: { hidePercentages: true, hideTotal: true },
           }}
-          lbl='השוואת עסקאות'
+          lbl={t('performance.overview.compare')}
+          display={display}
         />
         <KetzevShnatiNTkufa ketzevShnati={ketzevShnati} />
       </div>

@@ -1,4 +1,7 @@
 import { costPer, type AdsMetrics } from '@/lib/facebook/ads/metrics'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * "Results" per campaign, chosen by the campaign's OBJECTIVE — one metric per
@@ -121,18 +124,79 @@ export function rowResult(objective: string | null, metrics: AdsMetrics): RowRes
   return { kind, count, cost: kind === 'link_clicks' ? (metrics.linkCpc ?? costPer(metrics.spend, count)) : costPer(metrics.spend, count) }
 }
 
+const OBJECTIVE_KEY: Record<string, MessageKey> = {
+  OUTCOME_LEADS: 'performance.adsIntel.objective.OUTCOME_LEADS',
+  LEAD_GENERATION: 'performance.adsIntel.objective.LEAD_GENERATION',
+  OUTCOME_SALES: 'performance.adsIntel.objective.OUTCOME_SALES',
+  CONVERSIONS: 'performance.adsIntel.objective.CONVERSIONS',
+  PRODUCT_CATALOG_SALES: 'performance.adsIntel.objective.PRODUCT_CATALOG_SALES',
+  OUTCOME_TRAFFIC: 'performance.adsIntel.objective.OUTCOME_TRAFFIC',
+  LINK_CLICKS: 'performance.adsIntel.objective.LINK_CLICKS',
+  OUTCOME_ENGAGEMENT: 'performance.adsIntel.objective.OUTCOME_ENGAGEMENT',
+  POST_ENGAGEMENT: 'performance.adsIntel.objective.POST_ENGAGEMENT',
+  MESSAGES: 'performance.adsIntel.objective.MESSAGES',
+  OUTCOME_AWARENESS: 'performance.adsIntel.objective.OUTCOME_AWARENESS',
+  REACH: 'performance.adsIntel.objective.REACH',
+  BRAND_AWARENESS: 'performance.adsIntel.objective.BRAND_AWARENESS',
+  OUTCOME_APP_PROMOTION: 'performance.adsIntel.objective.OUTCOME_APP_PROMOTION',
+  APP_INSTALLS: 'performance.adsIntel.objective.APP_INSTALLS',
+  VIDEO_VIEWS: 'performance.adsIntel.objective.VIDEO_VIEWS',
+}
+
+const STATUS_KEY: Record<string, MessageKey> = {
+  ACTIVE: 'performance.adsIntel.status.ACTIVE',
+  PAUSED: 'performance.adsIntel.status.PAUSED',
+  CAMPAIGN_PAUSED: 'performance.adsIntel.status.CAMPAIGN_PAUSED',
+  ADSET_PAUSED: 'performance.adsIntel.status.ADSET_PAUSED',
+  ARCHIVED: 'performance.adsIntel.status.ARCHIVED',
+  DELETED: 'performance.adsIntel.status.DELETED',
+  IN_PROCESS: 'performance.adsIntel.status.IN_PROCESS',
+  WITH_ISSUES: 'performance.adsIntel.status.WITH_ISSUES',
+  PENDING_REVIEW: 'performance.adsIntel.status.PENDING_REVIEW',
+  DISAPPROVED: 'performance.adsIntel.status.DISAPPROVED',
+}
+
+const RESULT_KEY: Record<ResultKind, MessageKey> = {
+  leads: 'performance.adsIntel.result.leads',
+  purchases: 'performance.adsIntel.result.purchases',
+  link_clicks: 'performance.adsIntel.result.linkClicks',
+  messaging: 'performance.adsIntel.result.messaging',
+  reach: 'performance.adsIntel.result.reach',
+}
+
+/**
+ * Labels in the interface language. Hebrew reads the constants above (the
+ * values every other reader has always seen); an unknown objective / status
+ * code is shown as Meta returned it, exactly as before.
+ */
+export function objectiveLabel(objective: string, locale: UiLocale = 'he'): string {
+  if (locale === 'he' || !OBJECTIVE_KEY[objective]) return OBJECTIVE_LABEL[objective] ?? objective
+  return translatorFor(locale)(OBJECTIVE_KEY[objective])
+}
+
+export function resultLabel(kind: ResultKind, locale: UiLocale = 'he'): string {
+  return locale === 'he' ? RESULT_LABEL[kind] : translatorFor(locale)(RESULT_KEY[kind])
+}
+
+export function adsStatusLabel(status: string, locale: UiLocale = 'he'): string {
+  if (locale === 'he' || !STATUS_KEY[status]) return STATUS_LABEL[status] ?? status
+  return translatorFor(locale)(STATUS_KEY[status])
+}
+
+const WINDOW_KEY: Record<string, MessageKey> = {
+  '1d_click': 'performance.adsIntel.attribution.click1d',
+  '7d_click': 'performance.adsIntel.attribution.click7d',
+  '28d_click': 'performance.adsIntel.attribution.click28d',
+  '1d_view': 'performance.adsIntel.attribution.view1d',
+  '1d_ev': 'performance.adsIntel.attribution.engagedView1d',
+}
+
 /** Meta's attribution setting in words. Unknown values are shown as Meta returned them. */
-export function attributionLabel(setting: string | null): string | null {
+export function attributionLabel(setting: string | null, locale: UiLocale = 'he'): string | null {
   if (!setting) return null
-  const windows: Record<string, string> = {
-    '1d_click': 'יום אחד מקליק',
-    '7d_click': '7 ימים מקליק',
-    '28d_click': '28 ימים מקליק',
-    '1d_view': 'יום אחד מצפייה',
-    '1d_ev': 'יום אחד מצפייה ממושכת',
-  }
-  if (setting === 'mixed') return 'משתנה בין קבוצות המודעות'
-  if (setting === 'default') return '7 ימים מקליק או יום אחד מצפייה'
-  const parts = setting.split(',').map((p) => windows[p.trim()])
-  return parts.every(Boolean) ? parts.join(' או ') : setting
+  const t = translatorFor(locale)
+  if (setting === 'mixed') return t('performance.adsIntel.attribution.mixed')
+  if (setting === 'default') return t('performance.adsIntel.attribution.default')
+  const parts = setting.split(',').map((p) => (WINDOW_KEY[p.trim()] ? t(WINDOW_KEY[p.trim()]) : undefined))
+  return parts.every(Boolean) ? (parts as string[]).reduce((a, b) => t('performance.adsIntel.attribution.or', { a, b })) : setting
 }

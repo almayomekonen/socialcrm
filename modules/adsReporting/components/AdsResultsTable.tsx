@@ -1,6 +1,8 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatAdsCount, formatAdsMoney, formatAdsPercent } from '@/lib/facebook/ads/format'
-import { OBJECTIVE_LABEL, RESULT_LABEL, STATUS_LABEL, type RowResult } from '@/lib/facebook/ads/results'
+import { adsStatusLabel, objectiveLabel, resultLabel, type RowResult } from '@/lib/facebook/ads/results'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import type { AdsMetrics } from '@/lib/facebook/ads/metrics'
 import type { AdsSelectionQuery } from '@/lib/facebook/ads/selection'
 import AdsDrillLink from './AdsDrillLink'
@@ -28,6 +30,7 @@ export default function AdsResultsTable({
   drill,
   emptyText,
   statusesAvailable,
+  locale = 'he',
 }: {
   title: string
   rows: AdsTableRow[]
@@ -37,7 +40,9 @@ export default function AdsResultsTable({
   drill?: { label: string; to: (row: AdsTableRow) => AdsSelectionQuery }
   emptyText: string
   statusesAvailable: boolean
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
     <section aria-label={title} className='rounded-lg border border-gray-200 bg-white'>
       <h2 className='border-b border-gray-100 px-4 py-3 text-base font-semibold text-gray-900'>{title}</h2>
@@ -48,13 +53,13 @@ export default function AdsResultsTable({
           <TableHeader>
             <TableRow>
               <TableHead>{nameHeader}</TableHead>
-              <TableHead>הוצאה</TableHead>
-              <TableHead>תוצאות</TableHead>
-              <TableHead>עלות לתוצאה</TableHead>
-              <TableHead>קליקים על קישור</TableHead>
-              <TableHead>אחוז הקלקה על קישור</TableHead>
-              <TableHead>אנשים שנחשפו</TableHead>
-              {drill && <TableHead><span className='sr-only'>פירוט</span></TableHead>}
+              <TableHead>{t('performance.ads.table.spend')}</TableHead>
+              <TableHead>{t('performance.ads.table.results')}</TableHead>
+              <TableHead>{t('performance.ads.table.costPerResult')}</TableHead>
+              <TableHead>{t('performance.ads.table.linkClicks')}</TableHead>
+              <TableHead>{t('performance.ads.table.linkCtr')}</TableHead>
+              <TableHead>{t('performance.ads.table.reach')}</TableHead>
+              {drill && <TableHead><span className='sr-only'>{t('performance.ads.table.drill')}</span></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -64,8 +69,12 @@ export default function AdsResultsTable({
                   <div className='truncate font-medium'>{row.name}</div>
                   <div className='text-xs text-gray-500'>
                     {[
-                      row.objective ? `מטרה: ${OBJECTIVE_LABEL[row.objective] ?? row.objective}` : null,
-                      statusesAvailable ? (row.status ? STATUS_LABEL[row.status] ?? row.status : 'סטטוס לא ידוע') : 'הסטטוס לא נטען',
+                      row.objective ? t('performance.ads.table.objective', { objective: objectiveLabel(row.objective, locale) }) : null,
+                      statusesAvailable
+                        ? row.status
+                          ? adsStatusLabel(row.status, locale)
+                          : t('performance.ads.table.statusUnknown')
+                        : t('performance.ads.table.statusNotLoaded'),
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -76,10 +85,10 @@ export default function AdsResultsTable({
                   {row.result.kind ? (
                     <>
                       <span dir='ltr' className='tabular-nums'>{formatAdsCount(row.result.count)}</span>{' '}
-                      <span className='text-xs text-gray-500'>{RESULT_LABEL[row.result.kind]}</span>
+                      <span className='text-xs text-gray-500'>{resultLabel(row.result.kind, locale)}</span>
                     </>
                   ) : (
-                    <span title='לא ניתן לקבוע תוצאה אחת למטרה הזו'>—</span>
+                    <span title={t('performance.ads.table.noSingleResult')}>—</span>
                   )}
                 </TableCell>
                 <TableCell dir='ltr' className='tabular-nums'>

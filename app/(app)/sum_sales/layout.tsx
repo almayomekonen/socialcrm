@@ -7,10 +7,13 @@ import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 import { isAdmin, type Roles } from '@/types/roles'
 import { isFacebookAdsReportingEnabledForAgency } from '@/lib/facebook/permissions'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
 
-export const metadata: Metadata = {
-  title: 'ביצועים',
-  description: 'ביצועי עסקאות',
+/** Tab title in the interface language — Hebrew ('ביצועים') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('performance.page.title'), description: t('performance.page.description') }
 }
 
 export default async function SumSalesLayout({ children }: { children: React.ReactNode }) {
@@ -26,6 +29,9 @@ export default async function SumSalesLayout({ children }: { children: React.Rea
    */
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='sum_sales' />
 
+  // Resolved once by the same request-memoised call the (app) layout makes; the five pages inherit this region.
+  const { locale } = await getUiLocaleState(user)
+
   let showAgents = false
   try {
     const users = await getUsers()
@@ -35,7 +41,7 @@ export default async function SumSalesLayout({ children }: { children: React.Rea
   }
 
   return (
-    <div>
+    <div {...regionAttrs(locale)}>
       <Suspense fallback={null}>
         <SumSalesNav
           user={user}

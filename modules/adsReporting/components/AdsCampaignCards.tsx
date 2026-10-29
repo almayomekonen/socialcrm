@@ -1,4 +1,6 @@
-import { OBJECTIVE_LABEL, STATUS_LABEL, type RowResult } from '@/lib/facebook/ads/results'
+import { adsStatusLabel, objectiveLabel, type RowResult } from '@/lib/facebook/ads/results'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import type { CrmOutcome } from '@/lib/facebook/ads/crmOutcomes'
 import type { AdsSelectionQuery } from '@/lib/facebook/ads/selection'
 import { CrmLine, MetaLine } from './AdsOutcomeLines'
@@ -26,6 +28,7 @@ export default function AdsCampaignCards({
   currency,
   drill,
   emptyText,
+  locale = 'he',
 }: {
   title: string
   rows: OutcomeCardRow[]
@@ -34,7 +37,9 @@ export default function AdsCampaignCards({
   currency: string | null
   drill?: { label: string; to: (row: OutcomeCardRow) => AdsSelectionQuery }
   emptyText: string
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
     <section aria-label={title} className='@container/cards grid gap-3'>
       <h2 className='text-base font-semibold text-gray-900'>{title}</h2>
@@ -50,7 +55,7 @@ export default function AdsCampaignCards({
                     {row.name}
                   </h3>
                   {row.objective && (
-                    <p className='text-xs text-gray-500'>מטרה: {OBJECTIVE_LABEL[row.objective] ?? row.objective}</p>
+                    <p className='text-xs text-gray-500'>{t('performance.ads.table.objective', { objective: objectiveLabel(row.objective, locale) })}</p>
                   )}
                 </div>
                 {row.status && (
@@ -59,13 +64,13 @@ export default function AdsCampaignCards({
                       row.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
                     }`}
                   >
-                    {STATUS_LABEL[row.status] ?? row.status}
+                    {adsStatusLabel(row.status, locale)}
                   </span>
                 )}
               </div>
               <div className='mt-3 grid gap-2'>
-                <MetaLine spend={row.spend} result={row.result} currency={currency} />
-                <CrmLine outcome={outcomes[row.id]} spend={row.spend} currency={currency} />
+                <MetaLine spend={row.spend} result={row.result} currency={currency} locale={locale} />
+                <CrmLine outcome={outcomes[row.id]} spend={row.spend} currency={currency} locale={locale} />
               </div>
               {drill && (
                 <div className='mt-3 text-sm max-sm:[&_button]:inline-flex max-sm:[&_button]:min-h-11 max-sm:[&_button]:items-center'>

@@ -1,5 +1,7 @@
 import { formatAdsCount, formatAdsMoney } from '@/lib/facebook/ads/format'
 import type { CrmOutcome } from '@/lib/facebook/ads/crmOutcomes'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * "שימו לב" — factual operational signals, never advice. Pure.
@@ -33,7 +35,9 @@ export type AdsSignal = {
 export const CAPTURE_GAP_MIN = 3
 export const CAPTURE_GAP_SHARE = 0.25
 
-export function adsSignals(rows: SignalInput[], currency: string | null): AdsSignal[] {
+/** `locale`: the language of each signal's `text` (Hebrew by default — the shape and the facts are the same in every language). */
+export function adsSignals(rows: SignalInput[], currency: string | null, locale: UiLocale = 'he'): AdsSignal[] {
+  const t = translatorFor(locale)
   const untouched: AdsSignal[] = []
   const spendNoLeads: AdsSignal[] = []
   const gaps: AdsSignal[] = []
@@ -44,15 +48,15 @@ export function adsSignals(rows: SignalInput[], currency: string | null): AdsSig
         campaignId: r.id,
         text:
           r.crm.untouched === 1
-            ? `ליד אחד מהקמפיין "${r.name}" עדיין לא טופל`
-            : `${formatAdsCount(r.crm.untouched)} לידים מהקמפיין "${r.name}" עדיין לא טופלו`,
+            ? t('performance.adsIntel.signals.untouchedOne', { name: r.name })
+            : t('performance.adsIntel.signals.untouched', { count: formatAdsCount(r.crm.untouched), name: r.name }),
       })
     }
     if (r.leadObjective && r.spend !== null && r.spend > 0 && r.metaLeads === 0) {
       spendNoLeads.push({
         kind: 'spend_no_leads',
         campaignId: r.id,
-        text: `בקמפיין "${r.name}" הוצאו ${formatAdsMoney(r.spend, currency)} בתקופה, ו-Meta לא דיווחה על לידים`,
+        text: t('performance.adsIntel.signals.spendNoLeads', { name: r.name, spend: formatAdsMoney(r.spend, currency) }),
       })
     }
     const captured = r.crm?.captured ?? 0
@@ -62,7 +66,7 @@ export function adsSignals(rows: SignalInput[], currency: string | null): AdsSig
         gaps.push({
           kind: 'capture_gap',
           campaignId: r.id,
-          text: `בקמפיין "${r.name}" Meta דיווחה על ${formatAdsCount(r.metaLeads)} לידים, וב-SocialCRM נקלטו ${formatAdsCount(captured)}`,
+          text: t('performance.adsIntel.signals.captureGap', { name: r.name, meta: formatAdsCount(r.metaLeads), captured: formatAdsCount(captured) }),
         })
       }
     }

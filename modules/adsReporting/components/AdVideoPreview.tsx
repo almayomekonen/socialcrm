@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { getAdPreview } from '@/modules/adsReporting/actions'
 import AdCreativeImage from './AdCreativeImage'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * A video ad's thumbnail that opens Meta's own preview of the ad, so the user can
@@ -16,6 +17,7 @@ import AdCreativeImage from './AdCreativeImage'
 type State = { kind: 'closed' } | { kind: 'loading' } | { kind: 'ready'; url: string } | { kind: 'error' }
 
 export default function AdVideoPreview({ adId, url, name }: { adId: string; url: string | null; name: string }) {
+  const t = useT()
   const [state, setState] = useState<State>({ kind: 'closed' })
   // Only the newest request may update the dialog (a quick close + reopen).
   const request = useRef(0)
@@ -44,31 +46,31 @@ export default function AdVideoPreview({ adId, url, name }: { adId: string; url:
         type='button'
         onClick={open}
         aria-haspopup='dialog'
-        aria-label={`הצגת המודעה ${name}`}
+        aria-label={t('performance.adsIntel.creative.open', { name })}
         className='block w-full cursor-pointer rounded-md text-start transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
         <AdCreativeImage url={url} isVideo name={name} />
       </button>
       {state.kind !== 'closed' && (
-        <ModalPop open onClose={close} pos='middle' labelledBy={titleId}>
+        <ModalPop open onClose={close} pos='middle' labelledBy={titleId} translated>
           <div className='grid w-[min(80vw,380px)] gap-3'>
             <h2 id={titleId} className='text-lg font-semibold text-gray-800'>
-              תצוגה מקדימה של המודעה
+              {t('performance.adsIntel.creative.previewTitle')}
             </h2>
             {state.kind === 'loading' && (
               <p role='status' className='py-10 text-center text-sm text-gray-500'>
-                טוען תצוגה מקדימה…
+                {t('performance.adsIntel.creative.previewLoading')}
               </p>
             )}
             {state.kind === 'error' && (
               <p role='alert' className='py-10 text-center text-sm text-gray-600'>
-                התצוגה המקדימה לא זמינה כרגע
+                {t('performance.adsIntel.creative.previewError')}
               </p>
             )}
             {state.kind === 'ready' && (
               <iframe
                 src={state.url}
-                title={`תצוגה מקדימה של המודעה ${name}`}
+                title={t('performance.adsIntel.creative.previewFrame', { name })}
                 className='block h-[min(70dvh,600px)] w-full rounded-md border border-gray-200'
                 sandbox='allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox'
                 allow='autoplay; encrypted-media; fullscreen'

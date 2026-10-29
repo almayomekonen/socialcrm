@@ -23,5 +23,7 @@ import { leadTabs } from './leadTabs'
 import { inbox } from './inbox'
 import { tasks } from './tasks'
 import { calendar } from './calendar'
+import { deals } from './deals'
+import { performance } from './performance'
 
-export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar } as const
+export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance } as const
