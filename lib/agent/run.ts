@@ -16,9 +16,11 @@ import { buildAgentSystemPrompt } from './prompt'
 import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
-import { callsFromSteps, errorCodeOf, newInvocationId, recordProviderCalls, usageFromSdk } from '@/lib/ai/usage/record'
+import { callsFromSteps, errorCodeOf, newInvocationId, recordProviderCalls, usageFromSdk, type ProviderCall } from '@/lib/ai/usage/record'
 import { newCallId, settleShadowAfter, startShadow, type ShadowHandle } from '@/lib/ai/budget/shadow'
 import { estimateAgentCall } from '@/lib/ai/budget/estimate'
+import { definitionBytes } from '@/lib/ai/budget/requestSize'
+import { agentCallSettlement } from './budgetSettlement'
 import type { AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentAnswer, AgentResult, AgentScope, StopReason } from './types'
 
@@ -366,26 +368,37 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     fallbackOperation: { kind: 'agent_investigation', id: investigationId },
   }
   let ledgerSteps = 0
-  const recordSteps = async (steps: Parameters<typeof callsFromSteps>[0]) => {
-    const calls = callsFromSteps(steps, ledger).map((c) => ({ ...c, stepIndex: ledgerSteps + (c.stepIndex ?? 0) }))
+  type Recorded = { calls: ProviderCall[]; from: number }
+  const recordSteps = async (steps: Parameters<typeof callsFromSteps>[0]): Promise<Recorded> => {
+    const from = ledgerSteps
+    const calls = callsFromSteps(steps, ledger).map((c) => ({ ...c, stepIndex: from + (c.stepIndex ?? 0) }))
     ledgerSteps += calls.length
     await recordProviderCalls(calls)
+    return { calls, from }
   }
   /**
    * Budget SHADOW: one reservation per generateText call (each may run several
    * steps). Started, not awaited, immediately before the call; settled after
-   * it with the call's total usage. The bound is PARTIAL — later tool results
-   * are unknown in advance. Never delays, blocks or changes the call.
+   * it with the sum of its steps, each priced like its ledger row. The bound is
+   * PARTIAL — later tool results are unknown in advance. Never delays, blocks
+   * or changes the call.
    */
   let pendingShadow: ShadowHandle | null = null
-  const reserveCall = (messages: unknown, steps: number): ShadowHandle =>
+  const reserveCall = (
+    messages: unknown,
+    steps: number,
+    defs: Parameters<typeof definitionBytes>[0],
+  ): ShadowHandle =>
     startShadow({
       callId: newCallId(),
       agencyId: scope.agencyId,
       feature: AGENT_TASK_KIND,
       provider: handle.provider,
       model: handle.modelId,
-      estimate: (policy) =>
+      invocationId: ledger.invocationId,
+      // Both phases, every step: one investigation (the ledger's operation too).
+      run: ledger.fallbackOperation,
+      estimate: async (policy) =>
         estimateAgentCall({
           model: handle.modelId,
           system: systemPrompt,
@@ -393,19 +406,19 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
           maxSteps: steps,
           maxOutputTokens: cfg.maxOutputTokens ?? 0,
           maxSearchCalls: researchAdmitted ? 7 * steps : 0,
+          definitionBytes: await definitionBytes(defs),
           unboundedReserveUsd: policy.unboundedReserveUsd,
         }),
     })
-  const settleCall = async (outcome: 'success' | 'error', usage: unknown, steps?: readonly { response?: { modelId?: string }; toolCalls?: { providerExecuted?: boolean }[] }[]) => {
+  const settleCall = async (outcome: 'success' | 'error', recorded: Recorded, totalUsage?: unknown) => {
     if (!pendingShadow) return
     const h = pendingShadow
     pendingShadow = null
-    await settleShadowAfter(h, {
-      outcome,
-      usage: usageFromSdk(usage as Parameters<typeof usageFromSdk>[0]),
-      models: { requested: handle.modelId, response: steps?.at(-1)?.response?.modelId ?? null },
-      webSearchCalls: (steps ?? []).reduce((n, st) => n + (st.toolCalls ?? []).filter((c) => c.providerExecuted === true).length, 0),
-    })
+    const usage = usageFromSdk(totalUsage as Parameters<typeof usageFromSdk>[0])
+    await settleShadowAfter(
+      h,
+      agentCallSettlement({ outcome, calls: recorded.calls, stepIndexFrom: recorded.from, requestedModel: handle.modelId, totalUsage: usage }),
+    )
   }
   /**
    * PROVIDER-RESOURCE ACCOUNTING, kept deliberately apart from `Budget`.
@@ -464,7 +477,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       // The hosted search runs INSIDE this call, so this span is the research
       // wall clock — there is no narrower boundary we can observe.
       const phase1StartedAt = now()
-      pendingShadow = reserveCall(conversation, maxSteps)
+      pendingShadow = reserveCall(conversation, maxSteps, { tools })
       const evidencePhase = await generateText({
         model: handle.model,
         system: systemPrompt,
@@ -493,8 +506,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       })
       evidenceUsage = evidencePhase.totalUsage
       toolRoundTrips = countToolRoundTrips(evidencePhase.steps)
-      await recordSteps(evidencePhase.steps)
-      await settleCall('success', evidencePhase.totalUsage, evidencePhase.steps)
+      await settleCall('success', await recordSteps(evidencePhase.steps), evidencePhase.totalUsage)
 
       /**
        * ── THE HARVEST SEAM ──────────────────────────────────────────────────
@@ -578,7 +590,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
 
       // ── PHASE 2 · answer. Structured output, NO tools, no forced choice. ──
       const answerMessages = [...conversation, ...evidencePhase.response.messages, ...sourceManifest(evidence)]
-      pendingShadow = reserveCall(answerMessages, 1)
+      pendingShadow = reserveCall(answerMessages, 1, { schema: agentAnswerSchema })
       result = await generateText({
         model: handle.model,
         system: systemPrompt,
@@ -588,11 +600,10 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
-      await recordSteps(result.steps)
-      await settleCall('success', result.totalUsage, result.steps)
+      await settleCall('success', await recordSteps(result.steps), result.totalUsage)
     } else {
       // ── INTERACTIVE · unchanged: one call, tools, structured output. ──
-      pendingShadow = reserveCall(conversation, maxSteps)
+      pendingShadow = reserveCall(conversation, maxSteps, { tools, schema: agentAnswerSchema })
       result = await generateText({
         model: handle.model,
         system: systemPrompt,
@@ -605,22 +616,20 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
       toolRoundTrips = countToolRoundTrips(result.steps)
-      await recordSteps(result.steps)
-      await settleCall('success', result.totalUsage, result.steps)
+      await settleCall('success', await recordSteps(result.steps), result.totalUsage)
     }
   } catch (err) {
-    await settleCall('error', (err as { usage?: unknown })?.usage)
     // The request that threw: its steps are unknown, so its usage is unknown —
-    // recorded as such, never as zero.
-    await recordProviderCalls([
-      {
-        ...ledger,
-        stepIndex: ledgerSteps,
-        status: timedOut ? 'timeout' : callerSignal?.aborted ? 'aborted' : 'error',
-        errorCode: timedOut ? 'deadline' : errorCodeOf(err),
-        usage: usageFromSdk((err as { usage?: Parameters<typeof usageFromSdk>[0] })?.usage),
-      },
-    ])
+    // recorded as such, never as zero. The reservation settles on that same row.
+    const failedCall: ProviderCall = {
+      ...ledger,
+      stepIndex: ledgerSteps,
+      status: timedOut ? 'timeout' : callerSignal?.aborted ? 'aborted' : 'error',
+      errorCode: timedOut ? 'deadline' : errorCodeOf(err),
+      usage: usageFromSdk((err as { usage?: Parameters<typeof usageFromSdk>[0] })?.usage),
+    }
+    await settleCall('error', { calls: [failedCall], from: ledgerSteps })
+    await recordProviderCalls([failedCall])
     // A deadline abort and a provider failure arrive through the same throw, so
     // the flag set by the timer is what tells them apart — the error's own
     // message cannot, and would carry provider text into a durable record.

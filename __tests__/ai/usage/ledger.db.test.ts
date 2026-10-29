@@ -40,6 +40,7 @@ const ok = (over: Record<string, unknown> = {}) => ({
   object: { x: 'a' },
   usage: SOL_USAGE,
   response: { id: 'resp_abc', modelId: 'gpt-5.6-sol' },
+  providerMetadata: { openai: { serviceTier: 'default' } },
   finishReason: 'stop',
   ...over,
 })
@@ -77,11 +78,13 @@ describe('one row per provider request', () => {
       cacheWriteTokens: 22_341,
       outputTokens: 17_249,
       reasoningTokens: 9_000,
-      costBasis: 'reported_usage',
-      priceVersion: '2026-10-29',
+      // Standard tier reported, but the cache-write DURATION is not: writes at the highest listed rate (12 h, $10).
+      costBasis: 'estimated',
+      costNote: 'cache_write_duration_unknown',
+      priceVersion: '2026-10-30',
     })
-    // 889×$4 + 84,536×$0.40 + 22,341×$5 + 17,249×$20, per 1M
-    expect(Number(r.costUsd)).toBeCloseTo(0.494055, 6)
+    // 889×$4 + 84,536×$0.40 + 22,341×$10 + 17,249×$20, per 1M
+    expect(Number(r.costUsd)).toBeCloseTo(0.60576, 5)
   })
 
   it('a fallback: two requests, one invocation; the timed-out one has UNKNOWN cost, not zero', async () => {
@@ -99,7 +102,7 @@ describe('one row per provider request', () => {
       costBasis: 'unknown',
       costNote: 'usage_missing',
     })
-    expect(second).toMatchObject({ chainIndex: 1, provider: 'anthropic', status: 'success', costBasis: 'reported_usage' })
+    expect(second).toMatchObject({ chainIndex: 1, provider: 'anthropic', status: 'success', costBasis: 'estimated' })
     expect(first.invocationId).toBe(second.invocationId)
     expect(first.operationKind).toBe('inbox.autoResponse') // no worker context: the request is its own operation
   })
@@ -113,14 +116,35 @@ describe('one row per provider request', () => {
     ai.generateObject.mockRejectedValueOnce(err).mockRejectedValueOnce(new Error('400 bad'))
     expect((await call()).ok).toBe(false)
     const [r] = await rows()
-    expect(r).toMatchObject({ status: 'error', usageReported: true, costBasis: 'reported_usage', providerRequestId: 'resp_bad' })
+    // Usage reported, tier not (no provider metadata on the error): estimated, never dropped.
+    expect(r).toMatchObject({ status: 'error', usageReported: true, costBasis: 'estimated', providerRequestId: 'resp_bad' })
   })
 
-  it('an unpriced model is recorded as unknown, never guessed', async () => {
-    ai.generateObject.mockResolvedValueOnce(ok({ response: { id: 'r', modelId: 'gpt-5.6' } }))
+  it('the documented gpt-5.6 alias prices the request as gpt-5.6-sol — an estimate; requested and reported models stay separate', async () => {
+    const plain = {
+      inputTokens: 1_000,
+      outputTokens: 100,
+      inputTokenDetails: { noCacheTokens: 1_000, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    }
+    ai.generateObject.mockResolvedValueOnce(ok({ usage: plain, response: { id: 'r', modelId: 'gpt-5.6' } }))
     await call()
     const [r] = await rows()
-    expect(r).toMatchObject({ costUsd: null, costBasis: 'unknown', costNote: 'unpriced_model' })
+    expect(r).toMatchObject({
+      requestedModel: 'gpt-5.6',
+      responseModel: 'gpt-5.6',
+      costBasis: 'estimated',
+      costNote: 'priced_as_alias:gpt-5.6-sol',
+    })
+    expect(Number(r.costUsd)).toBeCloseTo((1_000 * 4 + 100 * 20) / 1e6, 9)
+  })
+
+  it('an unlisted REPORTED model falls back to the requested model (here the alias), is kept as reported, and is flagged', async () => {
+    ai.generateObject.mockResolvedValueOnce(ok({ response: { id: 'r', modelId: 'gpt-9-preview' } }))
+    await call()
+    const [r] = await rows()
+    expect(r).toMatchObject({ responseModel: 'gpt-9-preview', costBasis: 'estimated' })
+    expect(r.costNote).toContain('priced_as_alias:gpt-5.6-sol')
+    expect(r.costNote).toContain('response_model_unpriced')
   })
 })
 

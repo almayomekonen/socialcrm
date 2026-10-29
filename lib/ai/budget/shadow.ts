@@ -1,9 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { after } from 'next/server'
 import { db } from '@/config/db'
 import { reserveShadow, settleShadow } from '@/db/aiBudget'
 import { currentAiOperation } from '@/lib/ai/usage/context'
-import { priceUsage, type UsageTokens } from '@/lib/ai/usage/pricing'
+import { PRICE_VERSION, priceUsage, type CostVerdict, type UsageTokens } from '@/lib/ai/usage/pricing'
 import { budgetPolicyFor, isAiBudgetShadowEnabled, type BudgetPolicy } from './policy'
+import { emitBudgetEvent, failureReason } from './events'
 import type { BudgetEstimate } from './estimate'
 
 /**
@@ -13,16 +15,44 @@ import type { BudgetEstimate } from './estimate'
  *   startShadow   is called immediately before the provider request and is
  *                 NOT awaited — the reservation runs concurrently, so the
  *                 request is never delayed, blocked or changed;
- *   settleShadow… is awaited after the request for at most SETTLE_WAIT_MS,
- *                 then left to finish in the background.
+ *   settleShadow… starts immediately after the request and is awaited for at
+ *                 most SETTLE_WAIT_MS. The same work is handed to Next's
+ *                 `after()`, so inside a request (route handler, server
+ *                 action, cron route) the platform keeps the function alive
+ *                 until it finishes (Vercel `waitUntil`, up to the route's
+ *                 maxDuration). It is retried a few times — database work
+ *                 only, never a provider call.
  *
- * Every failure is swallowed (logged by error name only). Identity comes from
+ * SETTLEMENT IS RECOVERABLE, NOT GUARANTEED. A crash, a timeout at
+ * maxDuration, a database outage longer than the retries, or a caller outside
+ * any request scope (no lifecycle to extend) can still leave a reservation
+ * `reserved`. The expiry sweep (`expireStaleShadowReservations`, cron) then
+ * settles it idempotently: from its usage-ledger row when one shares its
+ * callId, otherwise as `expired` / unknown, charged its estimate.
+ *
+ * RUN IDENTITY. Every reservation belongs to a logical run: the worker's
+ * `withAiOperation` context when there is one (a job), otherwise the caller's
+ * `run` (a router invocation, an Agent investigation, a transcription). The
+ * same identity the usage ledger records. Without either, the run scope is
+ * skipped and recorded as such — never a fresh per-call "run".
+ *
+ * The settled actual keeps its cost basis (reported / estimated / unknown).
+ * Callers that also write ledger rows pass the SAME verdict they recorded
+ * (`verdictForCall` / `combineVerdicts`), so a reservation equals the sum of
+ * its ledger rows, and the reservation stores its own link to them
+ * (invocationId + step range) so it stays reconcilable with the ledger off.
+ *
+ * Every failure is swallowed — never retried as, or turned into, another
+ * provider call — and reported as a structured log event (`./events`), not
+ * in the database that may be what failed. Identity comes from
  * the server: the caller's server-derived agency id and the worker's
  * `withAiOperation` context; the contact is a one-way hash read from the
  * agency's own conversation row, never a raw number.
  */
 
 const SETTLE_WAIT_MS = 250
+/** Delays before each settlement attempt (database work only — idempotent). */
+const SETTLE_RETRY_DELAYS_MS = [0, 100, 400]
 
 export type ShadowRequest = {
   callId: string
@@ -32,7 +62,12 @@ export type ShadowRequest = {
   feature: string
   provider: string
   model: string
-  estimate: (policy: BudgetPolicy) => BudgetEstimate
+  /** The usage ledger's invocation id for this request. */
+  invocationId?: string | null
+  /** The logical run, when no worker operation context is active (server-generated ids only). */
+  run?: { kind: string; id: string } | null
+  /** May be async (e.g. measuring a schema); it runs off the request path either way. */
+  estimate: (policy: BudgetPolicy) => BudgetEstimate | Promise<BudgetEstimate>
 }
 
 export type ShadowHandle = Promise<{ callId: string } | null>
@@ -60,29 +95,47 @@ export async function contactKeyFor(
 export function startShadow(req: ShadowRequest): ShadowHandle {
   if (!isAiBudgetShadowEnabled()) return Promise.resolve(null)
   const op = currentAiOperation()
+  const agencyId = req.agencyId ?? op?.agencyId ?? null
+  const run = op?.id ? { kind: op.kind, id: op.id } : (req.run ?? null)
+  const ids = {
+    callId: req.callId,
+    invocationId: req.invocationId ?? null,
+    operationKind: run?.kind ?? op?.kind ?? req.feature,
+    operationId: run?.id ?? null,
+    feature: req.feature,
+    provider: req.provider,
+    model: req.model,
+    agencyId,
+  }
+  if (!run) emitBudgetEvent('run_identity_missing', ids)
   return (async () => {
+    let stage: 'estimate' | 'database' = 'estimate'
     try {
-      const agencyId = req.agencyId ?? op?.agencyId ?? null
       const conversationId = req.conversationId ?? op?.conversationId ?? null
       const leadId = req.leadId ?? op?.leadId ?? null
       const policy = budgetPolicyFor(agencyId)
+      const estimate = await req.estimate(policy)
+      stage = 'database'
       await reserveShadow({
         callId: req.callId,
         policy,
         agencyId,
-        operationKind: op?.kind ?? req.feature,
-        operationId: op?.id ?? null,
+        operationKind: run?.kind ?? op?.kind ?? req.feature,
+        operationId: run?.id ?? null,
         conversationId,
         contactKey: await contactKeyFor(agencyId, conversationId, leadId),
         feature: req.feature,
         provider: req.provider,
         model: req.model,
-        estimate: req.estimate(policy),
+        estimate,
+        estimatePriceVersion: estimate.basis === 'unbounded' ? null : PRICE_VERSION,
+        invocationId: req.invocationId ?? null,
         now: new Date(),
       })
       return { callId: req.callId }
     } catch (err) {
-      console.error('[ai-budget] shadow reserve failed', { name: (err as Error)?.name ?? 'error' })
+      // No reservation row exists for this request; the provider call goes ahead untouched.
+      emitBudgetEvent('reservation_failed', { ...ids, stage, reason: failureReason(err, stage), error: err })
       return null
     }
   })()
@@ -93,18 +146,81 @@ export type ShadowOutcome = {
   usage: UsageTokens | null
   models: { requested: string; response?: string | null }
   webSearchCalls?: number
+  serviceTier?: string | null
   /** For non-token billing (audio minutes): the estimated actual, when known. */
   knownCostUsd?: number | null
+  /** The cost already priced by the caller (preferred: the verdict its ledger rows used). */
+  verdict?: CostVerdict
+  responseModels?: string[]
+  /** The ledger rows covered: stepIndex in [stepIndexFrom, stepIndexFrom + stepCount). */
+  stepIndexFrom?: number
+  stepCount?: number
+}
+
+function actualOf(o: ShadowOutcome): CostVerdict {
+  if (o.verdict) return o.verdict
+  if (o.knownCostUsd !== undefined) {
+    return o.knownCostUsd != null && Number.isFinite(o.knownCostUsd)
+      ? { costUsd: o.knownCostUsd, costBasis: 'estimated', costNote: 'duration_estimate', priceVersion: null }
+      : { costUsd: null, costBasis: 'unknown', costNote: 'usage_missing', priceVersion: PRICE_VERSION }
+  }
+  return priceUsage(o.models, o.usage, { webSearchCalls: o.webSearchCalls, serviceTier: o.serviceTier })
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+
+/**
+ * Hand `work` to the request lifecycle. 'after' = the platform keeps the
+ * function alive until it settles; 'detached' = no request scope (scripts,
+ * tests), so nothing extends the process — the expiry sweep is the recovery.
+ */
+export function keepAliveUntilDone(work: Promise<unknown>): 'after' | 'detached' {
+  try {
+    after(work)
+    return 'after'
+  } catch {
+    return 'detached'
+  }
+}
+
+/** Settle with retries. Never throws; a final failure is left for the expiry sweep. */
+async function settleWithRetry(handle: ShadowHandle, o: ShadowOutcome): Promise<void> {
+  const h = await handle
+  if (!h) return
+  const v = actualOf(o)
+  const input = {
+    callId: h.callId,
+    outcome: o.outcome,
+    actualUsd: v.costUsd,
+    costBasis: v.costBasis,
+    costNote: v.costNote,
+    priceVersion: v.priceVersion,
+    responseModels: o.responseModels ?? (o.models.response ? [o.models.response] : []),
+    stepIndexFrom: o.stepIndexFrom ?? null,
+    stepCount: o.stepCount ?? null,
+  }
+  let last: unknown
+  for (const delay of SETTLE_RETRY_DELAYS_MS) {
+    if (delay) await sleep(delay)
+    try {
+      await settleShadow(input) // idempotent: a repeat after a lost reply changes nothing
+      return
+    } catch (err) {
+      last = err
+    }
+  }
+  emitBudgetEvent('settlement_failed', {
+    callId: h.callId,
+    stage: 'database',
+    reason: failureReason(last, 'database'),
+    attempts: SETTLE_RETRY_DELAYS_MS.length,
+    error: last,
+  })
 }
 
 export async function settleShadowAfter(handle: ShadowHandle, o: ShadowOutcome): Promise<void> {
-  const work = (async () => {
-    const h = await handle
-    if (!h) return
-    const actualUsd =
-      o.knownCostUsd !== undefined ? o.knownCostUsd : priceUsage(o.models, o.usage, { webSearchCalls: o.webSearchCalls }).costUsd
-    await settleShadow({ callId: h.callId, outcome: o.outcome, actualUsd })
-  })().catch((err) => console.error('[ai-budget] shadow settle failed', { name: (err as Error)?.name ?? 'error' }))
+  const work = settleWithRetry(handle, o).catch(() => undefined)
+  keepAliveUntilDone(work)
   let timer: ReturnType<typeof setTimeout> | undefined
   await Promise.race([work, new Promise<void>((r) => (timer = setTimeout(r, SETTLE_WAIT_MS)))])
   clearTimeout(timer)

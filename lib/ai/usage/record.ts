@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { db } from '@/config/db'
 import { isAiUsageLedgerEnabled } from '@/lib/flags/aiUsageLedgerFlags'
 import { currentAiOperation } from './context'
-import { priceUsage, type UsageTokens } from './pricing'
+import { PRICE_VERSION, priceUsage, type CostVerdict, type UsageTokens } from './pricing'
 
 /**
  * Write-only AI usage ledger (`ai_usage_events`): one row per provider request.
@@ -32,6 +32,8 @@ export type ProviderCall = {
   finishReason?: string | null
   usage: (UsageTokens & { reasoningTokens?: number | null }) | null
   webSearchCalls?: number
+  /** The billing tier the provider reported (e.g. OpenAI `service_tier`); absent = not established. */
+  serviceTier?: string | null
   audioSeconds?: number | null
   /** A cost the caller already knows how to estimate when token usage is absent (e.g. audio minutes). */
   estimatedCostUsd?: number | null
@@ -71,6 +73,16 @@ export function usageFromSdk(u: SdkUsage): (UsageTokens & { reasoningTokens: num
   }
 }
 
+/** The service tier from SDK provider metadata (any provider that reports one), or null. */
+export function serviceTierFrom(meta: unknown): string | null {
+  if (!meta || typeof meta !== 'object') return null
+  for (const v of Object.values(meta as Record<string, unknown>)) {
+    const t = (v as { serviceTier?: unknown } | null)?.serviceTier
+    if (typeof t === 'string' && t) return t
+  }
+  return null
+}
+
 /** A short, content-free error code. Never the provider's message. */
 export function errorCodeOf(err: unknown, fallback = 'error'): string {
   const name = (err as { name?: unknown })?.name
@@ -81,19 +93,55 @@ export function newInvocationId(): string {
   return randomUUID()
 }
 
+/**
+ * The cost of ONE provider request — the single pricing path shared by the
+ * ledger row and the budget settlement, so the two can never disagree.
+ */
+export function verdictForCall(call: ProviderCall): CostVerdict {
+  if (call.usage == null && call.estimatedCostUsd != null && Number.isFinite(call.estimatedCostUsd)) {
+    return {
+      costUsd: Math.round(call.estimatedCostUsd * 1e6) / 1e6,
+      costBasis: 'estimated',
+      costNote: 'duration_estimate',
+      priceVersion: null,
+    }
+  }
+  return priceUsage({ response: call.responseModel, requested: call.requestedModel }, call.usage, {
+    webSearchCalls: call.webSearchCalls,
+    serviceTier: call.serviceTier,
+  })
+}
+
+/**
+ * Several requests priced one by one (e.g. the steps of one Agent call),
+ * summed only after each is priced. One unknown request makes the total
+ * unknown — a partial sum is never presented as the cost.
+ */
+export function combineVerdicts(verdicts: readonly CostVerdict[]): CostVerdict {
+  if (!verdicts.length) return { costUsd: null, costBasis: 'unknown', costNote: 'usage_missing', priceVersion: PRICE_VERSION }
+  const distinct = (xs: (string | null)[]) => [...new Set(xs.flatMap((x) => (x ? x.split(',') : [])))]
+  const versions = distinct(verdicts.map((v) => v.priceVersion))
+  const priceVersion = versions.length ? versions.join(',') : null
+  const unknown = verdicts.filter((v) => v.costBasis === 'unknown')
+  if (unknown.length) {
+    const costNote = [`step_cost_unknown:${unknown.length}/${verdicts.length}`, ...distinct(unknown.map((v) => v.costNote))].join(
+      ',',
+    )
+    return { costUsd: null, costBasis: 'unknown', costNote, priceVersion }
+  }
+  const costUsd = Math.round(verdicts.reduce((s, v) => s + (v.costUsd ?? 0), 0) * 1e6) / 1e6
+  const notes = distinct(verdicts.map((v) => v.costNote))
+  return {
+    costUsd,
+    costBasis: verdicts.some((v) => v.costBasis === 'estimated') ? 'estimated' : 'reported_usage',
+    costNote: notes.length ? notes.join(',') : null,
+    priceVersion,
+  }
+}
+
 function rowFor(call: ProviderCall) {
   const op = currentAiOperation()
-  const verdict =
-    call.usage == null && call.estimatedCostUsd != null && Number.isFinite(call.estimatedCostUsd)
-      ? {
-          costUsd: Math.round(call.estimatedCostUsd * 1e6) / 1e6,
-          costBasis: 'estimated' as const,
-          costNote: 'duration_estimate',
-          priceVersion: null,
-        }
-      : priceUsage({ response: call.responseModel, requested: call.requestedModel }, call.usage, {
-          webSearchCalls: call.webSearchCalls,
-        })
+  const verdict = verdictForCall(call)
   return {
     callId: call.callId ?? randomUUID(),
     invocationId: call.invocationId,
@@ -146,6 +194,7 @@ type SdkStep = {
   response?: { id?: string; modelId?: string }
   finishReason?: string
   toolCalls?: Array<{ providerExecuted?: boolean }>
+  providerMetadata?: unknown
 }
 
 /** One row per generateText step: each step is its own provider request. */
@@ -161,6 +210,7 @@ export function callsFromSteps(
     responseModel: s.response?.modelId ?? base.responseModel ?? null,
     providerRequestId: s.response?.id ?? null,
     finishReason: s.finishReason ?? null,
+    serviceTier: serviceTierFrom(s.providerMetadata),
     webSearchCalls: (s.toolCalls ?? []).filter((c) => c.providerExecuted === true).length,
   }))
 }

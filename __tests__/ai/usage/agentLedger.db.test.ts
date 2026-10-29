@@ -36,6 +36,7 @@ const step = (id: string, input: number, output: number, hosted = 0) => ({
     inputTokenDetails: { noCacheTokens: input, cacheReadTokens: 0, cacheWriteTokens: 0 },
   },
   response: { id, modelId: 'gpt-5.6-sol' },
+  providerMetadata: { openai: { serviceTier: 'default' } },
   finishReason: 'stop',
   toolCalls: Array.from({ length: hosted }, () => ({ providerExecuted: true })),
 })
