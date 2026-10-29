@@ -11,13 +11,12 @@ import { useKeepTblScrollPos } from '@/lib/hooksNEvents'
 import TableFooter from '@/lib/table/TableFooter'
 import { Select } from '@/lib/form'
 import { DEAL_STATUS_OPTIONS, normalizeStatus, dealStatusStyle } from '@/types/lists'
-import { ActionsMenu, DotsMenu, getActions, SelectSalesGrpActions } from './funcs'
+import { DotsMenu } from './funcs'
 import GroupAction from './GroupAction'
 import { Btn } from '@/lib/btns/Btn'
 import { SelectSearch } from '@/lib/form/SelectSearch'
-import UploadDealsData from '@/components/sales/UploadDealsData'
-import ModalPop from '@/lib/modals/ModalPop'
-import ConfirmPop from '@/lib/modals/ConfirmPop'
+import SalesTableDialogs from './SalesTableDialogs'
+import SalesEmptyState from './SalesEmptyState'
 import { searchContacts } from '@/actions/clients'
 import Table, { ConfigT } from '@/lib/table'
 import ShowColumns from '@/lib/table/ShowColumns'
@@ -127,18 +126,8 @@ export default function SalesTable({ props }: SaleTableProps) {
     setState((prev) => prev.filter((r: any) => Number(r.id) !== Number(target.id)))
   }
 
-  const emptyState = (state?.length ?? 0) === 0 ? (
-    <div className='text-center py-8 flex flex-col items-center gap-4'>
-      <p className='text-lg font-semibold'>אין עדיין עסקאות</p>
-      <p className='text-sm text-gray-500'>כדי להתחיל, עבור ללידים וסגור עסקה</p>
-      <div className='flex gap-3 justify-center items-center'>
-        <Btn lbl='מעבר ללידים' href='/leads' />
-        {hasLeads && (
-          <Btn lbl='הוסף עסקה' icon='plus' variant='ghost' onClick={() => (setOpenForm(true), setCurSale(null))} />
-        )}
-      </div>
-    </div>
-  ) : null
+  const emptyState =
+    (state?.length ?? 0) === 0 ? <SalesEmptyState hasLeads={hasLeads} onAdd={() => (setOpenForm(true), setCurSale(null))} /> : null
 
   function selectStatus(status, item) {
     const s = dealStatusStyle(status)
@@ -252,65 +241,21 @@ export default function SalesTable({ props }: SaleTableProps) {
         )}
       </div>
 
-      <ModalPop open={openUpload} label='ייבוא עסקאות' pos='middle' onClose={() => setOpenUpload(false)}>
-        {openUpload && <UploadDealsData />}
-      </ModalPop>
-
-      <ActionsMenu id='saleActions'>
-        {Object.entries(getActions()).map(([lbl, action]) => (
-          <div key={lbl}>
-            <div className='h-px bg-gray-200 w-full' />
-            {action.func ? (
-              <Btn
-                variant='simple'
-                size='simple'
-                lbl={lbl}
-                onClick={() => {
-                  switch (lbl) {
-                    case 'עריכה':
-                      setOpenForm(true)
-                      break
-
-                    case 'מחיקה':
-                      setConfirmDeleteSale(curSale)
-                      break
-
-                    default:
-                      action.func(curSale, isFav)
-                  }
-                }}
-              />
-            ) : (
-              <Btn variant='simple' lbl={lbl} />
-            )}
-          </div>
-        ))}
-      </ActionsMenu>
-
-      <ConfirmPop
-        open={confirmBulkDelete}
-        destructive
-        confirmLbl='מחיקה'
-        msg={`למחוק ${selectedIds.length} עסקאות?`}
-        onClose={() => setConfirmBulkDelete(false)}
-        onConfirm={performBulkDelete}
-      />
-
-      <ConfirmPop
-        open={!!confirmDeleteSale}
-        destructive
-        confirmLbl='מחיקה'
-        msg={`בטוח למחוק עסקה של ${confirmDeleteSale?.clientData} ?`}
-        onClose={() => setConfirmDeleteSale(null)}
-        onConfirm={performSaleDelete}
-      />
-
-      <ConfirmPop
-        open={!!bulkInfoMsg}
-        hideCancel
-        onClose={() => setBulkInfoMsg(null)}
-        onConfirm={() => setBulkInfoMsg(null)}
-        msg={bulkInfoMsg ?? ''}
+      <SalesTableDialogs
+        openUpload={openUpload}
+        setOpenUpload={setOpenUpload}
+        curSale={curSale}
+        isFav={isFav}
+        setOpenForm={setOpenForm}
+        confirmBulkDelete={confirmBulkDelete}
+        setConfirmBulkDelete={setConfirmBulkDelete}
+        selectedIds={selectedIds}
+        performBulkDelete={performBulkDelete}
+        confirmDeleteSale={confirmDeleteSale}
+        setConfirmDeleteSale={setConfirmDeleteSale}
+        performSaleDelete={performSaleDelete}
+        bulkInfoMsg={bulkInfoMsg}
+        setBulkInfoMsg={setBulkInfoMsg}
       />
     </>
   )

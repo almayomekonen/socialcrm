@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import Icon from '@/lib/Icon'
 import { userType } from '@/types/types'
-import { getUserDefault } from './SaleForm'
+import { getUserDefault } from './funcs'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 
 type Props = {

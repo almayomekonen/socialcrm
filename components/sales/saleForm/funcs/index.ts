@@ -32,3 +32,18 @@ export function isAmountHigh(prdcts) {
 export function isSameUser(users) {
   return users.userId === users.user2Id
 }
+
+export function getUserDefault(curSale, user, officeGotPerm) {
+  if (curSale?.userIds?.[0]) return curSale?.userIds?.[0]
+  else return user.role === 'OFFICE' ? officeGotPerm[0]?.id : user?.id
+}
+
+/** The deal form's first failing check, in the order the form has always applied them; null when the deal can be saved. */
+export function saleValidationError(sale): string | null {
+  if (!sale.users?.userId) return 'שגיאה, יש לבחור נציג'
+  if (!sale.clientId) return 'שגיאה, יש לבחור ליד'
+  if (isPayExist(sale)) return 'שגיאה, יש למלא סכום לפחות למוצר אחד'
+  if (isAmountHigh(sale.prdcts)) return 'שגיאה, סכום העסקה גבוה מדי'
+  if (isSameUser(sale.users)) return 'שגיאה, לא ניתן לבצע שת"פ עם אותו הנציג'
+  return null
+}
