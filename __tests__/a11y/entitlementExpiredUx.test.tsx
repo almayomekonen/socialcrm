@@ -49,6 +49,13 @@ vi.mock('next/navigation', () => ({
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8')
 
+/** CalendarView and the hooks that hold its grid gestures and details-dialog actions (split in Phase E1). */
+const CALENDAR_VIEW_FILES = [
+  'components/calendar/CalendarView.tsx',
+  'components/calendar/hooks/useMeetingReschedule.ts',
+  'components/calendar/hooks/useMeetingSyncActions.ts',
+]
+
 const EXPIRED = { hasAccess: false, status: 'TRIAL_EXPIRED', expiresAt: '2026-08-20T20:03:27.824Z' }
 const ACTIVE = { hasAccess: true, status: 'PAID', expiresAt: '2026-12-01T00:00:00.000Z' }
 
@@ -1055,7 +1062,8 @@ describe('lead Drive keeps the files and withholds the mutations', () => {
 })
 
 describe('the calendar stays readable and stops offering doomed mutations', () => {
-  const view = () => read('components/calendar/CalendarView.tsx')
+  // The view and the two hooks its handlers moved into (architecture-rules §1, Phase E1 split).
+  const view = () => CALENDAR_VIEW_FILES.map(read).join('\n')
 
   /**
    * Superseded by the calendar read/write decision: the affordances stay live

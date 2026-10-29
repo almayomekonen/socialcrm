@@ -18,6 +18,13 @@ import MeetingDetailsDialog from '@/components/calendar/MeetingDetailsDialog'
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8')
 
+/** CalendarView and the hooks that hold its grid gestures and details-dialog actions (split in Phase E1). */
+const CALENDAR_VIEW_FILES = [
+  'components/calendar/CalendarView.tsx',
+  'components/calendar/hooks/useMeetingReschedule.ts',
+  'components/calendar/hooks/useMeetingSyncActions.ts',
+]
+
 const EXPIRED = { hasAccess: false, status: 'TRIAL_EXPIRED', expiresAt: '2026-08-20T20:03:27.824Z' }
 const ACTIVE = { hasAccess: true, status: 'PAID', expiresAt: '2026-12-01T00:00:00.000Z' }
 
@@ -123,7 +130,8 @@ describe('existing meetings are shown as real records, not locked ones', () => {
 })
 
 describe('every write answers with the Pro prompt, never the error boundary', () => {
-  const view = () => read('components/calendar/CalendarView.tsx')
+  // The view and the two hooks its handlers moved into (architecture-rules §1, Phase E1 split).
+  const view = () => CALENDAR_VIEW_FILES.map(read).join('\n')
 
   it.each([
     ['create from the button', 'openNewMeeting'],
@@ -225,7 +233,8 @@ describe('the new calendar copy follows the Hebrew rule', () => {
 })
 
 describe('Calendar carries no standing subscription banner', () => {
-  const view = () => read('components/calendar/CalendarView.tsx')
+  // The view and the two hooks its handlers moved into (architecture-rules §1, Phase E1 split).
+  const view = () => CALENDAR_VIEW_FILES.map(read).join('\n')
 
   it('renders no persistent expired notice at all', () => {
     const src = view()
