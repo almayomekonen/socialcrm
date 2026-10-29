@@ -64,8 +64,8 @@ export default function IssuerIdentityForm({
   /**
    * The caller passes fields and labels already in the interface language
    * (the issue flow's dialog); the form's own hint, default cancel and the
-   * validators' messages then follow it too. Default: Hebrew, as the settings
-   * screen (`EditAgency`, not translated yet) expects.
+   * validators' messages then follow it too (the issue flow's dialog, and
+   * settings' `EditAgency` since Phase E4). Default: Hebrew.
    */
   translated?: boolean
 }) {
@@ -143,6 +143,7 @@ export default function IssuerIdentityForm({
           onChange={(v) => setFieldValue(field.key, v)}
           onBlur={() => handleFieldBlur(field.key)}
           disabled={busy}
+          translated={translated}
         />
       ))}
 

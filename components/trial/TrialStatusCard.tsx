@@ -2,6 +2,9 @@ import { formatDate } from '@/lib/dates'
 import UpgradeBtn from '@/components/settings/payment/UpgradeBtn'
 import { PRICING } from '@/lib/pricing'
 import { formatBillingDate } from '@/lib/payments/cardTrial/firstCharge'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { formatLeadDate } from '@/lib/leads/leadDate'
 
 type Props = {
   startedAt: Date
@@ -14,34 +17,38 @@ type Props = {
    */
   cardBilled?: boolean
   cancelAtPeriodEnd?: boolean
+  /** Interface language (default Hebrew). Amounts and the charge date are shown as before. */
+  locale?: UiLocale
 }
 
 
-export default function TrialStatusCard({ startedAt, endsAt, daysRemaining, cardBilled = false, cancelAtPeriodEnd = false }: Props) {
+export default function TrialStatusCard({ startedAt, endsAt, daysRemaining, cardBilled = false, cancelAtPeriodEnd = false, locale = 'he' }: Props) {
+  const t = translatorFor(locale)
+  const amount = `₪${PRICING.monthly}`
   const endingSoon = daysRemaining <= 2
   const totalMs = Math.max(endsAt.getTime() - startedAt.getTime(), 1)
   const elapsedMs = Math.min(Math.max(Date.now() - startedAt.getTime(), 0), totalMs)
   const pct = Math.round((elapsedMs / totalMs) * 100)
 
-  const daysLabel = daysRemaining === 1 ? 'יום אחרון לתקופת הניסיון' : `${daysRemaining} ימים נותרו לתקופת הניסיון`
+  const daysLabel = daysRemaining === 1 ? t('settings.payment.trial.lastDay') : t('settings.payment.trial.daysLeft', { count: daysRemaining })
 
   return (
     <div className='mb-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex flex-col gap-4'>
       <div className='flex items-center justify-between gap-4'>
-        <p className='text-lg font-semibold'>תקופת ניסיון</p>
+        <p className='text-lg font-semibold'>{t('settings.payment.trial.title')}</p>
         <span
           className={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${
             endingSoon ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
           }`}
         >
-          {endingSoon ? 'הניסיון מסתיים בקרוב' : 'ניסיון פעיל'}
+          {endingSoon ? t('settings.payment.trial.endingSoon') : t('settings.payment.trial.active')}
         </span>
       </div>
 
       <div>
         <p className='text-2xl font-bold leading-tight'>{daysLabel}</p>
         <p className='text-sm text-gray-500 mt-1'>
-          התחלה: {formatDate(startedAt)} · סיום: {formatDate(endsAt)}
+          {t('settings.payment.trial.range', { start: locale === 'he' ? formatDate(startedAt) : formatLeadDate(locale, startedAt), end: locale === 'he' ? formatDate(endsAt) : formatLeadDate(locale, endsAt) })}
         </p>
       </div>
 
@@ -51,7 +58,7 @@ export default function TrialStatusCard({ startedAt, endsAt, daysRemaining, card
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label='התקדמות תקופת הניסיון'
+        aria-label={t('settings.payment.trial.progress')}
       >
         <div className={`h-full rounded-full ${endingSoon ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${pct}%` }} />
       </div>
@@ -59,19 +66,19 @@ export default function TrialStatusCard({ startedAt, endsAt, daysRemaining, card
       {cardBilled ? (
         <p className='text-sm text-gray-600'>
           {cancelAtPeriodEnd
-            ? `ביטלת את המשך המנוי. הגישה נמשכת עד ${formatBillingDate(endsAt)} ולא יבוצע חיוב.`
-            : `בתום תקופת הניסיון, ב־${formatBillingDate(endsAt)}, יחויב הכרטיס השמור ב־₪${PRICING.monthly} לחודש והעבודה תימשך ללא הפסקה.`}
+            ? t('settings.payment.trial.cancelled', { date: formatBillingDate(endsAt) })
+            : t('settings.payment.trial.converts', { date: formatBillingDate(endsAt), amount })}
         </p>
       ) : (
         <div className='flex items-center justify-between gap-4 flex-wrap'>
           <p className='text-sm text-gray-600'>
-            בסיום תקופת הניסיון הגישה תושהה עד לשדרוג, כל הלידים והנתונים שלך נשמרים.
+            {t('settings.payment.trial.paused')}
             {/* No annual upsell: this release sells a monthly subscription and
                 nothing else, so an annual saving here points at a plan the
                 customer cannot actually buy. */}
-            <span className='block text-xs text-gray-500 mt-0.5'>המנוי הוא ₪{PRICING.monthly} לחודש, עד לביטול.</span>
+            <span className='block text-xs text-gray-500 mt-0.5'>{t('settings.payment.trial.price', { amount })}</span>
           </p>
-          <UpgradeBtn source='billing_trial_card' />
+          <UpgradeBtn source='billing_trial_card' lbl={t('settings.payment.trial.upgrade')} />
         </div>
       )}
     </div>

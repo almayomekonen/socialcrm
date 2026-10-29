@@ -13,6 +13,10 @@ export const issuer: B['issuer'] = {
     name: { label: 'Business name', help: 'As it will appear on invoices', placeholder: 'For example: Rachel Cohen Consulting' },
     businessType: { label: 'Business type', help: 'Not sure? You can update it later in settings.' },
     taxId: { label: 'Business / Company ID', help: '8 digits for a self-employed business, 9 for a company. No dashes.' },
+    address: { label: 'Address', help: 'Appears on invoices. Required for a licensed business and a company.', placeholder: 'For example:\n12 Rothschild Blvd\nTel Aviv 6688112' },
+    phone: { label: 'Phone' },
+    email: { label: 'Email for invoices', help: 'Used as the reply-to address when the customer replies to the email.' },
+    img: { label: 'Logo', help: 'A PNG or JPG image. Appears at the top of the invoice.' },
   },
   businessType: {
     exempt: { label: 'Exempt dealer (Osek Patur)', description: 'Annual income up to ₪120,000. Does not charge VAT.' },

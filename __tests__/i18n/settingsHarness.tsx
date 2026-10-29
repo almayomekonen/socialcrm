@@ -79,10 +79,10 @@ export async function settingsPage(name: SettingsPage): Promise<ReactNode> {
  * render); `resetSetEnv` clears them.
  */
 export async function withSetEnv<T>(overrides: Partial<typeof SET_DEFAULTS> & { searchParams?: Record<string, string> }, build: () => Promise<T>): Promise<T> {
-  Object.assign(setEnv, structuredClone(SET_DEFAULTS), { searchParams: {} }, overrides, { results: {}, calls: [] })
+  Object.assign(setEnv, structuredClone(SET_DEFAULTS), { searchParams: {} }, overrides, { results: {}, calls: [], active: true })
   try {
     return await build()
   } finally {
-    Object.assign(setEnv, structuredClone(SET_DEFAULTS), { results: {}, calls: [] })
+    Object.assign(setEnv, structuredClone(SET_DEFAULTS), { results: {}, calls: [], active: false })
   }
 }

@@ -15,6 +15,12 @@ import {
 } from '@/lib/payments/cardTrial/terms'
 import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 import type { PaymentMethodPurpose } from '@/db/payments/paymentMethods'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+import { untranslatedAttrs } from '@/lib/i18n/config'
+
+const HEBREW = translatorFor('he')
 
 /**
  * Card setup, before anything is granted.
@@ -33,12 +39,12 @@ import type { PaymentMethodPurpose } from '@/db/payments/paymentMethods'
  * while a setup is being opened, so one customer cannot leave two live setups.
  */
 
-const ERRORS: Record<string, string> = {
-  unauthorized: 'רק מנהל החשבון יכול להוסיף אמצעי תשלום',
-  not_eligible: 'לא ניתן להפעיל את תקופת הניסיון עבור החשבון הזה',
-  provider_unavailable: 'לא הצלחנו לפתוח את דף התשלום. נסו שוב בעוד רגע.',
-  terms_required: 'יש לאשר את תנאי המנוי כדי להמשיך',
-  card_storage_consent_required: 'יש לאשר את שמירת פרטי הכרטיס כדי להמשיך',
+const ERRORS: Record<string, MessageKey> = {
+  unauthorized: 'settings.payment.form.error.unauthorized',
+  not_eligible: 'settings.payment.form.error.not_eligible',
+  provider_unavailable: 'settings.payment.form.error.provider_unavailable',
+  terms_required: 'settings.payment.form.error.terms_required',
+  card_storage_consent_required: 'settings.payment.form.error.card_storage_consent_required',
 }
 
 export type CardTrialSetupFormProps = {
@@ -55,6 +61,12 @@ export type CardTrialSetupFormProps = {
   submitLabel: string
   /** Injected in tests; defaults to a real navigation to Grow's hosted page. */
   onRedirect?: (url: string) => void
+  /**
+   * Follow the interface language (settings → billing). The recorded terms (the
+   * two consents and the disclosure lines) stay Hebrew either way, in a Hebrew
+   * region outside Hebrew. Default Hebrew: the trial screens are not translated yet.
+   */
+  translated?: boolean
 }
 
 /**
@@ -116,7 +128,10 @@ function EmphasisedLine({ line }: { line: string }) {
   )
 }
 
-export default function CardTrialSetupForm({ purpose, mode = 'subscription', defaultFullName = '', defaultPhone = '', submitLabel, onRedirect }: CardTrialSetupFormProps) {
+export default function CardTrialSetupForm({ purpose, mode = 'subscription', defaultFullName = '', defaultPhone = '', submitLabel, onRedirect, translated = false }: CardTrialSetupFormProps) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
+  const terms = t.locale === 'he' ? {} : untranslatedAttrs(t.locale)
   const [fullName, setFullName] = useState(defaultFullName)
   const [phone, setPhone] = useState(defaultPhone)
   const [accepted, setAccepted] = useState(false)
@@ -134,7 +149,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
       if ('error' in res) {
         setError({
           field: res.error === 'invalid_holder' ? res.field : null,
-          message: res.error === 'invalid_holder' ? res.message : (ERRORS[res.error] ?? 'אירעה שגיאה, נסו שוב'),
+          message: res.error === 'invalid_holder' ? res.message : t(ERRORS[res.error] ?? 'settings.payment.form.error.generic'),
         })
         trackTrialStartFailed(res.error === 'unauthorized' ? 'unauthorized' : 'unknown').catch(() => {})
         setPending(false)
@@ -144,7 +159,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
       if (onRedirect) onRedirect(res.url)
       else window.location.assign(res.url)
     } catch {
-      setError({ field: null, message: 'אירעה שגיאה ברשת, נסו שוב' })
+      setError({ field: null, message: t('settings.payment.form.error.network') })
       trackTrialStartFailed('network').catch(() => {})
       setPending(false)
     }
@@ -154,14 +169,14 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
     <div className='flex flex-col gap-4 mobile:gap-3'>
       <div className='grid grid-cols-2 gap-3 mobile:grid-cols-1'>
         <Input
-          lbl='שם מלא כפי שמופיע בכרטיס'
+          lbl={t('settings.payment.form.fullName')}
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           autoComplete='cc-name'
           error={error?.field === 'fullName' ? error.message : undefined}
         />
         <Input
-          lbl='טלפון נייד'
+          lbl={t('settings.payment.form.phone')}
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           inputMode='tel'
@@ -170,7 +185,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
         />
       </div>
 
-      <div className='flex flex-col gap-2 rounded-xl bg-primary-tint/60 p-4 ring-1 ring-info-border/60 mobile:gap-1.5 mobile:p-3'>
+      <div className='flex flex-col gap-2 rounded-xl bg-primary-tint/60 p-4 ring-1 ring-info-border/60 mobile:gap-1.5 mobile:p-3' {...terms}>
         {(mode === 'entitled' ? entitledCardAddLines() : cardTrialDisclosureLines()).map((line) => (
           <EmphasisedLine key={line} line={line} />
         ))}
@@ -182,14 +197,14 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
         {mode === 'subscription' && (
           <Checkbox
             className='items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent mobile:py-2.5'
-            lbl={<SubscriptionConsentLabel />}
+            lbl={t.locale === 'he' ? <SubscriptionConsentLabel /> : <span {...terms}><SubscriptionConsentLabel /></span>}
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
           />
         )}
         <Checkbox
           className='items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent mobile:py-2.5'
-          lbl={CARD_STORAGE_CONSENT_LABEL}
+          lbl={t.locale === 'he' ? CARD_STORAGE_CONSENT_LABEL : <span {...terms}>{CARD_STORAGE_CONSENT_LABEL}</span>}
           checked={storageAccepted}
           onChange={(e) => setStorageAccepted(e.target.checked)}
         />
@@ -211,7 +226,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
           rel='noreferrer'
           className='tap-44 self-start text-sm font-medium text-primary-text underline underline-offset-2'
         >
-          קריאת תנאי השימוש והתקנון
+          {t('settings.payment.form.readTerms')}
         </a>
       </div>
 
@@ -225,11 +240,11 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
         variant='solid'
         size='large'
         className='w-full justify-center'
-        lbl={pending ? 'רק רגע...' : submitLabel}
+        lbl={pending ? t('settings.payment.form.wait') : submitLabel}
         onClick={submit}
         disabled={pending}
       />
-      <p className='text-xs text-gray-500 text-center -mt-1'>הזנת פרטי הכרטיס מתבצעת בעמוד המאובטח של Grow.</p>
+      <p className='text-xs text-gray-500 text-center -mt-1'>{t('settings.payment.form.secure')}</p>
     </div>
   )
 }

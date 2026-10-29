@@ -37,7 +37,8 @@ describe('the in-app plans surface', () => {
 
   it('says what actually happens after the trial, only where a trial applies', () => {
     const pkg = read('components/settings/payment/Packages.tsx')
-    expect(pkg).toContain('ללא מנוי פעיל, הגישה למערכת נפסקת בתום תקופת הניסיון.')
+    expect(pkg).toContain("t('settings.payment.packages.trialEnds')") // the copy, in the catalog since Phase E4:
+    expect(read('lib/i18n/messages/he/settings/payment.ts')).toContain("trialEnds: 'ללא מנוי פעיל, הגישה למערכת נפסקת בתום תקופת הניסיון.'")
     expect(pkg).toContain('{trialActive && (')
   })
 

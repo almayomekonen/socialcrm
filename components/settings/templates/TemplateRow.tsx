@@ -8,6 +8,7 @@ import TemplateStatusBadge from './TemplateStatusBadge'
 import TemplateRejectionNotice from './TemplateRejectionNotice'
 import TemplatePendingNotice from './TemplatePendingNotice'
 import { hasPositionalPlaceholder } from '@/lib/whatsapp/templates/parameters'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export type TemplateRowActions = {
   onArchive: (id: number) => void
@@ -18,6 +19,7 @@ export type TemplateRowActions = {
 }
 
 export default function TemplateRow({ template, actions }: { template: Template; actions?: TemplateRowActions }) {
+  const t = useT()
   const [confirm, setConfirm] = useState<null | 'archive' | 'discard'>(null)
 
   const canArchive = !!actions && (template.status === 'approved' || template.status === 'paused' || template.status === 'disabled')
@@ -37,10 +39,10 @@ export default function TemplateRow({ template, actions }: { template: Template;
         </div>
         <div className='flex shrink-0 items-center gap-1'>
           <TemplateStatusBadge status={template.status} />
-          {canEdit && <Btn lbl='עריכת הודעה' variant='ghost' size='small' onClick={() => actions!.onEdit!(template)} />}
-          {canRetry && <Btn lbl='ערוך ונסה שוב' variant='ghost' size='small' onClick={() => actions!.onRetry(template)} />}
-          {canArchive && <Btn lbl='ארכיון' variant='ghost' size='small' onClick={() => setConfirm('archive')} />}
-          {canDiscard && <Btn lbl='הסר' variant='ghost' size='small' onClick={() => setConfirm('discard')} />}
+          {canEdit && <Btn lbl={t('settings.templates.row.edit')} variant='ghost' size='small' onClick={() => actions!.onEdit!(template)} />}
+          {canRetry && <Btn lbl={t('settings.templates.row.retry')} variant='ghost' size='small' onClick={() => actions!.onRetry(template)} />}
+          {canArchive && <Btn lbl={t('settings.templates.row.archive')} variant='ghost' size='small' onClick={() => setConfirm('archive')} />}
+          {canDiscard && <Btn lbl={t('settings.templates.row.discard')} variant='ghost' size='small' onClick={() => setConfirm('discard')} />}
         </div>
       </div>
 
@@ -64,7 +66,8 @@ export default function TemplateRow({ template, actions }: { template: Template;
           setConfirm(null)
           actions?.onArchive(template.id)
         }}
-        msg={`להעביר את "${template.displayTitle}" לארכיון?`}
+        msg={t('settings.templates.row.archiveConfirm', { title: template.displayTitle })}
+        translated
       />
       <ConfirmPop
         open={confirm === 'discard'}
@@ -74,7 +77,8 @@ export default function TemplateRow({ template, actions }: { template: Template;
           setConfirm(null)
           actions?.onDiscard(template.id)
         }}
-        msg={`להסיר את "${template.displayTitle}"?`}
+        msg={t('settings.templates.row.discardConfirm', { title: template.displayTitle })}
+        translated
       />
     </div>
   )

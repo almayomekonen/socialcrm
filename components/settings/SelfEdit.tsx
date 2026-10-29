@@ -8,6 +8,7 @@ import UploadClientData from '@/components/settings/UploadClientData'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import ExtUsers from '../extUsers'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 const Badge = ({ label, variant }: { label: string; variant: 'start' | 'primary' | 'muted' }) => {
   const styles = {
@@ -21,32 +22,34 @@ const Badge = ({ label, variant }: { label: string; variant: 'start' | 'primary'
 }
 
 export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gavePerm }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const searchParams = useSearchParams()
   const tab = searchParams.get('tab')
   const bodyClass = 'p-6'
   return (
-    <div>
-      <h1 className='title'>הגדרות החשבון</h1>
+    <div {...region}>
+      <h1 className='title'>{t('settings.account.title.selfEdit')}</h1>
       <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
-        נהל את הפרטים האישיים שלך, הרשאות גישה וניהול לידים
+        {t('settings.account.selfEdit.intro')}
       </p>
       <div className='accordion mb-6 max-w-2xl'>
         <AccordionItem
           icon='user'
           bodyClass={bodyClass}
-          title='פרטים אישיים'
-          badge={<Badge label='התחל כאן' variant='start' />}
+          title={t('settings.account.selfEdit.personal.title')}
+          badge={<Badge label={t('settings.account.selfEdit.badge.start')} variant='start' />}
         >
-          <p className='text-gray-500 text-sm mb-4'>עדכן את שמך וכתובת האימייל שלך</p>
+          <p className='text-gray-500 text-sm mb-4'>{t('settings.account.selfEdit.personal.intro')}</p>
           <UserDetailsForm user={curUser} />
         </AccordionItem>
         <AccordionItem
           icon='shield-check'
           bodyClass={bodyClass}
-          title='הרשאות גישה'
-          badge={<Badge label='מתקדם' variant='muted' />}
+          title={t('settings.account.selfEdit.access.title')}
+          badge={<Badge label={t('settings.account.selfEdit.badge.advanced')} variant='muted' />}
         >
-          <p className='text-gray-500 text-sm mb-4'>שליטה בגישה ללידים שלך קבע מי רשאי לצפות ולטפל בהם</p>
+          <p className='text-gray-500 text-sm mb-4'>{t('settings.account.selfEdit.access.intro')}</p>
           <AddAuthUsersComp users={users} gavePerm={gavePerm} user={user} />
         </AccordionItem>
         {/*
@@ -61,12 +64,12 @@ export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gav
         <AccordionItem
           icon='user-alien'
           bodyClass={'p-6'}
-          title='נציגים לשיוך לידים'
+          title={t('settings.account.selfEdit.reps.title')}
           open={tab === 'ext_users'}
-          badge={<Badge label='אופציונלי' variant='muted' />}
+          badge={<Badge label={t('settings.account.selfEdit.badge.optional')} variant='muted' />}
         >
           <p className='text-gray-500 text-sm mb-2'>
-            נציגים הם שמות לשיוך לידים בלבד. הם לא מקבלים גישה למערכת ולא יכולים להתחבר אליה.
+            {t('settings.account.selfEdit.reps.intro')}
           </p>
           {/*
             The destination is ADMIN-only — the (admin_settings) layout rejects
@@ -76,12 +79,12 @@ export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gav
           {user?.role === 'ADMIN' ? (
             <p className='text-sm mb-4'>
               <Link href='/settings/edit_users' className='text-sm font-medium text-primary hover:underline'>
-                לשליחת הזמנה למשתמש במערכת
+                {t('settings.account.selfEdit.reps.invite')}
               </Link>
             </p>
           ) : (
             <p className='text-gray-500 text-sm mb-4'>
-              כדי לתת למישהו גישה למערכת — יש לבקש ממנהל החשבון לשלוח לו הזמנה.
+              {t('settings.account.selfEdit.reps.askAdmin')}
             </p>
           )}
           <ExtUsers extUsers={extUsers} users={allUsers} />
@@ -89,22 +92,22 @@ export default function SelfEdit({ curUser, users, extUsers, allUsers, user, gav
         <AccordionItem
           icon='file-excel'
           bodyClass={bodyClass}
-          title='העלאת לידים'
+          title={t('settings.account.selfEdit.upload.title')}
           open={tab === 'upload'}
-          badge={<Badge label='פעולה מרכזית' variant='primary' />}
+          badge={<Badge label={t('settings.account.selfEdit.badge.primary')} variant='primary' />}
         >
-          <p className='text-gray-500 text-sm mb-4'>העלה קובץ Excel עם לידים והמערכת תייבא אותם אוטומטית (קובץ Excel בלבד, סיומת xlsx או xls)</p>
+          <p className='text-gray-500 text-sm mb-4'>{t('settings.account.selfEdit.upload.intro')}</p>
           <UploadClientData />
         </AccordionItem>
         <AccordionItem
           icon='filter'
           bodyClass={bodyClass}
-          title='סינונים שמורים'
+          title={t('settings.account.selfEdit.filters.title')}
           open={tab === 'filters'}
-          badge={<Badge label='מתקדם' variant='muted' />}
+          badge={<Badge label={t('settings.account.selfEdit.badge.advanced')} variant='muted' />}
         >
-          <p className='text-gray-500 text-sm mb-4'>שמור סינונים כדי למצוא לידים מהר יותר</p>
-          <p className='text-gray-400 text-xs mb-4'>ניתן ליצור סינונים לאחר שיש לידים במערכת</p>
+          <p className='text-gray-500 text-sm mb-4'>{t('settings.account.selfEdit.filters.intro')}</p>
+          <p className='text-gray-400 text-xs mb-4'>{t('settings.account.selfEdit.filters.hint')}</p>
           <EditFilters filters={user.savedFilters} user={user} />
         </AccordionItem>
       </div>

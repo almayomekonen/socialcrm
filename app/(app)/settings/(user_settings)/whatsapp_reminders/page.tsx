@@ -6,6 +6,9 @@ import { canUseOwnerWhatsappReminders } from '@/lib/flags/ownerWhatsappReminderF
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { ownerReminderView } from '@/lib/whatsapp/platform/ownerReminderView'
 import WhatsappReminderCard from '@/components/settings/whatsappReminders/WhatsappReminderCard'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /** Absent outside the audience or without product access: the nav entry is not rendered and the route 404s. */
 export default async function page() {
@@ -15,14 +18,16 @@ export default async function page() {
 
   const view = ownerReminderView(await getOwnRecipient(user.agencyId, user.id), new Date())
 
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   return (
-    <div>
-      <h1 className='title'>תזכורות בוואטסאפ</h1>
+    <div {...regionAttrs(locale)}>
+      <h1 className='title'>{t('settings.account.title.reminders')}</h1>
       <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
-        תזכורת בוואטסאפ כשליד מחכה למענה ועדיין לא חזרו אליו
+        {t('settings.account.reminders.intro')}
       </p>
       <div className='accordion mb-6 max-w-2xl'>
-        <AccordionItem bodyClass='p-6' title='התזכורות שלי' open>
+        <AccordionItem bodyClass='p-6' title={t('settings.account.reminders.mine')} open>
           <WhatsappReminderCard initial={view} />
         </AccordionItem>
       </div>

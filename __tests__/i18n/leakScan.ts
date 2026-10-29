@@ -12,12 +12,16 @@
  *   endonym        a language's own name (עברית), shown in its own script
  *                  in every interface language by design
  *   external       text supplied by a third party (Meta ad names, etc.)
+ *   recorded-terms a consent / terms sentence recorded with its version when
+ *                  the user agrees (Phase E4: the WhatsApp-reminders consent,
+ *                  the card-storage and subscription consents) — shown exactly
+ *                  as recorded, inside a declared Hebrew region
  *
  * No DOM marker is involved, so no component changes and nothing a component
  * does can opt itself out.
  */
 
-export type AllowReason = 'customer-data' | 'endonym' | 'external'
+export type AllowReason = 'customer-data' | 'endonym' | 'external' | 'recorded-terms'
 export type Allowance = { text: string; reason: AllowReason }
 export type Leak = { where: string; text: string }
 

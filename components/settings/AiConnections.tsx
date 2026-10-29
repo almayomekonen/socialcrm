@@ -9,6 +9,21 @@ import { toast } from '@/lib/toast'
 import { disconnectAiConnection } from '@/actions/oauthGrants'
 import { CopyRow } from '@/components/settings/connections/SetupGuidePanel'
 import type { AiConnectionView } from '@/lib/oauth/server/connections'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
+import { SCOPE_LABELS_HE } from '@/lib/oauth/server/config'
+
+/**
+ * The server words a grant's scopes (and an unnamed client) in Hebrew — the
+ * consent screen's lines (lib/oauth/server/config.ts, unchanged). Outside
+ * Hebrew they are worded by exact line; anything else is shown as received.
+ */
+const SCOPE_KEYS = new Map<string, 'settings.integrations.ai.scope.leads' | 'settings.integrations.ai.scope.conversations'>([
+  [SCOPE_LABELS_HE['crm.leads.read'], 'settings.integrations.ai.scope.leads'],
+  [SCOPE_LABELS_HE['crm.conversations.read'], 'settings.integrations.ai.scope.conversations'],
+])
+const scopeLabel = (label: string, t: Translator) => (t.locale === 'he' ? label : SCOPE_KEYS.has(label) ? t(SCOPE_KEYS.get(label)!) : label)
+const clientName = (label: string, t: Translator) => (t.locale !== 'he' && label === 'אפליקציית AI' ? t('settings.integrations.ai.unnamed') : label)
 
 /**
  * חיבורי AI — one row per AI app (Claude, ChatGPT, and any other connected MCP
@@ -39,6 +54,7 @@ const HOWTO_ID = 'ai-connections-howto'
  * exposed by the browser, and the steps work without JavaScript.
  */
 function HowToConnect({ mcpUrl, detailsRef }: { mcpUrl: string | null; detailsRef: React.RefObject<HTMLDetailsElement | null> }) {
+  const t = useT()
   return (
     <details ref={detailsRef} id={HOWTO_ID} className='group/howto'>
       <summary className='flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm text-solid [&::-webkit-details-marker]:hidden'>
@@ -47,13 +63,13 @@ function HowToConnect({ mcpUrl, detailsRef }: { mcpUrl: string | null; detailsRe
           type='reg'
           className='size-3 bg-solid transition-transform duration-200 group-open/howto:rotate-180'
         />
-        איך מתחברים?
+        {t('settings.integrations.ai.howTo')}
       </summary>
       <ol className='mt-2.5 list-decimal space-y-1.5 ps-5 text-sm text-gray-600'>
-        <li>פותחים את Claude או ChatGPT</li>
-        <li>מוסיפים חיבור MCP חדש</li>
-        <li>{mcpUrl ? <CopyRow label='מזינים:' value={mcpUrl} /> : 'מזינים את כתובת החיבור של SocialCRM'}</li>
-        <li>מתחברים ל-SocialCRM ומאשרים הרשאה</li>
+        <li>{t('settings.integrations.ai.step1')}</li>
+        <li>{t('settings.integrations.ai.step2')}</li>
+        <li>{mcpUrl ? <CopyRow label={t('settings.integrations.ai.step3')} value={mcpUrl} copyLabel={t('settings.integrations.ai.copy')} copiedLabel={t('settings.integrations.ai.copied')} /> : t('settings.integrations.ai.step3NoUrl')}</li>
+        <li>{t('settings.integrations.ai.step4')}</li>
       </ol>
     </details>
   )
@@ -80,6 +96,7 @@ export default function AiConnections({
   connections: AiConnectionView[]
   mcpUrl?: string | null
 }) {
+  const t = useT()
   const router = useRouter()
   const [pending, setPending] = useState<AiConnectionView | null>(null)
   const [, startTransition] = useTransition()
@@ -91,11 +108,11 @@ export default function AiConnections({
     try {
       const res = await disconnectAiConnection(target.grantId)
       if (!res.ok) throw new Error('failed')
-      toast('success', `${target.clientLabel} נותק`)
+      toast('success', t('settings.integrations.ai.disconnected', { name: clientName(target.clientLabel, t) }))
       setPending(null)
       startTransition(() => router.refresh())
     } catch {
-      toast('error', 'הניתוק נכשל. נסה שוב.')
+      toast('error', t('settings.integrations.ai.disconnectFailed'))
     }
   }
 
@@ -123,15 +140,15 @@ export default function AiConnections({
     <div className='col-span-2 mobile:col-span-1 rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4'>
       <div className='flex items-center gap-2.5'>
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
-        <h3 className='text-lg font-bold'>חיבורי AI</h3>
-        {connections.length > 0 && <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label='מחובר' />}
+        <h3 className='text-lg font-bold'>{t('settings.integrations.ai.title')}</h3>
+        {connections.length > 0 && <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label={t('settings.integrations.card.connected')} />}
       </div>
 
       <div className='flex flex-col gap-1'>
         <p className='text-gray-600 text-sm leading-relaxed'>
-          חברו את SocialCRM ל-Claude או ChatGPT כדי לשאול על לידים, מעקבים ושיחות.
+          {t('settings.integrations.ai.intro')}
         </p>
-        <p className='text-xs text-gray-500'>הגישה מוגבלת לנתונים שאתם מורשים לראות. מספרי טלפון ואימיילים אינם נשלחים.</p>
+        <p className='text-xs text-gray-500'>{t('settings.integrations.ai.privacy')}</p>
       </div>
 
       <ul className='divide-y divide-gray-100 rounded-md border border-gray-100'>
@@ -140,33 +157,33 @@ export default function AiConnections({
             <div className='flex items-center gap-3'>
               <ProviderLogo src={provider.logo} />
               <div className='min-w-0 flex-1'>
-                <p className='text-sm font-medium text-gray-800'>{provider.label}</p>
+                <p className='text-sm font-medium text-gray-800'>{clientName(provider.label, t)}</p>
                 {connection ? (
                   <div className='flex flex-wrap items-center gap-x-1.5 text-xs text-gray-500'>
                     <span className='inline-flex items-center gap-1 font-medium text-green-700'>
                       <Icon name='check' type='reg' className='size-3 bg-green-600' />
-                      מחובר
+                      {t('settings.integrations.card.connected')}
                     </span>
-                    <span>· מאז {connection.connectedOn}</span>
-                    <span>· שימוש אחרון {connection.lastUsedOn ?? '—'}</span>
+                    <span>{t('settings.integrations.ai.since', { date: connection.connectedOn })}</span>
+                    <span>{t('settings.integrations.ai.lastUsed', { date: connection.lastUsedOn ?? '—' })}</span>
                   </div>
                 ) : (
                   <div className='text-xs text-gray-500'>
-                    <span className='text-gray-400'>לא מחובר עדיין</span> · החיבור מתחיל מתוך {provider.label}
+                    <span className='text-gray-400'>{t('settings.integrations.ai.notYet')}</span> {t('settings.integrations.ai.startsIn', { name: provider.label })}
                   </div>
                 )}
               </div>
               {connection ? (
-                <Btn lbl={`נתק את ${provider.label}`} variant='outline' onClick={() => setPending(connection)} />
+                <Btn lbl={t('settings.integrations.ai.disconnect', { name: clientName(provider.label, t) })} variant='outline' onClick={() => setPending(connection)} />
               ) : (
-                <Btn lbl='הוראות חיבור' variant='outline' size='small' aria-controls={HOWTO_ID} onClick={openHowTo} />
+                <Btn lbl={t('settings.integrations.ai.howToButton')} variant='outline' size='small' aria-controls={HOWTO_ID} onClick={openHowTo} />
               )}
             </div>
             {connection && connection.scopeLabels.length > 0 && (
               <ul className='list-disc ps-[3.25rem] text-xs text-gray-600'>
                 {connection.scopeLabels.map((label) => (
                   <li key={label} className='desktop:whitespace-nowrap'>
-                    {label}
+                    {scopeLabel(label, t)}
                   </li>
                 ))}
               </ul>
@@ -183,11 +200,12 @@ export default function AiConnections({
         onConfirm={handleDisconnect}
         msg={
           pending
-            ? `${pending.clientLabel} לא יוכל עוד לקרוא את הלידים והשיחות שלך.\nניתן להתחבר שוב מתוך ${pending.clientLabel} בכל עת.`
+            ? t('settings.integrations.ai.confirm', { name: clientName(pending.clientLabel, t) })
             : ''
         }
-        confirmLbl={pending ? `נתק את ${pending.clientLabel}` : 'נתק'}
+        confirmLbl={pending ? t('settings.integrations.ai.disconnect', { name: clientName(pending.clientLabel, t) }) : t('settings.integrations.ai.disconnectShort')}
         destructive
+        translated
       />
     </div>
   )

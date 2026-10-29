@@ -14,6 +14,10 @@
  * also contain "try again later".
  */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+
 const STEPS: { match: string[]; step: string }[] = [
   {
     match: ['guessed too many times', 'requested your code too many times', 'register this number too many times'],
@@ -82,9 +86,22 @@ function normalise(text: string): string {
   return text.toLowerCase().replace(/[‘’ʼ]/g, "'")
 }
 
-/** Our next step for a documented Meta error, or null when the text is not one. */
-export function metaSignupErrorNextStep(message: string): string | null {
+/** The catalog wording of each step above, in the same order (`settings.metaSteps`, Phase E4). */
+const STEP_KEYS: MessageKey[] = [
+  'settings.metaSteps.s1', 'settings.metaSteps.s2', 'settings.metaSteps.s3', 'settings.metaSteps.s4', 'settings.metaSteps.s5',
+  'settings.metaSteps.s6', 'settings.metaSteps.s7', 'settings.metaSteps.s8', 'settings.metaSteps.s9', 'settings.metaSteps.s10',
+  'settings.metaSteps.s11', 'settings.metaSteps.s12', 'settings.metaSteps.s13', 'settings.metaSteps.s14', 'settings.metaSteps.s15',
+]
+
+/**
+ * Our next step for a documented Meta error, or null when the text is not one.
+ * `locale` (default Hebrew — the step itself, unchanged) words it for the
+ * interface; the match on Meta's text is the same in every language.
+ */
+export function metaSignupErrorNextStep(message: string, locale: UiLocale = 'he'): string | null {
   const text = normalise(message)
   if (!text) return null
-  return STEPS.find((entry) => entry.match.some((m) => text.includes(m)))?.step ?? null
+  const index = STEPS.findIndex((entry) => entry.match.some((m) => text.includes(m)))
+  if (index < 0) return null
+  return locale === 'he' ? STEPS[index].step : translatorFor(locale)(STEP_KEYS[index])
 }

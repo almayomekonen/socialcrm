@@ -3,6 +3,7 @@
 import { Trash2 } from 'lucide-react'
 import { Btn } from '@/lib/btns/Btn'
 import type { MessengerSavedReply } from '@/db/messengerSavedReplies'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /** The saved replies, one row each with edit and delete (split from MessengerSavedReplies). */
 export default function SavedReplyList({
@@ -16,6 +17,7 @@ export default function SavedReplyList({
   onEdit: (reply: MessengerSavedReply) => void
   onRemove: (reply: MessengerSavedReply) => void
 }) {
+  const t = useT()
   return (
     <ul className='grid gap-1.5'>
       {replies.map((reply) => (
@@ -29,9 +31,9 @@ export default function SavedReplyList({
             {(reply.quickReplies.length > 0 || reply.buttons.length > 0 || reply.attachmentUrl) && (
               <p className='mt-0.5 text-[11px] text-gray-400'>
                 {[
-                  reply.quickReplies.length > 0 ? `${reply.quickReplies.length} תשובות מהירות` : null,
-                  reply.buttons.length > 0 ? `${reply.buttons.length} כפתורים` : null,
-                  reply.attachmentUrl ? 'קובץ מצורף' : null,
+                  reply.quickReplies.length > 0 ? t('settings.messenger.replies.quickCount', { count: reply.quickReplies.length }) : null,
+                  reply.buttons.length > 0 ? t('settings.messenger.replies.buttonCount', { count: reply.buttons.length }) : null,
+                  reply.attachmentUrl ? t('settings.messenger.replies.attachment') : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -41,8 +43,8 @@ export default function SavedReplyList({
           <Btn
             variant='outline'
             size='small'
-            lbl='ערוך'
-            aria-label={`ערוך את ${reply.title}`}
+            lbl={t('settings.messenger.replies.edit')}
+            aria-label={t('settings.messenger.replies.editLabel', { title: reply.title })}
             onClick={() => onEdit(reply)}
             disabled={loading}
           />
@@ -50,8 +52,8 @@ export default function SavedReplyList({
             type='button'
             onClick={() => onRemove(reply)}
             disabled={loading}
-            aria-label={`מחק את ${reply.title}`}
-            title={`מחק את ${reply.title}`}
+            aria-label={t('settings.messenger.replies.deleteLabel', { title: reply.title })}
+            title={t('settings.messenger.replies.deleteLabel', { title: reply.title })}
             className='flex size-8 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40'
           >
             <Trash2 aria-hidden className='size-3.5' />

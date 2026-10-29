@@ -8,6 +8,8 @@ import { CARD_STORAGE_CONSENT_LABEL } from '@/lib/payments/cardTrial/terms'
 import { cancelRenewal, resumeRenewal } from '@/actions/subscription'
 import { startCardSetup } from '@/actions/paymentMethod'
 import { CARD_TRIAL_AMOUNT } from '@/lib/payments/cardTrial/terms'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { untranslatedAttrs } from '@/lib/i18n/config'
 
 /**
  * Cancel / resume / replace card for a card-token subscription.
@@ -32,11 +34,13 @@ type Props = {
 }
 
 export default function CardBillingControls({ cancelAtPeriodEnd, granted = false, chargeInProgress = false, onReplaceRedirect }: Props) {
+  const t = useT()
+  const he = t.locale === 'he'
   const [confirming, setConfirming] = useState(false)
   const [replacing, setReplacing] = useState(false)
   const [storageAccepted, setStorageAccepted] = useState(false)
   const [pending, startTransition] = useTransition()
-  const [notice, setNotice] = useState<string | null>(chargeInProgress ? 'החיוב כבר נשלח לעיבוד ואי אפשר לעצור אותו. נעדכן ברגע שתתקבל תשובה.' : null)
+  const [notice, setNotice] = useState<string | null>(chargeInProgress ? t('settings.payment.controls.inProgress') : null)
   const [error, setError] = useState<string | null>(null)
 
   const run = (action: () => Promise<{ ok: true; chargeInProgress?: true } | { error: string }>, onDone?: () => void) =>
@@ -46,14 +50,14 @@ export default function CardBillingControls({ cancelAtPeriodEnd, granted = false
       if ('error' in res) {
         setError(
           res.error === 'reactivation_required'
-            ? 'הגישה כבר הסתיימה. כדי לחדש יש לאשר אמצעי תשלום מחדש בעמוד הכניסה למערכת.'
+            ? t('settings.payment.controls.reactivation')
             : res.error === 'no_subscription'
-              ? 'לא נמצא מנוי פעיל'
-              : 'אירעה שגיאה, נסו שוב',
+              ? t('settings.payment.controls.noSubscription')
+              : t('settings.payment.controls.error'),
         )
         return
       }
-      setNotice(res.chargeInProgress ? 'הביטול נרשם. החיוב האחרון כבר נשלח לעיבוד ואי אפשר לעצור אותו — נעדכן ברגע שתתקבל תשובה.' : null)
+      setNotice(res.chargeInProgress ? t('settings.payment.controls.cancelledInProgress') : null)
       onDone?.()
       window.location.reload()
     })
@@ -69,7 +73,7 @@ export default function CardBillingControls({ cancelAtPeriodEnd, granted = false
       setError(null)
       const res = await startCardSetup({ purpose: 'card_update', acceptedCardStorage }).catch(() => ({ error: 'network' }) as const)
       if ('error' in res) {
-        setError('לא הצלחנו לפתוח את דף התשלום. נסו שוב בעוד רגע.')
+        setError(t('settings.payment.controls.openFailed'))
         return
       }
       if (onReplaceRedirect) onReplaceRedirect(res.url)
@@ -79,9 +83,10 @@ export default function CardBillingControls({ cancelAtPeriodEnd, granted = false
   if (replacing) {
     return (
       <div className='flex flex-col gap-3'>
-        <p className='text-sm text-gray-700'>הכרטיס החדש יישמר במקום הקיים, והחיוב החודשי יימשך ממנו.</p>
+        <p className='text-sm text-gray-700'>{t('settings.payment.controls.replaceIntro')}</p>
+        {/* The recorded card-storage consent stays Hebrew (lib/payments/cardTrial/terms.ts, versioned): a Hebrew region outside Hebrew. */}
         <Checkbox
-          lbl={CARD_STORAGE_CONSENT_LABEL}
+          lbl={he ? CARD_STORAGE_CONSENT_LABEL : <span {...untranslatedAttrs(t.locale)}>{CARD_STORAGE_CONSENT_LABEL}</span>}
           checked={storageAccepted}
           onChange={(e) => setStorageAccepted(e.target.checked)}
         />
@@ -93,11 +98,11 @@ export default function CardBillingControls({ cancelAtPeriodEnd, granted = false
         <div className='flex gap-2'>
           <Btn
             variant='solid'
-            lbl={pending ? 'טוען...' : 'המשך להחלפת הכרטיס'}
+            lbl={pending ? t('settings.payment.controls.loading') : t('settings.payment.controls.replaceContinue')}
             disabled={pending || !storageAccepted}
             onClick={() => replaceCard(storageAccepted)}
           />
-          <Btn variant='outline' lbl='חזרה' disabled={pending} onClick={() => setReplacing(false)} />
+          <Btn variant='outline' lbl={t('settings.payment.controls.back')} disabled={pending} onClick={() => setReplacing(false)} />
         </div>
       </div>
     )
@@ -121,28 +126,28 @@ export default function CardBillingControls({ cancelAtPeriodEnd, granted = false
              are not — there is no renewal to resume and no charge to cancel
              before. Offering either would act on a subscription that does not
              exist. */
-          <Btn variant='outline' lbl='החלפת כרטיס' disabled={pending} onClick={() => setReplacing(true)} />
+          <Btn variant='outline' lbl={t('settings.payment.controls.replace')} disabled={pending} onClick={() => setReplacing(true)} />
         ) : cancelAtPeriodEnd ? (
-          <Btn variant='solid' lbl={pending ? 'טוען...' : 'חידוש המנוי'} disabled={pending} onClick={() => run(resumeRenewal)} />
+          <Btn variant='solid' lbl={pending ? t('settings.payment.controls.loading') : t('settings.payment.controls.resume')} disabled={pending} onClick={() => run(resumeRenewal)} />
         ) : (
           <>
-            <Btn variant='outline' lbl='החלפת כרטיס' disabled={pending} onClick={() => setReplacing(true)} />
-            <Btn variant='ghost' lbl='ביטול לפני החיוב' disabled={pending} onClick={() => setConfirming(true)} />
+            <Btn variant='outline' lbl={t('settings.payment.controls.replace')} disabled={pending} onClick={() => setReplacing(true)} />
+            <Btn variant='ghost' lbl={t('settings.payment.controls.cancelBefore')} disabled={pending} onClick={() => setConfirming(true)} />
           </>
         )}
       </div>
 
-      <ModalPop open={confirming} onClose={() => !pending && setConfirming(false)} label='ביטול המנוי' pos='middle' className='w-[min(90vw,28rem)]'>
-        <div dir='rtl' className='flex flex-col gap-4 p-1'>
-          <h2 className='text-xl font-bold'>לבטל את המשך המנוי?</h2>
+      <ModalPop open={confirming} onClose={() => !pending && setConfirming(false)} label={t('settings.payment.controls.cancelLabel')} pos='middle' className='w-[min(90vw,28rem)]' translated>
+        <div dir={he ? 'rtl' : undefined} className='flex flex-col gap-4 p-1'>
+          <h2 className='text-xl font-bold'>{t('settings.payment.controls.cancelTitle')}</h2>
           <p className='text-sm text-gray-700'>
             {chargeInProgress
-              ? `חיוב אחד כבר נשלח לעיבוד ואי אפשר לעצור אותו. מעבר לכך לא יבוצעו חיובים נוספים, והגישה נמשכת עד סוף התקופה ששולמה.`
-              : `לא יבוצע חיוב של ₪${CARD_TRIAL_AMOUNT}. הגישה נמשכת עד סוף התקופה הנוכחית, והלידים והנתונים שלך יישמרו.`}
+              ? t('settings.payment.controls.cancelInProgress')
+              : t('settings.payment.controls.cancelBody', { amount: `₪${CARD_TRIAL_AMOUNT}` })}
           </p>
           <div className='flex items-center gap-2'>
-            <Btn variant='solid' lbl={pending ? 'טוען...' : 'ביטול המנוי'} disabled={pending} onClick={() => run(cancelRenewal, () => setConfirming(false))} />
-            <Btn variant='outline' lbl='חזרה' disabled={pending} onClick={() => setConfirming(false)} />
+            <Btn variant='solid' lbl={pending ? t('settings.payment.controls.loading') : t('settings.payment.controls.cancelConfirm')} disabled={pending} onClick={() => run(cancelRenewal, () => setConfirming(false))} />
+            <Btn variant='outline' lbl={t('settings.payment.controls.back')} disabled={pending} onClick={() => setConfirming(false)} />
           </div>
         </div>
       </ModalPop>

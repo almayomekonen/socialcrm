@@ -1,4 +1,12 @@
+/**
+ * NOTE: this file is ~300 lines and intentionally so (architecture-rules §6).
+ * It is one linear SVG drawing; splitting it would pass coordinates between
+ * micro-components for no readability gain. Its labels come from
+ * `settings.account.art` (Phase E4) in the page's language.
+ */
 import Portrait from '@/components/settings/art/Portrait'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The official WhatsApp mark, the same path this repo already ships at
@@ -10,7 +18,8 @@ import Portrait from '@/components/settings/art/Portrait'
 const WHATSAPP_MARK =
   'M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z'
 
-export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | null }) {
+export default function BusinessProfileArt({ photoUrl, locale = 'he' }: { photoUrl?: string | null; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   // Parsing rather than trusting: this ends up inside a CSS `url()`, and
   // `URL.toString()` percent-encodes the quote that would otherwise let a
   // stored value break out of it.
@@ -32,7 +41,7 @@ export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | n
       strokeLinecap='round'
       strokeLinejoin='round'
       role='img'
-      aria-label='הפרטים שתמלאו כאן משמשים אוטומטית בוואטסאפ, במייל היוצא, בחשבוניות, בדף התשלום, במיתוג ובכרטיס הלקוח.'
+      aria-label={t('settings.account.art.label')}
       /* Capped at its drawn size, so on a wide settings column this is exactly
          940×280 and on a narrow one the scene scales down instead of being
          cropped by the frame's overflow. */
@@ -199,10 +208,10 @@ export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | n
       </g>
       <circle cx='626' cy='28' r='2.6' fill='#5e6ad2' opacity='.35' />
       <text x='744' y='35' textAnchor='start' fontSize='13' fontWeight='600' fill='#3f4d5e' direction='rtl'>
-        וואטסאפ
+        {t('settings.account.art.whatsapp')}
       </text>
       <text x='744' y='51' textAnchor='start' fontSize='12' fill='#8b98a8' direction='rtl'>
-        שם העסק בפתיחת שיחה
+        {t('settings.account.art.whatsappHint')}
       </text>
 
       {/* כרטיס לקוח — the same drawn person as the profile, so the two read as
@@ -213,10 +222,10 @@ export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | n
       <Portrait cx={810} cy={141} r={14} uid='b5' warm />
       <circle cx='668' cy='130' r='2.6' fill='#5e6ad2' opacity='.35' />
       <text x='786' y='137' textAnchor='start' fontSize='13' fontWeight='600' fill='#3f4d5e' direction='rtl'>
-        כרטיס לקוח
+        {t('settings.account.art.card')}
       </text>
       <text x='786' y='153' textAnchor='start' fontSize='12' fill='#8b98a8' direction='rtl'>
-        פרטי הקשר של העסק
+        {t('settings.account.art.cardHint')}
       </text>
 
       {/* חשבוניות — a document with a turned corner, a header and a total row. */}
@@ -235,10 +244,10 @@ export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | n
       <rect x='765.4' y='246.4' width='4.2' height='2.2' rx='1.1' fill='#5e6ad2' />
       <circle cx='626' cy='232' r='2.6' fill='#5e6ad2' opacity='.35' />
       <text x='744' y='239' textAnchor='start' fontSize='13' fontWeight='600' fill='#3f4d5e' direction='rtl'>
-        חשבוניות
+        {t('settings.account.art.invoices')}
       </text>
       <text x='744' y='255' textAnchor='start' fontSize='12' fill='#8b98a8' direction='rtl'>
-        כתובת וח.פ. בראש המסמך
+        {t('settings.account.art.invoicesHint')}
       </text>
 
       {/* מייל יוצא — a letter lifting out of the envelope, since this one is outgoing. */}
@@ -255,10 +264,10 @@ export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | n
       <path d='M293 36.9l5.9 4.3a1.9 1.9 0 0 0 2.2 0l5.9-4.3' stroke='#3b6fbf' strokeWidth='1.2' />
       <circle cx='158' cy='28' r='2.6' fill='#5e6ad2' opacity='.35' />
       <text x='276' y='35' textAnchor='start' fontSize='13' fontWeight='600' fill='#3f4d5e' direction='rtl'>
-        מייל יוצא
+        {t('settings.account.art.email')}
       </text>
       <text x='276' y='51' textAnchor='start' fontSize='12' fill='#8b98a8' direction='rtl'>
-        כתובת המשיב וחתימה
+        {t('settings.account.art.emailHint')}
       </text>
 
       {/* תשלומים — a card with a magnetic stripe and a chip. */}
@@ -272,10 +281,10 @@ export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | n
       <rect x='257.4' y='143' width='6.6' height='1.4' rx='.7' fill='#fff' opacity='.5' />
       <circle cx='116' cy='130' r='2.6' fill='#5e6ad2' opacity='.35' />
       <text x='234' y='137' textAnchor='start' fontSize='13' fontWeight='600' fill='#3f4d5e' direction='rtl'>
-        תשלומים
+        {t('settings.account.art.payments')}
       </text>
       <text x='234' y='153' textAnchor='start' fontSize='12' fill='#8b98a8' direction='rtl'>
-        שם העסק בדף התשלום
+        {t('settings.account.art.paymentsHint')}
       </text>
 
       {/* מיתוג — the logo tile carrying the same mark the profile card used to
@@ -289,10 +298,10 @@ export default function BusinessProfileArt({ photoUrl }: { photoUrl?: string | n
       <path d='M298.2 244.4h3.6' stroke='#6f8a6b' strokeWidth='1.3' />
       <circle cx='158' cy='232' r='2.6' fill='#5e6ad2' opacity='.35' />
       <text x='276' y='239' textAnchor='start' fontSize='13' fontWeight='600' fill='#3f4d5e' direction='rtl'>
-        מיתוג
+        {t('settings.account.art.branding')}
       </text>
       <text x='276' y='255' textAnchor='start' fontSize='12' fill='#8b98a8' direction='rtl'>
-        הלוגו על כל מה שיוצא
+        {t('settings.account.art.brandingHint')}
       </text>
     </svg>
   )

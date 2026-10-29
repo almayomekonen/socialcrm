@@ -5,8 +5,10 @@ import { getMultiObjFormData } from '@/lib/form/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { api } from '@/lib/funcs'
 import { updateFullUser } from '@/actions/usersNteams'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function UserContactForm({ user }) {
+  const t = useT()
   async function onSubmit(e) {
     const data = getMultiObjFormData(e)
     api(updateFullUser, [data, user.id])
@@ -15,11 +17,11 @@ export default function UserContactForm({ user }) {
   return (
     <form onSubmit={onSubmit}>
       <div className='grid grid-cols-2 gap-4'>
-        <Input name='userData.phone' lbl='טלפון' defaultValue={user.phone} />
-        <Input name='userInfoData.fax' lbl='פקס' defaultValue={user.fax} />
-        <Input name='userInfoData.officePhone' lbl='טלפון קווי' defaultValue={user.officePhone} />
+        <Input name='userData.phone' lbl={t('settings.account.details.phone')} defaultValue={user.phone} />
+        <Input name='userInfoData.fax' lbl={t('settings.account.details.fax')} defaultValue={user.fax} />
+        <Input name='userInfoData.officePhone' lbl={t('settings.account.details.officePhone')} defaultValue={user.officePhone} />
       </div>
-      <Btn lbl='שמירה' className='w-full mt-4' />
+      <Btn lbl={t('settings.account.details.saveContact')} className='w-full mt-4' />
     </form>
   )
 }

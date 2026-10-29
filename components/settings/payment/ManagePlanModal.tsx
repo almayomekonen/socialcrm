@@ -7,6 +7,7 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { cancelRenewal, resumeRenewal } from '@/actions/subscription'
 import type { SubscriptionClientView } from './ManagePlanLauncher'
 import { ConfirmCancelBody, ManageBody } from './ManagePlanBodies'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Stage = 'manage' | 'confirm-cancel'
 
@@ -34,6 +35,7 @@ export default function ManagePlanModal({
   onClose: () => void
   subscription: SubscriptionClientView
 }) {
+  const t = useT()
   const router = useRouter()
   /**
    * Entitlement from the shared context — the same `getAgencyProductAccess`
@@ -74,8 +76,8 @@ export default function ManagePlanModal({
       if ('error' in result) {
         setError(
           result.error === 'no_subscription'
-            ? 'לא ניתן לבטל מסלול שאינו פעיל'
-            : 'אירעה שגיאה, נסו שוב',
+            ? t('settings.payment.manage.cancelInactive')
+            : t('settings.payment.manage.error'),
         )
         return
       }
@@ -93,8 +95,8 @@ export default function ManagePlanModal({
       if ('error' in result) {
         setError(
           result.error === 'no_subscription'
-            ? 'לא ניתן לחדש מסלול שאינו פעיל'
-            : 'אירעה שגיאה, נסו שוב',
+            ? t('settings.payment.manage.resumeInactive')
+            : t('settings.payment.manage.error'),
         )
         return
       }
@@ -104,8 +106,8 @@ export default function ManagePlanModal({
   }
 
   return (
-    <ModalPop open={open} onClose={close} label='ניהול המנוי' pos='middle' className='w-[min(90vw,28rem)]'>
-      <div className='space-y-5' dir='rtl'>
+    <ModalPop open={open} onClose={close} label={t('settings.payment.manage.label')} pos='middle' className='w-[min(90vw,28rem)]' translated>
+      <div className='space-y-5' dir={t.locale === 'he' ? 'rtl' : undefined}>
         {(stage === 'manage' || expired) && (
           <ManageBody
             expired={expired}

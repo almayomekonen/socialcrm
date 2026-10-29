@@ -1,5 +1,7 @@
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import type { ConnectionNotice as Notice } from '@/lib/connections/messages'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { templateSentence } from './templateCopy'
 
 /**
  * The rejection reason for a declined ready-made message, in the same calm status
@@ -8,6 +10,7 @@ import type { ConnectionNotice as Notice } from '@/lib/connections/messages'
  * action arrives in Sprint 5; here we surface the reason.
  */
 export default function TemplateRejectionNotice({ failureText }: { failureText: string }) {
-  const notice: Notice = { tone: 'error', title: 'ההודעה לא אושרה', explanation: failureText }
+  const t = useT()
+  const notice: Notice = { tone: 'error', title: t('settings.templates.rejectedTitle'), explanation: templateSentence(failureText, t) }
   return <ConnectionNotice notice={notice} />
 }

@@ -8,16 +8,19 @@ import type { MessengerSavedReply } from '@/db/messengerSavedReplies'
 import { EMPTY, draftPayload, toDraft, type Draft } from './savedReplyDraft'
 import SavedReplyList from './SavedReplyList'
 import SavedReplyForm from './SavedReplyForm'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { savedReplyDetail } from './savedReplyDraft'
 import { createSavedReply, deleteSavedReply, updateSavedReply, type SavedReplyFailure } from '@/modules/messenger/savedReplyActions'
 
-const FAILURE_COPY: Record<SavedReplyFailure, string> = {
-  not_enabled: 'Messenger אינו זמין בחשבון הזה',
-  forbidden: 'רק מנהל יכול לנהל תשובות שמורות',
-  not_found: 'התשובה השמורה לא נמצאה',
-  title_taken: 'כבר קיימת תשובה שמורה בשם הזה',
-  empty: 'תשובה שמורה חייבת לכלול טקסט או קובץ מצורף',
-  too_many: 'הגעת למספר המרבי של תשובות שמורות',
-  invalid: 'אחד השדות אינו תקין',
+const FAILURE_COPY: Record<SavedReplyFailure, MessageKey> = {
+  not_enabled: 'settings.messenger.replies.failure.not_enabled',
+  forbidden: 'settings.messenger.replies.failure.forbidden',
+  not_found: 'settings.messenger.replies.failure.not_found',
+  title_taken: 'settings.messenger.replies.failure.title_taken',
+  empty: 'settings.messenger.replies.failure.empty',
+  too_many: 'settings.messenger.replies.failure.too_many',
+  invalid: 'settings.messenger.replies.failure.invalid',
 }
 
 /**
@@ -38,12 +41,13 @@ const FAILURE_COPY: Record<SavedReplyFailure, string> = {
  * Admin-only; the server enforces it independently of whether this renders.
  */
 export default function MessengerSavedReplies({ initial }: { initial: MessengerSavedReply[] }) {
+  const t = useT()
   const [replies, setReplies] = useState(initial)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { loading, run } = useAction()
 
-  const fail = (reason: SavedReplyFailure, detail?: string) => setError(detail ?? FAILURE_COPY[reason] ?? FAILURE_COPY.invalid)
+  const fail = (reason: SavedReplyFailure, detail?: string) => setError(detail ? savedReplyDetail(detail, t) : t(FAILURE_COPY[reason] ?? FAILURE_COPY.invalid))
 
   const save = () => {
     if (!draft) return
@@ -60,12 +64,12 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
         return [...without, result.reply].sort((a, b) => a.title.localeCompare(b.title, 'he'))
       })
       setDraft(null)
-      toast('success', 'התשובה השמורה נשמרה')
+      toast('success', t('settings.messenger.replies.saved'))
     })
   }
 
   const remove = (reply: MessengerSavedReply) => {
-    if (!confirm(`למחוק את "${reply.title}"?`)) return
+    if (!confirm(t('settings.messenger.replies.deleteConfirm', { title: reply.title }))) return
     run(async () => {
       setError(null)
       const result = await deleteSavedReply(reply.id)
@@ -74,7 +78,7 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
         return
       }
       setReplies((prev) => prev.filter((r) => r.id !== reply.id))
-      toast('success', 'התשובה השמורה נמחקה')
+      toast('success', t('settings.messenger.replies.deleted'))
     })
   }
 
@@ -84,14 +88,14 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
   return (
     <div className='grid gap-4'>
       <p className='text-xs leading-relaxed text-gray-500'>
-        תשובות שמורות הן קטעי טקסט לשימוש חוזר בשיחות Messenger. אלה אינן תבניות WhatsApp ואינן דורשות אישור של Meta.
+        {t('settings.messenger.replies.intro')}
       </p>
 
       {replies.length > 0 && <SavedReplyList replies={replies} loading={loading} onEdit={(reply) => setDraft(toDraft(reply))} onRemove={remove} />}
 
       {!draft && (
         <div>
-          <Btn variant='outline' icon='plus' lbl='הוסף תשובה שמורה' onClick={() => setDraft({ ...EMPTY })} disabled={loading} />
+          <Btn variant='outline' icon='plus' lbl={t('settings.messenger.replies.add')} onClick={() => setDraft({ ...EMPTY })} disabled={loading} />
         </div>
       )}
 

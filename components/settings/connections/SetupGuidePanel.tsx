@@ -61,7 +61,8 @@ export default function SetupGuidePanel({ guide, webhookUrl }: { guide: SetupGui
   )
 }
 
-export function CopyRow({ label, value }: { label: string; value: string }) {
+/** `copyLabel` / `copiedLabel`: the caller's words when its screen is translated (AI connections). Default Hebrew. */
+export function CopyRow({ label, value, copyLabel = 'העתקה', copiedLabel = 'הועתק' }: { label: string; value: string; copyLabel?: string; copiedLabel?: string }) {
   return (
     <div className='grid gap-1.5 min-w-0'>
       <span className='text-sm text-gray-500'>{label}</span>
@@ -78,11 +79,11 @@ export function CopyRow({ label, value }: { label: string; value: string }) {
         <Btn
           variant='outline'
           size='small'
-          lbl='העתקה'
+          lbl={copyLabel}
           icon='copy'
           onClick={() => {
             navigator.clipboard?.writeText(value)
-            toast('success', 'הועתק')
+            toast('success', copiedLabel)
           }}
         />
       </div>

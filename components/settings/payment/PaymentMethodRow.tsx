@@ -1,4 +1,7 @@
 import Icon from '@/lib/Icon'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * The subscription card's footer band: which payment method gets charged.
@@ -39,23 +42,24 @@ import Icon from '@/lib/Icon'
  */
 export type PaymentMethodState = 'renewing' | 'cancelling' | 'expired' | 'granted'
 
-const CHARGE_COPY: Record<PaymentMethodState, string> = {
-  renewing: 'החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון',
-  cancelling: 'בקשת הביטול נקלטה',
-  expired: 'חידוש המנוי יחייב את הכרטיס ששימש לתשלום האחרון',
+const CHARGE_COPY: Record<PaymentMethodState, MessageKey> = {
+  renewing: 'settings.payment.row.renewing',
+  cancelling: 'settings.payment.row.cancelling',
+  expired: 'settings.payment.row.expired',
   /* An explicit grant has no subscription and no scheduled charge. Every other
      line here names a charge — past, next or conditional — and all three would
      be inventions on this account. */
-  granted: 'הכרטיס שמור לשימוש עתידי. לא נקבע חיוב.',
+  granted: 'settings.payment.row.granted',
 }
 
-export default function PaymentMethodRow({ state = 'renewing' }: { state?: PaymentMethodState }) {
+export default function PaymentMethodRow({ state = 'renewing', locale = 'he' }: { state?: PaymentMethodState; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   return (
     <div className='flex items-center gap-4 border-t border-gray-100 px-6 py-4'>
       <Icon name='credit-card' type='reg' className='size-5 shrink-0 bg-gray-400' />
       <div className='min-w-0'>
-        <p className='text-sm text-gray-800'>אמצעי התשלום שמור אצל ספק הסליקה</p>
-        <p className='mt-0.5 text-xs text-gray-500'>{CHARGE_COPY[state]}</p>
+        <p className='text-sm text-gray-800'>{t('settings.payment.row.holder')}</p>
+        <p className='mt-0.5 text-xs text-gray-500'>{t(CHARGE_COPY[state])}</p>
       </div>
     </div>
   )

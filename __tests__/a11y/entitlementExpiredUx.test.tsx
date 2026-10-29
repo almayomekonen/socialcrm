@@ -49,6 +49,10 @@ vi.mock('next/navigation', () => ({
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8')
 
+/** The settings copy moved into the catalog in Phase E4 (the components reference its keys). */
+const PAYMENT_COPY = 'lib/i18n/messages/he/settings/payment.ts'
+const INTEGRATIONS_COPY = 'lib/i18n/messages/he/settings/integrations.ts'
+
 /** ManagePlanModal and the two views it renders (split in Phase E4). */
 const readManagePlan = () => ['components/settings/payment/ManagePlanModal.tsx', 'components/settings/payment/ManagePlanBodies.tsx'].map(read).join('\n')
 
@@ -165,7 +169,8 @@ describe('the two surfaces that used to lie', () => {
     const card = read('components/settings/payment/ProPlanCard.tsx')
     expect(card).toContain('hasAccess')
     expect(card).toContain('const expired = !hasAccess')
-    expect(card).toContain('המנוי הסתיים')
+    expect(card).toContain("t('settings.payment.plan.badge.expired')")
+    expect(read(PAYMENT_COPY)).toContain("expired: 'המנוי הסתיים'")
     // "מנוי פעיל" must now be unreachable while expired.
     expect(card).toContain('if (expired)')
 
@@ -307,7 +312,8 @@ describe('shared action runner distinguishes entitlement from a real bug', () =>
 describe('manage-plan offers renewal, not cancellation, to an expired customer', () => {
   it('renew is primary and cancel is withheld', () => {
     const src = readManagePlan()
-    expect(src).toContain('חידוש מנוי')
+    expect(src).toContain("t('settings.payment.manage.renew')")
+    expect(read(PAYMENT_COPY)).toContain("renew: 'חידוש מנוי'")
     expect(src).toContain("upgradeHref('manage_plan_modal')")
     // Cancel paths are all suppressed while expired.
     expect(src).toContain("{!expired && manageable && status === 'active'")
@@ -321,7 +327,8 @@ describe('integrations separates connection health from entitlement', () => {
     expect(page).toContain('getAgencyProductAccess')
     expect(page).toContain('SubscriptionExpiredState')
     // The connectors themselves are untouched — their claim is true.
-    expect(read('components/settings/WhatsappConnect.tsx')).toContain('החיבור תקין')
+    expect(read('components/settings/WhatsappConnect.tsx')).toContain("t('settings.integrations.whatsapp.healthy')")
+    expect(read(INTEGRATIONS_COPY)).toContain("healthy: 'החיבור תקין — לידים מגיעים אוטומטית'")
   })
 })
 
@@ -400,10 +407,12 @@ describe('production audit follow-ups', () => {
     // the single rule that also covers the non-Pro case, which used to fall
     // through the ternary chain to 'פעיל'.
     expect(src).toContain("const renewing = !expired && status === 'active'")
-    expect(src).toContain("const dateLabel = renewing ? 'החיוב הבא'")
-    expect(src).toContain("expired\n    ? 'המנוי הסתיים'")
+    expect(src).toContain("const dateLabel = renewing ? t('settings.payment.manage.nextCharge')")
+    expect(src).toContain("expired\n    ? t('settings.payment.manage.statusExpired')")
+    expect(read(PAYMENT_COPY)).toContain("nextCharge: 'החיוב הבא'")
+    expect(read(PAYMENT_COPY)).toContain("statusExpired: 'המנוי הסתיים'")
     // The date must never be labelled as an upcoming charge while expired.
-    expect(src).not.toMatch(/const dateLabel = cancelling \? 'גישה ל־Pro עד' : 'החיוב הבא'/)
+    expect(src).not.toMatch(/const dateLabel = cancelling \? /)
     // Entitlement, never the plan name.
     expect(src).toContain('useAccessDenied()')
     expect(src).not.toMatch(/plan\s*===\s*'pro'/)
@@ -902,7 +911,7 @@ describe('billing never promises a charge that is not coming', () => {
      * `expired` still comes from hasAccess rather than agencies.plan.
      */
     expect(src).toContain(
-      "<PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />",
+      "<PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} locale={locale} />",
     )
     expect(src).toContain('const expired = !hasAccess')
     expect(src).toContain("const granted = subscription.source === 'grant'")

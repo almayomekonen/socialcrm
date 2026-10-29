@@ -6,6 +6,10 @@ import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
 
 type State = 'not_connected' | 'connected' | 'reauth_required'
 
@@ -13,9 +17,13 @@ type Props = {
   state: State
   email: string | null
   lastError: string | null
+  /** Follow the interface language (the desktop settings page). Default Hebrew: the phone screen is not translated yet. */
+  translated?: boolean
 }
 
-export default function CalendarConnect({ state, email, lastError }: Props) {
+export default function CalendarConnect({ state, email, lastError, translated = false }: Props) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [, startTransition] = useTransition()
@@ -24,11 +32,11 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
     try {
       const res = await fetch('/api/auth/google-calendar/disconnect', { method: 'POST' })
       if (!res.ok) throw new Error('failed')
-      toast('success', 'Google Calendar נותק')
+      toast('success', t('settings.integrations.calendar.disconnected'))
       setConfirmOpen(false)
       startTransition(() => router.refresh())
     } catch {
-      toast('error', 'הניתוק נכשל. נסה שוב.')
+      toast('error', t('settings.integrations.card.disconnectFailed'))
     }
   }
 
@@ -54,7 +62,7 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
         <h3 className='text-lg font-bold'>Google Calendar</h3>
         {state === 'connected' && (
-          <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label='מחובר' />
+          <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label={t('settings.integrations.card.connected')} />
         )}
       </div>
 
@@ -65,14 +73,14 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
         sentence has to still read correctly after the account is connected.
       */}
       <p className='text-gray-600 text-sm leading-relaxed'>
-        תזמון פגישות עם לידים וקישורי Google Meet אוטומטיים, ישירות מתוך ה-CRM.
+        {t('settings.integrations.calendar.description')}
       </p>
 
       {state === 'not_connected' && (
         <div className='mt-auto flex items-center justify-between gap-3'>
-          <span className='text-sm text-gray-400'>לא מחובר</span>
+          <span className='text-sm text-gray-400'>{t('settings.integrations.card.notConnected')}</span>
           <Btn
-            lbl='חבר את Google Calendar'
+            lbl={t('settings.integrations.calendar.connect')}
             onClick={() => {
               const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
               window.location.href = `/api/auth/google-calendar?returnTo=${returnTo}`
@@ -84,23 +92,23 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
       {state === 'connected' && (
         <div className='mt-auto flex items-center justify-between gap-3'>
           <span className='min-w-0 truncate text-sm text-gray-600'>
-            מחובר · <span className='font-medium text-gray-800'>{email}</span>
+            {t('settings.integrations.card.connectedAs')} <span className='font-medium text-gray-800'>{email}</span>
           </span>
-          <Btn lbl='נתק חשבון' variant='outline' onClick={() => setConfirmOpen(true)} />
+          <Btn lbl={t('settings.integrations.card.disconnect')} variant='outline' onClick={() => setConfirmOpen(true)} />
         </div>
       )}
 
       {state === 'reauth_required' && (
         <>
           <div className='rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900'>
-            <p className='font-medium'>החיבור ליומן פג.</p>
-            <p className='mt-0.5'>יש להתחבר מחדש כדי לסנכרן פגישות חדשות.</p>
-            {lastError && <p className='mt-1 text-xs text-amber-700'>פרטים: {lastError}</p>}
+            <p className='font-medium'>{t('settings.integrations.calendar.expired')}</p>
+            <p className='mt-0.5'>{t('settings.integrations.calendar.expiredHint')}</p>
+            {lastError && <p className='mt-1 text-xs text-amber-700'>{t('settings.integrations.calendar.details', { error: lastError })}</p>}
           </div>
           <div className='mt-auto flex items-center justify-between gap-3'>
-            <span className='text-sm text-gray-400'>דורש חיבור מחדש</span>
+            <span className='text-sm text-gray-400'>{t('settings.integrations.calendar.needsReconnect')}</span>
             <Btn
-              lbl='חבר מחדש'
+              lbl={t('settings.integrations.calendar.reconnect')}
               onClick={() => {
                 const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
                 window.location.href = `/api/auth/google-calendar?returnTo=${returnTo}`
@@ -114,9 +122,10 @@ export default function CalendarConnect({ state, email, lastError }: Props) {
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleDisconnect}
-        msg={'פגישות קיימות יישארו ב-CRM אך לא יסונכרנו עוד.\nניתן להתחבר שוב בכל עת.'}
-        confirmLbl='נתק חשבון'
+        msg={t('settings.integrations.calendar.disconnectConfirm')}
+        confirmLbl={t('settings.integrations.card.disconnect')}
         destructive
+        translated={translated}
       />
     </div>
   )

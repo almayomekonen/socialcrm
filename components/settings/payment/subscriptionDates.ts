@@ -11,12 +11,16 @@
  * timezone database instead of a hardcoded +2/+3 offset.
  */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import { intlLocale } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+
 const BUSINESS_TZ = 'Asia/Jerusalem'
 const MS_PER_DAY = 86_400_000
 
-/** "4 בספטמבר" — or "4 בספטמבר 2026" with the year. */
-export function formatRenewalDate(date: Date, opts: { withYear?: boolean } = {}): string {
-  return new Intl.DateTimeFormat('he-IL', {
+/** "4 בספטמבר" — or "4 בספטמבר 2026" with the year. `locale` (default Hebrew, unchanged) names the month in the interface language. */
+export function formatRenewalDate(date: Date, opts: { withYear?: boolean } = {}, locale: UiLocale = 'he'): string {
+  return new Intl.DateTimeFormat(locale === 'he' ? 'he-IL' : intlLocale(locale), {
     timeZone: BUSINESS_TZ,
     day: 'numeric',
     month: 'long',
@@ -48,6 +52,20 @@ function businessDayIndex(date: Date): number {
  */
 export function daysUntil(date: Date, now: Date = new Date()): number {
   return businessDayIndex(date) - businessDayIndex(now)
+}
+
+/**
+ * `relativeDaysLabel` in the interface language (`settings.payment.days`);
+ * Hebrew is `relativeDaysLabel` itself. A separate function so the Hebrew one
+ * keeps its exact one-argument shape.
+ */
+export function relativeDaysLabelFor(days: number, locale: UiLocale): string {
+  if (locale === 'he') return relativeDaysLabel(days)
+  const t = translatorFor(locale)
+  if (days === 0) return t('settings.payment.days.today')
+  if (days === 1) return t('settings.payment.days.tomorrow')
+  if (days === -1) return t('settings.payment.days.yesterday')
+  return days < -1 ? t('settings.payment.days.ago', { count: Math.abs(days) }) : t('settings.payment.days.in', { count: days })
 }
 
 /** "לפני 4 ימים" / "אתמול" / "היום" / "בעוד יום" / "בעוד 27 ימים". */

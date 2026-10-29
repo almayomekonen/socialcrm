@@ -16,6 +16,11 @@ export const issuer = {
     name: { label: 'שם העסק', help: 'כפי שיופיע בחשבוניות', placeholder: 'לדוגמה: רחל כהן ייעוץ' },
     businessType: { label: 'סוג העסק', help: 'לא בטוחים? תוכלו לעדכן בהמשך בהגדרות.' },
     taxId: { label: 'מספר עוסק / ח.פ', help: '8 ספרות לעצמאי, 9 ספרות לחברה. ללא מקפים.' },
+    // Tier 2 — the settings business-details page (Phase E4).
+    address: { label: 'כתובת', help: 'תופיע על החשבוניות. נדרשת לעוסק מורשה ולחברה.', placeholder: 'לדוגמה:\nרוטשילד 12\nתל אביב 6688112' },
+    phone: { label: 'טלפון' },
+    email: { label: 'אימייל לחשבוניות', help: 'משמש ככתובת המשיב כשהלקוח עונה למייל.' },
+    img: { label: 'לוגו', help: 'תמונת PNG או JPG. תופיע בראש החשבונית.' },
   },
   businessType: {
     exempt: { label: 'עוסק פטור', description: 'הכנסה שנתית עד 120,000 ₪. לא גובה מע"מ.' },

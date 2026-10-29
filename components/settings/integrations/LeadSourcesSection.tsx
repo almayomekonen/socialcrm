@@ -23,6 +23,8 @@ import { loadMessengerSection } from '@/components/settings/messenger/messengerS
 import MessengerSavedReplies from '@/components/settings/messenger/MessengerSavedReplies'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
 import { BRAND } from './brandColors'
+import { untranslatedAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * מקורות לידים — every system that, by being connected, causes new לידים to
@@ -45,10 +47,15 @@ type Viewer = { id: number; role: string; agencyId: number }
 export default async function LeadSourcesSection({
   user,
   activeSection,
+  locale = 'he',
 }: {
   user: Viewer
   activeSection: string | null
+  /** Interface language (desktop page); the connectors follow it via `translated`. Default Hebrew. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
+  const translated = locale !== 'he'
   const templatesEnabled = isTemplatesEnabledForAgency(user.agencyId)
   const websiteVisible = isWebsiteSectionVisible(user)
 
@@ -131,7 +138,7 @@ export default async function LeadSourcesSection({
         id='facebook'
         edu='facebook-section'
         bodyClass='p-6'
-        title='פייסבוק'
+        title={t('settings.integrations.section.facebook')}
         icon='facebook'
         iconClassName={BRAND.facebook}
         open={openFacebook}
@@ -143,6 +150,7 @@ export default async function LeadSourcesSection({
             health={health}
             commentsNeedReconnect={commentsNeedReconnect}
             inAppBrowser={inAppBrowser}
+            translated={translated}
           />
         </Suspense>
       </AccordionItem>
@@ -150,7 +158,7 @@ export default async function LeadSourcesSection({
         id='whatsapp'
         edu='whatsapp-section'
         bodyClass='p-6'
-        title='וואטסאפ'
+        title={t('settings.integrations.section.whatsapp')}
         icon='whatsapp'
         iconClassName={BRAND.whatsapp}
         open={openWhatsapp}
@@ -164,6 +172,7 @@ export default async function LeadSourcesSection({
             graphVersion={GRAPH_VERSION}
             status={waStatus}
             inAppBrowser={inAppBrowser}
+            translated={translated}
           />
         </Suspense>
       </AccordionItem>
@@ -171,7 +180,7 @@ export default async function LeadSourcesSection({
         <AccordionItem
           id='messenger'
           bodyClass='p-6'
-          title='הודעת פתיחה ותפריט ב-Messenger'
+          title={t('settings.integrations.section.messenger')}
           icon='facebook'
           iconClassName={BRAND.facebook}
         >
@@ -188,7 +197,7 @@ export default async function LeadSourcesSection({
         <AccordionItem
           id='messenger-replies'
           bodyClass='p-6'
-          title='תשובות שמורות ב-Messenger'
+          title={t('settings.integrations.section.messengerReplies')}
           icon='facebook'
           iconClassName={BRAND.facebook}
         >
@@ -201,18 +210,18 @@ export default async function LeadSourcesSection({
         <AccordionItem
           id='templates'
           bodyClass='p-6'
-          title='הודעות WhatsApp מוכנות'
+          title={t('settings.integrations.section.templates')}
           icon='whatsapp'
           iconClassName={BRAND.templates}
           open={openTemplates}
           badge={
             <Suspense fallback={null}>
-              <TemplatesHeaderBadge agencyId={user.agencyId} connected={!!waConnection} />
+              <TemplatesHeaderBadge agencyId={user.agencyId} connected={!!waConnection} locale={locale} />
             </Suspense>
           }
         >
           <Suspense fallback={null}>
-            <TemplatesSection agencyId={user.agencyId} connected={!!waConnection} messagingReady={waMessagingReady} />
+            <TemplatesSection agencyId={user.agencyId} connected={!!waConnection} messagingReady={waMessagingReady} locale={locale} />
           </Suspense>
         </AccordionItem>
       )}
@@ -220,13 +229,14 @@ export default async function LeadSourcesSection({
         <AccordionItem
           id='website'
           bodyClass='p-6'
-          title='האתר שלי'
+          title={t('settings.integrations.section.website')}
           icon='globe'
           iconClassName={BRAND.website}
           open={openWebsite}
         >
           <Suspense fallback={null}>
-            <WebsiteConnection user={user} />
+            {/* The automations catalog's connectors (not translated yet): a Hebrew region outside Hebrew. */}
+            {translated ? <div {...untranslatedAttrs(locale)}><WebsiteConnection user={user} /></div> : <WebsiteConnection user={user} />}
           </Suspense>
         </AccordionItem>
       )}

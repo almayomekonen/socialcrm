@@ -15,6 +15,7 @@ import { calendar } from './calendar'
 import { deals } from './deals'
 import { performance } from './performance'
 import { billing } from './billing'
+import { settings } from './settings'
 
 /** English — pilot draft; native review is recorded in lib/i18n/review.ts. */
-export const en: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing }
+export const en: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings }

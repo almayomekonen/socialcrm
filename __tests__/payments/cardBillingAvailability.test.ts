@@ -82,7 +82,11 @@ describe('the billing screen never offers a retired checkout', () => {
   })
 
   it('does not promise a trial or a payment while billing is unavailable', () => {
-    const notice = readFileSync('components/billing/PaymentsUnavailableNotice.tsx', 'utf8')
+    // The notice's copy lives in the catalog since Phase E4; the component picks it by `hasAccess`.
+    const component = readFileSync('components/billing/PaymentsUnavailableNotice.tsx', 'utf8')
+    expect(component).toContain("t('settings.payment.unavailable.withAccess')")
+    expect(component).toContain("t('settings.payment.unavailable.noAccess')")
+    const notice = component + readFileSync('lib/i18n/messages/he/settings/payment.ts', 'utf8').split('unavailable: {')[1]
     expect(notice).toContain('לא בוצע חיוב')
     // "your access is unaffected" is a lie to an account that has none.
     expect(notice).toContain('hasAccess')

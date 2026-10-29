@@ -1,5 +1,6 @@
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import type { ConnectionNotice as Notice } from '@/lib/connections/messages'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Calm, reassuring notice for a ready-made message awaiting WhatsApp review —
@@ -15,5 +16,7 @@ const PENDING_NOTICE: Notice = {
 }
 
 export default function TemplatePendingNotice() {
-  return <ConnectionNotice notice={PENDING_NOTICE} />
+  const t = useT()
+  const notice = t.locale === 'he' ? PENDING_NOTICE : { ...PENDING_NOTICE, title: t('settings.templates.pending.title'), explanation: t('settings.templates.pending.explanation') }
+  return <ConnectionNotice notice={notice} />
 }

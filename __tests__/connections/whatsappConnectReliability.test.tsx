@@ -140,7 +140,8 @@ describe('1 · connect and disconnect own independent action state', () => {
     expect(src).toContain("loading: disconnecting")
     expect(src).toContain('runDisconnect')
     // The destructive button reads ONLY its own state.
-    expect(src).toContain("lbl={disconnecting ? 'מנתק...' : 'נתק וואטסאפ'}")
+    // Labels from the catalog since Phase E4 (settings.integrations.whatsapp.*).
+    expect(src).toContain("lbl={disconnecting ? t('settings.integrations.whatsapp.disconnecting') : t('settings.integrations.whatsapp.disconnect')}")
     expect(src).toContain('disabled={disconnecting}')
   })
 })

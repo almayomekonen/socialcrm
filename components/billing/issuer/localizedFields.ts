@@ -19,6 +19,11 @@ const FIELD_KEYS: Record<string, FieldKeys> = {
   name: { label: 'billing.issuer.field.name.label', help: 'billing.issuer.field.name.help', placeholder: 'billing.issuer.field.name.placeholder' },
   businessType: { label: 'billing.issuer.field.businessType.label', help: 'billing.issuer.field.businessType.help' },
   taxId: { label: 'billing.issuer.field.taxId.label', help: 'billing.issuer.field.taxId.help' },
+  // Tier 2 (the settings business-details page, Phase E4).
+  address: { label: 'billing.issuer.field.address.label', help: 'billing.issuer.field.address.help', placeholder: 'billing.issuer.field.address.placeholder' },
+  phone: { label: 'billing.issuer.field.phone.label' },
+  email: { label: 'billing.issuer.field.email.label', help: 'billing.issuer.field.email.help' },
+  img: { label: 'billing.issuer.field.img.label', help: 'billing.issuer.field.img.help' },
 }
 
 const OPTION_KEYS: Record<string, { label: MessageKey; description: MessageKey }> = {

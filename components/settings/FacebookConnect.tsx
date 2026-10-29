@@ -9,7 +9,10 @@ import { wait } from '@/lib/funcs'
 import type { FacebookHealthStatus } from '@/lib/facebook/health'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
-import { FACEBOOK_NOTICES, SHARED, facebookNotice } from '@/lib/connections/messages'
+import { FACEBOOK_NOTICES } from '@/lib/connections/messages'
+import { facebookNoticeFor, localizeFacebookNotice } from '@/lib/connections/localizedNotices'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
 import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
 import { useFacebookDiscoveryFailures } from '@/components/settings/hooks/useFacebookDiscoveryFailures'
 
@@ -30,7 +33,11 @@ type Props = {
   commentsNeedReconnect?: boolean
   /** Server-detected Instagram/Facebook in-app browser (lib/device.ts). */
   inAppBrowser?: InAppBrowser
+  /** Follow the interface language (the desktop settings page). Default Hebrew: the phone screens are not translated yet. */
+  translated?: boolean
 }
+
+const HEBREW = translatorFor('he')
 
 export default function FacebookConnect({
   connection,
@@ -38,7 +45,13 @@ export default function FacebookConnect({
   health,
   commentsNeedReconnect = false,
   inAppBrowser,
+  translated = false,
 }: Props) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
+  const locale = t.locale
+  const notice = (n: (typeof FACEBOOK_NOTICES)[string]) => localizeFacebookNotice(n, locale)!
+  const reasonsLabel = t('settings.integrations.reasonsLabel')
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlError = searchParams.get('error')
@@ -69,10 +82,10 @@ export default function FacebookConnect({
     run(async () => {
       const res = await fetch('/api/auth/facebook/disconnect', { method: 'POST' })
       if (!res.ok) {
-        toast('error', 'שגיאה בניתוק הדף')
+        toast('error', t('settings.integrations.facebook.disconnectFailed'))
         return
       }
-      toast('success', 'הדף נותק בהצלחה')
+      toast('success', t('settings.integrations.facebook.disconnected'))
       router.refresh()
     })
   }
@@ -92,7 +105,7 @@ export default function FacebookConnect({
         setError(typeof errData.error === 'string' ? errData.error : 'save_failed')
         return
       }
-      toast('success', `הדף "${page.name}" חובר בהצלחה`)
+      toast('success', t('settings.integrations.facebook.connected', { name: page.name }))
       router.refresh()
     })
   }
@@ -102,17 +115,17 @@ export default function FacebookConnect({
     const needsReconnect = health?.needsReconnect ?? false
     const subscriptionIssue = health && !health.needsReconnect && !health.subscribed
     const isHealthy = health && health.tokenValid && health.permissionsOk && health.subscribed
-    const reconnectNotice = inAppWarned ? FACEBOOK_NOTICES.in_app_browser : FACEBOOK_NOTICES.expired
+    const reconnectNotice = notice(inAppWarned ? FACEBOOK_NOTICES.in_app_browser : FACEBOOK_NOTICES.expired)
 
     return (
       <div className='grid gap-4'>
         <p className='text-sm text-gray-600' data-edu={needsReconnect ? undefined : 'facebook-connect'}>
-          מחובר לדף: <strong>{connection.pageName}</strong>
+          {t('settings.integrations.facebook.connectedTo')} <strong>{connection.pageName}</strong>
         </p>
-        {reconnected && !needsReconnect && <p role='status' className='text-sm text-green-600'>החיבור לפייסבוק חודש</p>}
-        {isHealthy && <p className='text-sm text-green-600'>החיבור תקין  לידים מגיעים אוטומטית</p>}
-        {needsReconnect && <ConnectionNotice notice={reconnectNotice} />}
-        {subscriptionIssue && <ConnectionNotice notice={FACEBOOK_NOTICES.repairing} />}
+        {reconnected && !needsReconnect && <p role='status' className='text-sm text-green-600'>{t('settings.integrations.facebook.renewed')}</p>}
+        {isHealthy && <p className='text-sm text-green-600'>{t('settings.integrations.facebook.healthy')}</p>}
+        {needsReconnect && <ConnectionNotice notice={reconnectNotice} reasonsLabel={reasonsLabel} />}
+        {subscriptionIssue && <ConnectionNotice notice={notice(FACEBOOK_NOTICES.repairing)} reasonsLabel={reasonsLabel} />}
         {/*
           The comment-text notice and its reconnect CTA are deliberately NOT
           rendered. Suppressed, not deleted.
@@ -132,7 +145,7 @@ export default function FacebookConnect({
         {needsReconnect && (
           <div data-edu='facebook-connect' className='w-fit'>
           <Btn
-            lbl={loading ? 'מעביר לפייסבוק...' : (reconnectNotice.action ?? SHARED.reconnect)}
+            lbl={loading ? t('settings.integrations.facebook.redirecting') : (reconnectNotice.action ?? t('settings.waAction.expired'))}
             icon={loading ? 'spinner' : 'facebook'}
             iconClassName={loading ? 'animate-spin' : undefined}
             disabled={loading}
@@ -142,7 +155,7 @@ export default function FacebookConnect({
           </div>
         )}
         <Btn
-          lbl={loading ? 'מנתק...' : 'נתק דף'}
+          lbl={loading ? t('settings.integrations.facebook.disconnecting') : t('settings.integrations.facebook.disconnect')}
           icon={loading ? 'spinner' : undefined}
           iconClassName={loading ? 'animate-spin' : undefined}
           variant='destructive'
@@ -156,7 +169,8 @@ export default function FacebookConnect({
           destructive
           onClose={() => setConfirmDisconnect(false)}
           onConfirm={performDisconnect}
-          msg={`לנתק את הדף "${connection.pageName}"?`}
+          msg={t('settings.integrations.facebook.disconnectConfirm', { name: connection.pageName })}
+          translated={translated}
         />
       </div>
     )
@@ -165,19 +179,19 @@ export default function FacebookConnect({
   // State B: OAuth done, page not yet selected
   if (pendingPages) {
     const selected = pendingPages.find((p) => p.id === selectedPageId)
-    const notice = facebookNotice(error)
+    const pickNotice = facebookNoticeFor(error, locale)
 
     return (
       <div className='grid gap-4'>
-        {notice && <ConnectionNotice notice={notice} />}
-        <p className='text-sm text-gray-600'>בחר את הדף שברצונך לחבר:</p>
-        <FormField lbl='דף פייסבוק'>
+        {pickNotice && <ConnectionNotice notice={pickNotice} reasonsLabel={reasonsLabel} />}
+        <p className='text-sm text-gray-600'>{t('settings.integrations.facebook.pickPage')}</p>
+        <FormField lbl={t('settings.integrations.facebook.pageLabel')}>
           <select
             className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
             value={selectedPageId}
             onChange={(e) => setSelectedPageId(e.target.value)}
           >
-            <option value=''>בחר דף...</option>
+            <option value=''>{t('settings.integrations.facebook.pagePlaceholder')}</option>
             {pendingPages.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -187,7 +201,7 @@ export default function FacebookConnect({
         </FormField>
         <div data-edu='facebook-connect' className='w-fit'>
         <Btn
-          lbl={loading ? 'מחבר דף...' : (notice?.action ?? 'חבר דף')}
+          lbl={loading ? t('settings.integrations.facebook.connectingPage') : (pickNotice?.action ?? t('settings.integrations.facebook.connectPage'))}
           icon={loading ? 'spinner' : 'facebook'}
           iconClassName={loading ? 'animate-spin' : undefined}
           size='medium'
@@ -207,18 +221,18 @@ export default function FacebookConnect({
   // and de-emphasize the retry (secondary style, recovery-framed label). Retry
   // stays available — the user is guided to fix the prerequisite first, not locked out.
   const urlNotice = inAppWarned
-    ? FACEBOOK_NOTICES.in_app_browser
+    ? notice(FACEBOOK_NOTICES.in_app_browser)
     : escalated
-      ? FACEBOOK_NOTICES.no_pages_repeat
-      : facebookNotice(urlError)
+      ? notice(FACEBOOK_NOTICES.no_pages_repeat)
+      : facebookNoticeFor(urlError, locale)
 
   return (
     <div className='grid gap-4'>
-      {urlNotice && <ConnectionNotice notice={urlNotice} />}
-      {!urlNotice && <p className='text-sm text-gray-500'>חבר את דף הפייסבוק שלך כדי לקבל לידים אוטומטית.</p>}
+      {urlNotice && <ConnectionNotice notice={urlNotice} reasonsLabel={reasonsLabel} />}
+      {!urlNotice && <p className='text-sm text-gray-500'>{t('settings.integrations.facebook.connectIntro')}</p>}
       <div data-edu='facebook-connect' className='w-fit'>
       <Btn
-        lbl={loading ? 'מעביר לפייסבוק...' : (urlNotice?.action ?? 'חבר חשבון פייסבוק')}
+        lbl={loading ? t('settings.integrations.facebook.redirecting') : (urlNotice?.action ?? t('settings.integrations.facebook.connectAccount'))}
         icon={loading ? 'spinner' : 'facebook'}
         iconClassName={loading ? 'animate-spin' : undefined}
         variant={escalated ? 'outline' : undefined}

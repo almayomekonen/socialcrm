@@ -12,19 +12,23 @@
  * that had just saved one — and pointed it at #card-setup, a section that is
  * only rendered when no card is billed, so the anchor resolved to nothing.
  */
-export default function PlanStatusBox({ trialActive, canAddFirstCard }: { trialActive: boolean; canAddFirstCard: boolean }) {
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+
+export default function PlanStatusBox({ trialActive, canAddFirstCard, locale = 'he' }: { trialActive: boolean; canAddFirstCard: boolean; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   return (
     <div className='mb-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex items-center justify-between gap-4'>
       <div>
-        <p className='text-lg font-semibold'>{trialActive ? 'מסלול נוכחי: Pro' : 'תוכנית: Free'}</p>
-        <p className='text-sm text-gray-500'>{trialActive ? 'סטטוס: פעיל' : 'סטטוס: לא פעיל'}</p>
+        <p className='text-lg font-semibold'>{trialActive ? t('settings.payment.plan.current') : t('settings.payment.plan.free')}</p>
+        <p className='text-sm text-gray-500'>{trialActive ? t('settings.payment.plan.statusActive') : t('settings.payment.plan.statusInactive')}</p>
       </div>
       {canAddFirstCard && (
         <a
           href='#card-setup'
           className='flex items-center min-w-fit justify-center font-medium rounded-md h-10 px-4 bg-solid text-white hover:bg-solid/85'
         >
-          הוספת אמצעי תשלום
+          {t('settings.payment.plan.addMethod')}
         </a>
       )}
     </div>

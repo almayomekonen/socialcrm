@@ -4,8 +4,10 @@ import { getFormData2 } from '@/lib/form/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { api } from '@/lib/funcs'
 import { updateUserInfoData } from '@/actions/usersNteams'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function LogoutMinutesForm({ user }) {
+  const t = useT()
   async function onSubmit(e) {
     const data = getFormData2(e)
     api(updateUserInfoData, [data, user.id])
@@ -15,15 +17,13 @@ export default function LogoutMinutesForm({ user }) {
     <form onSubmit={onSubmit}>
       <Select
         options={[
-          { name: '5 דקות', id: 5 },
-          { name: '10 דקות', id: 10 },
-          { name: '20 דקות', id: 20 },
-          { name: '30 דקות', id: 30 },
+          // The stored value is the number of minutes; only the wording follows the interface.
+          ...[5, 10, 20, 30].map((id) => ({ name: t('settings.account.security.minutes', { count: id }), id })),
         ]}
         defaultValue={user.logoutMinutes}
         name='logoutMinutes'
       />
-      <Btn lbl='שמירה' className='w-full mt-4' />
+      <Btn lbl={t('settings.account.security.save')} className='w-full mt-4' />
     </form>
   )
 }

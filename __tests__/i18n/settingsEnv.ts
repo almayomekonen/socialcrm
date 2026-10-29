@@ -210,10 +210,11 @@ export const SET_DEFAULTS = {
   billingAvailable: true,
 }
 
-type Env = typeof SET_DEFAULTS & { results: Record<string, unknown>; calls: unknown[][]; searchParams: Record<string, string> }
+/** `active`: a settings page is being built (the leak gate's shared mocks then answer from these fixtures). */
+type Env = typeof SET_DEFAULTS & { results: Record<string, unknown>; calls: unknown[][]; searchParams: Record<string, string>; active: boolean }
 
-export const setEnv: Env = { ...structuredClone(SET_DEFAULTS), results: {}, calls: [], searchParams: {} }
+export const setEnv: Env = { ...structuredClone(SET_DEFAULTS), results: {}, calls: [], searchParams: {}, active: false }
 
 export function resetSetEnv() {
-  Object.assign(setEnv, structuredClone(SET_DEFAULTS), { results: {}, calls: [], searchParams: {} })
+  Object.assign(setEnv, structuredClone(SET_DEFAULTS), { results: {}, calls: [], searchParams: {}, active: false })
 }

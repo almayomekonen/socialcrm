@@ -3,6 +3,7 @@
 import { Btn } from '@/lib/btns/Btn'
 import { QUICK_REPLY_MAX, QUICK_REPLY_TITLE_MAX, BUTTONS_MAX, BUTTON_TITLE_MAX } from '@/lib/facebook/messenger/structured'
 import type { Draft } from './savedReplyDraft'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The saved-reply editor (split from MessengerSavedReplies): title, body, quick
@@ -24,25 +25,26 @@ export default function SavedReplyForm({
   onSave: () => void
   onCancel: () => void
 }) {
+  const t = useT()
   return (
     <div className='grid gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3'>
       <div>
         <label htmlFor='sr-title' className='block text-sm font-medium text-gray-900'>
-          שם (מוצג לך בלבד)
+          {t('settings.messenger.replies.name')}
         </label>
         <input
           id='sr-title'
           value={draft.title}
           onChange={(e) => setField('title', e.target.value)}
           disabled={loading}
-          placeholder='לדוגמה: שעות פעילות'
+          placeholder={t('settings.messenger.replies.namePlaceholder')}
           className='mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
         />
       </div>
 
       <div>
         <label htmlFor='sr-body' className='block text-sm font-medium text-gray-900'>
-          תוכן ההודעה
+          {t('settings.messenger.replies.body')}
         </label>
         <textarea
           id='sr-body'
@@ -50,15 +52,15 @@ export default function SavedReplyForm({
           onChange={(e) => setField('body', e.target.value)}
           rows={3}
           disabled={loading}
-          placeholder='אנחנו פתוחים א׳-ה׳ בין 9:00 ל-17:00.'
+          placeholder={t('settings.messenger.replies.bodyPlaceholder')}
           className='mt-1 w-full resize-none rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
         />
       </div>
 
       <fieldset>
-        <legend className='text-sm font-medium text-gray-900'>תשובות מהירות (לא חובה)</legend>
+        <legend className='text-sm font-medium text-gray-900'>{t('settings.messenger.replies.quick')}</legend>
         <p className='mt-0.5 text-xs text-gray-500'>
-          כפתורי בחירה מהירים. לחיצה של הפונה מגיעה אליך כהודעה רגילה עם הטקסט שנבחר.
+          {t('settings.messenger.replies.quickHint')}
         </p>
         <div className='mt-1.5 grid gap-1.5'>
           {draft.quickReplies.map((value, i) => (
@@ -71,7 +73,7 @@ export default function SavedReplyForm({
                 setField('quickReplies', next)
               }}
               disabled={loading}
-              aria-label={`תשובה מהירה ${i + 1}`}
+              aria-label={t('settings.messenger.replies.quickLabel', { n: String(i + 1) })}
               className='w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
             />
           ))}
@@ -80,7 +82,7 @@ export default function SavedReplyForm({
               variant='ghost'
               size='small'
               icon='plus'
-              lbl='הוסף תשובה מהירה'
+              lbl={t('settings.messenger.replies.addQuick')}
               className='justify-self-start'
               onClick={() => setField('quickReplies', [...draft.quickReplies, ''])}
               disabled={loading}
@@ -90,8 +92,8 @@ export default function SavedReplyForm({
       </fieldset>
 
       <fieldset>
-        <legend className='text-sm font-medium text-gray-900'>כפתורי קישור (לא חובה)</legend>
-        <p className='mt-0.5 text-xs text-gray-500'>עד {BUTTONS_MAX} כפתורים שפותחים כתובת אינטרנט.</p>
+        <legend className='text-sm font-medium text-gray-900'>{t('settings.messenger.replies.links')}</legend>
+        <p className='mt-0.5 text-xs text-gray-500'>{t('settings.messenger.replies.linksHint', { count: String(BUTTONS_MAX) })}</p>
         <div className='mt-1.5 grid gap-1.5'>
           {draft.buttons.map((b, i) => (
             <div key={i} className='grid grid-cols-2 gap-1.5'>
@@ -103,8 +105,8 @@ export default function SavedReplyForm({
                   setField('buttons', next)
                 }}
                 disabled={loading}
-                placeholder='טקסט הכפתור'
-                aria-label={`טקסט כפתור ${i + 1}`}
+                placeholder={t('settings.messenger.replies.buttonText')}
+                aria-label={t('settings.messenger.replies.buttonTextLabel', { n: String(i + 1) })}
                 className='rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
               />
               <input
@@ -117,7 +119,7 @@ export default function SavedReplyForm({
                 disabled={loading}
                 dir='ltr'
                 placeholder='https://'
-                aria-label={`כתובת כפתור ${i + 1}`}
+                aria-label={t('settings.messenger.replies.buttonUrlLabel', { n: String(i + 1) })}
                 className='rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
               />
             </div>
@@ -127,7 +129,7 @@ export default function SavedReplyForm({
               variant='ghost'
               size='small'
               icon='plus'
-              lbl='הוסף כפתור'
+              lbl={t('settings.messenger.replies.addButton')}
               className='justify-self-start'
               onClick={() => setField('buttons', [...draft.buttons, { title: '', url: '' }])}
               disabled={loading}
@@ -138,10 +140,10 @@ export default function SavedReplyForm({
 
       <div>
         <label htmlFor='sr-attachment' className='block text-sm font-medium text-gray-900'>
-          קובץ מצורף לפי כתובת (לא חובה)
+          {t('settings.messenger.replies.attachmentUrl')}
         </label>
         <p className='mt-0.5 text-xs text-gray-500'>
-          כתובת https שפייסבוק יכול להוריד ממנה, למשל מחירון באתר שלך.
+          {t('settings.messenger.replies.attachmentHint')}
         </p>
         <div className='mt-1.5 grid grid-cols-[1fr_auto] gap-1.5'>
           <input
@@ -157,13 +159,13 @@ export default function SavedReplyForm({
             value={draft.attachmentType}
             onChange={(e) => setField('attachmentType', e.target.value as Draft['attachmentType'])}
             disabled={loading}
-            aria-label='סוג הקובץ המצורף'
+            aria-label={t('settings.messenger.replies.attachmentType')}
             className='rounded-md border border-gray-200 bg-white py-1.5 ps-2 pe-7 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary'
           >
-            <option value='file'>קובץ</option>
-            <option value='image'>תמונה</option>
-            <option value='video'>סרטון</option>
-            <option value='audio'>אודיו</option>
+            <option value='file'>{t('settings.messenger.replies.type.file')}</option>
+            <option value='image'>{t('settings.messenger.replies.type.image')}</option>
+            <option value='video'>{t('settings.messenger.replies.type.video')}</option>
+            <option value='audio'>{t('settings.messenger.replies.type.audio')}</option>
           </select>
         </div>
       </div>
@@ -175,8 +177,8 @@ export default function SavedReplyForm({
       )}
 
       <div className='flex gap-2'>
-        <Btn lbl={loading ? 'שומר…' : 'שמור תשובה שמורה'} onClick={onSave} disabled={loading} />
-        <Btn variant='ghost' lbl='ביטול' onClick={onCancel} disabled={loading} />
+        <Btn lbl={loading ? t('settings.messenger.replies.saving') : t('settings.messenger.replies.save')} onClick={onSave} disabled={loading} />
+        <Btn variant='ghost' lbl={t('settings.messenger.replies.cancel')} onClick={onCancel} disabled={loading} />
       </div>
     </div>
   )

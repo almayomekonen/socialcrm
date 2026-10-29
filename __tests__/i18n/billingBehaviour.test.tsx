@@ -301,7 +301,9 @@ describe('producers: Hebrew byte-identical, codes in, words out', () => {
       expect(f.options?.map((o) => o.value)).toEqual(src.options?.map((o) => o.value))
     })
     expect(hebrewIn(en.filter((f) => f.tier === 1).map((f) => [f.label, f.helpText, f.placeholder, f.options]))).toBe(false)
-    expect(en.filter((f) => f.tier === 2)).toEqual(fields.fieldsByTier([2]).map((f) => ({ ...f, options: undefined })))
+    // Tier 2 (settings → business details) is worded too since Phase E4; a Latin-script sample placeholder keeps the registry's.
+    expect(hebrewIn(en.filter((f) => f.tier === 2).map((f) => [f.label, f.helpText, f.placeholder]))).toBe(false)
+    expect(en.filter((f) => f.tier === 2).map((f) => [f.key, f.placeholder === fields.getFieldByKey(f.key)!.placeholder])).toEqual([['address', false], ['phone', true], ['email', true], ['img', true]])
     for (const m of messages) expect(localizeIssuerError(m as string, 'he')).toBe(m)
     expect(hebrewIn(messages.map((m) => localizeIssuerError(m as string, 'ar')))).toBe(false)
     expect(localizeIssuerError('server said no', 'en')).toBe('server said no')

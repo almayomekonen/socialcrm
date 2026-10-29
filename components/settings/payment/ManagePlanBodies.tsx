@@ -3,6 +3,14 @@
 import { Btn } from '@/lib/btns/Btn'
 import { formatDate } from '@/lib/dates'
 import { upgradeHref } from '@/lib/entitlement/upgradeHref'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+
+/** The access-end / next-charge date: Hebrew keeps `formatDate` (lib/dates), other languages the business-time-zone date. */
+function useDate() {
+  const t = useT()
+  return (iso: string) => (t.locale === 'he' ? formatDate(iso) : formatLeadDate(t.locale, iso))
+}
 
 /**
  * The manage-plan modal's two views (split from ManagePlanModal): the plan
@@ -36,6 +44,8 @@ export function ManageBody({
   // an access-end date; otherwise it renews and expiresAt is the next charge
   // date. What this state does NOT mean is that the standing order at the
   // payment provider has been stopped — see the label below.
+  const t = useT()
+  const date = useDate()
   const cancelling = status === 'cancelling'
   /**
    * ONE RULE FOR BOTH LABELS: "החיוב הבא" and "פעיל" are shown ONLY when the
@@ -63,33 +73,33 @@ export function ManageBody({
    */
   const renewing = !expired && status === 'active'
   const statusLabel = expired
-    ? 'המנוי הסתיים'
+    ? t('settings.payment.manage.statusExpired')
     : cancelling
-      ? 'בקשת הביטול נקלטה'
+      ? t('settings.payment.manage.statusCancelling')
       : status === 'inactive'
-        ? 'לא פעיל'
-        : 'פעיל'
+        ? t('settings.payment.manage.statusInactive')
+        : t('settings.payment.manage.statusActive')
   /**
    * There is no NEXT charge for a lapsed subscription, so the date is relabelled
    * as the end of access rather than suppressed — the customer still needs to
    * know when it ended, they just must not be told it is upcoming.
    */
-  const dateLabel = renewing ? 'החיוב הבא' : expired ? 'המנוי הסתיים ב' : 'גישה ל־Pro עד'
+  const dateLabel = renewing ? t('settings.payment.manage.nextCharge') : expired ? t('settings.payment.plan.endedOn') : t('settings.payment.plan.accessUntil')
 
   return (
     <>
-      <h2 className='text-xl font-bold'>מסלול Pro</h2>
+      <h2 className='text-xl font-bold'>{t('settings.payment.manage.title')}</h2>
 
       <div className='space-y-1 text-sm text-gray-700'>
         {expiresAtIso && (
           <p>
-            {dateLabel}: {formatDate(expiresAtIso)}
+            {dateLabel}: {date(expiresAtIso)}
           </p>
         )}
-        <p>סטטוס: {statusLabel}</p>
+        <p>{t('settings.payment.manage.status', { status: statusLabel })}</p>
       </div>
 
-      {!manageable && <p className='text-sm text-gray-500'>לא ניתן לנהל את המסלול הנוכחי</p>}
+      {!manageable && <p className='text-sm text-gray-500'>{t('settings.payment.manage.notManageable')}</p>}
 
       {error && <p className='text-sm text-red-700'>{error}</p>}
 
@@ -108,13 +118,13 @@ export function ManageBody({
             href={upgradeHref('manage_plan_modal')}
             className='press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            חידוש מנוי
+            {t('settings.payment.manage.renew')}
           </a>
         ) : null}
         {!expired && manageable && status === 'active' && (
           <Btn
             variant='destructive'
-            lbl={pending ? 'טוען...' : 'בטל מנוי'}
+            lbl={pending ? t('settings.payment.manage.loading') : t('settings.payment.manage.cancel')}
             disabled={pending}
             onClick={onAskCancel}
           />
@@ -122,14 +132,14 @@ export function ManageBody({
         {!expired && manageable && status === 'cancelling' && (
           <Btn
             variant='solid'
-            lbl={pending ? 'טוען...' : 'חידוש מסלול'}
+            lbl={pending ? t('settings.payment.manage.loading') : t('settings.payment.manage.resume')}
             disabled={pending}
             onClick={onResume}
           />
         )}
-        {!expired && !manageable && <Btn variant='destructive' lbl='בטל מנוי' disabled onClick={() => {}} />}
+        {!expired && !manageable && <Btn variant='destructive' lbl={t('settings.payment.manage.cancel')} disabled onClick={() => {}} />}
 
-        <Btn variant='outline' lbl='סגור' disabled={pending} onClick={onClose} />
+        <Btn variant='outline' lbl={t('settings.payment.manage.close')} disabled={pending} onClick={onClose} />
       </div>
     </>
   )
@@ -148,9 +158,11 @@ export function ConfirmCancelBody({
   onConfirm: () => void
   onBack: () => void
 }) {
+  const t = useT()
+  const date = useDate()
   return (
     <>
-      <h2 className='text-xl font-bold'>לבטל את מסלול ה־Pro?</h2>
+      <h2 className='text-xl font-bold'>{t('settings.payment.manage.confirmTitle')}</h2>
 
       {/*
         The access half of this sentence is verified — entitlement is driven by
@@ -161,7 +173,7 @@ export function ConfirmCancelBody({
       */}
       {expiresAtIso && (
         <p className='text-sm text-gray-700'>
-          בקשת הביטול תירשם, והגישה שלך ל־Pro תישאר פעילה עד {formatDate(expiresAtIso)}.
+          {t('settings.payment.manage.confirmBody', { date: date(expiresAtIso) })}
         </p>
       )}
 
@@ -170,11 +182,11 @@ export function ConfirmCancelBody({
       <div className='flex gap-3 justify-end pt-2'>
         <Btn
           variant='destructive'
-          lbl={pending ? 'טוען...' : 'בטל מנוי'}
+          lbl={pending ? t('settings.payment.manage.loading') : t('settings.payment.manage.cancel')}
           disabled={pending}
           onClick={onConfirm}
         />
-        <Btn variant='outline' lbl='חזור' disabled={pending} onClick={onBack} />
+        <Btn variant='outline' lbl={t('settings.payment.manage.back')} disabled={pending} onClick={onBack} />
       </div>
     </>
   )

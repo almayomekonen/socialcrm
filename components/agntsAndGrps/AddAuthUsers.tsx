@@ -6,8 +6,10 @@ import { SubmitButton } from '@/lib/btns/SubmitBtn'
 import { isAdmin } from '@/types/roles'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import { getFormData2 } from '@/lib/form/funcs'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function AddAuthUsersComp({ users, user, gavePerm }) {
+  const t = useT()
   async function onAction(e) {
     const data = getFormData2(e) as any
     if (data?.permUserId) await updateGavePerm(user.id, data.permUserId)
@@ -17,12 +19,12 @@ export default function AddAuthUsersComp({ users, user, gavePerm }) {
     <div className='  w-fit'>
       <div className='mb-4'>
         <p className='text-gray-600 text-sm'>
-          משתמש אשר תתן לו הרשאה יוכל לצפות בלידים שלך <br /> ולהוסיף לידים בשמך
+          {t('settings.account.perms.intro1')} <br /> {t('settings.account.perms.intro2')}
         </p>
       </div>
 
       <div className='mb-4'>
-        <p className='mb-1'>נציגים מורשים:</p>
+        <p className='mb-1'>{t('settings.account.perms.allowed')}</p>
         <div className='flex flex-wrap gap-1'>
           {gavePerm.map((gavePermUser) => {
             return (
@@ -36,9 +38,9 @@ export default function AddAuthUsersComp({ users, user, gavePerm }) {
       </div>
 
       <form onSubmit={onAction} className='grid gap-4'>
-        <SelectSearch name='permUserId' lbl='בחר נציג למתן הרשאה' options={users} />
+        <SelectSearch name='permUserId' lbl={t('settings.account.perms.pick')} options={users} />
 
-        <SubmitButton lbl='הוסף נציג להרשאות' disabled={isAdmin(user.role)} />
+        <SubmitButton lbl={t('settings.account.perms.add')} disabled={isAdmin(user.role)} />
       </form>
     </div>
   )
