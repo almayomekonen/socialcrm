@@ -51,6 +51,7 @@ export function leadGroupActions(): LeadActionItem[] {
  * resolved back to a code HERE, against the same list that rendered it, and
  * nothing downstream ever compares label text.
  */
-export function groupActionCode(optionValue: string): LeadActionCode | null {
-  return leadGroupActions().find((a) => a.label === optionValue)?.code ?? null
+/** A submitted `<option>` value back to its action code; anything else is not an action. */
+export function asLeadActionCode(optionValue: string): LeadActionCode | null {
+  return (LEAD_ACTION_CODES as readonly string[]).includes(optionValue) ? (optionValue as LeadActionCode) : null
 }

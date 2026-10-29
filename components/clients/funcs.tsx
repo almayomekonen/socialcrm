@@ -5,7 +5,7 @@ import { checkedIds } from '@/lib/table/funcs'
 import { Btn } from '@/lib/btns/Btn'
 import { setPosAndPop } from '@/lib/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
-import { groupActionCode, leadGroupActions, type LeadActionCode } from './table/leadActions'
+import { asLeadActionCode, leadGroupActions, type LeadActionCode } from './table/leadActions'
 
 export { getDealActionLabel } from './table/leadActions'
 
@@ -28,13 +28,14 @@ export function SelectClientGrpActions({ user }) {
 
     e.target.value = ''
     if (!ids.length) return setErrMsg('לא נבחרו רשומות מהטבלה')
-    const code = groupActionCode(val)
+    const code = asLeadActionCode(val)
     if (code) await GROUP_ACTION_HANDLERS[code](ids, user)
   }
 
   return (
     <>
-      <Select options={leadGroupActions().map((a) => a.label)} placeholder='פעולות' onChange={onGroupAction} />
+      {/* The option VALUE is the stable action code; only the visible text is a label. */}
+      <Select options={leadGroupActions().map((a) => ({ id: a.code, name: a.label }))} placeholder='פעולות' onChange={onGroupAction} />
       <ConfirmPop
         open={!!errMsg}
         hideCancel
