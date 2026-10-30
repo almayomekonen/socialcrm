@@ -30,6 +30,13 @@ const ALLOWED_SAME = new Set<string>([
   'leadTabs.billing.identity',
   // Pure placeholder pattern (an event source + Meta's referral ref); both parts come from elsewhere.
   'inbox.messenger.event.withRef',
+  // Pure placeholder patterns of the automations workspace (Phase E5b): an action
+  // word + a template title; an action title + the business's own subject; a
+  // condition's field, operator and value — every word comes from another key.
+  'admin.automations.library.cellLabel',
+  'admin.automationCatalog.sentence.withSubject',
+  'admin.automationCatalog.sentence.condition',
+  'admin.automationCatalog.sentence.conditionNoValue',
   // Marketing acronyms used as product names in every language (deal product list).
   'deals.product.seo',
   'deals.product.ppc',

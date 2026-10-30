@@ -10,7 +10,9 @@ import { connectionSetup, regenerateSecret } from '@/actions/automations/connect
 import type { SetupGuide } from '@/lib/automations/connectors/types'
 import type { ConnectionView, IntegrationView } from '@/lib/automations/connectors/overview'
 import SetupGuidePanel, { CopyRow } from './SetupGuidePanel'
-import { DELIVERY, HEALTH, errorMessage, timeAgo } from './copy'
+import { deliveryIn, errorMessageIn, healthIn, setupGuideIn, timeAgoIn } from './copy'
+import { eventTitleIn, localizeIntegration } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
 import SourceRow from './ConnectionSourceRow'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
@@ -36,16 +38,18 @@ export default function ConnectionDetails({
 }) {
   /** Connection credentials are Pro: provisioning mints a live API key. */
   const expired = useAccessDenied()
+  const t = useT()
+  const L = t.locale
   const promptConnection = () =>
     proToast({
-      title: 'ניהול חיבורים זמין עם Pro',
-      body: 'חידוש המנוי יחזיר את ניהול החיבורים.',
+      title: t('admin.connections.pro.title'),
+      body: t('admin.connections.pro.body'),
       source: 'connection_manage',
     })
-  const health = HEALTH[connection.health]
-  const delivery = DELIVERY[connection.delivery]
-  const last = timeAgo(connection.lastActivityAt)
-  const lastEvent = timeAgo(connection.lastEventAt)
+  const health = healthIn(connection.health, L)
+  const delivery = deliveryIn(connection.delivery, L)
+  const last = timeAgoIn(connection.lastActivityAt, L)
+  const lastEvent = timeAgoIn(connection.lastEventAt, L)
 
   const [setup, setSetup] = useState<{ guide: SetupGuide | null; webhookUrl: string } | null>(null)
   const [issuedSecret, setIssuedSecret] = useState<string | null>(null)
@@ -67,15 +71,15 @@ export default function ConnectionDetails({
     startRotate(async () => {
       if (expired) return promptConnection()
       const res = await regenerateSecret(connection.id)
-      if (res.ok === false) return toast('error', errorMessage(res.reason))
+      if (res.ok === false) return toast('error', errorMessageIn(res.reason, L))
       setIssuedSecret(res.secret)
-      toast('success', 'נוצר קוד סודי חדש')
+      toast('success', t('admin.connections.details.rotated'))
       onChanged()
     })
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='middle' label={connection.displayName} className='w-[520px] max-w-[92vw]'>
+    <ModalPop open onClose={onClose} pos='middle' label={connection.displayName} className='w-[520px] max-w-[92vw]' translated>
       {/*
         The dialog is a fixed-height column, not a growing block: ModalPop caps
         itself at 90vh and scrolls the WHOLE box, which scrolled the title out
@@ -95,7 +99,7 @@ export default function ConnectionDetails({
         <div className='flex items-start justify-between gap-3 shrink-0'>
           <div className='grid gap-0.5 min-w-0'>
             <h2 className='text-lg font-semibold text-dark truncate leading-tight'>{connection.displayName}</h2>
-            <p className='text-sm text-gray-500'>{view.integration.title}</p>
+            <p className='text-sm text-gray-500'>{localizeIntegration(view.integration, L).title}</p>
           </div>
           <span className='flex shrink-0 items-center gap-2'>
             <StatusBadge role={delivery.role} label={delivery.label} size='sm' />
@@ -113,22 +117,22 @@ export default function ConnectionDetails({
           {setup && (
             <>
               <section className='grid gap-3'>
-                <h3 className='text-sm font-semibold text-gray-800'>הגדרת החיבור</h3>
-                <SetupGuidePanel guide={setup.guide} webhookUrl={setup.webhookUrl} />
+                <h3 className='text-sm font-semibold text-gray-800'>{t('admin.connections.details.setup')}</h3>
+                <SetupGuidePanel guide={setupGuideIn(setup.guide, L)} webhookUrl={setup.webhookUrl} />
                 {issuedSecret ? (
                   <>
-                    <CopyRow label='קוד סודי חדש' value={issuedSecret} />
+                    <CopyRow label={t('admin.connections.details.newSecret')} value={issuedSecret} copyLabel={t('admin.connections.connect.copy')} copiedLabel={t('admin.connections.connect.copied')} />
                     <p className='text-sm text-amber-700'>
-                      הקוד מוצג פעם אחת בלבד. עדכנו אותו במערכת שלכם — עד אז לא יתקבלו נתונים.
+                      {t('admin.connections.details.secretOnce')}
                     </p>
                   </>
                 ) : (
                   <div className='flex items-center justify-between gap-3'>
-                    <span className='text-sm text-gray-500'>הקוד הסודי אינו ניתן לשחזור.</span>
+                    <span className='text-sm text-gray-500'>{t('admin.connections.details.secretLost')}</span>
                     <Btn
                       variant='outline'
                       size='small'
-                      lbl={rotating ? 'מייצר…' : 'יצירת קוד סודי חדש'}
+                      lbl={rotating ? t('admin.connections.details.rotating') : t('admin.connections.details.rotate')}
                       icon={rotating ? 'spinner' : 'rotate'}
                       iconClassName={rotating ? 'animate-spin' : undefined}
                       disabled={rotating}
@@ -143,14 +147,14 @@ export default function ConnectionDetails({
           )}
 
           <section className='grid gap-2'>
-            <h3 className='text-sm font-semibold text-gray-800'>מה החיבור הזה מאפשר</h3>
+            <h3 className='text-sm font-semibold text-gray-800'>{t('admin.connections.details.unlocks')}</h3>
             {view.unlocks.length === 0 ? (
-              <p className='text-sm text-gray-500'>עדיין אין אירועים שמשתמשים בחיבור הזה.</p>
+              <p className='text-sm text-gray-500'>{t('admin.connections.details.noUnlocks')}</p>
             ) : (
               <ul className='grid gap-1'>
                 {view.unlocks.map((e) => (
                   <li key={e.key} className='text-sm text-gray-600'>
-                    {e.title}
+                    {eventTitleIn(e.key, e.title, L)}
                   </li>
                 ))}
               </ul>
@@ -160,9 +164,9 @@ export default function ConnectionDetails({
           <Seperator className='my-0' />
 
           <section className='grid gap-2'>
-            <h3 className='text-sm font-semibold text-gray-800'>מקורות</h3>
+            <h3 className='text-sm font-semibold text-gray-800'>{t('admin.connections.details.sources')}</h3>
             {connection.sources.length === 0 ? (
-              <p className='text-sm text-gray-500'>עדיין לא זוהו מקורות. הם יופיעו כאן אחרי הפעילות הראשונה.</p>
+              <p className='text-sm text-gray-500'>{t('admin.connections.details.noSources')}</p>
             ) : (
               <ul className='grid gap-2'>
                 {connection.sources.map((s) => (
@@ -175,21 +179,23 @@ export default function ConnectionDetails({
           <Seperator className='my-0' />
 
           <section className='grid gap-2'>
-            <h3 className='text-sm font-semibold text-gray-800'>אוטומציות שמשתמשות בחיבור</h3>
+            <h3 className='text-sm font-semibold text-gray-800'>{t('admin.connections.details.automations')}</h3>
             <p className='text-sm text-gray-600'>
-              {connection.automations === 0 ? 'אף אוטומציה עדיין לא משתמשת בחיבור הזה.' : `${connection.automations} אוטומציות`}
+              {connection.automations === 0
+                ? t('admin.connections.details.noAutomations')
+                : t('admin.connections.details.automationsCount', { count: String(connection.automations) })}
             </p>
             {connection.automations > 0 && connection.health !== 'ok' && (
               <p className='text-sm text-red-600' role='alert'>
-                כל עוד החיבור אינו פעיל, האוטומציות האלה מסומנות כדורשות טיפול ולא יפעלו.
+                {t('admin.connections.details.usedAlert')}
               </p>
             )}
             <p className='text-sm text-gray-500'>
-              {lastEvent ? `אירוע אחרון ${lastEvent}` : 'עדיין לא התקבל אירוע'}
-              {connection.eventCount > 0 ? ` · ${connection.eventCount} אירועים בסך הכול` : ''}
+              {lastEvent ? t('admin.connections.details.lastEvent', { ago: lastEvent }) : t('admin.connections.details.noEvent')}
+              {connection.eventCount > 0 ? t('admin.connections.details.eventCount', { count: String(connection.eventCount) }) : ''}
             </p>
             <p className='text-sm text-gray-500'>
-              {last ? `פעילות אוטומציות אחרונה ${last}` : 'עדיין לא נרשמה פעילות אוטומציות'}
+              {last ? t('admin.connections.details.lastActivity', { ago: last }) : t('admin.connections.details.noActivity')}
             </p>
           </section>
         </div>

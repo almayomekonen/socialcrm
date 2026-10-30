@@ -1,8 +1,11 @@
 'use client'
 
 import Icon from '@/lib/Icon'
-import { IDENTITY_PROBLEM_COPY, type IdentityProblem } from '@/lib/automations/identity'
-import { timeSaved } from '@/lib/automations/dashboardDemo'
+import type { IdentityProblem } from '@/lib/automations/identity'
+import { MINUTES_SAVED_PER_RUN, timeSaved } from '@/lib/automations/dashboardDemo'
+import { identityProblemIn } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
 import AutomationCard, { runCount, type AutomationCardData } from './AutomationCard'
 
 /**
@@ -39,17 +42,17 @@ type Props = {
 }
 
 /** Relative time over the newest mutation — the panel's "as of". */
-function lastTouched(automations: AutomationCardData[], now: number): string | null {
+function lastTouched(automations: AutomationCardData[], now: number, t: Translator): string | null {
   const stamps = automations
     .map((a) => (a.updatedAt ? new Date(a.updatedAt).getTime() : NaN))
     .filter((t) => Number.isFinite(t))
   if (stamps.length === 0) return null
   const mins = Math.max(0, Math.round((now - Math.max(...stamps)) / 60000))
-  if (mins < 1) return 'עודכן עכשיו'
-  if (mins < 60) return `עודכן לפני ${mins} דק׳`
+  if (mins < 1) return t('admin.automations.center.touched.now')
+  if (mins < 60) return t('admin.automations.center.touched.minutes', { count: String(mins) })
   const hours = Math.round(mins / 60)
-  if (hours < 24) return `עודכן לפני ${hours} ש׳`
-  return `עודכן לפני ${Math.round(hours / 24)} ימים`
+  if (hours < 24) return t('admin.automations.center.touched.hours', { count: String(hours) })
+  return t('admin.automations.center.touched.days', { count: String(Math.round(hours / 24)) })
 }
 
 export default function AutomationControlCenter({
@@ -71,16 +74,17 @@ export default function AutomationControlCenter({
   const active = automations.filter((a) => a.status === 'active')
   const drafts = automations.filter((a) => a.status === 'draft')
   const failing = automations.filter((a) => a.counts.failed > 0 || a.connectionProblem === true)
+  const t = useT()
   const runs = automations.reduce((n, a) => n + runCount(a.counts), 0)
-  const saved = timeSaved(runs)
+  const saved = t.locale === 'he' ? timeSaved(runs) : savedIn(runs, t)
 
   const state = failing.length > 0 ? 'error' : active.length > 0 ? 'ok' : 'idle'
-  const stateLabel = state === 'error' ? 'דורש טיפול' : state === 'ok' ? 'הכול פועל' : 'אין אוטומציה פעילה'
-  const touched = lastTouched(automations, now)
+  const stateLabel = t(state === 'error' ? 'admin.automations.center.state.error' : state === 'ok' ? 'admin.automations.center.state.ok' : 'admin.automations.center.state.idle')
+  const touched = lastTouched(automations, now, t)
 
   const counts = [
-    active.length > 0 ? `${active.length} פעילות` : null,
-    drafts.length > 0 ? `${drafts.length} טיוטות` : null,
+    active.length > 0 ? t('admin.automations.center.active', { count: String(active.length) }) : null,
+    drafts.length > 0 ? t('admin.automations.center.drafts', { count: String(drafts.length) }) : null,
   ].filter(Boolean)
 
   return (
@@ -93,13 +97,13 @@ export default function AutomationControlCenter({
     <aside className='flex w-full flex-none flex-col gap-9 border-e border-border bg-[#fcfcfd] px-8.5 pb-10 pt-6 desktop:w-94'>
       {observationMode && (
         <p className='rounded-[10px] bg-[#f1f2f5] px-3.5 py-3 text-[13px] leading-[1.55] text-[#6b7a8d]'>
-          מצב תצפית. SocialCRM מתעדת מה היה נשלח, בלי לשלוח בפועל.
+          {t('admin.automations.center.observation')}
         </p>
       )}
       {identityProblem && (
         <div className='flex items-start gap-2 rounded-[10px] bg-warning-bg px-3.5 py-3 text-[13px] leading-[1.55] text-warning-text' role='alert'>
           <Icon name='triangle-exclamation' type='reg' className='mt-0.5 size-4 shrink-0 bg-warning' />
-          {IDENTITY_PROBLEM_COPY[identityProblem]}
+          {identityProblemIn(identityProblem, t.locale)}
         </div>
       )}
 
@@ -121,31 +125,31 @@ export default function AutomationControlCenter({
       </div>
 
       <div className='flex flex-col gap-2.5'>
-        <p className='text-[33px] font-semibold leading-[1.15] tracking-[-0.035em] text-ink'>{handled} פניות</p>
-        <p className='text-[14.5px] leading-[1.6] text-[#8b98a8]'>טופלו היום על ידי SocialCRM, בלי שנגעתם בהן.</p>
+        <p className='text-[33px] font-semibold leading-[1.15] tracking-[-0.035em] text-ink'>{t('admin.automations.center.handled', { count: String(handled) })}</p>
+        <p className='text-[14.5px] leading-[1.6] text-[#8b98a8]'>{t('admin.automations.center.handledBody')}</p>
       </div>
 
       <div className='flex min-h-0 flex-col gap-3.5'>
         <div className='flex items-baseline justify-between pb-0.5'>
-          <h2 className='text-[11.5px] font-semibold tracking-[0.14em] text-[#aab3c0]'>האוטומציות שלי</h2>
+          <h2 className='text-[11.5px] font-semibold tracking-[0.14em] text-[#aab3c0]'>{t('admin.automations.center.mine')}</h2>
           {counts.length > 0 && <span className='text-[13px] text-[#c2c9d4]'>{counts.join(' · ')}</span>}
         </div>
 
         {automations.length === 0 ? (
           <div className='flex flex-col items-start gap-3'>
             <p className='text-[14px] leading-[1.6] text-[#8b98a8]'>
-              עוד לא הותקנה אוטומציה. בחרו אחת מהספרייה, או בנו אחת משלכם.
+              {t('admin.automations.center.none')}
             </p>
             <button
               type='button'
               onClick={onCreate}
               className='text-[13.5px] font-semibold text-primary-text hover:underline'
             >
-              אוטומציה חדשה
+              {t('admin.automations.center.create')}
             </button>
           </div>
         ) : visible.length === 0 ? (
-          <p className='text-[13.5px] text-[#aab3c0]'>אין אוטומציה שמתאימה לחיפוש.</p>
+          <p className='text-[13.5px] text-[#aab3c0]'>{t('admin.automations.center.noMatch')}</p>
         ) : (
           <div className='flex min-h-0 flex-col overflow-y-auto'>
             {visible.map((a) => (
@@ -167,16 +171,16 @@ export default function AutomationControlCenter({
 
       {waiting > 0 && (
         <div className='flex flex-col gap-3 border-t border-[#eeeff2] pt-7'>
-          <h2 className='text-[11.5px] font-semibold tracking-[0.14em] text-[#aab3c0]'>המלצה</h2>
+          <h2 className='text-[11.5px] font-semibold tracking-[0.14em] text-[#aab3c0]'>{t('admin.automations.center.recommendation')}</h2>
           <p className='text-[17px] font-semibold leading-normal tracking-[-0.012em] text-ink'>
-            {waiting} לידים עדיין ממתינים לתשובה
+            {t('admin.automations.center.waiting', { count: String(waiting) })}
           </p>
           <p className='text-[14.5px] leading-[1.65] text-[#8b98a8]'>
-            מענה ראשוני אוטומטי יטפל בהם מיד, גם כשאתם עסוקים.
+            {t('admin.automations.center.waitingBody')}
           </p>
           <div className='flex items-center gap-4 pt-1'>
             <button type='button' onClick={onCreate} className='text-[13.5px] font-semibold text-ink hover:underline'>
-              בנו אחת
+              {t('admin.automations.center.buildOne')}
             </button>
           </div>
         </div>
@@ -184,11 +188,24 @@ export default function AutomationControlCenter({
 
       {runs > 0 && (
         <div className='mt-auto flex flex-col gap-1.5 border-t border-[#eeeff2] pt-7'>
-          <h2 className='text-[11.5px] font-semibold tracking-[0.14em] text-[#aab3c0]'>נחסך השבוע</h2>
+          <h2 className='text-[11.5px] font-semibold tracking-[0.14em] text-[#aab3c0]'>{t('admin.automations.center.savedTitle')}</h2>
           <p className='text-[26px] font-semibold tracking-[-0.02em] text-ink'>{saved.value}</p>
           <p className='text-[12.5px] text-[#b3bbc6]'>{saved.basis}</p>
         </div>
       )}
     </aside>
   )
+}
+
+/**
+ * `timeSaved` (lib/automations/dashboardDemo, used as is in Hebrew) worded in
+ * another interface language: the same estimate and the same rounding.
+ */
+function savedIn(runs: number, t: Translator): { value: string; basis: string } {
+  const mins = runs * MINUTES_SAVED_PER_RUN
+  const value =
+    mins >= 60
+      ? t('admin.automations.center.savedHours', { count: String(Math.round((mins / 60) * 10) / 10) })
+      : t('admin.automations.center.savedMinutes', { count: String(mins) })
+  return { value, basis: t('admin.automations.center.savedBasis', { count: String(MINUTES_SAVED_PER_RUN) }) }
 }

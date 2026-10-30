@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
@@ -19,7 +19,10 @@ import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
 import { createAutomation, updateAutomation } from '@/actions/automations/manage'
 import { sendTestEmail } from '@/actions/automations/sendTest'
-import { errorMessage as msg } from './sheetOptions'
+import { errorMessageIn } from './sheetOptions'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { localizeRequirement } from '@/lib/automations/catalogI18n'
+import { sheetDisplay } from './sheetDisplay'
 import ConditionsEditor from './ConditionsEditor'
 import { useAutomationSheetDraft } from './useAutomationSheetDraft'
 
@@ -82,6 +85,12 @@ export default function AutomationSheet({
   const [pending, startTransition] = useTransition()
   const [testing, startTest] = useTransition()
 
+  // What the sections SHOW, in the interface language (sheetDisplay.ts).
+  const t = useT()
+  const L = t.locale
+  const msg = (reason: string) => errorMessageIn(reason, L)
+  const shown = useMemo(() => sheetDisplay({ grouped, event, actions, action, anchors, chips }, L), [L, grouped, event, actions, action, anchors, chips])
+
   /**
    * TIER 2. The definition stays fully editable to read and explore; saving is
    * what arms an automation to send, so that is where the gate belongs.
@@ -93,7 +102,7 @@ export default function AutomationSheet({
     startTransition(async () => {
       const res = draft.id ? await updateAutomation(draft.id, payload()) : await createAutomation(payload())
       if (res.ok === false) return setError(msg(res.reason))
-      toast('success', draft.id ? 'האוטומציה עודכנה' : 'האוטומציה נשמרה כטיוטה')
+      toast('success', draft.id ? t('admin.automationSheet.updated') : t('admin.automationSheet.saved'))
       onSaved()
     })
   }
@@ -103,8 +112,8 @@ export default function AutomationSheet({
     // other spend. Answered as a billing prompt before the request is made.
     if (proLocked) {
       return proToast({
-        title: 'שליחת אימייל בדיקה זמינה עם Pro',
-        body: 'חידוש המנוי יחזיר את שליחת הבדיקות.',
+        title: t('admin.automationSheet.pro.title'),
+        body: t('admin.automationSheet.pro.body'),
         source: 'automation_test_send',
       })
     }
@@ -117,24 +126,24 @@ export default function AutomationSheet({
         ctaUrl: cta?.url ?? null,
       })
       if (res.ok === false) return setError(msg(res.reason))
-      toast('success', 'אימייל הבדיקה נשלח אליך')
+      toast('success', t('admin.automationSheet.testSent'))
     })
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='top' label={draft.id ? 'עריכת אוטומציה' : 'אוטומציה חדשה'}>
+    <ModalPop open onClose={onClose} pos='top' label={draft.id ? t('admin.automationSheet.editTitle') : t('admin.automationSheet.newTitle')} translated>
       <div className='grid gap-5 w-[min(90vw,560px)] pt-2'>
-        <h2 className='text-lg font-semibold text-gray-800'>{draft.id ? 'עריכת אוטומציה' : 'אוטומציה חדשה'}</h2>
+        <h2 className='text-lg font-semibold text-gray-800'>{draft.id ? t('admin.automationSheet.editTitle') : t('admin.automationSheet.newTitle')}</h2>
 
-        <Input lbl='שם האוטומציה' value={name} onChange={(e) => d.setName(e.target.value)} />
+        <Input lbl={t('admin.automationSheet.name')} value={name} onChange={(e) => d.setName(e.target.value)} />
 
         <Seperator className='my-0' />
 
         <AutomationTriggerSection
-          grouped={grouped}
-          event={event}
+          grouped={shown.grouped}
+          event={shown.event}
           eventKey={eventKey}
-          locked={locked}
+          locked={localizeRequirement(locked, L)}
           eligibleConnections={eligibleConnections}
           boundConnectionId={boundConnectionId}
           parameters={parameters}
@@ -148,19 +157,19 @@ export default function AutomationSheet({
 
         <Seperator className='my-0' />
 
-        <ConditionsEditor event={event} conditions={conditions} onChange={d.setConditions} />
+        <ConditionsEditor event={shown.event} conditions={conditions} onChange={d.setConditions} />
 
         <Seperator className='my-0' />
 
         <AutomationActionSection
-          actions={actions}
-          action={action}
+          actions={shown.actions}
+          action={shown.action}
           actionKey={actionKey}
           onActionKeyChange={d.setChosenActionKey}
           subject={subject}
           body={body}
           cta={cta}
-          chips={chips}
+          chips={shown.chips}
           subjectRef={d.subjectRef}
           bodyRef={d.bodyRef}
           templateId={templateId}
@@ -181,7 +190,7 @@ export default function AutomationSheet({
 
         <Seperator className='my-0' />
 
-        <AutomationTimingSection timing={timing} anchors={anchors} onChange={d.setTiming} />
+        <AutomationTimingSection timing={timing} anchors={shown.anchors} onChange={d.setTiming} />
 
         <Seperator className='my-0' />
 
@@ -201,11 +210,12 @@ export default function AutomationSheet({
             <SubscriptionExpiredState
               mode='inline'
               source='automation_save'
-              feature='חידוש המנוי מחזיר את הפעלת האוטומציות'
+              feature={t('admin.automations.expiredFeature')}
+              translated
             />
           ) : (
             <Btn
-              lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור אוטומציה'}
+              lbl={pending ? t('admin.automationSheet.saving') : draft.id ? t('admin.automationSheet.saveChanges') : t('admin.automationSheet.save')}
               icon={pending ? 'spinner' : 'floppy-disk'}
               iconClassName={pending ? 'animate-spin' : undefined}
               disabled={pending || testing || !!locked}
@@ -216,7 +226,7 @@ export default function AutomationSheet({
           {action?.testable && (
             <Btn
               variant='outline'
-              lbl={testing ? 'שולח…' : 'שלח אליי בדיקה'}
+              lbl={testing ? t('admin.automationSheet.sending') : t('admin.automationSheet.test')}
               icon={testing ? 'spinner' : 'paper-plane'}
               iconClassName={testing ? 'animate-spin' : undefined}
               disabled={pending || testing}

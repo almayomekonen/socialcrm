@@ -11,7 +11,9 @@ import { intakeErrorCopy } from '@/lib/automations/connectors/intakeErrors'
 import type { ConnectionView, IntegrationView } from '@/lib/automations/connectors/overview'
 import ConnectAction from './ConnectAction'
 import ConnectionDetails from './ConnectionDetails'
-import { DELIVERY, HEALTH, STRATEGY, timeAgo } from './copy'
+import { deliveryIn, healthIn, strategyIn, timeAgoIn } from './copy'
+import { eventTitleIn, localizeIntegration } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 /**
@@ -33,26 +35,30 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 export default function IntegrationConnectionCard({ view, onChanged }: { view: IntegrationView; onChanged: () => void }) {
   /** Connection credentials are Pro: provisioning mints a live API key. */
   const expired = useAccessDenied()
+  const t = useT()
+  const L = t.locale
   const promptConnection = () =>
     proToast({
-      title: 'ניהול חיבורים זמין עם Pro',
-      body: 'חידוש המנוי יחזיר את ניהול החיבורים.',
+      title: t('admin.connections.pro.title'),
+      body: t('admin.connections.pro.body'),
       source: 'connection_manage',
     })
   const [details, setDetails] = useState<ConnectionView | null>(null)
   const [confirm, setConfirm] = useState<ConnectionView | null>(null)
   const [pending, start] = useTransition()
 
-  const { integration, connections, connected, needsAttention } = view
-  const strategy = STRATEGY[integration.auth]
+  const { connections, connected, needsAttention } = view
+  /** Shown words only; the connect flow and the routing read `view.integration` itself. */
+  const integration = localizeIntegration(view.integration, L)
+  const strategy = strategyIn(integration.auth, L)
 
   function disconnect(connection: ConnectionView) {
     start(async () => {
       if (expired) return promptConnection()
       const res = await revokeConnection(connection.id)
       setConfirm(null)
-      if (!res.ok) return toast('error', 'הניתוק נכשל. נסו שוב.')
-      toast('success', 'החיבור נותק')
+      if (!res.ok) return toast('error', t('admin.connections.card.disconnectFailed'))
+      toast('success', t('admin.connections.card.disconnected'))
       onChanged()
     })
   }
@@ -65,18 +71,20 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
           {/* h3: the page owns h1 and its section heading owns the h2 above this card. */}
           <h3 className='text-lg font-bold text-dark truncate'>{integration.title}</h3>
         </div>
-        {connected && <StatusBadge role='success' label='מחובר' size='sm' />}
-        {needsAttention && <StatusBadge role='error' label='דורש טיפול' size='sm' />}
+        {connected && <StatusBadge role='success' label={t('admin.connections.card.connected')} size='sm' />}
+        {needsAttention && <StatusBadge role='error' label={t('admin.connections.card.needsAttention')} size='sm' />}
       </div>
 
       {/* The description IS the catalog: what connecting this actually buys. */}
       <p className='text-sm text-gray-600 leading-relaxed'>
-        {view.unlocks.length > 0 ? `מאפשר אוטומציות על: ${view.unlocks.map((e) => e.title).join(' · ')}` : strategy.how}
+        {view.unlocks.length > 0
+          ? t('admin.connections.card.unlocks', { events: view.unlocks.map((e) => eventTitleIn(e.key, e.title, L)).join(' · ') })
+          : strategy.how}
       </p>
 
       {connections.length === 0 && (
         <div className='flex items-center justify-between gap-3'>
-          <span className='text-sm text-gray-400'>{strategy.needsConnection ? 'לא מחובר' : 'לא נדרש חיבור'}</span>
+          <span className='text-sm text-gray-400'>{strategy.needsConnection ? t('admin.connections.card.notConnected') : t('admin.connections.card.noConnectionNeeded')}</span>
           <ConnectAction
             integrationKey={integration.key}
             integrationTitle={integration.title}
@@ -90,10 +98,10 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
       {connections.length > 0 && (
         <ul className='grid gap-3'>
           {connections.map((c) => {
-            const health = HEALTH[c.health]
-            const delivery = DELIVERY[c.delivery]
-            const last = timeAgo(c.lastActivityAt)
-            const lastEvent = timeAgo(c.lastEventAt)
+            const health = healthIn(c.health, L)
+            const delivery = deliveryIn(c.delivery, L)
+            const last = timeAgoIn(c.lastActivityAt, L)
+            const lastEvent = timeAgoIn(c.lastEventAt, L)
             return (
               <li key={c.id} className='grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-3'>
                 <div className='flex items-center justify-between gap-3'>
@@ -116,7 +124,7 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
                 */}
                 {c.delivery === 'rejected' &&
                   (() => {
-                    const copy = intakeErrorCopy(c.lastRejectionReason)
+                    const copy = intakeErrorCopy(c.lastRejectionReason, L)
                     if (!copy) return null
                     return (
                       <div className='grid gap-2 rounded-md border border-red-200 bg-red-50 p-3' role='alert'>
@@ -132,21 +140,21 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
                   })()}
 
                 <p className='text-sm text-gray-500'>
-                  {c.sources.length === 1 ? 'מקור אחד' : `${c.sources.length} מקורות`}
+                  {c.sources.length === 1 ? t('admin.connections.card.sourcesOne') : t('admin.connections.card.sourcesMany', { count: String(c.sources.length) })}
                   {' · '}
-                  {c.automations === 1 ? 'אוטומציה אחת' : `${c.automations} אוטומציות`}
-                  {lastEvent ? ` · אירוע אחרון ${lastEvent}` : ''}
-                  {last ? ` · פעילות אחרונה ${last}` : ''}
+                  {c.automations === 1 ? t('admin.connections.card.automationsOne') : t('admin.connections.card.automationsMany', { count: String(c.automations) })}
+                  {lastEvent ? t('admin.connections.card.lastEvent', { ago: lastEvent }) : ''}
+                  {last ? t('admin.connections.card.lastActivity', { ago: last }) : ''}
                 </p>
 
                 {c.automations > 0 && c.health !== 'ok' && (
                   <p className='text-sm text-red-600' role='alert'>
-                    האוטומציות שמשתמשות בחיבור הזה מסומנות כדורשות טיפול.
+                    {t('admin.connections.card.usedAlert')}
                   </p>
                 )}
 
                 <div className='flex flex-wrap items-center gap-2'>
-                  <Btn variant='ghost' size='small' lbl='פרטים' icon='eye' onClick={() => setDetails(c)} />
+                  <Btn variant='ghost' size='small' lbl={t('admin.connections.card.details')} icon='eye' onClick={() => setDetails(c)} />
                   <ConnectAction
                     integrationKey={integration.key}
                     integrationTitle={integration.title}
@@ -158,7 +166,7 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
                     <Btn
                       variant='ghost'
                       size='small'
-                      lbl='ניתוק'
+                      lbl={t('admin.connections.card.disconnect')}
                       icon='link-slash'
                       disabled={pending}
                       onClick={() => setConfirm(c)}
@@ -179,11 +187,12 @@ export default function IntegrationConnectionCard({ view, onChanged }: { view: I
         onConfirm={() => confirm && disconnect(confirm)}
         msg={
           confirm && confirm.automations > 0
-            ? `ניתוק "${confirm.displayName}" יסמן ${confirm.automations} אוטומציות כדורשות טיפול, והן יפסיקו לפעול עד לחיבור מחדש.`
-            : `ניתוק "${confirm?.displayName ?? ''}" יבטל את האירועים שהחיבור הזה מאפשר.`
+            ? t('admin.connections.card.confirmUsed', { name: confirm.displayName, count: String(confirm.automations) })
+            : t('admin.connections.card.confirm', { name: confirm?.displayName ?? '' })
         }
-        confirmLbl='ניתוק'
+        confirmLbl={t('admin.connections.card.disconnect')}
         destructive
+        translated
       />
     </div>
   )

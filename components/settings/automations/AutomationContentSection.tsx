@@ -3,6 +3,7 @@
 import { type RefObject } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { Input } from '@/lib/form'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The authored content of an automation: subject, body, variable chips, and the
@@ -40,7 +41,8 @@ export default function AutomationContentSection({
   body: string
   /** Null means the block is not part of this email. */
   cta: CtaDraft | null
-  chips: readonly { token: string; field: string }[]
+  /** `token` is what is inserted (and stored); `label` what the chip says (default: the token). */
+  chips: readonly { token: string; field: string; label?: string }[]
   subjectRef: RefObject<(HTMLInputElement & HTMLTextAreaElement) | null>
   bodyRef: RefObject<(HTMLInputElement & HTMLTextAreaElement) | null>
   onFocusField: (field: 'subject' | 'body') => void
@@ -49,13 +51,14 @@ export default function AutomationContentSection({
   onCtaChange: (next: CtaDraft | null) => void
   onInsertToken: (token: string) => void
 }) {
+  const t = useT()
   return (
     <section className='grid gap-3'>
       <h3 className='text-sm font-semibold text-gray-800'>{title}</h3>
 
       <Input
         ref={subjectRef}
-        lbl='נושא האימייל'
+        lbl={t('admin.automationCatalog.param.subject')}
         value={subject}
         onFocus={() => onFocusField('subject')}
         onChange={(e) => onSubjectChange(e.target.value)}
@@ -65,7 +68,7 @@ export default function AutomationContentSection({
       <Input
         ref={bodyRef}
         as='textarea'
-        lbl='תוכן האימייל'
+        lbl={t('admin.automationCatalog.param.body')}
         value={body}
         rows={8}
         onFocus={() => onFocusField('body')}
@@ -73,29 +76,29 @@ export default function AutomationContentSection({
       />
 
       <div className='flex flex-wrap items-center gap-2'>
-        <span className='text-sm text-gray-500'>הוספת פרטים:</span>
+        <span className='text-sm text-gray-500'>{t('admin.automationSheet.content.insert')}</span>
         {chips.map((c) => (
-          <Btn key={c.field} variant='outline' size='small' lbl={c.token} onClick={() => onInsertToken(c.token)} />
+          <Btn key={c.field} variant='outline' size='small' lbl={c.label ?? c.token} onClick={() => onInsertToken(c.token)} />
         ))}
       </div>
 
       {cta ? (
         <div className='grid gap-3 rounded-md border border-gray-200 p-3'>
           <div className='flex items-center justify-between gap-2'>
-            <h4 className='text-sm font-semibold text-gray-800'>כפתור בתוך האימייל</h4>
-            <Btn variant='ghost' size='small' lbl='הסרת הכפתור' onClick={() => onCtaChange(null)} />
+            <h4 className='text-sm font-semibold text-gray-800'>{t('admin.automationSheet.content.ctaHeading')}</h4>
+            <Btn variant='ghost' size='small' lbl={t('admin.automationSheet.content.ctaRemove')} onClick={() => onCtaChange(null)} />
           </div>
           <Input
-            lbl='טקסט הכפתור'
+            lbl={t('admin.automationCatalog.param.ctaLabel.label')}
             value={cta.label}
             maxLength={40}
             onChange={(e) => onCtaChange({ ...cta, label: e.target.value })}
           />
           <Input
-            lbl='קישור הכפתור'
+            lbl={t('admin.automationCatalog.param.ctaUrl')}
             value={cta.url}
             placeholder='https://'
-            info='הקישור חייב להתחיל ב-https://'
+            info={t('admin.automationSheet.content.ctaInfo')}
             onChange={(e) => onCtaChange({ ...cta, url: e.target.value })}
           />
         </div>
@@ -104,7 +107,7 @@ export default function AutomationContentSection({
           <Btn
             variant='outline'
             size='small'
-            lbl='הוספת כפתור לאימייל'
+            lbl={t('admin.automationSheet.content.ctaAdd')}
             onClick={() => onCtaChange({ label: '', url: '' })}
           />
         </div>

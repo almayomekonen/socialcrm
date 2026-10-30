@@ -1,6 +1,10 @@
 import type { AuthStrategy, ConnectionHealth, SourceSubscriptionState } from '@/lib/automations/catalog/vocabularies'
 import type { DeliveryState } from '@/lib/automations/connectors/overview'
 import type { StatusRole } from '@/lib/StatusBadge'
+import type { SetupGuide } from '@/lib/automations/connectors/types'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Every user-facing string on the Connections page, keyed by a CLOSED
@@ -115,4 +119,116 @@ export function timeAgo(iso: string | null): string | null {
   if (hours < 24) return `לפני ${hours} שעות`
   const days = Math.floor(hours / 24)
   return days === 1 ? 'אתמול' : `לפני ${days} ימים`
+}
+
+// ── The same copy in the interface language (Phase E5b) ─────────────────────
+// Display only. Hebrew returns the maps above exactly; other languages word
+// the same CODE from the catalog (`admin.connections.*`). Roles, codes and
+// the order of every decision are unchanged.
+
+const HEALTH_KEYS: Record<ConnectionHealth, MessageKey> = {
+  ok: 'admin.connections.health.ok',
+  needs_reauth: 'admin.connections.health.needs_reauth',
+  degraded: 'admin.connections.health.degraded',
+  revoked: 'admin.connections.health.revoked',
+}
+const SUBSCRIPTION_KEYS: Record<SourceSubscriptionState, MessageKey> = {
+  subscribed: 'admin.connections.subscription.subscribed',
+  pending: 'admin.connections.subscription.pending',
+  failed: 'admin.connections.subscription.failed',
+}
+const HOW_KEYS: Record<AuthStrategy, MessageKey> = {
+  oauth2: 'admin.connections.strategy.oauth2',
+  api_key: 'admin.connections.strategy.apiKey.how',
+  embedded_signup: 'admin.connections.strategy.embeddedSignup',
+  none: 'admin.connections.strategy.none',
+}
+const DELIVERY_KEYS: Record<DeliveryState, { label: MessageKey; hint?: MessageKey }> = {
+  disconnected: { label: 'admin.connections.delivery.disconnected.label', hint: 'admin.connections.delivery.disconnected.hint' },
+  never_received: { label: 'admin.connections.delivery.neverReceived.label', hint: 'admin.connections.delivery.neverReceived.hint' },
+  receiving: { label: 'admin.connections.delivery.receiving' },
+  rejected: { label: 'admin.connections.delivery.rejected.label', hint: 'admin.connections.delivery.rejected.hint' },
+  unknown: { label: 'admin.connections.delivery.unknown.label', hint: 'admin.connections.delivery.unknown.hint' },
+}
+const ERROR_KEYS: Record<string, MessageKey> = {
+  forbidden: 'admin.connections.error.forbidden',
+  integration_unknown: 'admin.connections.error.integration_unknown',
+  wrong_auth_strategy: 'admin.connections.error.wrong_auth_strategy',
+  site_url_invalid: 'admin.connections.error.site_url_invalid',
+  connection_unknown: 'admin.connections.error.connection_unknown',
+  not_available: 'admin.connections.error.not_available',
+}
+
+export function healthIn(health: ConnectionHealth, locale: UiLocale = 'he') {
+  return locale === 'he' ? HEALTH[health] : { ...HEALTH[health], label: translatorFor(locale)(HEALTH_KEYS[health]) }
+}
+
+export function subscriptionIn(state: SourceSubscriptionState, locale: UiLocale = 'he') {
+  return locale === 'he' ? SUBSCRIPTION[state] : { ...SUBSCRIPTION[state], label: translatorFor(locale)(SUBSCRIPTION_KEYS[state]) }
+}
+
+/** The strategy with its `how` (and the api_key button labels) worded; `needsConnection` unchanged. */
+export function strategyIn(auth: AuthStrategy, locale: UiLocale = 'he') {
+  const base = STRATEGY[auth]
+  if (locale === 'he') return base
+  const t = translatorFor(locale)
+  const buttons = base.needsConnection ? { connect: t('admin.connections.strategy.apiKey.connect'), reconnect: t('admin.connections.strategy.apiKey.reconnect') } : {}
+  return { ...base, ...buttons, how: t(HOW_KEYS[auth]) }
+}
+
+export function deliveryIn(state: DeliveryState, locale: UiLocale = 'he') {
+  const base = DELIVERY[state]
+  if (locale === 'he') return base
+  const t = translatorFor(locale)
+  const keys = DELIVERY_KEYS[state]
+  return { ...base, label: t(keys.label), hint: keys.hint ? t(keys.hint) : '' }
+}
+
+export const errorMessageIn = (reason: string, locale: UiLocale = 'he') =>
+  locale === 'he' ? errorMessage(reason) : translatorFor(locale)(ERROR_KEYS[reason] ?? 'admin.connections.error.unknown')
+
+/** `timeAgo` in `locale` (Hebrew: `timeAgo` itself). */
+export function timeAgoIn(iso: string | null, locale: UiLocale = 'he'): string | null {
+  if (locale === 'he') return timeAgo(iso)
+  if (!iso) return null
+  const diff = Date.now() - new Date(iso).getTime()
+  if (!Number.isFinite(diff) || diff < 0) return null
+  const t = translatorFor(locale)
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 1) return t('admin.connections.ago.moment')
+  if (minutes < 60) return t('admin.connections.ago.minutes', { count: minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return t('admin.connections.ago.hours', { count: hours })
+  const days = Math.floor(hours / 24)
+  return days === 1 ? t('admin.connections.ago.yesterday') : t('admin.connections.ago.days', { count: days })
+}
+
+/**
+ * The connector's set-up guide in `locale`. A connector words its guide in
+ * Hebrew with no codes, so each line is matched by EXACT sentence; a line this
+ * map does not know is shown as the connector wrote it. The code snippet, its
+ * language and the link's destination are never changed (they are what the
+ * customer copies and opens).
+ */
+const GUIDE_SENTENCES: Record<string, MessageKey> = {
+  'חיבור אתר וורדפרס בשלושה צעדים': 'admin.connections.guide.title',
+  'החיבור הזה מתאים לאתר שבנוי על וורדפרס. אם האתר שלכם בנוי אחרת, דברו איתנו.': 'admin.connections.guide.step1',
+  'היכנסו לניהול וורדפרס של האתר.': 'admin.connections.guide.step2',
+  'הוסיפו את קטע הקוד הבא ל-functions.php של ערכת העיצוב, או לתוסף קטעי קוד.': 'admin.connections.guide.step3',
+  'שלחו טופס אחד לבדיקה — הטופס יופיע כאן תוך שניות.': 'admin.connections.guide.step4',
+  'לא מגיע מידע? בדקו שקטע הקוד נשמר': 'admin.connections.guide.link',
+  'קוד לוורדפרס': 'admin.connections.guide.snippet',
+}
+
+export function setupGuideIn(guide: SetupGuide | null, locale: UiLocale = 'he'): SetupGuide | null {
+  if (!guide || locale === 'he') return guide
+  const t = translatorFor(locale)
+  const say = (text: string) => (GUIDE_SENTENCES[text] ? t(GUIDE_SENTENCES[text]) : text)
+  return {
+    ...guide,
+    title: say(guide.title),
+    steps: guide.steps.map(say),
+    ...(guide.snippet ? { snippet: { ...guide.snippet, label: say(guide.snippet.label) } } : {}),
+    ...(guide.link ? { link: { ...guide.link, label: say(guide.link.label) } } : {}),
+  }
 }

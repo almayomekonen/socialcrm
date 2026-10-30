@@ -7,12 +7,15 @@ import { TEMPLATE_CATEGORIES, type TemplateCategory } from '@/lib/automations/te
 import type { TemplateView } from '@/lib/automations/templates/overview'
 import AutomationTemplateCard from './AutomationTemplateCard'
 import TemplateInstallDialog from '@/components/settings/templates/TemplateInstallDialog'
+import { localizeTemplate } from '@/lib/automations/templateI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
-const CATEGORY_LABEL: Record<TemplateCategory, string> = {
-  lead: 'לידים',
-  appointment: 'פגישות',
-  form: 'טפסים',
-  internal: 'צוות',
+const CATEGORY_LABEL: Record<TemplateCategory, MessageKey> = {
+  lead: 'admin.automations.library.category.lead',
+  appointment: 'admin.automations.library.category.appointment',
+  form: 'admin.automations.library.category.form',
+  internal: 'admin.automations.library.category.internal',
 }
 
 export default function AutomationTemplatesSection({
@@ -28,6 +31,7 @@ export default function AutomationTemplatesSection({
   onCreate: () => void
 }) {
   const router = useRouter()
+  const t = useT()
   const [category, setCategory] = useState<TemplateCategory | 'all'>('all')
   const [installing, setInstalling] = useState<TemplateView | null>(null)
 
@@ -45,9 +49,11 @@ export default function AutomationTemplatesSection({
       available.filter((v) => {
         if (category !== 'all' && v.template.category !== category) return false
         if (!q) return true
-        return `${v.template.title} ${v.template.description}`.toLowerCase().includes(q)
+        // What the customer reads is what they search: the shown title and description.
+        const shown = localizeTemplate(v.template, t.locale)
+        return `${shown.title} ${shown.description}`.toLowerCase().includes(q)
       }),
-    [available, category, q],
+    [available, category, q, t.locale],
   )
 
   /** Said plainly, because a count the eye can verify beats a silent filter. */
@@ -88,9 +94,9 @@ export default function AutomationTemplatesSection({
       */}
       <div className='flex items-start justify-between gap-10 pb-8'>
         <div className='flex min-w-0 flex-col gap-2'>
-          <h1 className='title'>ספריית האוטומציות</h1>
+          <h1 className='title'>{t('admin.automations.library.title')}</h1>
           <p className='max-w-2xl text-sm leading-relaxed text-gray-600'>
-            התקינו יכולת אחת, והיא רצה מכאן והלאה בלי שתצטרכו לגעת בה.
+            {t('admin.automations.library.intro')}
           </p>
         </div>
 
@@ -105,8 +111,8 @@ export default function AutomationTemplatesSection({
               type='search'
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
-              placeholder='חיפוש'
-              aria-label='חיפוש תבניות ואוטומציות'
+              placeholder={t('admin.automations.library.search')}
+              aria-label={t('admin.automations.library.searchLabel')}
               className='h-9 w-52 rounded-[9px] bg-white ps-3.5 pe-9 text-[13.5px] text-ink shadow-[0_0_0_1px_rgba(16,24,64,.05),0_1px_2px_rgba(16,24,64,.05)] outline-none transition-shadow duration-150 placeholder:text-[#98a3b8] hover:shadow-[0_0_0_1px_rgba(16,24,64,.1),0_2px_6px_rgba(16,24,64,.07)] focus:shadow-[0_0_0_1px_var(--color-primary)]'
             />
           </div>
@@ -116,7 +122,7 @@ export default function AutomationTemplatesSection({
             onClick={onCreate}
             className='flex h-9 flex-none items-center rounded-[9px] bg-ink px-3.75 text-[13.5px] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_1px_2px_rgba(10,37,64,.28)] transition-transform duration-100 active:translate-y-px'
           >
-            אוטומציה חדשה
+            {t('admin.automations.center.create')}
           </button>
         </div>
       </div>
@@ -124,11 +130,11 @@ export default function AutomationTemplatesSection({
       {tabs.length > 1 && (
         <div className='mb-6 flex items-center gap-1 self-start rounded-[10px] bg-[#eeeff2] p-0.75'>
           <Tab active={category === 'all'} onClick={() => setCategory('all')}>
-            הכול
+            {t('admin.automations.library.all')}
           </Tab>
           {tabs.map((c) => (
             <Tab key={c} active={category === c} onClick={() => setCategory(c)}>
-              {CATEGORY_LABEL[c]}
+              {t(CATEGORY_LABEL[c])}
             </Tab>
           ))}
         </div>
@@ -137,8 +143,8 @@ export default function AutomationTemplatesSection({
       {shown.length === 0 ? (
         <p className='rounded-[14px] px-2 py-16 text-center text-[14px] text-[#aab3c0] shadow-[0_0_0_1px_rgba(16,24,64,.05)]'>
           {available.length === 0
-            ? 'כל התבניות כבר מותקנות אצלכם.'
-            : 'אין תבנית שמתאימה לחיפוש. נסו מילה אחרת או קטגוריה אחרת.'}
+            ? t('admin.automations.library.allInstalled')
+            : t('admin.automations.library.noMatch')}
         </p>
       ) : (
         <div className='grid grid-cols-1 gap-px overflow-hidden rounded-[14px] bg-border shadow-[0_0_0_1px_rgba(16,24,64,.05),0_1px_1px_rgba(16,24,64,.04)] @lg/lib:grid-cols-2 @4xl/lib:grid-cols-3'>
@@ -159,7 +165,7 @@ export default function AutomationTemplatesSection({
 
       {hiddenByCategory > 0 && (
         <p className='px-0.5 py-6 text-[14px] text-[#aab3c0]'>
-          עוד {hiddenByCategory} תבניות בקטגוריות שלא נבחרו
+          {t('admin.automations.library.hidden', { count: String(hiddenByCategory) })}
         </p>
       )}
 

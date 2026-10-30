@@ -1,4 +1,7 @@
 import type { Timing } from '@/lib/automations/timing'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The sheet's remaining local constants — timing presets and error copy.
@@ -99,3 +102,68 @@ const ERRORS: Record<string, string> = {
 }
 
 export const errorMessage = (reason: string) => ERRORS[reason] ?? 'לא ניתן לשמור'
+
+/** The same refusal by CODE in the interface language (Hebrew: `errorMessage` itself). */
+const ERROR_KEYS: Record<string, MessageKey> = {
+  name_required: 'admin.automationSheet.error.name_required',
+  subject_required: 'admin.automationSheet.error.subject_required',
+  body_required: 'admin.automationSheet.error.body_required',
+  title_required: 'admin.automationSheet.error.title_required',
+  title_invalid: 'admin.automationSheet.error.title_invalid',
+  parameter_required: 'admin.automationSheet.error.parameter_required',
+  parameter_invalid: 'admin.automationSheet.error.parameter_invalid',
+  trigger_invalid: 'admin.automationSheet.error.trigger_invalid',
+  action_invalid: 'admin.automationSheet.error.action_invalid',
+  condition_field_unknown: 'admin.automationSheet.error.condition_field_unknown',
+  condition_operator_invalid: 'admin.automationSheet.error.condition_operator_invalid',
+  condition_value_required: 'admin.automationSheet.error.condition_value_required',
+  condition_value_invalid: 'admin.automationSheet.error.condition_value_invalid',
+  timing_invalid: 'admin.automationSheet.error.timing_invalid',
+  unknown_variable: 'admin.automationSheet.error.unknown_variable',
+  forbidden: 'admin.automationSheet.error.forbidden',
+  not_available: 'admin.automationSheet.error.not_available',
+  not_found: 'admin.automationSheet.error.not_found',
+  no_recipient: 'admin.automationSheet.error.no_recipient',
+  content_required: 'admin.automationSheet.error.content_required',
+  no_sending_domain: 'admin.automationSheet.error.no_sending_domain',
+  no_reply_to: 'admin.automationSheet.error.no_reply_to',
+  send_failed: 'admin.automationSheet.error.send_failed',
+  cta_incomplete: 'admin.automationSheet.error.cta_incomplete',
+  cta_label_invalid: 'admin.automationSheet.error.cta_label_invalid',
+  cta_url_invalid: 'admin.automationSheet.error.cta_url_invalid',
+  preview_failed: 'admin.automationSheet.error.preview_failed',
+  template_required: 'admin.automationSheet.error.template_required',
+  template_not_found: 'admin.automationSheet.error.template_not_found',
+  template_not_approved: 'admin.automationSheet.error.template_not_approved',
+  template_unmapped: 'admin.automationSheet.error.template_unmapped',
+  template_not_chosen: 'admin.automationSheet.error.template_not_chosen',
+  template_missing: 'admin.automationSheet.error.template_missing',
+}
+
+export const errorMessageIn = (reason: string, locale: UiLocale = 'he') =>
+  locale === 'he' ? errorMessage(reason) : translatorFor(locale)(ERROR_KEYS[reason] ?? 'admin.automationSheet.error.unknown')
+
+const PRESET_KEYS: Record<string, MessageKey> = {
+  immediate: 'admin.automationSheet.timing.immediate',
+  one_hour: 'admin.automationSheet.timing.oneHour',
+  one_day: 'admin.automationSheet.timing.oneDay',
+  three_days: 'admin.automationSheet.timing.threeDays',
+}
+
+/**
+ * `timingOptionsFor` in the interface language: the same options — same keys,
+ * same timings, same order — with their labels worded by KEY. Hebrew is
+ * `timingOptionsFor` itself.
+ */
+export function timingOptionsIn(current: Timing, locale: UiLocale = 'he'): Array<{ key: string; lbl: string; timing: Timing }> {
+  const options = timingOptionsFor(current)
+  if (locale === 'he') return options
+  const t = translatorFor(locale)
+  return options.map((o) => {
+    if (PRESET_KEYS[o.key]) return { ...o, lbl: t(PRESET_KEYS[o.key]) }
+    const tm = o.timing
+    if (tm.kind === 'before_anchor') return { ...o, lbl: t(tm.unit === 'hours' ? 'admin.automationSheet.timing.beforeHours' : 'admin.automationSheet.timing.beforeDays', { count: tm.value }) }
+    if (tm.kind === 'custom') return { ...o, lbl: t(tm.unit === 'hours' ? 'admin.automationCatalog.timing.afterHours' : 'admin.automationCatalog.timing.afterDays', { count: tm.value }) }
+    return o
+  })
+}

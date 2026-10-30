@@ -1,7 +1,10 @@
 'use client'
 
 import { getAction } from '@/lib/automations/catalog/registry'
-import { timingPhrase } from '@/lib/automations/sentence'
+import { localizeAction, localizeRequirement, timingPhraseIn } from '@/lib/automations/catalogI18n'
+import { localizeTemplate } from '@/lib/automations/templateI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 import type { TemplateView } from '@/lib/automations/templates/overview'
 import AutomationFlowArt from './AutomationFlowArt'
 
@@ -20,8 +23,10 @@ import AutomationFlowArt from './AutomationFlowArt'
  * Installed templates never reach here; the library filters them out.
  */
 export default function AutomationTemplateCard({ view, onInstall }: { view: TemplateView; onInstall: () => void }) {
-  const { template, availability, preview } = view
-  const locked = availability.state === 'locked' ? availability.requirement : null
+  const t = useT()
+  const { availability, preview } = view
+  const template = localizeTemplate(view.template, t.locale)
+  const locked = localizeRequirement(availability.state === 'locked' ? availability.requirement : null, t.locale)
 
   /**
    * "מייל · מיידי" — the channel and the timing, both read off the first
@@ -29,17 +34,20 @@ export default function AutomationTemplateCard({ view, onInstall }: { view: Temp
    * A template whose preview is empty simply has no meta line.
    */
   const first = preview[0]
-  const channel = first ? (getAction(first.actionKey)?.title ?? null) : null
+  const channel = first ? (localizeAction(getAction(first.actionKey), t.locale)?.title ?? null) : null
   const timing = template.automations[0]?.timing ?? null
   const meta = locked
-    ? (locked.cta?.label ?? 'דורשת חיבור')
-    : [channel, timing ? timingPhrase(timing) : null].filter(Boolean).join(' · ')
+    ? (locked.cta?.label ?? t('admin.automations.library.needsConnection'))
+    : [channel, timing ? timingPhraseIn(timing, t.locale) : null].filter(Boolean).join(' · ')
 
   return (
     <button
       type='button'
       onClick={onInstall}
-      aria-label={`${locked ? (locked.cta?.label ?? 'חיבור') : 'התקנה'} · ${template.title}`}
+      aria-label={t('admin.automations.library.cellLabel', {
+        action: locked ? (locked.cta?.label ?? t('admin.automations.library.connect')) : t('admin.automations.library.install'),
+        title: template.title,
+      })}
       className='group/tpl flex min-h-[212px] flex-col gap-[18px] bg-white px-6 pb-[22px] pt-[26px] text-start transition-colors duration-150 hover:bg-[#fafbfc] active:bg-[#f6f7f9] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary'
     >
       <span className='mb-0.5 flex h-11 items-center'>
@@ -58,9 +66,9 @@ export default function AutomationTemplateCard({ view, onInstall }: { view: Temp
             locked ? 'text-[#98a3b8]' : 'text-primary-text'
           }`}
         >
-          {locked ? (locked.cta?.label ?? 'חיבור') : 'התקנה'}
-          {/* Points left — forward, in a right-to-left page. */}
-          <svg width='14' height='14' viewBox='0 0 24 24' fill='none' aria-hidden='true'>
+          {locked ? (locked.cta?.label ?? t('admin.automations.library.connect')) : t('admin.automations.library.install')}
+          {/* Points left — forward, in a right-to-left page (and mirrored to point right in a left-to-right one). */}
+          <svg width='14' height='14' viewBox='0 0 24 24' fill='none' aria-hidden='true' className={dirFor(t.locale) === 'ltr' ? '-scale-x-100' : undefined}>
             <path
               d='M15 6l-6 6 6 6'
               stroke='currentColor'

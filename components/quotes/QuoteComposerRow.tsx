@@ -4,6 +4,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { formatCurrency } from '@/lib/funcs'
 import { cellInputCls } from '@/components/billing/lines/types'
 import type { QuoteTemplateItemDraft } from '@/lib/quotes/templateValidation'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * One line of the quotation, as a DOCUMENT ROW rather than a form.
@@ -31,6 +32,8 @@ export default function QuoteComposerRow({
   onRemove: () => void
   canRemove: boolean
 }) {
+  const t = useT()
+  const n = String(index + 1)
   const num = (raw: string) => {
     const n = Number(raw)
     return Number.isFinite(n) ? n : 0
@@ -42,8 +45,8 @@ export default function QuoteComposerRow({
         className={cellInputCls}
         value={item.title}
         maxLength={120}
-        placeholder='תיאור השורה'
-        aria-label={`תיאור שורה ${index + 1}`}
+        placeholder={t('admin.quotes.items.lineTitle')}
+        aria-label={t('admin.automationTemplates.composer.rowTitle', { n })}
         onChange={(e) => onPatch({ title: e.target.value })}
       />
       <input
@@ -52,7 +55,7 @@ export default function QuoteComposerRow({
         min={0}
         step='any'
         value={String(item.quantity)}
-        aria-label={`כמות שורה ${index + 1}`}
+        aria-label={t('admin.automationTemplates.composer.rowQuantity', { n })}
         onChange={(e) => onPatch({ quantity: num(e.target.value) })}
       />
       <input
@@ -61,7 +64,7 @@ export default function QuoteComposerRow({
         min={0}
         step='any'
         value={String(item.unitPrice)}
-        aria-label={`מחיר ליחידה שורה ${index + 1}`}
+        aria-label={t('admin.automationTemplates.composer.rowPrice', { n })}
         onChange={(e) => onPatch({ unitPrice: num(e.target.value) })}
       />
 
@@ -81,8 +84,8 @@ export default function QuoteComposerRow({
           size='icon'
           icon={item.isOptional ? 'square-check' : 'square'}
           lbl=''
-          aria-label={item.isOptional ? `שורה ${index + 1} אופציונלית — בטל` : `סמן שורה ${index + 1} כאופציונלית`}
-          title='שורה אופציונלית — הלקוח יכול לוותר עליה'
+          aria-label={item.isOptional ? t('admin.automationTemplates.composer.rowOptionalOff', { n }) : t('admin.automationTemplates.composer.rowOptionalOn', { n })}
+          title={t('admin.quotes.items.optional')}
           onClick={() => onPatch({ isOptional: !item.isOptional })}
         />
         <Btn
@@ -90,7 +93,7 @@ export default function QuoteComposerRow({
           size='icon'
           icon='trash'
           lbl=''
-          aria-label={`מחק שורה ${index + 1}`}
+          aria-label={t('admin.quotes.items.remove', { n })}
           disabled={!canRemove}
           onClick={onRemove}
         />

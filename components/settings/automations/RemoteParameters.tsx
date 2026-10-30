@@ -6,6 +6,7 @@ import { listOptionsAction } from '@/actions/automations/connections'
 import { listFirstPartyOptionsAction } from '@/actions/automations/firstPartyOptions'
 import type { ParameterDefinition } from '@/lib/automations/catalog/types'
 import type { ConnectionOption } from '@/lib/automations/catalog/types'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Renders declared parameters — generically.
@@ -34,6 +35,7 @@ export default function RemoteParameters({
   values: Record<string, string>
   onChange: (next: Record<string, string>) => void
 }) {
+  const t = useT()
   const [options, setOptions] = useState<Record<string, ConnectionOption[]>>({})
   const [agencyOptions, setAgencyOptions] = useState<Record<string, ConnectionOption[]>>({})
   const remote = parameters.filter((p) => p.type === 'enum_remote')
@@ -100,11 +102,11 @@ export default function RemoteParameters({
             value={values[p.key] ?? ''}
             onChange={(e) => onChange({ ...values, [p.key]: e.target.value })}
             required={p.validation?.required ?? false}
-            placeholder={list.length === 0 ? 'אין אפשרויות זמינות' : undefined}
+            placeholder={list.length === 0 ? t('admin.automationSheet.params.noOptions') : undefined}
           />
         )
       })}
-      {remote.length > 0 && !connectionId && <p className='text-sm text-gray-500 ms-1'>יש לבחור חיבור כדי להציג את האפשרויות.</p>}
+      {remote.length > 0 && !connectionId && <p className='text-sm text-gray-500 ms-1'>{t('admin.automationSheet.params.pickConnection')}</p>}
       {remote.map((p) => {
         const list = options[p.key] ?? []
         return (
@@ -116,7 +118,7 @@ export default function RemoteParameters({
             value={values[p.key] ?? ''}
             onChange={(e) => onChange({ ...values, [p.key]: e.target.value })}
             required={p.validation?.required ?? false}
-            placeholder={list.length === 0 ? 'אין אפשרויות זמינות' : undefined}
+            placeholder={list.length === 0 ? t('admin.automationSheet.params.noOptions') : undefined}
           />
         )
       })}

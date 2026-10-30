@@ -1,8 +1,9 @@
 'use client'
 
 import { Btn } from '@/lib/btns/Btn'
-import { TIMING_ACCURACY_COPY } from '@/lib/automations/copy'
-import { timingKey, timingOptionsFor } from './sheetOptions'
+import { timingAccuracyIn } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { timingKey, timingOptionsIn } from './sheetOptions'
 import type { Timing } from '@/lib/automations/timing'
 import type { FieldDefinition } from '@/lib/automations/catalog/types'
 
@@ -24,24 +25,25 @@ export default function AutomationTimingSection({
   anchors: readonly FieldDefinition[]
   onChange: (next: Timing) => void
 }) {
+  const t = useT()
   return (
     <section className='grid gap-3'>
-      <h3 className='text-sm font-semibold text-gray-800'>מתי לשלוח</h3>
+      <h3 className='text-sm font-semibold text-gray-800'>{t('admin.automationSheet.timing.heading')}</h3>
       <div className='flex flex-wrap gap-2'>
-        {timingOptionsFor(timing).map((t) => (
+        {timingOptionsIn(timing, t.locale).map((o) => (
           <Btn
-            key={t.key}
-            variant={timingKey(timing) === t.key ? 'solid' : 'outline'}
+            key={o.key}
+            variant={timingKey(timing) === o.key ? 'solid' : 'outline'}
             size='small'
-            lbl={t.lbl}
-            onClick={() => onChange(t.timing)}
+            lbl={o.lbl}
+            onClick={() => onChange(o.timing)}
           />
         ))}
       </div>
       {anchors.length > 0 && (
-        <p className='text-sm text-gray-500 ms-1'>אפשר גם לתזמן ביחס ל{anchors.map((a) => a.label).join(' / ')}.</p>
+        <p className='text-sm text-gray-500 ms-1'>{t('admin.automationSheet.timing.anchors', { anchors: anchors.map((a) => a.label).join(' / ') })}</p>
       )}
-      <p className='text-sm text-gray-500 ms-1'>{TIMING_ACCURACY_COPY}</p>
+      <p className='text-sm text-gray-500 ms-1'>{timingAccuracyIn(t.locale)}</p>
     </section>
   )
 }

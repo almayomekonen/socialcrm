@@ -3,6 +3,7 @@
 import { createPortal } from 'react-dom'
 import Icon from '@/lib/Icon'
 import { useFloatingMenu } from '@/lib/useFloatingMenu'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The row's one menu button and its menu — edit, log, duplicate, delete.
@@ -28,11 +29,13 @@ export default function AutomationRowMenu({
   onDelete: () => void
 }) {
   const menu = useFloatingMenu()
+  const t = useT()
+  const region = useRegionAttrs()
   return (
     <div ref={menu.wrapRef} className='inline-flex flex-none'>
       <button
         type='button'
-        aria-label={`פעולות · ${name}`}
+        aria-label={t('admin.automations.row.actions', { name })}
         aria-haspopup='menu'
         aria-expanded={menu.open}
         disabled={busy}
@@ -48,14 +51,15 @@ export default function AutomationRowMenu({
           <div
             ref={menu.menuRef}
             role='menu'
+            {...region}
             style={{ position: 'fixed', top: menu.pos.top, left: menu.pos.left, zIndex: 100000 }}
             className='flex w-40 flex-col gap-0.5 rounded-lg border border-border bg-white p-1.5 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
           >
-            <MenuItem onClick={() => (menu.close(), onEdit())}>ערוך</MenuItem>
-            <MenuItem onClick={() => (menu.close(), onActivity())}>יומן פעילות</MenuItem>
-            <MenuItem onClick={() => (menu.close(), onDuplicate())}>שכפל</MenuItem>
+            <MenuItem onClick={() => (menu.close(), onEdit())}>{t('admin.automations.row.menu.edit')}</MenuItem>
+            <MenuItem onClick={() => (menu.close(), onActivity())}>{t('admin.automations.row.menu.log')}</MenuItem>
+            <MenuItem onClick={() => (menu.close(), onDuplicate())}>{t('admin.automations.row.menu.duplicate')}</MenuItem>
             <MenuItem destructive onClick={() => (menu.close(), onDelete())}>
-              מחק
+              {t('admin.automations.row.menu.delete')}
             </MenuItem>
           </div>,
           document.body,

@@ -65,10 +65,7 @@ vi.mock('@/db/facebook', async () => (await import('./leakGateMocks')).facebookD
 // /leads and /clients reads (I/O only; the page, banners, table and producers run for real).
 vi.mock('@/db/usersNTeams', async () => (await import('./leakGateAdminMocks')).usersNTeamsDbModule())
 vi.mock('@/lib/quota', async () => (await import('./leakGateMocks')).quotaModule())
-vi.mock('@/db/automations/connectionDelivery', async () => {
-  const { leadsEnv } = await import('./leadsEnv')
-  return { deliveryFacts: async () => leadsEnv.intakeFacts }
-})
+vi.mock('@/db/automations/connectionDelivery', async () => (await import('./leakGateAutomationsMocks')).connectionDeliveryDbModule())
 vi.mock('@/actions/clients', async () => (await import('./leakGateMocks')).clientsActionsModule())
 vi.mock('@/actions/global', () => ({ saveTblPref: async () => ({ ok: true }) }))
 vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: async () => [] }))
@@ -267,6 +264,16 @@ vi.mock('@/lib/flags/questionnaireBuilderFlags', async () => (await import('./ad
 vi.mock('@/actions/autoResponse/updateSettings', async () => (await import('./adminMocks')).updateAutoResponseModule())
 vi.mock('@/actions/autoResponse/previewAgent', async () => (await import('./adminMocks')).previewAgentModule())
 vi.mock('@/modules/settings/mobile/AutoResponseMobile', async () => (await import('./adminMocks')).autoResponseMobileModule())
+// The automations screens (Phase E5b; I/O only — pages, panels, cards, the template and integration overviews run for real).
+vi.mock('@/lib/automations/flags', async () => (await import('./leakGateAutomationsMocks')).flagsModule())
+vi.mock('@/db/automations/definitions', async () => (await import('./automationsMocks')).definitionsDbModule())
+vi.mock('@/db/automations/activity', async () => (await import('./automationsMocks')).activityDbModule())
+vi.mock('@/db/automations/leadFacts', async () => (await import('./automationsMocks')).leadFactsDbModule())
+vi.mock('@/db/automations/templateInstalls', async () => (await import('./automationsMocks')).templateInstallsDbModule())
+vi.mock('@/db/automations/pilotMetrics', async () => (await import('./automationsMocks')).pilotMetricsDbModule())
+vi.mock('@/db/automations/connectionUsage', async () => (await import('./automationsMocks')).connectionUsageDbModule())
+vi.mock('@/db/automations/sourceLabels', async () => (await import('./automationsMocks')).sourceLabelsDbModule())
+vi.mock('@/lib/automations/connectors/registry', async () => (await import('./automationsMocks')).connectorsRegistryModule())
 
 const { SURFACES } = await import('./surfaces')
 
@@ -290,7 +297,7 @@ afterEach(async () => {
   ;(await import('./calendarEnv')).resetCalEnv()
   ;(await import('./dealsEnv')).resetDealsEnv(), (await import('./adsEnv')).resetAdsEnv()
   ;(await import('./billingEnv')).resetBillEnv()
-  ;(await import('./settingsEnv')).resetSetEnv(), (await import('./adminEnv')).resetAdminEnv()
+  ;(await import('./settingsEnv')).resetSetEnv(), (await import('./adminEnv')).resetAdminEnv(), (await import('./automationsEnv')).resetAutomationsEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

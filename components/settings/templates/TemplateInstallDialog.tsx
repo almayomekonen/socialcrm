@@ -11,7 +11,10 @@ import type { TemplateView } from '@/lib/automations/templates/overview'
 import RemoteParameters from '@/components/settings/automations/RemoteParameters'
 import { creatorFor, type InlineResolver } from './firstPartyCreators'
 import InlineCreator from './InlineCreator'
-import { errorMessage } from './copy'
+import { errorMessageIn } from './copy'
+import { localizeTemplate } from '@/lib/automations/templateI18n'
+import { untranslatedAttrs } from '@/lib/i18n/config'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
@@ -36,6 +39,10 @@ export default function TemplateInstallDialog({
   onDone: () => void
 }) {
   const { template } = view
+  const t = useT()
+  /** What the dialog SHOWS. Values, keys and the install call read `template` itself. */
+  const shown = localizeTemplate(template, t.locale)
+  const errorMessage = (reason: string) => errorMessageIn(reason, t.locale)
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(template.variables.map((v) => [v.key, v.default ?? ''])),
   )
@@ -76,23 +83,23 @@ export default function TemplateInstallDialog({
 
       const res = await installTemplate(template.key, { ...values, ...resolved })
       if (res.ok === false) return setError(errorMessage(res.reason))
-      toast('success', res.created === 1 ? 'האוטומציה נוצרה כטיוטה' : `${res.created} אוטומציות נוצרו כטיוטות`)
+      toast('success', res.created === 1 ? t('admin.automationTemplates.install.createdOne') : t('admin.automationTemplates.install.createdMany', { count: String(res.created) }))
       onDone()
     })
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='top' label={template.title}>
+    <ModalPop open onClose={onClose} pos='top' label={shown.title} translated>
       <div className='grid gap-5 w-[min(90vw,560px)] pt-2'>
-        <h2 className='text-lg font-semibold text-gray-800'>{template.title}</h2>
-        <p className='text-sm text-gray-600 leading-relaxed'>{template.description}</p>
+        <h2 className='text-lg font-semibold text-gray-800'>{shown.title}</h2>
+        <p className='text-sm text-gray-600 leading-relaxed'>{shown.description}</p>
 
         {template.variables.length > 0 && (
           <>
             <Seperator className='my-0' />
             <section className='grid gap-3'>
-              <h3 className='text-sm font-semibold text-gray-800'>הגדרות</h3>
-              {template.variables.map((variable) =>
+              <h3 className='text-sm font-semibold text-gray-800'>{t('admin.automationTemplates.install.settings')}</h3>
+              {shown.variables.map((variable) =>
                 /**
                  * A first-party selection renders through the SAME control the
                  * Builder uses for it, rather than a picker invented here — so
@@ -146,8 +153,8 @@ export default function TemplateInstallDialog({
                   />
                 ),
               )}
-              {template.variables.some((v) => v.help) && (
-                <p className='text-sm text-gray-500 ms-1'>{template.variables.find((v) => v.help)!.help}</p>
+              {shown.variables.some((v) => v.help) && (
+                <p className='text-sm text-gray-500 ms-1'>{shown.variables.find((v) => v.help)!.help}</p>
               )}
             </section>
           </>
@@ -163,12 +170,12 @@ export default function TemplateInstallDialog({
           <>
             <Seperator className='my-0' />
             <section className='grid gap-2'>
-              <h3 className='text-sm font-semibold text-gray-800'>קיימת גרסה חדשה</h3>
+              <h3 className='text-sm font-semibold text-gray-800'>{t('admin.automationTemplates.install.updateHeading')}</h3>
               <p className='text-sm text-gray-600 leading-relaxed'>
-                האוטומציות שכבר התקנתם לא ישתנו — התקנה תיצור עותק חדש לצידן.
+                {t('admin.automationTemplates.install.updateBody')}
               </p>
               {view.changes.length > 0 && (
-                <ul className='grid gap-1'>
+                <ul className='grid gap-1' {...untranslatedAttrs(t.locale)}>
                   {view.changes.map((c) => (
                     <li key={c.version} className='text-sm text-gray-500'>
                       {c.note}
@@ -184,9 +191,12 @@ export default function TemplateInstallDialog({
 
         <section className='grid gap-2'>
           <h3 className='text-sm font-semibold text-gray-800'>
-            {view.preview.length === 1 ? 'מה ייווצר' : `מה ייווצר — ${view.preview.length} אוטומציות`}
+            {view.preview.length === 1
+              ? t('admin.automationTemplates.install.createsOne')
+              : t('admin.automationTemplates.install.createsMany', { count: String(view.preview.length) })}
           </h3>
-          <ul className='grid gap-2'>
+          {/* What installing STORES — the automations' own names and texts, as they will be saved. */}
+          <ul className='grid gap-2' {...untranslatedAttrs(t.locale)}>
             {view.preview.map((p, i) => (
               <li key={i} className='rounded-md border border-gray-100 bg-gray-50 p-3 grid gap-1'>
                 <span className='text-sm font-medium text-gray-800'>{p.name}</span>
@@ -196,15 +206,15 @@ export default function TemplateInstallDialog({
           </ul>
           {/* Drafts, not live sends: the customer reviews and activates each
               one in the Builder, exactly as if they had written it. */}
-          <p className='text-sm text-gray-500'>האוטומציות ייווצרו כטיוטות. אפשר לערוך ולהפעיל אותן במסך האוטומציות.</p>
+          <p className='text-sm text-gray-500'>{t('admin.automationTemplates.install.drafts')}</p>
         </section>
 
         <div className='grid gap-2'>
 {proLocked ? (
-            <SubscriptionExpiredState mode='inline' source='automation_template_install' feature='חידוש המנוי מחזיר את התקנת האוטומציות' />
+            <SubscriptionExpiredState mode='inline' source='automation_template_install' feature={t('admin.automationTemplates.expiredFeature')} translated />
           ) : (
             <Btn
-            lbl={pending ? 'מתקין…' : 'התקנה'}
+            lbl={pending ? t('admin.automationTemplates.install.installing') : t('admin.automationTemplates.install.install')}
             icon={pending ? 'spinner' : 'plus'}
             iconClassName={pending ? 'animate-spin' : undefined}
             disabled={pending || missing}

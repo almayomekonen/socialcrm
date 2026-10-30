@@ -1,6 +1,8 @@
 import { useId } from 'react'
 import { TRAIL, GREEN, BUBBLE_STROKE, bubble, Arrow, Defs, ContactCard } from './templateArtParts'
-import { LEAD_SCENES } from './templateArtLeadScenes'
+import { LEAD_SCENES, type ArtLabels } from './templateArtLeadScenes'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 import { OTHER_SCENES } from './templateArtOtherScenes'
 
 /**
@@ -8,7 +10,7 @@ import { OTHER_SCENES } from './templateArtOtherScenes'
  * (scenes in templateArtLeadScenes / templateArtOtherScenes, shared parts in
  * templateArtParts).
  */
-const SCENES: Record<string, (uid: string) => React.ReactNode> = { ...LEAD_SCENES, ...OTHER_SCENES }
+const SCENES: Record<string, (uid: string, art: ArtLabels) => React.ReactNode> = { ...LEAD_SCENES, ...OTHER_SCENES }
 
 /** Drawn when a template registers a key no scene has been designed for. */
 function fallback(uid: string) {
@@ -29,6 +31,8 @@ function fallback(uid: string) {
 
 export default function TemplateArt({ templateKey }: { templateKey: string }) {
   const uid = useId().replace(/:/g, '')
+  const t = useT()
+  const art: ArtLabels = { now: t('admin.automationTemplates.art.now'), day2: t('admin.automationTemplates.art.day2'), day7: t('admin.automationTemplates.art.day7'), dir: dirFor(t.locale) }
   const scene = SCENES[templateKey] ?? fallback
   return (
     <svg
@@ -44,7 +48,7 @@ export default function TemplateArt({ templateKey }: { templateKey: string }) {
       className='h-auto w-full max-w-105'
     >
       <Defs uid={uid} />
-      {scene(uid)}
+      {scene(uid, art)}
     </svg>
   )
 }

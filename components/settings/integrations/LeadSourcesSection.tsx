@@ -23,7 +23,7 @@ import { loadMessengerSection } from '@/components/settings/messenger/messengerS
 import MessengerSavedReplies from '@/components/settings/messenger/MessengerSavedReplies'
 import WebsiteConnection, { isWebsiteSectionVisible } from './WebsiteConnection'
 import { BRAND } from './brandColors'
-import { untranslatedAttrs, type UiLocale } from '@/lib/i18n/config'
+import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 
 /**
@@ -235,8 +235,8 @@ export default async function LeadSourcesSection({
           open={openWebsite}
         >
           <Suspense fallback={null}>
-            {/* The automations catalog's connectors (not translated yet): a Hebrew region outside Hebrew. */}
-            {translated ? <div {...untranslatedAttrs(locale)}><WebsiteConnection user={user} /></div> : <WebsiteConnection user={user} />}
+            {/* The automations catalog's website connectors (Phase E5b), in the page's language. */}
+            <WebsiteConnection user={user} locale={locale} />
           </Suspense>
         </AccordionItem>
       )}

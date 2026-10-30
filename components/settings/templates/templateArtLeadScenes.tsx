@@ -2,12 +2,15 @@ import Portrait from '@/components/settings/art/Portrait'
 import { CARD, TRAIL, GREEN, BUBBLE_STROKE, BAR, BAR_SOFT, TEXT_STRONG, TEXT_SOFT, bubble, Arrow, ContactCard } from './templateArtParts'
 
 /** The lead templates' scenes (split out of TemplateArt; drawing unchanged). */
-export const LEAD_SCENES: Record<string, (uid: string) => React.ReactNode> = {
+/** `art`: the scene's three timeline words and their direction, in the interface language. */
+export type ArtLabels = { now: string; day2: string; day7: string; dir: 'rtl' | 'ltr' }
+
+export const LEAD_SCENES: Record<string, (uid: string, art: ArtLabels) => React.ReactNode> = {
   /*
    * רצף קבלת פנים — the contact arrives top right, the immediate message is
    * lit, and the later two recede down the dotted timeline.
    */
-  welcome_sequence: (uid) => (
+  welcome_sequence: (uid, art) => (
     <>
       <path d='M292 136H32' stroke='#e6e9ef' strokeDasharray='1 7' />
       <ContactCard uid={uid} x={300} y={24} />
@@ -37,14 +40,14 @@ export const LEAD_SCENES: Record<string, (uid: string) => React.ReactNode> = {
       <path d='M56 120v8' stroke={BAR_SOFT} strokeDasharray='2 4' />
       <circle cx='56' cy='136' r='4.5' fill='#dfe3e9' />
 
-      <text x='232' y='152' textAnchor='middle' fontSize='12' fontWeight='600' fill={TEXT_STRONG} direction='rtl'>
-        מיד
+      <text x='232' y='152' textAnchor='middle' fontSize='12' fontWeight='600' fill={TEXT_STRONG} direction={art.dir}>
+        {art.now}
       </text>
-      <text x='144' y='152' textAnchor='middle' fontSize='12' fill={TEXT_SOFT} direction='rtl'>
-        יום 2
+      <text x='144' y='152' textAnchor='middle' fontSize='12' fill={TEXT_SOFT} direction={art.dir}>
+        {art.day2}
       </text>
-      <text x='56' y='152' textAnchor='middle' fontSize='12' fill={TEXT_SOFT} direction='rtl'>
-        יום 7
+      <text x='56' y='152' textAnchor='middle' fontSize='12' fill={TEXT_SOFT} direction={art.dir}>
+        {art.day7}
       </text>
     </>
   ),

@@ -4,7 +4,9 @@ import Icon from '@/lib/Icon'
 import { HoverTooltip } from '@/components/ui/HoverTooltip'
 import AutomationRowMenu from './AutomationRowMenu'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import { automationSentence } from '@/lib/automations/sentence'
+import { actionFallbackIn, automationSentenceIn, localizeAction, localizeEvent } from '@/lib/automations/catalogI18n'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
 import { getAction, getEvent } from '@/lib/automations/catalog/registry'
 import type { Condition } from '@/lib/automations/conditions'
 import type { DefinitionStatus } from '@/db/automations/definitions'
@@ -35,29 +37,29 @@ export const runCount = (c: AutomationCardData['counts']) => c.sent + c.wouldSen
  * never reported as a send, so the two counts are named separately even though
  * `runCount` adds them. Absent when there is nothing true to say — never a "0".
  */
-function activityPhrase(c: AutomationCardData['counts']): string | null {
+function activityPhrase(c: AutomationCardData['counts'], t: Translator): string | null {
   const parts = [
-    c.sent > 0 ? `${c.sent} נשלחו` : null,
-    c.wouldSend > 0 ? `${c.wouldSend} היו נשלחים` : null,
+    c.sent > 0 ? t('admin.automations.row.sent', { count: String(c.sent) }) : null,
+    c.wouldSend > 0 ? t('admin.automations.row.wouldSend', { count: String(c.wouldSend) }) : null,
   ].filter(Boolean)
-  return parts.length > 0 ? `${parts.join(' · ')} השבוע` : null
+  return parts.length > 0 ? t('admin.automations.row.week', { activity: parts.join(' · ') }) : null
 }
 
 /**
- * Relative time, Hebrew, computed from a server-provided ISO string.
+ * Relative time in the interface language, computed from a server-provided ISO string.
  */
-function updatedLabel(iso: string | null | undefined, now: number): string | null {
+function updatedLabel(iso: string | null | undefined, now: number, t: Translator): string | null {
   if (!iso) return null
   const then = new Date(iso).getTime()
   if (!Number.isFinite(then)) return null
   const mins = Math.max(0, Math.round((now - then) / 60000))
-  if (mins < 1) return 'עכשיו'
-  if (mins < 60) return `לפני ${mins} דק׳`
+  if (mins < 1) return t('admin.automations.row.updated.now')
+  if (mins < 60) return t('admin.automations.row.updated.minutes', { count: String(mins) })
   const hours = Math.round(mins / 60)
-  if (hours < 24) return `לפני ${hours} ש׳`
+  if (hours < 24) return t('admin.automations.row.updated.hours', { count: String(hours) })
   const days = Math.round(hours / 24)
-  if (days === 1) return 'אתמול'
-  return `לפני ${days} ימים`
+  if (days === 1) return t('admin.automations.row.updated.yesterday')
+  return t('admin.automations.row.updated.days', { count: String(days) })
 }
 
 type Props = {
@@ -108,19 +110,21 @@ export default function AutomationCard({
    */
   const expired = useAccessDenied()
   const configuredButPaused = expired && isActive
-  const updated = updatedLabel(data.updatedAt, now)
+  const t = useT()
+  const region = useRegionAttrs()
+  const updated = updatedLabel(data.updatedAt, now, t)
 
   const problem = hasError
     ? data.connectionProblem
-      ? 'החיבור אינו פעיל'
-      : `${data.counts.failed} שליחות נכשלו`
+      ? t('admin.automations.row.connectionProblem')
+      : t('admin.automations.row.failed', { count: String(data.counts.failed) })
     : null
 
   const sub =
     data.status === 'draft'
-      ? 'טיוטה'
-      : [activityPhrase(data.counts), updated].filter(Boolean).join(' · ') ||
-        (data.status === 'paused' ? 'מושהה' : 'פעילה')
+      ? t('admin.automations.row.draft')
+      : [activityPhrase(data.counts, t), updated].filter(Boolean).join(' · ') ||
+        (data.status === 'paused' ? t('admin.automations.row.paused') : t('admin.automations.row.active'))
 
   /*
    * The row shows a name and a fact; the sentence that says what the automation
@@ -128,13 +132,16 @@ export default function AutomationCard({
    * the sheet, but a screen reader has no hover and no glance — without this the
    * row would announce a name and a run count and nothing about the behaviour.
    */
-  const sentence = automationSentence({
-    event: getEvent(data.eventKey),
-    conditions: data.conditions,
-    actionTitle: (data.actionKey ? getAction(data.actionKey) : null)?.title ?? 'פעולה',
-    subject: data.subject,
-    timing: data.timing,
-  })
+  const sentence = automationSentenceIn(
+    {
+      event: localizeEvent(getEvent(data.eventKey), t.locale),
+      conditions: data.conditions,
+      actionTitle: localizeAction(data.actionKey ? getAction(data.actionKey) : null, t.locale)?.title ?? actionFallbackIn(t.locale),
+      subject: data.subject,
+      timing: data.timing,
+    },
+    t.locale,
+  )
 
   return (
     <div className='group/row -mx-3 flex items-center gap-3.5 rounded-[10px] px-3 py-2.5 transition-colors duration-150 hover:bg-[#f7f8fa]'>
@@ -152,7 +159,7 @@ export default function AutomationCard({
         <span className={`mt-0.5 block truncate text-[13px] ${hasError ? 'text-error' : 'text-[#aab3c0]'}`}>
           {problem ? (
             <>
-              <span>דורש טיפול</span>
+              <span>{t('admin.automations.row.needsAttention')}</span>
               {` · ${problem}`}
             </>
           ) : (
@@ -174,13 +181,14 @@ export default function AutomationCard({
       {configuredButPaused && (
         <HoverTooltip
           className='inline-flex flex-none items-center rounded-sm focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning-text'
-          label='האוטומציה מוגדרת כפעילה. המנוי שלך הסתיים ולכן היא לא רצה כרגע. חידוש המנוי יחזיר את ההפעלה.'
+          label={t('admin.automations.row.lockLabel')}
+          region={region}
           panelClassName='pointer-events-none rounded-lg border border-warning-border bg-warning-bg px-3 py-2 text-xs leading-relaxed text-warning-text shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
           content={
             <>
-              <p className='font-semibold'>האוטומציה מוגדרת כפעילה</p>
-              <p className='mt-0.5'>המנוי שלך הסתיים ולכן היא לא רצה כרגע.</p>
-              <p className='mt-1'>חידוש המנוי יחזיר את ההפעלה.</p>
+              <p className='font-semibold'>{t('admin.automations.row.lockTitle')}</p>
+              <p className='mt-0.5'>{t('admin.automations.row.lockBody')}</p>
+              <p className='mt-1'>{t('admin.automations.row.lockRenew')}</p>
             </>
           }
         >
@@ -191,8 +199,8 @@ export default function AutomationCard({
       <button
         type='button'
         aria-pressed={isActive}
-        aria-label={isActive ? `השהה · ${data.name}` : `הפעל · ${data.name}`}
-        title={isActive ? 'השהה' : 'הפעל'}
+        aria-label={isActive ? t('admin.automations.row.pauseNamed', { name: data.name }) : t('admin.automations.row.resumeNamed', { name: data.name })}
+        title={isActive ? t('admin.automations.row.pause') : t('admin.automations.row.resume')}
         disabled={busy}
         onClick={onToggle}
         className={`relative h-5 w-8.5 flex-none rounded-full transition-colors duration-150 disabled:opacity-50 ${
