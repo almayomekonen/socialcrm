@@ -35,7 +35,7 @@ const dialog = () => norm([...document.querySelectorAll('[role="dialog"]')].map(
 const click = async (el: Element | null | undefined) => act(async () => void fireEvent.click(el!))
 const wait = (ms = 0) => act(async () => void (await new Promise((r) => setTimeout(r, ms))))
 const type = (el: Element | null | undefined, value: string) => act(async () => void fireEvent.change(el!, { target: { value } }))
-const key = (el: Element | null | undefined, k: string) => act(async () => void fireEvent.keyDown(el!, { key: k }))
+const key = (el: Element | Document | null | undefined, k: string) => act(async () => void fireEvent.keyDown(el!, { key: k }))
 const btn = (text: string, root: ParentNode = document) => [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)
 const labelled = (start: string, root: ParentNode = document) => [...root.querySelectorAll('[aria-label]')].find((e) => e.getAttribute('aria-label')!.startsWith(start))
 const canvas = () => norm(document.querySelector('.react-flow')!.parentElement!.outerHTML)

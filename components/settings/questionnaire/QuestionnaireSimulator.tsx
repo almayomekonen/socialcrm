@@ -3,12 +3,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { simulateQuestionnaireDraft } from '@/actions/questionnaire/builderPublish'
-import { explainKept, explainReason, explainRecognized } from '@/lib/inbox/autoresponse/questionnaire/builder/explainText'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import type { SimulatedTurn } from '@/lib/inbox/autoresponse/questionnaire/builder/simulate'
 import { useRefocusAfterTurn } from '@/hooks/useRefocusAfterTurn'
-import ChatBubble from './ChatBubble'
-import TeachPhrase from './TeachPhrase'
+import SimulatorTurn from './SimulatorTurn'
 import type { PhraseSuggestion } from '@/lib/inbox/autoresponse/questionnaire/builder/phraseSuggestion'
 import { SIMULATE_COPY } from './builderCopy'
 
@@ -163,28 +161,7 @@ export default function QuestionnaireSimulator({
           <p className='m-auto max-w-xs text-center text-sm text-gray-500'>כתבו הודעה כמו שלקוח היה כותב, למשל "היי".</p>
         )}
         {turns.map((turn, i) => (
-          <div key={i} className='flex flex-col gap-2.5'>
-            {turn.customer.map((m, n) => (
-              <ChatBubble key={`c${n}`} from='customer' text={m} label='אתם, כלקוח' />
-            ))}
-            {turn.replies.map((r, n) => (
-              <ChatBubble key={`r${n}`} from='business' text={r} label='תשובת השאלון' />
-            ))}
-            {turn.replies.length === 0 && <p className='self-end text-xs text-gray-500'>השאלון לא שלח הודעה בתור הזה.</p>}
-            {onTeach && <TeachPhrase model={model} turn={turn} onTeach={(t) => void teach(t)} />}
-            <details className='self-end max-w-[88%] text-xs text-gray-600'>
-              <summary className='cursor-pointer underline-offset-2 hover:underline'>למה המערכת בחרה בזה?</summary>
-              <div className='mt-1 grid gap-1 rounded-md border border-gray-200 bg-white p-2'>
-                <p>{explainReason(turn.explanation)}</p>
-                {explainRecognized(model, turn.explanation).map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                {explainKept(turn.explanation).map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-            </details>
-          </div>
+          <SimulatorTurn key={i} model={model} turn={turn} onTeach={onTeach ? (t) => void teach(t) : undefined} />
         ))}
         {notice && (
           <p role='status' className='rounded-md bg-indigo-50 px-3 py-2 text-xs text-indigo-950'>
