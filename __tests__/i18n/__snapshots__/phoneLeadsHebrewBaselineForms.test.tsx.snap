@@ -1,0 +1,358 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — the phone add-lead form > the form, ID refusals, a refused save, the quota paywall (single), success, expired 1`] = `
+{
+  "calls": [
+    [
+      "getLeadByIdNum",
+      "123456789",
+    ],
+    [
+      "getLeadByIdNum",
+      "123456780",
+    ],
+    [
+      "upsertLead",
+      7,
+      {
+        "birthDate": null,
+        "email": null,
+        "firstName": "דנה",
+        "gender": "זכר",
+        "idNum": null,
+        "lastName": null,
+        "lead": "true",
+        "leadSource": "ידני",
+        "phone": null,
+        "secPhone": null,
+        "status": "new",
+        "userId": "7",
+      },
+      undefined,
+    ],
+    [
+      "upsertLead",
+      7,
+      {
+        "birthDate": null,
+        "email": null,
+        "firstName": "דנה",
+        "gender": "זכר",
+        "idNum": null,
+        "lastName": null,
+        "lead": "true",
+        "leadSource": "ידני",
+        "phone": null,
+        "secPhone": null,
+        "status": "new",
+        "userId": "7",
+      },
+      undefined,
+    ],
+    [
+      "upsertLead",
+      7,
+      {
+        "birthDate": null,
+        "email": null,
+        "firstName": "דנה",
+        "gender": "זכר",
+        "idNum": null,
+        "lastName": null,
+        "lead": "true",
+        "leadSource": "ידני",
+        "phone": null,
+        "secPhone": null,
+        "status": "new",
+        "userId": "7",
+      },
+      undefined,
+    ],
+  ],
+  "expired": "<div role="dialog" aria-modal="true" aria-labelledby="lead-form-mobile-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-form-mobile-title" class="text-lg font-bold text-ink">הוסף ליד</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div data-testid="subscription-expired-state" class="flex flex-col items-center gap-4 text-center px-6 py-12 "><span class="flex size-14 items-center justify-center rounded-full bg-gray-100"><div aria-hidden="true" class="dark:bg-white size-6 bg-gray-500 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><div class="max-w-[380px]"><h2 class="text-lg font-bold text-ink">המנוי שלך הסתיים</h2><p class="mt-1.5 text-sm leading-relaxed text-gray-500">חידוש המנוי מחזיר את הוספת הלידים. כל הלידים, השיחות וההיסטוריה שלכם שמורים ונשארים זמינים. חידוש המנוי מחזיר את היכולות המתקדמות מיד.</p><p class="mt-1.5 text-[13px] text-gray-400">תוקף המנוי הסתיים בתאריך 20 באוקטובר 2026</p></div><a href="/settings/update_payment?source=create_lead" class="press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">חידוש מנוי</a></div></div>",
+  "form": "<div role="dialog" aria-modal="true" aria-labelledby="lead-form-mobile-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-form-mobile-title" class="text-lg font-bold text-ink">הוסף ליד</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><form aria-label="הוסף ליד" class="flex flex-col gap-3"><input type="hidden" value="7" name="userId"><input type="hidden" value="true" name="lead"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 h-11 text-base" required="" autocomplete="given-name" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 h-11 text-base" required="" autocomplete="family-name" name="lastName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">טלפון נייד</label></div><input id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 h-11 text-base" autocomplete="tel" type="tel" name="phone"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">מייל</label></div><input id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 h-11 text-base" autocomplete="email" type="email" name="email"></div><details class="rounded-lg border border-gray-200"><summary class="flex min-h-11 cursor-pointer list-none items-center px-3 text-sm font-medium text-gray-700 [&amp;::-webkit-details-marker]:hidden">מידע נוסף</summary><div class="flex flex-col gap-3 px-3 pb-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">מין</label></div><select id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary pe-8 ps-2 h-11 text-base" name="gender"><option value="זכר">זכר</option><option value="נקבה">נקבה</option></select></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">תאריך לידה</label></div><input id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 h-11 text-base" type="date" name="birthDate"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">מקור הליד</label></div><select id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary pe-8 ps-2 h-11 text-base" name="leadSource"><option value="ידני" selected="">ידני</option><option value="WhatsApp">WhatsApp</option><option value="Facebook">Facebook</option><option value="Instagram">Instagram</option><option value="אתר">אתר</option><option value="המלצה">המלצה</option><option value="ייבוא">ייבוא</option><option value="אחר">אחר</option></select></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">סטטוס</label></div><select id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary pe-8 ps-2 h-11 text-base" name="status"><option value="new" selected="">חדש</option><option value="contacted">בטיפול</option><option value="interested">מתעניין</option><option value="closed">נסגר</option><option value="lost">לא רלוונטי</option></select></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">מס' תעודת זהות</label></div><input id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 h-11 text-base" type="number" name="idNum"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">טלפון נוסף</label></div><input id="«id»" class="w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 h-11 text-base" type="tel" name="secPhone"></div></div></details><button type="submit" class="press mt-1 flex min-h-12 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">הוסף ליד</button></form></div>",
+  "idInvalid": "<p role="alert" class="mb-3 text-sm text-red-600">תעודת זהות לא תקינה</p>",
+  "idTaken": "<p role="alert" class="mb-3 text-sm text-red-600">תעודת זהות זו משוייכת לליד יוסי אברהם</p>",
+  "paywallSingle": "<div role="dialog" aria-modal="true" aria-labelledby="quota-paywall-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="quota-paywall-title" class="text-lg font-bold text-ink">מכסת הלידים</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-4"><div><p class="text-base font-semibold leading-snug text-ink">כבר ניהלת 50 לידים כאן.</p><p class="mt-2 text-sm text-gray-600">אל תעצור עכשיו המשך ללא הגבלה.</p></div><div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"><p class="text-base font-semibold">Pro · ₪89 לחודש</p><p class="mt-0.5 text-xs text-gray-600">או ₪588 לשנה (₪49 לחודש בלבד) — חיסכון ₪480 בשנה</p><p class="mt-0.5 text-xs text-gray-600">לידים ללא הגבלה</p></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שדרג עכשיו</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מאוחר יותר</button></div></div></div>",
+  "refused": "<p role="alert" class="mb-3 text-sm text-red-600">שגיאה בשמירת לקוח</p>",
+  "toasts": [
+    [
+      "toast",
+      "success",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — the phone import > tabs, wrong file, unreadable file, Excel preview, CSV summaries, the bulk paywall 1`] = `
+{
+  "calls": [
+    [
+      "uploadLeadData",
+      "File(leads.xlsx)",
+    ],
+    [
+      "uploadLeadData",
+      "File(leads.xlsx)",
+    ],
+    [
+      "uploadLeadData",
+      "File(leads.xlsx)",
+    ],
+    [
+      "addLeads",
+      [
+        {
+          "firstName": "דנה",
+          "phone": "0521111111",
+        },
+        {
+          "firstName": "רון",
+          "phone": "0522222222",
+        },
+      ],
+    ],
+    [
+      "addLeads",
+      [
+        {
+          "firstName": "דנה",
+          "phone": "0521111111",
+        },
+        {
+          "firstName": "רון",
+          "phone": "0522222222",
+        },
+      ],
+    ],
+    [
+      "uploadLeadData",
+      "File(leads.xlsx)",
+    ],
+    [
+      "importLeadsFromCsv",
+      "File(leads.csv)",
+    ],
+    [
+      "importLeadsFromCsv",
+      "File(leads.csv)",
+    ],
+    [
+      "importLeadsFromCsv",
+      "File(leads.csv)",
+    ],
+    [
+      "importLeadsFromCsv",
+      "File(leads.csv)",
+    ],
+  ],
+  "csv_allExisting": "<div class="mt-5 flex flex-col gap-1.5 text-sm"><p class="font-semibold text-ink">כל הלידים כבר קיימים במערכת</p></div>",
+  "csv_allNew": "<div class="mt-5 flex flex-col gap-1.5 text-sm"><p class="font-semibold text-ink">כל הלידים נוספו בהצלחה</p></div>",
+  "csv_mixed": "<div class="mt-5 flex flex-col gap-1.5 text-sm"><p class="font-semibold text-ink">נוספו 2 לידים חדשים</p><p class="text-gray-600">4 לידים כבר קיימים ולא שונו</p><p class="text-gray-600">עודכנו פרטים ב-1 לידים קיימים</p><p class="text-gray-600">שורות לא תקינות: 2</p></div>",
+  "csv_none": "<div class="mt-5 flex flex-col gap-1.5 text-sm"><p class="font-semibold text-ink">לא נוספו לידים</p><p class="text-gray-600">שורות לא תקינות: 3</p></div>",
+  "excelPreview": "<div role="dialog" aria-modal="true" aria-labelledby="lead-import-mobile-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-import-mobile-title" class="text-lg font-bold text-ink">ייבוא לידים</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div role="tablist" aria-label="דרך הייבוא" class="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1"><button type="button" role="tab" aria-selected="true" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors bg-white text-ink shadow-sm">קובץ</button><button type="button" role="tab" aria-selected="false" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors text-gray-500">הדבקת מספרים</button></div><p class="text-sm leading-relaxed text-gray-600">שורה ראשונה: שם פרטי, טלפון. אפשר גם שם משפחה, מייל, תעודת זהות.</p><input accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" class="sr-only" aria-label="בחירת קובץ לידים" type="file"><button type="button" class="press mt-4 flex min-h-12 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">בחירת קובץ</button><div class="mt-5 flex flex-col gap-3"><p class="text-base font-semibold text-ink">מצאנו 4 לידים</p><p class="text-sm text-gray-700">2 תקינים</p><p class="text-sm text-gray-700">2 דורשים בדיקה</p><ul class="flex flex-col divide-y divide-gray-100 rounded-lg border border-gray-200"><li class="px-3 py-2"><p class="text-sm font-medium text-ink">אבי לוי</p><p class="text-xs text-gray-500">12</p></li><li class="px-3 py-2"><p class="text-sm font-medium text-ink">שורה לא תקינה</p></li></ul><button type="button" class="press flex min-h-12 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ייבא 2 לידים</button></div></div>",
+  "fileTab": "<div role="dialog" aria-modal="true" aria-labelledby="lead-import-mobile-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-import-mobile-title" class="text-lg font-bold text-ink">ייבוא לידים</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div role="tablist" aria-label="דרך הייבוא" class="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1"><button type="button" role="tab" aria-selected="true" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors bg-white text-ink shadow-sm">קובץ</button><button type="button" role="tab" aria-selected="false" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors text-gray-500">הדבקת מספרים</button></div><p class="text-sm leading-relaxed text-gray-600">שורה ראשונה: שם פרטי, טלפון. אפשר גם שם משפחה, מייל, תעודת זהות.</p><input accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" class="sr-only" aria-label="בחירת קובץ לידים" type="file"><button type="button" class="press mt-4 flex min-h-12 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">בחירת קובץ</button></div>",
+  "importFailed": "<p role="alert" class="mt-3 text-sm text-red-600">לא הצלחנו לייבא את הלידים</p>",
+  "nothingValid": "<button type="button" disabled="" class="press flex min-h-12 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">אין לידים לייבוא</button>",
+  "pasteTab": "<div role="dialog" aria-modal="true" aria-labelledby="lead-import-mobile-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-import-mobile-title" class="text-lg font-bold text-ink">ייבוא לידים</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div role="tablist" aria-label="דרך הייבוא" class="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1"><button type="button" role="tab" aria-selected="false" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors text-gray-500">קובץ</button><button type="button" role="tab" aria-selected="true" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors bg-white text-ink shadow-sm">הדבקת מספרים</button></div><div dir="rtl" class="flex flex-col gap-3"><label for="paste-leads" class="text-sm font-medium text-ink">הדביקו מספרי טלפון, אחד בכל שורה</label><textarea id="paste-leads" rows="7" dir="ltr" placeholder="0521234567
+דנה לוי, 0537654321" class="w-full resize-y rounded-lg border border-gray-300 bg-white p-3 text-sm leading-relaxed text-ink placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"></textarea><p class="text-xs text-gray-500">אפשר גם "שם, טלפון" בכל שורה.</p><div role="status" aria-live="polite" class="flex flex-col gap-1 text-xs"></div><button class="flex items-center min-w-fit font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-11 px-5 gap-4 text-lg w-full justify-center" disabled=""><span>הוסף לידים</span></button></div></div>",
+  "paywallBulk": "<div role="dialog" aria-modal="true" aria-labelledby="quota-paywall-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="quota-paywall-title" class="text-lg font-bold text-ink">מכסת הלידים</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-4"><div><p class="text-base font-semibold leading-snug text-ink">הקובץ מכיל 2 לידים, נותרו רק 2 במכסה החינמית.</p><p class="mt-2 text-sm text-gray-600">שדרג לייבא את כולם ולהמשיך ללא הגבלה.</p></div><div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"><p class="text-base font-semibold">Pro · ₪89 לחודש</p><p class="mt-0.5 text-xs text-gray-600">או ₪588 לשנה (₪49 לחודש בלבד) — חיסכון ₪480 בשנה</p><p class="mt-0.5 text-xs text-gray-600">לידים ללא הגבלה</p></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שדרג עכשיו</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מאוחר יותר</button></div></div></div>",
+  "serverError": "<p role="alert" class="mt-3 text-sm text-red-600">הקובץ ריק</p>",
+  "unreadable": "<p role="alert" class="mt-3 text-sm text-red-600">לא הצלחנו לקרוא את הקובץ</p>",
+  "wrongType": "<p role="alert" class="mt-3 text-sm text-red-600">יש לבחור קובץ Excel או CSV</p>",
+}
+`;
+
+exports[`Hebrew baseline — the phone lead detail after acting > action buttons, overflow sheet, delete and every refusal, outcome sheet and its toasts, guidance 1`] = `
+{
+  "actions": "<div class="px-4 pb-3"><button type="button" class="mb-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-gray-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/ellipsis.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/ellipsis.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>פעולות</button><div role="status" dir="rtl" class="mb-3 rounded-lg border border-gray-200 bg-primary-tint px-3 py-2.5"><p class="text-[13px] font-bold text-ink">הליד הראשון שלך בפנים</p><p class="mt-0.5 text-[13px] leading-relaxed text-gray-600">קבעו מתי לחזור אליו, ו־SocialCRM ידאג להזכיר לכם בזמן.</p><button type="button" class="press mt-2.5 flex min-h-11 w-full items-center justify-center rounded-md bg-solid text-[14px] font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">קבע מתי לחזור אליו</button></div><div class="grid grid-cols-3 gap-2"><button type="button" class="flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-gray-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/tag.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/tag.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>סטטוס</button><button type="button" class="flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-gray-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>מעקב</button><button type="button" class="flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-gray-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comment-check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comment-check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>תוצאה</button></div></div>",
+  "calls": [
+    [
+      "deleteLead",
+      41,
+    ],
+    [
+      "deleteLead",
+      41,
+    ],
+    [
+      "deleteLead",
+      41,
+    ],
+    [
+      "deleteLead",
+      41,
+    ],
+    [
+      "deleteLead",
+      41,
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_no_answer",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_no_answer",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_reached",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_reached",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_interested",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_interested",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_not_interested",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_not_interested",
+      },
+    ],
+    [
+      "logLeadOutcome",
+      {
+        "id": 41,
+        "outcome": "call_no_answer",
+      },
+    ],
+  ],
+  "confirm": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מחיקת ליד</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="text-sm leading-relaxed whitespace-pre-line text-gray-600">האם למחוק את "יוסי אברהם"?
+לא ניתן לשחזר את הליד לאחר המחיקה.</p><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק ליד</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "delete_billing": [
+    [
+      "toast",
+      "error",
+      "לא ניתן למחוק: קיימות חשבוניות עבור הליד",
+    ],
+  ],
+  "delete_noPermission": [
+    [
+      "toast",
+      "error",
+      "אין לך הרשאה למחוק את הליד",
+    ],
+  ],
+  "delete_notFound": [
+    [
+      "toast",
+      "error",
+      "הליד לא נמצא",
+    ],
+  ],
+  "delete_success": [
+    [
+      "toast",
+      "success",
+      "הליד נמחק",
+    ],
+  ],
+  "delete_thrown": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו למחוק את הליד",
+    ],
+  ],
+  "guidanceOpensFollowUp": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מעקב</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><label for="followup-note" class="sr-only">הערת מעקב</label><input id="followup-note" placeholder="הערה (לא חובה)" maxlength="200" class="mb-1 h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-base outline-none focus:border-primary focus:bg-white" type="text" value=""><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">היום</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">מחר</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד 3 ימים</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד שבוע</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">תאריך אחר…</button></div></div>",
+  "outcomeSheet": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">תוצאת שיחה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">לא ענה</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">דיברנו</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">מעוניין</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">לא מעוניין</button></div></div>",
+  "outcome_דיברנו_": [
+    [
+      "toast",
+      "success",
+      "השיחה נשמרה.",
+    ],
+  ],
+  "outcome_דיברנו_nextFollowUpAt": [
+    [
+      "toast",
+      "success",
+      "השיחה נשמרה. הליד יחזור לרשימת המעקב ב-2/11/2026.",
+    ],
+  ],
+  "outcome_לא מעוניין_": [
+    [
+      "toast",
+      "success",
+      "הליד סומן כלא רלוונטי והוסר מרשימת המעקב.",
+    ],
+  ],
+  "outcome_לא מעוניין_err_msg": [
+    [
+      "toast",
+      "error",
+      "אין הרשאה",
+    ],
+  ],
+  "outcome_לא ענה_": [
+    [
+      "toast",
+      "success",
+      "לא הצלחת להשיג את הליד. קבענו תזכורת לנסות שוב.",
+    ],
+  ],
+  "outcome_לא ענה_nextFollowUpAt": [
+    [
+      "toast",
+      "success",
+      "לא הצלחת להשיג את הליד. נזכיר לך לנסות שוב ב-2/11/2026.",
+    ],
+  ],
+  "outcome_לא ענה_throw": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו לשמור את התוצאה",
+    ],
+  ],
+  "outcome_מעוניין_": [
+    [
+      "toast",
+      "success",
+      "הליד סומן כמתעניין.",
+    ],
+  ],
+  "outcome_מעוניין_nextFollowUpAt": [
+    [
+      "toast",
+      "success",
+      "הליד סומן כמתעניין. נחזיר אותו למעקב ב-2/11/2026 כדי להתקדם לסגירה.",
+    ],
+  ],
+  "overflow": "<div role="dialog" aria-modal="true" aria-labelledby="lead-overflow" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-overflow" class="text-lg font-bold text-ink">פעולות</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">שינוי סטטוס</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">הוספת מעקב</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">פתיחת שיחה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-red-200 bg-white text-red-700 hover:bg-red-50">מחיקת ליד</button></div></div>",
+}
+`;

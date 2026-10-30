@@ -1,0 +1,252 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — phone list delete, load more, filters, add chooser > delete confirmation (one / several) and every result 1`] = `
+{
+  "afterNone": "<div data-testid="leads-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 3</p></div>",
+  "afterPartial": "<div data-testid="leads-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 1</p></div>",
+  "calls": [
+    [
+      "deleteManyLeads",
+      [
+        11,
+      ],
+    ],
+    [
+      "deleteManyLeads",
+      [
+        12,
+        13,
+        14,
+      ],
+    ],
+    [
+      "deleteManyLeads",
+      [
+        12,
+        13,
+        14,
+      ],
+    ],
+    [
+      "deleteManyLeads",
+      [
+        13,
+      ],
+    ],
+  ],
+  "confirmMany": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מחיקת לידים</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="text-sm leading-relaxed whitespace-pre-line text-gray-600">האם למחוק 3 לידים?
+לא ניתן לשחזר את הלידים לאחר המחיקה.</p><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק לידים</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "confirmOne": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מחיקת ליד</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="text-sm leading-relaxed whitespace-pre-line text-gray-600">האם למחוק את "יוסי אברהם"?
+לא ניתן לשחזר את הליד לאחר המחיקה.</p><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק ליד</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "deletedOne": [
+    [
+      "toast",
+      "success",
+      "נמחק ליד אחד בהצלחה",
+    ],
+  ],
+  "failed": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו למחוק את הלידים",
+    ],
+  ],
+  "noneDeleted": [
+    [
+      "toast",
+      "error",
+      "לא נמחקו לידים",
+    ],
+  ],
+  "partial": [
+    [
+      "toast",
+      "success",
+      "נמחקו 2 לידים. ליד אחד לא נמחק כי קיימות חשבוניות עבור הליד",
+    ],
+  ],
+  "rowsLeft": [
+    "13",
+    "15",
+    "16",
+  ],
+}
+`;
+
+exports[`Hebrew baseline — phone list delete, load more, filters, add chooser > load more (loading, appended, failure), the filter sheet, active filters, the add chooser 1`] = `
+{
+  "addAction": "<button type="button" data-testid="leads-add-action" aria-label="הוספת ליד" aria-haspopup="dialog" class="flex size-11 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-4 bg-ink " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button>",
+  "addChooser": "<div role="dialog" aria-modal="true" aria-labelledby="leads-add-sheet" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="leads-add-sheet" class="text-lg font-bold text-ink">הוספת ליד</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-4 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>הוסף ליד</button><button type="button" class="press flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-4 bg-ink " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/file-excel.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/file-excel.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>ייבוא לידים</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "afterLoad": [
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "21",
+  ],
+  "calls": [
+    [
+      "loadMoreMobileLeads",
+      {
+        "q": "יוסי",
+        "status": [
+          "new",
+          "contacted",
+        ],
+      },
+      3,
+    ],
+    [
+      "router.push",
+      "/leads?q=%D7%99%D7%95%D7%A1%D7%99",
+    ],
+    [
+      "router.push",
+      "/leads?q=%D7%99%D7%95%D7%A1%D7%99&status=contacted",
+    ],
+    [
+      "router.push",
+      "/leads?status=new%2Ccontacted",
+    ],
+    [
+      "router.push",
+      "/leads",
+    ],
+  ],
+  "filterBar": "<div class="sticky top-0 z-20 border-b border-gray-200 bg-white px-3 pb-2 pt-2.5"><div data-testid="lead-search-filter-row" class="flex items-center gap-2"><form role="search" class="relative min-w-0 flex-1"><label for="lead-search" class="sr-only">חיפוש לידים</label><input id="lead-search" inputmode="search" enterkeyhint="search" placeholder="חיפוש לפי שם או טלפון" class="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-base outline-none focus:border-primary focus:bg-white" type="search" value="יוסי"><div aria-hidden="true" class="dark:bg-white pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/magnifying-glass.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/magnifying-glass.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></form><button type="button" aria-haspopup="dialog" aria-label="סינון לפי סטטוס, 2 נבחרו" class="relative flex size-11 shrink-0 items-center justify-center rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-primary bg-primary-tint"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/filter.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/filter.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span aria-hidden="true" class="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white">2</span></button></div><div data-testid="lead-active-filters" class="mt-0.5 flex min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&amp;::-webkit-scrollbar]:hidden"><button type="button" aria-label="נקה חיפוש" class="inline-flex h-11 min-w-11 shrink-0 items-center gap-1 px-2 text-[13px] font-medium text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span class="text-[13px] font-medium text-gray-700">"יוסי"</span><span aria-hidden="true" class="text-[13px] leading-none text-gray-400">×</span></button><button type="button" aria-label="הסר חדש" class="inline-flex h-11 min-w-11 shrink-0 items-center gap-1 px-2 text-[13px] font-medium text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="size-1.5 shrink-0 rounded-full bg-blue-500"></span><span class="text-[13px] font-medium text-gray-700">חדש</span><span aria-hidden="true" class="text-[13px] leading-none text-gray-400">×</span></button><button type="button" aria-label="הסר בטיפול" class="inline-flex h-11 min-w-11 shrink-0 items-center gap-1 px-2 text-[13px] font-medium text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="size-1.5 shrink-0 rounded-full bg-yellow-500"></span><span class="text-[13px] font-medium text-gray-700">בטיפול</span><span aria-hidden="true" class="text-[13px] leading-none text-gray-400">×</span></button><button type="button" class="flex h-11 shrink-0 items-center px-2 text-[12px] font-medium text-primary-text underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">נקה הכל</button></div><p aria-live="polite" class="mt-1 text-[11px] tabular-nums leading-none text-gray-400">6 לידים</p></div>",
+  "filterSheet": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">סינון לפי סטטוס</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" aria-pressed="true" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-primary bg-primary-tint"><span class="size-2.5 rounded-full bg-blue-500"></span><span class="flex-1 text-[15px] font-medium text-ink">חדש</span><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><button type="button" aria-pressed="true" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-primary bg-primary-tint"><span class="size-2.5 rounded-full bg-yellow-500"></span><span class="flex-1 text-[15px] font-medium text-ink">בטיפול</span><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><button type="button" aria-pressed="false" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-gray-200 bg-white"><span class="size-2.5 rounded-full bg-green-500"></span><span class="flex-1 text-[15px] font-medium text-ink">מעוניין</span></button><button type="button" aria-pressed="false" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-gray-200 bg-white"><span class="size-2.5 rounded-full bg-gray-400"></span><span class="flex-1 text-[15px] font-medium text-ink">סגור</span></button><button type="button" aria-pressed="false" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border-gray-200 bg-white"><span class="size-2.5 rounded-full bg-red-500"></span><span class="flex-1 text-[15px] font-medium text-ink">אבוד</span></button><button type="button" class="mt-1 min-h-11 rounded-lg px-4 text-[14px] font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">כל הסטטוסים</button></div></div>",
+  "loadFailToasts": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו לטעון עוד לידים",
+    ],
+  ],
+  "loading": "<button type="button" aria-busy="true" class="press flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white text-sm font-medium text-gray-800 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" disabled=""><div aria-hidden="true" class="dark:bg-white size-4 animate-spin bg-gray-500 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/spinner.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/spinner.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>טוען…</button>",
+}
+`;
+
+exports[`Hebrew baseline — phone list selection, actions, status, follow-up > selection bar (one / two), the actions sheet, the status sheet and its toasts 1`] = `
+{
+  "actionsSheet": "<div role="dialog" aria-modal="true" aria-labelledby="lead-list-actions" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-list-actions" class="text-lg font-bold text-ink">פעולות לליד</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">שינוי סטטוס</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">הוספת מעקב</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">פתיחת שיחה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-red-200 bg-white text-red-700 hover:bg-red-50">מחיקת ליד</button></div></div>",
+  "actionsSheetChatOnly": "<div role="dialog" aria-modal="true" aria-labelledby="lead-list-actions" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="lead-list-actions" class="text-lg font-bold text-ink">פעולות לליד</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">שינוי סטטוס</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">הוספת מעקב</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-gray-200 bg-white text-ink hover:bg-gray-50">פתיחת שיחה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary border border-red-200 bg-white text-red-700 hover:bg-red-50">מחיקת ליד</button></div></div>",
+  "calls": [
+    [
+      "updateLead",
+      {
+        "id": 11,
+        "status": "contacted",
+      },
+    ],
+    [
+      "updateLead",
+      {
+        "id": 15,
+        "status": "interested",
+      },
+    ],
+  ],
+  "selectedOne": "<div data-testid="leads-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 1</p></div>",
+  "selectedTwo": "<div data-testid="leads-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 2</p></div>",
+  "statusFailToasts": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו לעדכן את הסטטוס",
+    ],
+  ],
+  "statusSheet": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">סטטוס</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><button type="button" aria-pressed="true" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 border-primary bg-primary-tint"><span class="size-2.5 rounded-full bg-blue-500"></span><span class="flex-1 text-[15px] font-medium text-ink">חדש</span><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><button type="button" aria-pressed="false" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 border-gray-200 bg-white"><span class="size-2.5 rounded-full bg-yellow-500"></span><span class="flex-1 text-[15px] font-medium text-ink">בטיפול</span></button><button type="button" aria-pressed="false" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 border-gray-200 bg-white"><span class="size-2.5 rounded-full bg-green-500"></span><span class="flex-1 text-[15px] font-medium text-ink">מעוניין</span></button><button type="button" aria-pressed="false" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 border-gray-200 bg-white"><span class="size-2.5 rounded-full bg-gray-400"></span><span class="flex-1 text-[15px] font-medium text-ink">סגור</span></button><button type="button" aria-pressed="false" class="flex min-h-12 items-center gap-3 rounded-lg border px-4 text-start focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 border-gray-200 bg-white"><span class="size-2.5 rounded-full bg-red-500"></span><span class="flex-1 text-[15px] font-medium text-ink">אבוד</span></button></div></div>",
+  "statusToasts": [
+    [
+      "toast",
+      "success",
+      "סטטוס עודכן",
+    ],
+  ],
+  "stickyOne": "<div class="flex w-full flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">פעולות</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div>",
+  "stickyTwo": "<div class="flex w-full flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div>",
+}
+`;
+
+exports[`Hebrew baseline — phone list selection, actions, status, follow-up > the follow-up sheet: presets, custom date, clear, toasts, failures, expired 1`] = `
+{
+  "calls": [
+    [
+      "setLeadFollowUp",
+      {
+        "at": "AT",
+        "id": 12,
+        "note": "להתקשר בבוקר",
+      },
+    ],
+    [
+      "setLeadFollowUp",
+      {
+        "at": "AT",
+        "id": 11,
+        "note": null,
+      },
+    ],
+    [
+      "clearLeadFollowUp",
+      {
+        "id": 12,
+      },
+    ],
+    [
+      "setLeadFollowUp",
+      {
+        "at": "AT",
+        "id": 13,
+        "note": null,
+      },
+    ],
+    [
+      "clearLeadFollowUp",
+      {
+        "id": 13,
+      },
+    ],
+  ],
+  "clearToasts": [
+    [
+      "toast",
+      "success",
+      "המעקב הוסר",
+    ],
+  ],
+  "custom": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מעקב</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><label for="followup-note" class="sr-only">הערת מעקב</label><input id="followup-note" placeholder="הערה (לא חובה)" maxlength="200" class="mb-1 h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-base outline-none focus:border-primary focus:bg-white" type="text" value=""><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">היום</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">מחר</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד 3 ימים</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד שבוע</button><input min="2026-10-30" class="h-11 rounded-lg border border-gray-200 px-3 text-base" type="date"></div></div>",
+  "customToasts": [
+    [
+      "toast",
+      "success",
+      "נקבע מעקב ל־12/11/2026",
+    ],
+  ],
+  "expiredSheet": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מעקב</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div data-testid="subscription-expired-inline" class="flex flex-wrap items-center gap-3 rounded-lg border border-warning-border bg-warning-bg px-3.5 py-3 "><div aria-hidden="true" class="dark:bg-white size-4 shrink-0 bg-warning-text " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><p class="min-w-0 flex-1 text-[13px] leading-snug text-warning-text">חידוש המנוי מחזיר את קביעת המעקב</p><a href="/settings/update_payment?source=lead_followup_mobile" class="shrink-0 text-[13px] font-semibold text-warning-text underline underline-offset-2">חידוש מנוי</a></div></div>",
+  "failToasts": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו לקבוע את המעקב",
+    ],
+    [
+      "toast",
+      "error",
+      "אין הרשאה",
+    ],
+  ],
+  "setToasts": [
+    [
+      "toast",
+      "success",
+      "נקבע מעקב ל־31/10/2026",
+    ],
+  ],
+  "sheetNoCurrent": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מעקב</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><label for="followup-note" class="sr-only">הערת מעקב</label><input id="followup-note" placeholder="הערה (לא חובה)" maxlength="200" class="mb-1 h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-base outline-none focus:border-primary focus:bg-white" type="text" value=""><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">היום</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">מחר</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד 3 ימים</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד שבוע</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">תאריך אחר…</button></div></div>",
+  "sheetWithCurrent": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מעקב</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-2"><p class="mb-1 text-[13px] text-gray-500">מעקב נוכחי: 29/10/2026</p><label for="followup-note" class="sr-only">הערת מעקב</label><input id="followup-note" placeholder="הערה (לא חובה)" maxlength="200" class="mb-1 h-11 rounded-lg border border-gray-200 bg-gray-50 px-3 text-base outline-none focus:border-primary focus:bg-white" type="text" value=""><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">היום</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">מחר</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד 3 ימים</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">בעוד שבוע</button><button type="button" class="flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">תאריך אחר…</button><button type="button" class="mt-1 flex min-h-12 items-center rounded-lg px-4 text-start text-[15px] font-medium text-red-600 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50">הסר מעקב</button></div></div>",
+}
+`;
