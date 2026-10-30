@@ -1,0 +1,1696 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — automations label producers > catalog, copy maps, sentence, timing, errors, connections copy 1`] = `
+{
+  "accuracy": "שליחה מתוזמנת מתבצעת תוך מספר דקות מהמועד שנקבע",
+  "catalog": {
+    "actions": [
+      {
+        "description": "שולח אימייל לליד בשם העסק",
+        "icon": "envelope",
+        "key": "email.send",
+        "laws": [
+          "send_once",
+          "per_lead_cap",
+          "agency_cap",
+          "suppression",
+          "bounce_block",
+          "quiet_hours",
+        ],
+        "parameters": [
+          {
+            "key": "subject",
+            "label": "נושא האימייל",
+            "type": "text",
+            "validation": {
+              "maxLength": 120,
+              "required": true,
+            },
+          },
+          {
+            "key": "body",
+            "label": "תוכן האימייל",
+            "type": "text",
+            "validation": {
+              "required": true,
+            },
+          },
+          {
+            "help": "למשל: לקביעת שיחה",
+            "key": "ctaLabel",
+            "label": "טקסט הכפתור",
+            "type": "text",
+            "validation": {
+              "maxLength": 40,
+            },
+          },
+          {
+            "key": "ctaUrl",
+            "label": "קישור הכפתור",
+            "type": "text",
+            "validation": {
+              "pattern": "^https://[^\\s]+$",
+            },
+          },
+        ],
+        "preview": "email",
+        "requirements": [],
+        "requires": [
+          "email",
+        ],
+        "risk": "external",
+        "testable": true,
+        "title": "שליחת אימייל",
+      },
+      {
+        "description": "פותח משימה לנציג שמטפל בליד",
+        "icon": "list-check",
+        "key": "task.create",
+        "laws": [
+          "send_once",
+        ],
+        "parameters": [
+          {
+            "key": "title",
+            "label": "כותרת המשימה",
+            "type": "text",
+            "validation": {
+              "maxLength": 120,
+              "required": true,
+            },
+          },
+        ],
+        "preview": "record",
+        "requirements": [],
+        "requires": [],
+        "risk": "internal",
+        "testable": false,
+        "title": "יצירת משימה לנציג",
+      },
+      {
+        "description": "שולח לליד הודעה מוכנה שאושרה בוואטסאפ",
+        "icon": "whatsapp",
+        "key": "whatsapp.send",
+        "laws": [
+          "send_once",
+          "per_lead_cap",
+          "agency_cap",
+          "opt_out",
+          "quiet_hours",
+        ],
+        "parameters": [
+          {
+            "help": "רק הודעות שאושרו בוואטסאפ אפשר לשלוח באוטומציה",
+            "key": "templateId",
+            "label": "ההודעה המוכנה",
+            "optionSource": "whatsapp_templates",
+            "type": "enum_remote",
+            "validation": {
+              "required": true,
+            },
+          },
+          {
+            "key": "templateBindings",
+            "label": "שיוך הפרטים בהודעה",
+            "type": "text",
+          },
+        ],
+        "preview": "message",
+        "requirements": [
+          {
+            "cta": {
+              "href": "/settings/integrations?section=whatsapp",
+              "label": "חיבור וואטסאפ",
+            },
+            "key": "whatsapp_connected",
+            "type": "connection",
+          },
+        ],
+        "requires": [
+          "phone",
+        ],
+        "risk": "external",
+        "testable": false,
+        "title": "שליחת הודעת וואטסאפ",
+      },
+      {
+        "description": "בונה טיוטת הצעת מחיר לליד מתוך תבנית, ומשאירה אותה לנציג",
+        "icon": "file-invoice",
+        "key": "quote.create",
+        "laws": [
+          "send_once",
+        ],
+        "parameters": [
+          {
+            "help": "המחירים נלקחים מהתבנית, ונשמרים על ההצעה כפי שהם באותו רגע",
+            "key": "quoteTemplateId",
+            "label": "תבנית הצעת המחיר",
+            "optionSource": "quote_templates",
+            "type": "enum_agency",
+            "validation": {
+              "required": true,
+            },
+          },
+        ],
+        "preview": "record",
+        "requirements": [],
+        "requires": [],
+        "risk": "internal",
+        "testable": false,
+        "title": "הכנת הצעת מחיר לנציג",
+      },
+    ],
+    "events": [
+      {
+        "description": "כשליד חדש נוצר במערכת — מפייסבוק, מוואטסאפ או בהוספה ידנית",
+        "fields": [
+          {
+            "freshness": "live",
+            "key": "leadFirstName",
+            "label": "שם הליד",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "businessName",
+            "label": "שם העסק",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "repName",
+            "label": "שם הנציג",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "email",
+            "label": "אימייל הליד",
+            "lifecycle": "stable",
+            "type": "email",
+          },
+          {
+            "freshness": "live",
+            "key": "phone",
+            "label": "טלפון הליד",
+            "lifecycle": "stable",
+            "type": "phone",
+          },
+          {
+            "freshness": "live",
+            "key": "status",
+            "label": "סטטוס הליד",
+            "lifecycle": "stable",
+            "options": [
+              {
+                "label": "חדש",
+                "value": "new",
+              },
+              {
+                "label": "בטיפול",
+                "value": "contacted",
+              },
+              {
+                "label": "מעוניין",
+                "value": "interested",
+              },
+              {
+                "label": "סגור",
+                "value": "closed",
+              },
+              {
+                "label": "אבוד",
+                "value": "lost",
+              },
+            ],
+            "type": "enum",
+          },
+          {
+            "freshness": "snapshot",
+            "key": "source",
+            "label": "מקור הליד",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+        ],
+        "icon": "user-plus",
+        "identity": {
+          "leadResolution": "the lead row just inserted — resolved by the creating call site before emission (ADR-004 origin)",
+          "occurrenceKey": "lead_created",
+        },
+        "key": "lead.created",
+        "lifecycle": "stable",
+        "origin": "internal",
+        "parameters": [],
+        "requirements": [],
+        "subject": "lead",
+        "title": "ליד חדש נכנס",
+      },
+      {
+        "description": "כשסטטוס של ליד מתעדכן — ידנית או דרך תוצאת שיחה",
+        "fields": [
+          {
+            "freshness": "live",
+            "key": "leadFirstName",
+            "label": "שם הליד",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "businessName",
+            "label": "שם העסק",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "repName",
+            "label": "שם הנציג",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "email",
+            "label": "אימייל הליד",
+            "lifecycle": "stable",
+            "type": "email",
+          },
+          {
+            "freshness": "live",
+            "key": "phone",
+            "label": "טלפון הליד",
+            "lifecycle": "stable",
+            "type": "phone",
+          },
+          {
+            "freshness": "live",
+            "key": "status",
+            "label": "סטטוס הליד",
+            "lifecycle": "stable",
+            "options": [
+              {
+                "label": "חדש",
+                "value": "new",
+              },
+              {
+                "label": "בטיפול",
+                "value": "contacted",
+              },
+              {
+                "label": "מעוניין",
+                "value": "interested",
+              },
+              {
+                "label": "סגור",
+                "value": "closed",
+              },
+              {
+                "label": "אבוד",
+                "value": "lost",
+              },
+            ],
+            "type": "enum",
+          },
+          {
+            "freshness": "snapshot",
+            "key": "newStatus",
+            "label": "הסטטוס החדש",
+            "lifecycle": "stable",
+            "options": [
+              {
+                "label": "חדש",
+                "value": "new",
+              },
+              {
+                "label": "בטיפול",
+                "value": "contacted",
+              },
+              {
+                "label": "מעוניין",
+                "value": "interested",
+              },
+              {
+                "label": "סגור",
+                "value": "closed",
+              },
+              {
+                "label": "אבוד",
+                "value": "lost",
+              },
+            ],
+            "type": "enum",
+          },
+        ],
+        "icon": "arrow-right-arrow-left",
+        "identity": {
+          "leadResolution": "the lead whose status was just written — agency-scoped by the updating action",
+          "occurrenceKey": "status_changed:{newStatus}:{occurredAtMs}",
+        },
+        "key": "lead.status_changed",
+        "lifecycle": "stable",
+        "origin": "internal",
+        "parameters": [],
+        "requirements": [],
+        "subject": "lead",
+        "title": "סטטוס הליד השתנה",
+      },
+      {
+        "description": "כשנקבעת פגישה עם ליד במערכת",
+        "fields": [
+          {
+            "freshness": "live",
+            "key": "leadFirstName",
+            "label": "שם הליד",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "businessName",
+            "label": "שם העסק",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "repName",
+            "label": "שם הנציג",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "email",
+            "label": "אימייל הליד",
+            "lifecycle": "stable",
+            "type": "email",
+          },
+          {
+            "freshness": "live",
+            "key": "phone",
+            "label": "טלפון הליד",
+            "lifecycle": "stable",
+            "type": "phone",
+          },
+          {
+            "freshness": "live",
+            "key": "status",
+            "label": "סטטוס הליד",
+            "lifecycle": "stable",
+            "options": [
+              {
+                "label": "חדש",
+                "value": "new",
+              },
+              {
+                "label": "בטיפול",
+                "value": "contacted",
+              },
+              {
+                "label": "מעוניין",
+                "value": "interested",
+              },
+              {
+                "label": "סגור",
+                "value": "closed",
+              },
+              {
+                "label": "אבוד",
+                "value": "lost",
+              },
+            ],
+            "type": "enum",
+          },
+          {
+            "freshness": "live",
+            "key": "meetingStatus",
+            "label": "מצב הפגישה",
+            "lifecycle": "stable",
+            "options": [
+              {
+                "label": "מתוכננת",
+                "value": "scheduled",
+              },
+              {
+                "label": "בוטלה",
+                "value": "cancelled",
+              },
+              {
+                "label": "התקיימה",
+                "value": "completed",
+              },
+              {
+                "label": "לא הגיע",
+                "value": "no_show",
+              },
+            ],
+            "type": "enum",
+          },
+          {
+            "freshness": "live",
+            "key": "meetingTitle",
+            "label": "שם הפגישה",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "meetingWhen",
+            "label": "מועד הפגישה",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "meetingDetails",
+            "label": "פרטי הפגישה",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "snapshot",
+            "key": "startsAt",
+            "label": "מועד הפגישה",
+            "lifecycle": "stable",
+            "type": "datetime",
+          },
+          {
+            "freshness": "snapshot",
+            "key": "appointmentName",
+            "label": "סוג הפגישה",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+        ],
+        "icon": "calendar-check",
+        "identity": {
+          "leadResolution": "the lead the meeting is already attached to (meetings.lead_id); a meeting with no lead emits nothing",
+          "occurrenceKey": "appointment:meeting:{meetingId}",
+        },
+        "key": "appointment.booked",
+        "lifecycle": "stable",
+        "origin": "internal",
+        "parameters": [],
+        "requirements": [],
+        "subject": "appointment",
+        "title": "נקבעה פגישה",
+      },
+      {
+        "description": "כשמישהו ממלא טופס באתר האינטרנט שלכם",
+        "fields": [
+          {
+            "freshness": "live",
+            "key": "leadFirstName",
+            "label": "שם הליד",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "businessName",
+            "label": "שם העסק",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "repName",
+            "label": "שם הנציג",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "live",
+            "key": "email",
+            "label": "אימייל הליד",
+            "lifecycle": "stable",
+            "type": "email",
+          },
+          {
+            "freshness": "live",
+            "key": "phone",
+            "label": "טלפון הליד",
+            "lifecycle": "stable",
+            "type": "phone",
+          },
+          {
+            "freshness": "live",
+            "key": "status",
+            "label": "סטטוס הליד",
+            "lifecycle": "stable",
+            "options": [
+              {
+                "label": "חדש",
+                "value": "new",
+              },
+              {
+                "label": "בטיפול",
+                "value": "contacted",
+              },
+              {
+                "label": "מעוניין",
+                "value": "interested",
+              },
+              {
+                "label": "סגור",
+                "value": "closed",
+              },
+              {
+                "label": "אבוד",
+                "value": "lost",
+              },
+            ],
+            "type": "enum",
+          },
+          {
+            "freshness": "snapshot",
+            "key": "formName",
+            "label": "שם הטופס",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "snapshot",
+            "key": "message",
+            "label": "תוכן ההודעה",
+            "lifecycle": "stable",
+            "type": "text",
+          },
+          {
+            "freshness": "snapshot",
+            "key": "pageUrl",
+            "label": "העמוד שממנו נשלח",
+            "lifecycle": "stable",
+            "type": "url",
+          },
+        ],
+        "icon": "file-lines",
+        "identity": {
+          "leadResolution": "the lead the connector created or matched for this submission — by prior submission id, then by phone, then by email, within the agency",
+          "occurrenceKey": "form:{connection}:{submission_id}",
+        },
+        "key": "form.submitted",
+        "lifecycle": "stable",
+        "origin": "external",
+        "parameters": [
+          {
+            "help": "אפשר להגביל את האוטומציה לטופס אחד",
+            "key": "formId",
+            "label": "הטופס",
+            "optionSource": "forms",
+            "type": "enum_remote",
+          },
+        ],
+        "requirements": [
+          {
+            "cta": {
+              "href": "/settings/integrations?section=website",
+              "label": "חיבור האתר",
+            },
+            "key": "website_connected",
+            "type": "connection",
+          },
+        ],
+        "subject": "form",
+        "title": "נשלח טופס באתר",
+      },
+    ],
+    "integrations": [
+      {
+        "auth": "api_key",
+        "capabilities": [
+          "website_connected",
+        ],
+        "icon": "globe",
+        "key": "contact_form_7",
+        "title": "האתר שלי",
+      },
+    ],
+    "laws": [
+      {
+        "description": "כל אוטומציה פועלת על כל ליד פעם אחת בלבד.",
+        "key": "send_once",
+        "title": "פעם אחת לליד",
+      },
+      {
+        "description": "מגבלת ההודעות האוטומטיות שליד יחיד מקבל ביום.",
+        "key": "per_lead_cap",
+        "title": "מכסה יומית לליד",
+      },
+      {
+        "description": "תקרת ההודעות האוטומטיות של העסק ליום.",
+        "key": "agency_cap",
+        "title": "מכסה יומית לעסק",
+      },
+      {
+        "description": "ליד שהוסר מרשימת התפוצה לא יקבל אימיילים אוטומטיים.",
+        "key": "suppression",
+        "title": "הסרה מרשימת התפוצה",
+      },
+      {
+        "description": "כתובת שהוחזרה נחסמת לשליחות הבאות.",
+        "key": "bounce_block",
+        "title": "כתובת לא תקינה",
+      },
+      {
+        "description": "שליחה מחוץ לחלון הפעילות מוחזקת לחלון הבא.",
+        "key": "quiet_hours",
+        "title": "שעות שקט",
+      },
+      {
+        "description": "ליד שביקש להפסיק לקבל הודעות בערוץ הזה.",
+        "key": "opt_out",
+        "title": "הסרה מהודעות",
+      },
+      {
+        "description": "הודעת טקסט חופשי מותרת רק בתוך 24 שעות מהודעת הליד.",
+        "key": "window_24h",
+        "title": "חלון 24 שעות",
+      },
+    ],
+    "subjects": [
+      {
+        "icon": "user",
+        "key": "lead",
+        "title": "לידים",
+      },
+      {
+        "icon": "calendar",
+        "key": "appointment",
+        "title": "פגישות",
+      },
+      {
+        "icon": "file-lines",
+        "key": "form",
+        "title": "טפסים",
+      },
+    ],
+  },
+  "categories": {
+    "appointment": "פגישות",
+    "form": "טפסים באתר",
+    "internal": "עבודה פנימית",
+    "lead": "לידים",
+  },
+  "condition": [
+    "הסטטוס החדש הוא "סגור"",
+    "אימייל הליד קיים",
+  ],
+  "connections": {
+    "delivery": {
+      "disconnected": {
+        "hint": "החיבור אינו פעיל.",
+        "label": "מנותק",
+        "role": "error",
+      },
+      "never_received": {
+        "hint": "החיבור נוצר, אבל עדיין לא הגיע אליו מידע. שלחו טופס אחד לבדיקה.",
+        "label": "טרם התקבלו נתונים",
+        "role": "warning",
+      },
+      "receiving": {
+        "hint": "",
+        "label": "מקבל אירועים",
+        "role": "success",
+      },
+      "rejected": {
+        "hint": "מגיעות פניות לחיבור הזה אבל הן לא נכנסות למערכת.",
+        "label": "פניות נדחות",
+        "role": "error",
+      },
+      "unknown": {
+        "hint": "החיבור הזה אינו מדווח על קליטת מידע.",
+        "label": "מחובר",
+        "role": "neutral",
+      },
+    },
+    "errors": {
+      "connection_unknown": "החיבור לא נמצא",
+      "forbidden": "אין לך הרשאה לבצע פעולה זו",
+      "integration_unknown": "החיבור המבוקש אינו קיים",
+      "not_available": "החיבורים אינם זמינים בחשבון הזה",
+      "site_url_invalid": "כתובת האתר אינה תקינה",
+      "wrong_auth_strategy": "סוג החיבור הזה אינו נוצר כך",
+    },
+    "health": {
+      "degraded": {
+        "label": "החיבור אינו שלם",
+        "role": "warning",
+      },
+      "needs_reauth": {
+        "label": "נדרש חיבור מחדש",
+        "role": "warning",
+      },
+      "ok": {
+        "label": "מחובר",
+        "role": "success",
+      },
+      "revoked": {
+        "label": "החיבור נותק",
+        "role": "error",
+      },
+    },
+    "other": "הפעולה נכשלה. נסו שוב.",
+    "strategy": {
+      "api_key": {
+        "connect": "יצירת חיבור",
+        "how": "נפיק כתובת וקוד סודי שצריך להזין במערכת שלכם.",
+        "needsConnection": true,
+        "reconnect": "יצירת חיבור חדש",
+      },
+      "embedded_signup": {
+        "connect": "",
+        "how": "ההרשמה לשירות הזה תתאפשר בהמשך.",
+        "needsConnection": false,
+        "reconnect": "",
+      },
+      "none": {
+        "connect": "",
+        "how": "לא נדרש חיבור — האפשרויות זמינות מיד.",
+        "needsConnection": false,
+        "reconnect": "",
+      },
+      "oauth2": {
+        "connect": "",
+        "how": "החיבור לשירות הזה יתאפשר בהמשך.",
+        "needsConnection": false,
+        "reconnect": "",
+      },
+    },
+    "subscription": {
+      "failed": {
+        "label": "נכשל",
+        "role": "error",
+      },
+      "pending": {
+        "label": "ממתין",
+        "role": "neutral",
+      },
+      "subscribed": {
+        "label": "פעיל",
+        "role": "success",
+      },
+    },
+  },
+  "failure": {
+    "terminal": "לא נשלח — השליחה נכשלה",
+    "transient": "לא נשלח — תקלה זמנית, ננסה שוב",
+  },
+  "identity": {
+    "no_reply_to": "חסרה כתובת אימייל לתשובות. יש להשלים אותה בהגדרות העסק.",
+    "no_sending_domain": "שליחת אימיילים אינה מוגדרת עדיין. נדרשת בדיקה בהגדרות החשבון.",
+  },
+  "noEvent": "אירוע שאינו זמין · פעולה · מיד",
+  "operators": {
+    "after": "אחרי",
+    "before": "לפני",
+    "between": "בין",
+    "contains": "מכיל",
+    "equals": "שווה ל",
+    "exists": "קיים",
+    "greater_than": "גדול מ",
+    "is": "הוא",
+    "is_false": "לא",
+    "is_not": "אינו",
+    "is_one_of": "אחד מ",
+    "is_true": "כן",
+    "less_than": "קטן מ",
+    "not_exists": "לא קיים",
+  },
+  "saved": [
+    {
+      "basis": "לפי 3 דקות טיפול ידני לפנייה",
+      "value": "0 דקות",
+    },
+    {
+      "basis": "לפי 3 דקות טיפול ידני לפנייה",
+      "value": "15 דקות",
+    },
+    {
+      "basis": "לפי 3 דקות טיפול ידני לפנייה",
+      "value": "1 שעות",
+    },
+    {
+      "basis": "לפי 3 דקות טיפול ידני לפנייה",
+      "value": "2 שעות",
+    },
+  ],
+  "sentence": "סטטוס הליד השתנה · רק אם הסטטוס החדש הוא "אבוד" וגם אימייל הליד קיים · שליחת אימייל: "נושא" · אחרי 3 ימים",
+  "sheetErrors": {
+    "action_invalid": "לא נמצאה פעולה שניתן להפעיל עבור האירוע שנבחר",
+    "body_required": "יש להזין תוכן לאימייל",
+    "condition_field_unknown": "אחד התנאים מפנה לשדה שאינו קיים",
+    "condition_operator_invalid": "אחד התנאים משתמש בהשוואה שאינה נתמכת",
+    "condition_value_invalid": "ערך התנאי אינו אחת האפשרויות",
+    "condition_value_required": "יש להשלים ערך בתנאי",
+    "content_required": "יש להזין נושא ותוכן לפני שליחת בדיקה",
+    "cta_incomplete": "לכפתור צריך גם טקסט וגם קישור, או להסיר אותו",
+    "cta_label_invalid": "טקסט הכפתור ארוך מדי",
+    "cta_url_invalid": "קישור הכפתור חייב להתחיל ב-https://",
+    "forbidden": "אין לך הרשאה לבצע פעולה זו",
+    "name_required": "יש להזין שם לאוטומציה",
+    "no_recipient": "לא נמצאה כתובת אימייל לשליחת הבדיקה",
+    "no_reply_to": "חסרה כתובת אימייל לתשובות. יש להשלים אותה בהגדרות העסק.",
+    "no_sending_domain": "שליחת אימיילים אינה מוגדרת עדיין. נדרשת בדיקה בהגדרות החשבון.",
+    "not_available": "האוטומציות אינן זמינות בחשבון הזה",
+    "not_found": "האוטומציה לא נמצאה",
+    "other": "לא ניתן לשמור",
+    "parameter_invalid": "אחד מהערכים שנבחרו אינו תקין",
+    "parameter_required": "יש להשלים את כל השדות של הפעולה",
+    "preview_failed": "לא ניתן להציג תצוגה מקדימה כרגע. נסו שוב.",
+    "send_failed": "שליחת הבדיקה נכשלה. נסו שוב.",
+    "subject_required": "יש להזין נושא לאימייל",
+    "template_missing": "ההודעה המוכנה שנבחרה לא נמצאה",
+    "template_not_approved": "אפשר לבחור רק הודעה שאושרה בוואטסאפ",
+    "template_not_chosen": "יש לבחור הודעה מוכנה",
+    "template_not_found": "ההודעה המוכנה שנבחרה לא נמצאה",
+    "template_required": "יש לבחור הודעה מוכנה",
+    "template_unmapped": "צריך להשלים מה ימלא כל פרט בהודעה",
+    "timing_invalid": "העיתוי אינו תקין",
+    "title_invalid": "כותרת המשימה ארוכה מדי",
+    "title_required": "יש להזין כותרת למשימה",
+    "trigger_invalid": "האירוע שנבחר אינו זמין",
+    "unknown_variable": "יש בתוכן משתנה שאינו נתמך",
+  },
+  "skip": {
+    "action_unavailable": "לא נשלח — הפעולה אינה זמינה כעת. נדרשת בדיקה בהגדרות.",
+    "address_undeliverable": "לא נשלח — כתובת האימייל לא תקינה",
+    "agency_daily_cap": "לא נשלח — הגעתם למכסת ההודעות היומית",
+    "already_sent": "לא נשלח — כבר נשלח לליד הזה",
+    "lead_daily_cap": "לא נשלח — הליד קיבל היום את מספר ההודעות המרבי",
+    "lead_deleted": "לא נשלח — הליד נמחק לפני מועד השליחה",
+    "meeting_cancelled": "לא נשלח — הפגישה בוטלה",
+    "meeting_missing": "לא נשלח — הפגישה לא נמצאה",
+    "meeting_passed": "לא נשלח — מועד הפגישה כבר עבר",
+    "no_email": "לא נשלח — אין כתובת אימייל לליד",
+    "no_phone": "לא נשלח — אין מספר טלפון לליד",
+    "opted_out": "לא נשלח — הליד ביקש להפסיק לקבל הודעות",
+    "origin_import": "לא נשלח — לידים מיובאים אינם נכללים באוטומציות",
+    "premise_expired": "לא נשלח — הליד כבר טופל",
+    "quiet_hours": "לא נשלח — מחוץ לחלון השליחה שהוגדר",
+    "suppressed": "לא נשלח — הליד הוסר מרשימת התפוצה",
+  },
+  "templateErrors": {
+    "forbidden": "אין לך הרשאה לבצע פעולה זו",
+    "invalid_input": "לא ניתן לשמור את ההצעה",
+    "item_discount_invalid": "ההנחה אינה תקינה",
+    "item_price_invalid": "המחיר אינו תקין",
+    "item_quantity_invalid": "הכמות חייבת להיות גדולה מאפס",
+    "item_title_required": "לכל שורה בהצעה צריך תיאור",
+    "item_title_too_long": "תיאור השורה ארוך מדי",
+    "items_required": "יש להוסיף לפחות שורה אחת להצעה",
+    "name_required": "יש להזין שם להצעה",
+    "name_taken": "כבר קיימת הצעה פעילה בשם הזה",
+    "name_too_long": "שם ההצעה ארוך מדי",
+    "other": "הפעולה נכשלה. נסו שוב.",
+    "subscription_required": "הפעולה נכשלה. נסו שוב.",
+    "template_invalid": "התבנית אינה זמינה כרגע",
+    "template_required": "יש לבחור הצעת מחיר או לבנות חדשה",
+    "template_unknown": "התבנית לא נמצאה",
+    "title_too_long": "כותרת ההצעה ארוכה מדי",
+    "too_many_items": "יותר מדי שורות בהצעה",
+    "validity_invalid": "תוקף ההצעה חייב להיות בין 1 ל-90 ימים",
+    "variable_required": "יש להשלים את כל השדות",
+  },
+  "templates": [
+    {
+      "automations": [
+        {
+          "actionKey": "email.send",
+          "conditions": [],
+          "eventKey": "form.submitted",
+          "name": "מעקב אחרי ליד מהאתר",
+          "parameters": {
+            "body": "שלום {{שם הליד}},
+
+רק רצינו לבדוק שלא פספסנו אותך. פנית אלינו דרך האתר, ורצינו לוודא שקיבלת מה שחיפשת.
+
+אם נשארה שאלה או שיש משהו שנוכל לעזור בו, אפשר פשוט להשיב למייל הזה.
+
+בברכה,
+{{שם העסק}}",
+            "subject": "עדיין כאן בשבילך",
+          },
+          "timing": {
+            "kind": "custom",
+            "unit": "days",
+            "value": 1,
+          },
+        },
+      ],
+      "category": "lead",
+      "description": "ליד שהגיע מהאתר מקבל מייל מעקב יום אחרי הפנייה, כדי שלא ייפול בין הכיסאות.",
+      "icon": "envelope",
+      "key": "website_lead_follow_up",
+      "requirements": [
+        {
+          "cta": {
+            "href": "/settings/integrations?section=website",
+            "label": "חיבור האתר",
+          },
+          "key": "website_connected",
+          "type": "connection",
+        },
+      ],
+      "title": "מעקב אחרי ליד מהאתר",
+      "variables": [
+        {
+          "default": "1",
+          "key": "delayDays",
+          "label": "מתי לשלוח",
+          "options": [
+            {
+              "label": "יום אחרי הפנייה",
+              "value": "1",
+            },
+            {
+              "label": "יומיים אחרי הפנייה",
+              "value": "2",
+            },
+          ],
+          "type": "enum_static",
+          "validation": {
+            "required": true,
+          },
+        },
+      ],
+      "version": 1,
+    },
+    {
+      "automations": [
+        {
+          "actionKey": "email.send",
+          "conditions": [],
+          "eventKey": "lead.created",
+          "name": "קבלת פנים — אישור מיידי",
+          "parameters": {
+            "body": "שלום {{שם הליד}},
+
+תודה שפנית אלינו. הפנייה שלך התקבלה והיא כבר אצלנו.
+
+נחזור אליך בהקדם. אם יש משהו דחוף, אפשר להשיב למייל הזה.
+
+בברכה,
+{{שם העסק}}",
+            "subject": "קיבלנו את הפנייה שלך",
+          },
+          "timing": {
+            "kind": "preset",
+            "preset": "immediate",
+          },
+        },
+        {
+          "actionKey": "email.send",
+          "conditions": [],
+          "eventKey": "lead.created",
+          "name": "קבלת פנים — הכירו אותנו",
+          "parameters": {
+            "body": "שלום {{שם הליד}},
+
+רצינו רק לומר שאנחנו כאן. אם עולה שאלה או התלבטות, אפשר פשוט להשיב למייל הזה — התשובה מגיעה אלינו ישירות.
+
+נשמח לעזור בכל שלב.
+
+בברכה,
+{{שם העסק}}",
+            "subject": "אנחנו כאן בשבילך",
+          },
+          "timing": {
+            "kind": "custom",
+            "unit": "days",
+            "value": 2,
+          },
+        },
+        {
+          "actionKey": "email.send",
+          "conditions": [],
+          "eventKey": "lead.created",
+          "name": "קבלת פנים — תזכורת אחרי שבוע",
+          "parameters": {
+            "body": "שלום {{שם הליד}},
+
+עבר שבוע מאז שפנית אלינו, ורצינו לבדוק אם זה עדיין רלוונטי עבורך.
+
+אם כן — נשמח להמשיך מכאן. ואם לא, גם זה בסדר גמור; אפשר פשוט להשיב ונדע.
+
+בברכה,
+{{שם העסק}}",
+            "subject": "עדיין רלוונטי?",
+          },
+          "timing": {
+            "kind": "custom",
+            "unit": "days",
+            "value": 7,
+          },
+        },
+      ],
+      "category": "lead",
+      "description": "שלושה מיילים לאורך השבוע הראשון: אישור מיידי, הכירו אותנו אחרי יומיים, ותזכורת אחרי שבוע.",
+      "icon": "envelope-open-text",
+      "key": "welcome_sequence",
+      "requirements": [],
+      "title": "רצף קבלת פנים לליד חדש",
+      "variables": [],
+      "version": 1,
+    },
+    {
+      "automations": [
+        {
+          "actionKey": "email.send",
+          "conditions": [
+            {
+              "field": "status",
+              "operator": "is",
+              "value": "lost",
+            },
+          ],
+          "eventKey": "lead.status_changed",
+          "name": "מעקב אחרי ליד שאבד",
+          "parameters": {
+            "body": "שלום {{שם הליד}},
+
+לא התקדמנו הפעם, וזה לגמרי בסדר.
+
+אם בעתיד זה יחזור להיות רלוונטי — אנחנו כאן, ואפשר פשוט להשיב למייל הזה.
+
+בברכה,
+{{שם העסק}}",
+            "subject": "הדלת נשארת פתוחה",
+          },
+          "timing": {
+            "kind": "custom",
+            "unit": "days",
+            "value": 14,
+          },
+        },
+      ],
+      "category": "lead",
+      "description": "ליד שסומן כאבוד מקבל מייל אחד, מכובד ולא נדחק, שמשאיר את הדלת פתוחה.",
+      "icon": "rotate-left",
+      "key": "lost_lead_follow_up",
+      "requirements": [],
+      "title": "מעקב אחרי ליד שאבד",
+      "variables": [],
+      "version": 1,
+    },
+    {
+      "automations": [
+        {
+          "actionKey": "email.send",
+          "conditions": [],
+          "eventKey": "form.submitted",
+          "name": "תודה על פנייה מהטופס",
+          "parameters": {
+            "body": "שלום {{שם הליד}},
+
+תודה שפנית אלינו דרך האתר. הפנייה שלך התקבלה.
+
+נחזור אליך בהקדם. אם בינתיים יש שאלה, אפשר פשוט להשיב למייל הזה.
+
+בברכה,
+{{שם העסק}}",
+            "subject": "קיבלנו את הפנייה שלך",
+          },
+          "timing": {
+            "kind": "preset",
+            "preset": "immediate",
+          },
+        },
+      ],
+      "category": "form",
+      "description": "מי שממלא טופס באתר מקבל אישור מיידי שהפנייה הגיעה לפני שהוא מספיק לתהות.",
+      "icon": "file-lines",
+      "key": "contact_form_thank_you",
+      "requirements": [
+        {
+          "cta": {
+            "href": "/settings/integrations?section=website",
+            "label": "חיבור האתר",
+          },
+          "key": "website_connected",
+          "type": "connection",
+        },
+      ],
+      "title": "תודה על פנייה מהטופס",
+      "variables": [],
+      "version": 1,
+    },
+    {
+      "automations": [
+        {
+          "actionKey": "email.send",
+          "conditions": [],
+          "eventKey": "appointment.booked",
+          "name": "תזכורת לפני פגישה",
+          "parameters": {
+            "body": "שלום {{שם הליד}},
+
+תזכורת לפגישה שלנו:
+
+{{פרטי הפגישה}}
+
+אם משהו משתנה, אפשר להשיב למייל הזה ונתאם מחדש.
+
+בברכה,
+{{שם העסק}}",
+            "subject": "תזכורת: {{שם הפגישה}}",
+          },
+          "timing": {
+            "anchorField": "startsAt",
+            "kind": "before_anchor",
+            "unit": "days",
+            "value": 1,
+          },
+          "timingFromVariable": {
+            "anchorField": "startsAt",
+            "variableKey": "remindBefore",
+          },
+        },
+      ],
+      "category": "appointment",
+      "description": "הליד מקבל תזכורת לפני הפגישה, עם המועד והפרטים כדי שלא יישכח ולא יתבלבל.",
+      "icon": "bell",
+      "key": "appointment_reminder",
+      "requirements": [],
+      "title": "תזכורת לפני פגישה",
+      "variables": [
+        {
+          "default": "1d",
+          "key": "remindBefore",
+          "label": "מתי לשלוח את התזכורת",
+          "options": [
+            {
+              "label": "שעה לפני הפגישה",
+              "value": "1h",
+            },
+            {
+              "label": "יום לפני הפגישה",
+              "value": "1d",
+            },
+          ],
+          "type": "enum_static",
+          "validation": {
+            "required": true,
+          },
+        },
+      ],
+      "version": 1,
+    },
+    {
+      "automations": [
+        {
+          "actionKey": "task.create",
+          "conditions": [],
+          "eventKey": "lead.created",
+          "name": "משימה על ליד חדש",
+          "parameters": {
+            "title": "[[taskTitle]]",
+          },
+          "timing": {
+            "kind": "preset",
+            "preset": "immediate",
+          },
+        },
+      ],
+      "category": "internal",
+      "description": "כל ליד חדש פותח משימה לנציג המטפל, כך שאף פנייה לא נשארת בלי בעלים.",
+      "icon": "user-plus",
+      "key": "internal_task_on_new_lead",
+      "requirements": [],
+      "title": "משימה לנציג על כל ליד חדש",
+      "variables": [
+        {
+          "default": "ליד חדש — ליצור קשר עם {{שם הליד}}",
+          "help": "אפשר להשתמש ב-{{שם הליד}}",
+          "key": "taskTitle",
+          "label": "כותרת המשימה",
+          "type": "text",
+          "validation": {
+            "maxLength": 120,
+            "required": true,
+          },
+        },
+      ],
+      "version": 1,
+    },
+    {
+      "automations": [
+        {
+          "actionKey": "quote.create",
+          "conditions": [
+            {
+              "field": "status",
+              "operator": "is",
+              "value": "interested",
+            },
+          ],
+          "eventKey": "lead.status_changed",
+          "name": "הצעת מחיר אוטומטית",
+          "parameters": {
+            "quoteTemplateId": "[[quoteTemplateId]]",
+          },
+          "timing": {
+            "kind": "preset",
+            "preset": "immediate",
+          },
+        },
+      ],
+      "category": "internal",
+      "description": "יוצרת הצעת מחיר לליד באופן אוטומטי לפי שלב המכירה ומכינה אותה לנציג.",
+      "icon": "file-invoice",
+      "key": "quote_on_lead_stage",
+      "requirements": [],
+      "title": "הצעת מחיר אוטומטית",
+      "variables": [
+        {
+          "help": "המחירים נלקחים מהתבנית ונשמרים על ההצעה — עדכון התבנית בהמשך לא ישנה הצעות שכבר נוצרו",
+          "key": "quoteTemplateId",
+          "label": "תבנית הצעת המחיר",
+          "optionSource": "quote_templates",
+          "type": "enum_agency",
+          "validation": {
+            "required": true,
+          },
+        },
+      ],
+      "version": 1,
+    },
+  ],
+  "timeAgo": [
+    null,
+    "לפני רגע",
+    "לפני 5 דקות",
+    "לפני 3 שעות",
+    "אתמול",
+    "לפני 4 ימים",
+    null,
+  ],
+  "timings": [
+    [
+      "מיד",
+      "immediate",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+      ],
+    ],
+    [
+      "אחרי שעה",
+      "one_hour",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+      ],
+    ],
+    [
+      "אחרי יום",
+      "one_day",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+      ],
+    ],
+    [
+      "אחרי שעה",
+      "after:1h",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+        "אחרי שעה",
+      ],
+    ],
+    [
+      "אחרי 3 ימים",
+      "three_days",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+      ],
+    ],
+    [
+      "אחרי 5 שעות",
+      "after:5h",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+        "אחרי 5 שעות",
+      ],
+    ],
+    [
+      "אחרי יום",
+      "after:1d",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+        "אחרי יום",
+      ],
+    ],
+    [
+      "אחרי שעה",
+      "before:startsAt:1h",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+        "שעה לפני המועד",
+      ],
+    ],
+    [
+      "אחרי 2 ימים",
+      "before:startsAt:2d",
+      [
+        "מיד",
+        "אחרי שעה",
+        "אחרי יום",
+        "אחרי 3 ימים",
+        "2 ימים לפני המועד",
+      ],
+    ],
+  ],
+  "variables": [
+    {
+      "defaultSample": "דוד",
+      "field": "leadFirstName",
+      "token": "שם הליד",
+    },
+    {
+      "defaultSample": "העסק שלי",
+      "field": "businessName",
+      "token": "שם העסק",
+    },
+    {
+      "defaultSample": "נציג העסק",
+      "field": "repName",
+      "token": "שם הנציג",
+    },
+    {
+      "defaultSample": "פגישת היכרות",
+      "field": "meetingTitle",
+      "token": "שם הפגישה",
+    },
+    {
+      "defaultSample": "יום שלישי, 12 באוגוסט, 10:30",
+      "field": "meetingWhen",
+      "token": "מועד הפגישה",
+    },
+    {
+      "defaultSample": "פגישת היכרות
+יום שלישי, 12 באוגוסט, 10:30",
+      "field": "meetingDetails",
+      "token": "פרטי הפגישה",
+    },
+  ],
+}
+`;
+
+exports[`Hebrew baseline — template gallery and website connectors > gallery: remove (confirm, failure), install (update offered, refusal), quote composer (existing, new, validation, save) 1`] = `
+{
+  "calls": [
+    [
+      "uninstallTemplate",
+      "welcome_sequence",
+    ],
+    [
+      "toast",
+      "error",
+      "אין לך הרשאה לבצע פעולה זו",
+    ],
+    [
+      "uninstallTemplate",
+      "welcome_sequence",
+    ],
+    [
+      "toast",
+      "success",
+      "התבנית הוסרה",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "installTemplate",
+      "internal_task_on_new_lead",
+      {
+        "taskTitle": "ליד חדש — ליצור קשר עם {{שם הליד}}",
+      },
+    ],
+    [
+      "installTemplate",
+      "internal_task_on_new_lead",
+      {
+        "taskTitle": "ליד חדש — ליצור קשר עם {{שם הליד}}",
+      },
+    ],
+    [
+      "toast",
+      "success",
+      "3 אוטומציות נוצרו כטיוטות",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "getQuoteComposerDataAction",
+    ],
+    [
+      "saveQuoteTemplateAction",
+      {
+        "draft": {
+          "introText": "",
+          "items": [
+            {
+              "description": "",
+              "discount": 0,
+              "isOptional": false,
+              "quantity": 1,
+              "title": "ייעוץ ראשוני",
+              "unitPrice": 450,
+            },
+          ],
+          "name": "חבילת בסיס",
+          "termsText": "",
+          "title": "חבילת בסיס",
+          "validityDays": 14,
+        },
+      },
+    ],
+    [
+      "installTemplate",
+      "quote_on_lead_stage",
+      {
+        "quoteTemplateId": "9",
+      },
+    ],
+    [
+      "toast",
+      "success",
+      "3 אוטומציות נוצרו כטיוטות",
+    ],
+    [
+      "router.refresh",
+    ],
+  ],
+  "composerExisting": "<div role="dialog" aria-modal="true" aria-label="הצעת מחיר אוטומטית" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-b-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-5 w-[min(90vw,560px)] pt-2"><h2 class="text-lg font-semibold text-gray-800">הצעת מחיר אוטומטית</h2><p class="text-sm text-gray-600 leading-relaxed">יוצרת הצעת מחיר לליד באופן אוטומטי לפי שלב המכירה ומכינה אותה לנציג.</p><div class="border-b w-full my-0"></div><section class="grid gap-3"><h3 class="text-sm font-semibold text-gray-800">הגדרות</h3><section class="grid gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">תבנית הצעת המחיר</label></div><select id="«id»" required="" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary pe-8 ps-2"><option value="1">בניית אתר תדמית</option><option value="__new__">בניית הצעה חדשה</option></select></div></section><p class="text-sm text-gray-500 ms-1">המחירים נלקחים מהתבנית ונשמרים על ההצעה — עדכון התבנית בהמשך לא ישנה הצעות שכבר נוצרו</p></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">מה ייווצר</h3><ul class="grid gap-2"><li class="rounded-md border border-gray-100 bg-gray-50 p-3 grid gap-1"><span class="text-sm font-medium text-gray-800">הצעת מחיר אוטומטית</span></li></ul><p class="text-sm text-gray-500">האוטומציות ייווצרו כטיוטות. אפשר לערוך ולהפעיל אותן במסך האוטומציות.</p></section><div class="grid gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3 w-full"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>התקנה</span></button></div></div></div>",
+  "composerInvalid": "<p class="text-sm text-red-600 ms-1" role="alert">יש להזין שם להצעה</p>",
+  "composerNew": "<div role="dialog" aria-modal="true" aria-label="הצעת מחיר אוטומטית" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-b-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-5 w-[min(90vw,560px)] pt-2"><h2 class="text-lg font-semibold text-gray-800">הצעת מחיר אוטומטית</h2><p class="text-sm text-gray-600 leading-relaxed">יוצרת הצעת מחיר לליד באופן אוטומטי לפי שלב המכירה ומכינה אותה לנציג.</p><div class="border-b w-full my-0"></div><section class="grid gap-3"><h3 class="text-sm font-semibold text-gray-800">הגדרות</h3><section class="grid gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">תבנית הצעת המחיר</label></div><select id="«id»" required="" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary pe-8 ps-2"><option value="1">בניית אתר תדמית</option><option value="__new__">בניית הצעה חדשה</option></select></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם ההצעה</label><p class="text-gray-600 text-sm">לשימוש פנימי</p></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" maxlength="120" placeholder="לדוגמה: בניית אתר" value=""></div><div class="rounded-lg border border-gray-200 bg-white overflow-hidden"><header class="flex items-baseline justify-between gap-3 bg-gray-50/70 px-4 py-3 border-b border-gray-100"><span class="text-[15px] font-semibold text-gray-800">הצעת מחיר</span><span class="text-sm text-gray-500 truncate">סטודיו דנה</span></header><div class="px-4 pt-3 pb-4"><p class="text-sm text-gray-500 mb-3">לכבוד: <span class="text-gray-700">{{שם הליד}}</span><span class="text-gray-400"> · שם הליד יושלם אוטומטית</span></p><div class="grid grid-cols-[1fr_58px_84px_auto] gap-2 pb-1 border-b border-gray-100 text-[12.5px] text-gray-500"><span>תיאור</span><span class="text-center">כמות</span><span>מחיר ליחידה</span><span class="w-[86px] text-end">סה״כ</span></div><div class="grid grid-cols-[1fr_58px_84px_auto] items-center gap-2 py-1.5"><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400" maxlength="120" placeholder="תיאור השורה" aria-label="תיאור שורה 1" value=""><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400 text-center tabular-nums" min="0" step="any" aria-label="כמות שורה 1" type="number" value="1"><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400 tabular-nums" min="0" step="any" aria-label="מחיר ליחידה שורה 1" type="number" value="0"><div class="flex items-center gap-1"><span class="w-[86px] text-end text-[15px] tabular-nums text-gray-800">‏0&nbsp;‏₪</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 size-10 p-0" aria-label="סמן שורה 1 כאופציונלית" title="שורה אופציונלית — הלקוח יכול לוותר עליה"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/square.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/square.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 size-10 p-0" aria-label="מחק שורה 1" disabled=""><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button></div></div><div class="pt-1"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>הוספת שורה</span></button></div><dl class="mt-3 border-t border-gray-100 pt-3 grid gap-1.5 text-sm"><div class="flex items-baseline justify-between gap-3"><dt class="text-gray-500">סכום ביניים</dt><dd class="text-gray-700 tabular-nums">‏0&nbsp;‏₪</dd></div><div class="flex items-baseline justify-between gap-3"><dt class="text-gray-500">מע״מ 18%</dt><dd class="text-gray-700 tabular-nums">‏0&nbsp;‏₪</dd></div><div class="flex items-baseline justify-between gap-3 border-t border-gray-100 pt-2 mt-0.5"><dt class="text-[15px] font-semibold text-gray-800">סה״כ לתשלום</dt><dd class="text-[17px] font-semibold text-gray-900 tabular-nums">‏0&nbsp;‏₪</dd></div></dl><div class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3"><span class="text-sm text-gray-500">תוקף ההצעה</span><input class="h-9 w-16 rounded-md border border-gray-200 bg-gray-50 px-2 text-center tabular-nums focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-primary" min="1" max="90" aria-label="תוקף ההצעה בימים" type="number" value="14"><span class="text-sm text-gray-500">ימים</span></div></div></div><p class="text-sm text-gray-500 ms-1">המחירים נשמרים על כל הצעה שנוצרת — שינוי ההצעה בהמשך לא ישנה הצעות שכבר נשלחו.</p></section><p class="text-sm text-gray-500 ms-1">המחירים נלקחים מהתבנית ונשמרים על ההצעה — עדכון התבנית בהמשך לא ישנה הצעות שכבר נוצרו</p></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">מה ייווצר</h3><ul class="grid gap-2"><li class="rounded-md border border-gray-100 bg-gray-50 p-3 grid gap-1"><span class="text-sm font-medium text-gray-800">הצעת מחיר אוטומטית</span></li></ul><p class="text-sm text-gray-500">האוטומציות ייווצרו כטיוטות. אפשר לערוך ולהפעיל אותן במסך האוטומציות.</p></section><div class="grid gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3 w-full"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>התקנה</span></button></div></div></div>",
+  "composerRows": "<div role="dialog" aria-modal="true" aria-label="הצעת מחיר אוטומטית" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-b-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-5 w-[min(90vw,560px)] pt-2"><h2 class="text-lg font-semibold text-gray-800">הצעת מחיר אוטומטית</h2><p class="text-sm text-gray-600 leading-relaxed">יוצרת הצעת מחיר לליד באופן אוטומטי לפי שלב המכירה ומכינה אותה לנציג.</p><div class="border-b w-full my-0"></div><section class="grid gap-3"><h3 class="text-sm font-semibold text-gray-800">הגדרות</h3><section class="grid gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">תבנית הצעת המחיר</label></div><select id="«id»" required="" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary pe-8 ps-2"><option value="1">בניית אתר תדמית</option><option value="__new__">בניית הצעה חדשה</option></select></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם ההצעה</label><p class="text-gray-600 text-sm">לשימוש פנימי</p></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" maxlength="120" placeholder="לדוגמה: בניית אתר" value="חבילת בסיס"></div><div class="rounded-lg border border-gray-200 bg-white overflow-hidden"><header class="flex items-baseline justify-between gap-3 bg-gray-50/70 px-4 py-3 border-b border-gray-100"><span class="text-[15px] font-semibold text-gray-800">הצעת מחיר</span><span class="text-sm text-gray-500 truncate">סטודיו דנה</span></header><div class="px-4 pt-3 pb-4"><p class="text-sm text-gray-500 mb-3">לכבוד: <span class="text-gray-700">{{שם הליד}}</span><span class="text-gray-400"> · שם הליד יושלם אוטומטית</span></p><div class="grid grid-cols-[1fr_58px_84px_auto] gap-2 pb-1 border-b border-gray-100 text-[12.5px] text-gray-500"><span>תיאור</span><span class="text-center">כמות</span><span>מחיר ליחידה</span><span class="w-[86px] text-end">סה״כ</span></div><div class="grid grid-cols-[1fr_58px_84px_auto] items-center gap-2 py-1.5"><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400" maxlength="120" placeholder="תיאור השורה" aria-label="תיאור שורה 1" value="ייעוץ ראשוני"><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400 text-center tabular-nums" min="0" step="any" aria-label="כמות שורה 1" type="number" value="1"><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400 tabular-nums" min="0" step="any" aria-label="מחיר ליחידה שורה 1" type="number" value="450"><div class="flex items-center gap-1"><span class="w-[86px] text-end text-[15px] tabular-nums text-gray-800">‏450&nbsp;‏₪</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 size-10 p-0" aria-label="סמן שורה 1 כאופציונלית" title="שורה אופציונלית — הלקוח יכול לוותר עליה"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/square.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/square.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 size-10 p-0" aria-label="מחק שורה 1"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button></div></div><div class="grid grid-cols-[1fr_58px_84px_auto] items-center gap-2 py-1.5"><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400" maxlength="120" placeholder="תיאור השורה" aria-label="תיאור שורה 2" value=""><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400 text-center tabular-nums" min="0" step="any" aria-label="כמות שורה 2" type="number" value="1"><input class="w-full h-11 px-3 rounded-md bg-gray-50 border border-gray-200 text-base hover:bg-white hover:border-gray-300 focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-offset-0 focus:outline-primary transition-colors placeholder:text-gray-400 tabular-nums" min="0" step="any" aria-label="מחיר ליחידה שורה 2" type="number" value="0"><div class="flex items-center gap-1"><span class="w-[86px] text-end text-[15px] tabular-nums text-gray-400">‏0&nbsp;‏₪</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 size-10 p-0" aria-label="שורה 2 אופציונלית — בטל" title="שורה אופציונלית — הלקוח יכול לוותר עליה"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/square-check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/square-check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 size-10 p-0" aria-label="מחק שורה 2"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button></div></div><div class="pt-1"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>הוספת שורה</span></button></div><dl class="mt-3 border-t border-gray-100 pt-3 grid gap-1.5 text-sm"><div class="flex items-baseline justify-between gap-3"><dt class="text-gray-500">סכום ביניים</dt><dd class="text-gray-700 tabular-nums">‏450&nbsp;‏₪</dd></div><div class="flex items-baseline justify-between gap-3"><dt class="text-gray-500">מע״מ 18%</dt><dd class="text-gray-700 tabular-nums">‏81&nbsp;‏₪</dd></div><div class="flex items-baseline justify-between gap-3 border-t border-gray-100 pt-2 mt-0.5"><dt class="text-[15px] font-semibold text-gray-800">סה״כ לתשלום</dt><dd class="text-[17px] font-semibold text-gray-900 tabular-nums">‏531&nbsp;‏₪</dd></div></dl><div class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3"><span class="text-sm text-gray-500">תוקף ההצעה</span><input class="h-9 w-16 rounded-md border border-gray-200 bg-gray-50 px-2 text-center tabular-nums focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-primary" min="1" max="90" aria-label="תוקף ההצעה בימים" type="number" value="14"><span class="text-sm text-gray-500">ימים</span></div></div></div><p class="text-sm text-gray-500 ms-1">המחירים נשמרים על כל הצעה שנוצרת — שינוי ההצעה בהמשך לא ישנה הצעות שכבר נשלחו.</p></section><p class="text-sm text-gray-500 ms-1">המחירים נלקחים מהתבנית ונשמרים על ההצעה — עדכון התבנית בהמשך לא ישנה הצעות שכבר נוצרו</p></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">מה ייווצר</h3><ul class="grid gap-2"><li class="rounded-md border border-gray-100 bg-gray-50 p-3 grid gap-1"><span class="text-sm font-medium text-gray-800">הצעת מחיר אוטומטית</span></li></ul><p class="text-sm text-gray-500">האוטומציות ייווצרו כטיוטות. אפשר לערוך ולהפעיל אותן במסך האוטומציות.</p></section><div class="grid gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3 w-full"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>התקנה</span></button><p class="text-sm text-red-600 ms-1" role="alert">יש להזין שם להצעה</p></div></div></div>",
+  "installRefused": "<p class="text-sm text-red-600 ms-1" role="alert">התבנית אינה זמינה כרגע</p>",
+  "installUpdate": "<div role="dialog" aria-modal="true" aria-label="משימה לנציג על כל ליד חדש" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-b-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-5 w-[min(90vw,560px)] pt-2"><h2 class="text-lg font-semibold text-gray-800">משימה לנציג על כל ליד חדש</h2><p class="text-sm text-gray-600 leading-relaxed">כל ליד חדש פותח משימה לנציג המטפל, כך שאף פנייה לא נשארת בלי בעלים.</p><div class="border-b w-full my-0"></div><section class="grid gap-3"><h3 class="text-sm font-semibold text-gray-800">הגדרות</h3><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כותרת המשימה</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" maxlength="120" value="ליד חדש — ליצור קשר עם {{שם הליד}}"></div><p class="text-sm text-gray-500 ms-1">אפשר להשתמש ב-{{שם הליד}}</p></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">קיימת גרסה חדשה</h3><p class="text-sm text-gray-600 leading-relaxed">האוטומציות שכבר התקנתם לא ישתנו — התקנה תיצור עותק חדש לצידן.</p></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">מה ייווצר</h3><ul class="grid gap-2"><li class="rounded-md border border-gray-100 bg-gray-50 p-3 grid gap-1"><span class="text-sm font-medium text-gray-800">משימה על ליד חדש</span><span class="text-sm text-gray-500">ליד חדש — ליצור קשר עם {{שם הליד}}</span></li></ul><p class="text-sm text-gray-500">האוטומציות ייווצרו כטיוטות. אפשר לערוך ולהפעיל אותן במסך האוטומציות.</p></section><div class="grid gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3 w-full"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>התקנה</span></button></div></div></div>",
+  "menu": "<div role="menu" class="anim-popanchor-in absolute end-0 top-full z-20 mt-1.5 flex w-40 flex-col gap-0.5 rounded-xl border border-border bg-white p-1.5 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]"><button type="button" role="menuitem" class="rounded-md px-3 py-2 text-start text-[13px] text-error hover:bg-[#f7f8fa]">הסרה</button></div>",
+  "removeConfirm": "<div role="dialog" aria-modal="true" aria-label="הסרת &quot;רצף קבלת פנים לליד חדש&quot; תמחק את האוטומציה שנוצרה ממנה. אוטומציות שיצרתם בעצמכם לא ייגעו." tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">הסרת "רצף קבלת פנים לליד חדש" תמחק את האוטומציה שנוצרה ממנה. אוטומציות שיצרתם בעצמכם לא ייגעו.</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>הסרה</span></button></div></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — template gallery and website connectors > website connectors: details (set-up guide, new secret, rename), disconnect, connect (refusal, issued, copy) 1`] = `
+{
+  "calls": [
+    [
+      "connectionSetup",
+      "contact_form_7:4",
+    ],
+    [
+      "regenerateSecret",
+      "contact_form_7:4",
+    ],
+    [
+      "toast",
+      "success",
+      "נוצר קוד סודי חדש",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "renameSource",
+      "contact_form_7:4",
+      "f1",
+      "טופס ראשי",
+    ],
+    [
+      "toast",
+      "success",
+      "השם עודכן",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "clipboard",
+      "add_action('wpcf7_submit', function ($form, $result) {
+  $status = $result['status'] ?? '';
+  if ($status !== 'mail_sent' && $status !== 'mail_failed') { return; }
+  $url = 'https://app.example.test/api/automations/hook/abc';
+  $secret = 'הקוד-הסודי-ששמרתם'; // הקוד מוצג פעם אחת בלבד ביצירת החיבור
+  $submission = WPCF7_Submission::get_instance();
+  if (!$submission) { return; }
+  $body = wp_json_encode([
+    'form_id'       => $form->id(),
+    'form_title'    => $form->title(),
+    'submission_id' => wp_generate_uuid4(),
+    'page_url'      => $submission->get_meta('url'),
+    'fields'        => $submission->get_posted_data(),
+  ]);
+  wp_remote_post($url, [
+    'headers' => [
+      'Content-Type'         => 'application/json',
+      'x-socialcrm-signature' => hash_hmac('sha256', $body, $secret),
+    ],
+    'body'    => $body,
+    'timeout' => 5,
+  ]);
+}, 10, 2);",
+    ],
+    [
+      "toast",
+      "success",
+      "הועתק",
+    ],
+    [
+      "revokeConnection",
+      "contact_form_7:4",
+    ],
+    [
+      "toast",
+      "error",
+      "הניתוק נכשל. נסו שוב.",
+    ],
+    [
+      "revokeConnection",
+      "contact_form_7:4",
+    ],
+    [
+      "toast",
+      "success",
+      "החיבור נותק",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "provisionApiKeyConnection",
+      {
+        "displayName": "",
+        "integrationKey": "contact_form_7",
+        "siteUrl": "not a url",
+      },
+    ],
+    [
+      "provisionApiKeyConnection",
+      {
+        "displayName": "",
+        "integrationKey": "contact_form_7",
+        "siteUrl": "https://dana.example.test",
+      },
+    ],
+    [
+      "toast",
+      "success",
+      "החיבור נוצר",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "clipboard",
+      "https://app.example.test/api/automations/hook/abc",
+    ],
+    [
+      "toast",
+      "success",
+      "הועתק",
+    ],
+  ],
+  "connect": "<div role="dialog" aria-modal="true" aria-label="חיבור האתר שלי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[92vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><h2 class="text-lg font-semibold text-dark">חיבור האתר שלי</h2><p class="text-sm text-gray-600 leading-relaxed">נפיק כתובת וקוד סודי שצריך להזין במערכת שלכם.</p><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כתובת האתר או המערכת</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" dir="ltr" placeholder="https://example.com" value=""></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם לתצוגה (לא חובה)</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value=""></div><div class="flex justify-end mt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled=""><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plug.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plug.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>יצירת חיבור</span></button></div></div></div>",
+  "connectRefused": "<p class="text-sm text-red-600" role="alert">כתובת האתר אינה תקינה</p>",
+  "details": "<div role="dialog" aria-modal="true" aria-label="אתר הקורסים" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[520px] max-w-[92vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-4 max-h-[80dvh] min-h-0 pt-2"><div class="flex items-start justify-between gap-3 shrink-0"><div class="grid gap-0.5 min-w-0"><h2 class="text-lg font-semibold text-dark truncate leading-tight">אתר הקורסים</h2><p class="text-sm text-gray-500">האתר שלי</p></div><span class="flex shrink-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-error-bg); color: var(--color-error-text); border-color: var(--color-error-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-error-dot);"></span>פניות נדחות</span></span></div><p class="text-sm text-gray-500 shrink-0">מגיעות פניות לחיבור הזה אבל הן לא נכנסות למערכת.</p><div class="border-b w-full my-0 shrink-0"></div><div class="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden grid gap-4 content-start scrollbar-slim"><section class="grid gap-3"><h3 class="text-sm font-semibold text-gray-800">הגדרת החיבור</h3><div class="grid gap-4 min-w-0"><div class="grid gap-1.5 min-w-0"><span class="text-sm text-gray-500">כתובת לשליחה</span><div class="flex items-start gap-2 min-w-0"><code dir="ltr" class="min-w-0 flex-1 break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-800">https://app.example.test/api/automations/hook/abc</code><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>העתקה</span></button></div></div><h4 class="text-sm font-semibold text-gray-800">חיבור אתר וורדפרס בשלושה צעדים</h4><ol class="grid gap-1.5 ps-5 list-decimal marker:text-gray-400"><li class="text-sm text-gray-600 leading-relaxed">החיבור הזה מתאים לאתר שבנוי על וורדפרס. אם האתר שלכם בנוי אחרת, דברו איתנו.</li><li class="text-sm text-gray-600 leading-relaxed">היכנסו לניהול וורדפרס של האתר.</li><li class="text-sm text-gray-600 leading-relaxed">הוסיפו את קטע הקוד הבא ל-functions.php של ערכת העיצוב, או לתוסף קטעי קוד.</li><li class="text-sm text-gray-600 leading-relaxed">שלחו טופס אחד לבדיקה — הטופס יופיע כאן תוך שניות.</li></ol><div class="grid gap-1 min-w-0"><div class="flex items-center justify-between gap-2"><span class="text-sm text-gray-500">קוד לוורדפרס</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>העתקת הקוד</span></button></div><pre dir="ltr" class="max-h-56 max-w-full overflow-auto rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800 scrollbar-slim"><code>add_action('wpcf7_submit', function ($form, $result) {
+  $status = $result['status'] ?? '';
+  if ($status !== 'mail_sent' &amp;&amp; $status !== 'mail_failed') { return; }
+  $url = 'https://app.example.test/api/automations/hook/abc';
+  $secret = 'הקוד-הסודי-ששמרתם'; // הקוד מוצג פעם אחת בלבד ביצירת החיבור
+  $submission = WPCF7_Submission::get_instance();
+  if (!$submission) { return; }
+  $body = wp_json_encode([
+    'form_id'       =&gt; $form-&gt;id(),
+    'form_title'    =&gt; $form-&gt;title(),
+    'submission_id' =&gt; wp_generate_uuid4(),
+    'page_url'      =&gt; $submission-&gt;get_meta('url'),
+    'fields'        =&gt; $submission-&gt;get_posted_data(),
+  ]);
+  wp_remote_post($url, [
+    'headers' =&gt; [
+      'Content-Type'         =&gt; 'application/json',
+      'x-socialcrm-signature' =&gt; hash_hmac('sha256', $body, $secret),
+    ],
+    'body'    =&gt; $body,
+    'timeout' =&gt; 5,
+  ]);
+}, 10, 2);</code></pre></div><a class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]" href="/settings/integrations?section=website"><span>לא מגיע מידע? בדקו שקטע הקוד נשמר</span></a></div><div class="flex items-center justify-between gap-3"><span class="text-sm text-gray-500">הקוד הסודי אינו ניתן לשחזור.</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/rotate.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/rotate.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>יצירת קוד סודי חדש</span></button></div></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">מה החיבור הזה מאפשר</h3><ul class="grid gap-1"><li class="text-sm text-gray-600">נשלח טופס באתר</li></ul></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">מקורות</h3><ul class="grid gap-2"><li class="flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm text-gray-700">טופס צור קשר</span><span class="flex shrink-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-success-dot);"></span>פעיל</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/pen.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/pen.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שינוי שם</span></button></span></li><li class="flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm text-gray-700">הרשמה לסדנה</span><span class="flex shrink-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: var(--color-neutral-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-neutral-dot);"></span>ממתין</span><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-warning-bg); color: var(--color-warning-text); border-color: var(--color-warning-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-warning-dot);"></span>החיבור אינו שלם</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/pen.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/pen.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שינוי שם</span></button></span></li></ul></section><div class="border-b w-full my-0"></div><section class="grid gap-2"><h3 class="text-sm font-semibold text-gray-800">אוטומציות שמשתמשות בחיבור</h3><p class="text-sm text-gray-600">אף אוטומציה עדיין לא משתמשת בחיבור הזה.</p><p class="text-sm text-gray-500">אירוע אחרון לפני 5 שעות · 57 אירועים בסך הכול</p><p class="text-sm text-gray-500">עדיין לא נרשמה פעילות אוטומציות</p></section></div></div></div>",
+  "disconnect": "<div role="dialog" aria-modal="true" aria-label="ניתוק &quot;אתר הקורסים&quot; יבטל את האירועים שהחיבור הזה מאפשר." tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">ניתוק "אתר הקורסים" יבטל את האירועים שהחיבור הזה מאפשר.</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>ניתוק</span></button></div></div></div>",
+  "disconnectUsed": "<div role="dialog" aria-modal="true" aria-label="ניתוק &quot;אתר הקורסים&quot; יסמן 2 אוטומציות כדורשות טיפול, והן יפסיקו לפעול עד לחיבור מחדש." tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">ניתוק "אתר הקורסים" יסמן 2 אוטומציות כדורשות טיפול, והן יפסיקו לפעול עד לחיבור מחדש.</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>ניתוק</span></button></div></div></div>",
+  "issued": "<div role="dialog" aria-modal="true" aria-label="חיבור האתר שלי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[92vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><h2 class="text-lg font-semibold text-dark">חיבור האתר שלי</h2><p class="text-sm text-gray-600 leading-relaxed">הזינו את שני הפרטים האלה במערכת שלכם. הקוד הסודי מוצג פעם אחת בלבד — שמרו אותו עכשיו.</p><div class="grid gap-1.5 min-w-0"><span class="text-sm text-gray-500">כתובת לשליחה</span><div class="flex items-start gap-2 min-w-0"><code class="min-w-0 flex-1 break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-800" dir="ltr">https://app.example.test/api/automations/hook/abc</code><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>העתקה</span></button></div></div><div class="grid gap-1.5 min-w-0"><span class="text-sm text-gray-500">קוד סודי</span><div class="flex items-start gap-2 min-w-0"><code class="min-w-0 flex-1 break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-800" dir="ltr">sec_123</code><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>העתקה</span></button></div></div><div class="flex justify-end mt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>סיימתי</span></button></div></div></div>",
+  "secret": "<section class="grid gap-3"><h3 class="text-sm font-semibold text-gray-800">הגדרת החיבור</h3><div class="grid gap-4 min-w-0"><div class="grid gap-1.5 min-w-0"><span class="text-sm text-gray-500">כתובת לשליחה</span><div class="flex items-start gap-2 min-w-0"><code dir="ltr" class="min-w-0 flex-1 break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-800">https://app.example.test/api/automations/hook/abc</code><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>העתקה</span></button></div></div><h4 class="text-sm font-semibold text-gray-800">חיבור אתר וורדפרס בשלושה צעדים</h4><ol class="grid gap-1.5 ps-5 list-decimal marker:text-gray-400"><li class="text-sm text-gray-600 leading-relaxed">החיבור הזה מתאים לאתר שבנוי על וורדפרס. אם האתר שלכם בנוי אחרת, דברו איתנו.</li><li class="text-sm text-gray-600 leading-relaxed">היכנסו לניהול וורדפרס של האתר.</li><li class="text-sm text-gray-600 leading-relaxed">הוסיפו את קטע הקוד הבא ל-functions.php של ערכת העיצוב, או לתוסף קטעי קוד.</li><li class="text-sm text-gray-600 leading-relaxed">שלחו טופס אחד לבדיקה — הטופס יופיע כאן תוך שניות.</li></ol><div class="grid gap-1 min-w-0"><div class="flex items-center justify-between gap-2"><span class="text-sm text-gray-500">קוד לוורדפרס</span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>העתקת הקוד</span></button></div><pre dir="ltr" class="max-h-56 max-w-full overflow-auto rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800 scrollbar-slim"><code>add_action('wpcf7_submit', function ($form, $result) {
+  $status = $result['status'] ?? '';
+  if ($status !== 'mail_sent' &amp;&amp; $status !== 'mail_failed') { return; }
+  $url = 'https://app.example.test/api/automations/hook/abc';
+  $secret = 'הקוד-הסודי-ששמרתם'; // הקוד מוצג פעם אחת בלבד ביצירת החיבור
+  $submission = WPCF7_Submission::get_instance();
+  if (!$submission) { return; }
+  $body = wp_json_encode([
+    'form_id'       =&gt; $form-&gt;id(),
+    'form_title'    =&gt; $form-&gt;title(),
+    'submission_id' =&gt; wp_generate_uuid4(),
+    'page_url'      =&gt; $submission-&gt;get_meta('url'),
+    'fields'        =&gt; $submission-&gt;get_posted_data(),
+  ]);
+  wp_remote_post($url, [
+    'headers' =&gt; [
+      'Content-Type'         =&gt; 'application/json',
+      'x-socialcrm-signature' =&gt; hash_hmac('sha256', $body, $secret),
+    ],
+    'body'    =&gt; $body,
+    'timeout' =&gt; 5,
+  ]);
+}, 10, 2);</code></pre></div><a class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]" href="/settings/integrations?section=website"><span>לא מגיע מידע? בדקו שקטע הקוד נשמר</span></a></div><div class="grid gap-1.5 min-w-0"><span class="text-sm text-gray-500">קוד סודי חדש</span><div class="flex items-start gap-2 min-w-0"><code dir="ltr" class="min-w-0 flex-1 break-all rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-800">sec_456</code><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/copy.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>העתקה</span></button></div></div><p class="text-sm text-amber-700">הקוד מוצג פעם אחת בלבד. עדכנו אותו במערכת שלכם — עד אז לא יתקבלו נתונים.</p></section>",
+  "used": "<p class="mb-4 text-sm text-gray-600 leading-relaxed">חברו את הטפסים באתר שלכם כדי שכל פנייה תיכנס כליד. אחרי החיבור אפשר לבנות על זה אוטומציות.</p><div class="grid gap-4"><div class="rounded-lg border border-gray-200 bg-white p-6 grid gap-4 content-start"><div class="flex items-start justify-between gap-3"><div class="flex items-center gap-2.5 min-w-0"><div aria-hidden="true" class="dark:bg-white size-7 bg-gray-900 shrink-0 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/globe.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/globe.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><h3 class="text-lg font-bold text-dark truncate">האתר שלי</h3></div><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span>מחובר</span></div><p class="text-sm text-gray-600 leading-relaxed">מאפשר אוטומציות על: נשלח טופס באתר</p><ul class="grid gap-3"><li class="grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-3"><div class="flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm font-medium text-gray-800">האתר של דנה</span><span class="flex shrink-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-error-bg); color: var(--color-error-text); border-color: var(--color-error-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-error-dot);"></span>מנותק</span><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-error-bg); color: var(--color-error-text); border-color: var(--color-error-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-error-dot);"></span>החיבור נותק</span></span></div><p class="text-sm text-gray-500">החיבור אינו פעיל.</p><p class="text-sm text-gray-500">0 מקורות · 0 אוטומציות</p><div class="flex flex-wrap items-center gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/eye.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/eye.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>פרטים</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-9 px-3 gap-3 text-[15px]"><span>יצירת חיבור</span></button></div></li><li class="grid gap-2 rounded-md border border-gray-100 bg-gray-50 p-3"><div class="flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm font-medium text-gray-800">אתר הקורסים</span><span class="flex shrink-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-error-bg); color: var(--color-error-text); border-color: var(--color-error-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-error-dot);"></span>פניות נדחות</span></span></div><p class="text-sm text-gray-500">מגיעות פניות לחיבור הזה אבל הן לא נכנסות למערכת.</p><div class="grid gap-2 rounded-md border border-red-200 bg-red-50 p-3" role="alert"><p class="text-sm font-semibold text-red-900">יש בעיה בחיבור לטופס באתר</p><p class="text-sm text-red-800">התקבל ניסיון לשלוח ליד מהטופס באתר שלך, אבל החיבור לא אומת ולכן הליד לא נכנס למערכת.</p></div><p class="text-sm text-gray-500">2 מקורות · 2 אוטומציות · אירוע אחרון לפני 5 שעות</p><div class="flex flex-wrap items-center gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/eye.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/eye.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>פרטים</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><span>יצירת חיבור חדש</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-transparent text-black hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]"><div aria-hidden="true" class="dark:bg-white bg-black size-[15px] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/link-slash.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/link-slash.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>ניתוק</span></button></div></li></ul></div></div>",
+}
+`;
