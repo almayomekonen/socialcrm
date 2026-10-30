@@ -16,12 +16,16 @@
  *                  the user agrees (Phase E4: the WhatsApp-reminders consent,
  *                  the card-storage and subscription consents) — shown exactly
  *                  as recorded, inside a declared Hebrew region
+ *   ai-config      the AI agent's own configuration / AI output, left
+ *                  untranslated by owner order (no AI localization; Phase
+ *                  E5: the Smart Agent description fields, the agent test
+ *                  chat) — shown verbatim inside a declared Hebrew region
  *
  * No DOM marker is involved, so no component changes and nothing a component
  * does can opt itself out.
  */
 
-export type AllowReason = 'customer-data' | 'endonym' | 'external' | 'recorded-terms'
+export type AllowReason = 'customer-data' | 'endonym' | 'external' | 'recorded-terms' | 'ai-config'
 export type Allowance = { text: string; reason: AllowReason }
 export type Leak = { where: string; text: string }
 

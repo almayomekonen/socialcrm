@@ -1,0 +1,71 @@
+/**
+ * Admin settings — auto-response CHROME (`/settings/auto-response`, Phase
+ * E5a). Copied byte-for-byte from `components/settings/autoResponse/*`.
+ *
+ * Not here, by owner order (no AI localization): the Smart Agent's own
+ * configuration — the business description and advanced instruction fields
+ * (their labels, hints and example prompts), the "things the agent will not
+ * do" list derived by AI, and the agent test chat. They render verbatim inside
+ * a declared Hebrew region.
+ */
+export const autoResponse = {
+  title: 'מענה אוטומטי',
+  intro: 'ליד שכותב בוואטסאפ מקבל תשובה תוך שניות, גם כשאתם לא ליד המסך. אתם ממשיכים את השיחה משם.',
+  master: 'מענה אוטומטי בוואטסאפ',
+  on: 'מופעל',
+  off: 'כבוי',
+  masterOn: 'כל הודעה נכנסת מקבלת מענה לפי ההגדרות למטה.',
+  masterOff: 'כרגע לא נשלח מענה בשום ערוץ.',
+  channel: 'וואטסאפ',
+  channelHint: 'הערוץ שבו נשלח המענה. ערוצים נוספים יתווספו בהמשך.',
+  style: {
+    title: 'סגנון התשובה',
+    intro: 'בחרו איך SocialCRM מנסחת את המענה.',
+    businessName: 'שם העסק',
+    businessNameHint: 'הסוכן פותח איתו כל שיחה. נשמר בחשבון.',
+    businessNamePlaceholder: 'למשל: מוסך אלון',
+    ai: 'מענה חכם',
+    aiHint: 'עונה לפי מה שנכתב וממשיך את השיחה',
+    fixed: 'הודעה קבועה',
+    fixedHint: 'אותו נוסח בכל פעם, פעם אחת בשיחה',
+    fixedLabel: 'ההודעה שתישלח',
+    fixedFieldHint: 'אפשר לשלב {{firstName}}',
+    fixedPlaceholder: 'שלום {{firstName}}, תודה שפנית אלינו! קיבלנו את ההודעה ונחזור אליך בהקדם.',
+    advancedShow: 'הגדרות מתקדמות',
+    advancedHide: 'הסתרת הגדרות מתקדמות',
+  },
+  field: { sent: 'הטקסט הזה נשלח ללקוח כלשונו', notSent: 'הטקסט הזה לא נשלח ללקוח' },
+  timing: {
+    title: 'תזמון ומגבלות',
+    intro: 'שליטה בקצב, כדי שהמענה יישאר טבעי.',
+    delay: 'המתנה לפני שליחה',
+    cap: 'מקסימום מענים ביום',
+    seconds: 'שניות',
+    messages: 'הודעות',
+    delayHint: 'אפס שולח מיד.',
+    capHint: 'תקרה יומית לכל העסק.',
+  },
+  save: {
+    dirty: 'יש שינויים שלא נשמרו',
+    saved: 'השינויים נשמרו',
+    cancel: 'ביטול',
+    saving: 'שומר…',
+    save: 'שמור שינויים',
+  },
+  error: {
+    fixed_body_required: 'יש להזין הודעה קבועה',
+    business_name_required: 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה',
+    profile_derivation_failed: 'הטקסט נשמר, אבל לא הצלחנו לעבד אותו כרגע. הסוכן עדיין עובד לפי מה שכתבתם. אפשר לשמור שוב כדי לנסות.',
+    unknown: 'לא ניתן לשמור',
+  },
+  expiredFeature: 'חידוש המנוי מחזיר את המענה האוטומטי',
+  questionnaire: {
+    title: 'שאלון אוטומטי פעיל בוואטסאפ',
+    builderBody: 'הפניות בוואטסאפ נענות כרגע בשאלון קבוע, ולא במענה החכם, ולכן ההגדרות בעמוד הזה אינן משפיעות על מה שהפונים מקבלים.',
+    staffBody: 'הפניות בוואטסאפ נענות כרגע בשאלון קבוע, ולא במענה החכם. השאלון מוגדר עבורכם על ידי צוות SocialCRM, ולכן ההגדרות בעמוד הזה אינן משפיעות על מה שהפונים מקבלים.',
+    stop: 'כדי לעצור את המענה האוטומטי כולו, כבו את המענה האוטומטי למעלה.',
+    change: 'לשינוי השאלון:',
+    link: 'שאלון וואטסאפ',
+    contact: 'לשינוי השאלון, פנו אלינו.',
+  },
+}

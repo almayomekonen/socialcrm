@@ -5,8 +5,14 @@ import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpir
 import { canManageQuoteTemplates } from '@/lib/quotes/permissions'
 import { loadQuoteTemplateWorkspace } from '@/db/quotes/templateWrites'
 import QuoteTemplatesSettings from '@/components/quotes/QuoteTemplatesSettings'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'תבניות הצעות מחיר' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await requireAgencyUser())
+  return { title: t('admin.quotes.title') }
+}
 
 /**
  * Settings → תבניות הצעות מחיר.
@@ -23,7 +29,9 @@ export const metadata: Metadata = { title: 'תבניות הצעות מחיר' }
  */
 export default async function QuoteTemplatesPage() {
   const user = await requireAgencyUser()
-  if (!canManageQuoteTemplates(user)) return <div className='max-w-3xl'>אין לך הרשאה לצפות בדף זה</div>
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
+  if (!canManageQuoteTemplates(user)) return <div className='max-w-3xl' {...regionAttrs(locale)}>{t('admin.quotes.noPermission')}</div>
 
   /*
    * TIER 2. The page stays readable: an expired customer can still see what
@@ -38,11 +46,12 @@ export default async function QuoteTemplatesPage() {
   return (
     <>
       {proLocked && (
-        <div className='mb-6 max-w-2xl'>
+        <div className='mb-6 max-w-2xl' {...regionAttrs(locale)}>
           <SubscriptionExpiredState
             mode='inline'
             source='quote_templates_settings'
-            feature='חידוש המנוי מחזיר את עריכת תבניות הצעות המחיר'
+            feature={t('admin.quotes.expiredFeature')}
+            translated
           />
         </div>
       )}

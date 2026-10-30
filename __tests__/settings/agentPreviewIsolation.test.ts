@@ -130,13 +130,16 @@ describe('the setup flow asks for one thing', () => {
   })
 
   it('keeps Fixed Message exactly as it was', () => {
-    expect(style).toContain("label='ההודעה שתישלח'")
-    expect(style).toContain('{{firstName}}')
+    // The fixed message's chrome moved to the catalog (Phase E5a); the field is unchanged.
+    expect(style).toContain("label={t('admin.autoResponse.style.fixedLabel')}")
+    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("fixedLabel: 'ההודעה שתישלח'")
+    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain('{{firstName}}')
     expect(style).toContain('sent\n')
   })
 
   it('hides the optional instruction field behind Advanced', () => {
-    expect(style).toContain('הגדרות מתקדמות')
+    expect(style).toContain("t('admin.autoResponse.style.advancedShow')")
+    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("advancedShow: 'הגדרות מתקדמות'")
     expect(style).toContain('aria-expanded={advancedOpen}')
     expect(style).toContain('advancedOpen && (')
   })
@@ -158,7 +161,8 @@ describe('the setup flow asks for one thing', () => {
 
   it('asks for the business name only when the account has none', () => {
     expect(style).toContain('replyMode === \'ai\' && needsBusinessName')
-    expect(style).toContain('הסוכן פותח איתו כל שיחה')
+    expect(style).toContain("t('admin.autoResponse.style.businessNameHint')")
+    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("businessNameHint: 'הסוכן פותח איתו כל שיחה. נשמר בחשבון.'")
   })
 
   it('warns when the description asked for something the agent cannot do', () => {

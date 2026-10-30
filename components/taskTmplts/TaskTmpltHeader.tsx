@@ -7,6 +7,7 @@ import { Btn } from '@/lib/btns/Btn'
 import SaveTaskTmplt from './SaveTaskTmplt'
 import { deleteTaskTmplt } from '@/actions/tasks'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type TaskTmpltHeaderProps = {
   taskTmplt: any
@@ -40,6 +41,7 @@ export default function TaskTmpltHeader({ taskTmplt }: TaskTmpltHeaderProps) {
 }
 
 function HeaderPopMenu({ taskTmplt, render }) {
+  const t = useT()
   const [confirmDel, setConfirmDel] = useState(false)
 
   function onDelete() {
@@ -63,11 +65,11 @@ function HeaderPopMenu({ taskTmplt, render }) {
         <div className='*:border-b text-sm *:hover:bg-gray-200 *:w-full *:p-2 *:last:border-b-0'>
           <button className='flex gap-2' popoverTarget='taskTmpltTitleForm' onClick={render}>
             <Icon name='pen' className='size-3' />
-            <p>עריכה</p>
+            <p>{t('admin.taskTmplts.menu.edit')}</p>
           </button>
           <button className='flex gap-2 hover:!bg-red-100!' onClick={onDelete}>
             <Icon name='trash' className='size-3' />
-            <p>מחק תבנית</p>
+            <p>{t('admin.taskTmplts.menu.delete')}</p>
           </button>
         </div>
       </div>
@@ -76,19 +78,21 @@ function HeaderPopMenu({ taskTmplt, render }) {
         destructive
         onClose={() => setConfirmDel(false)}
         onConfirm={performDelete}
-        msg={`האם ברצנוך למחוק את תבנית המעקב "${taskTmplt.title}"?`}
+        msg={t('admin.taskTmplts.headerDeleteConfirm', { title: String(taskTmplt.title) })}
+        translated
       />
     </>
   )
 }
 
 function TaskTmpltTitleFormPop({ taskTmplt, render }) {
+  const t = useT()
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   function onSave() {
     const title = (document.getElementById('taskTmpltTitle') as HTMLInputElement).value.trim()
 
-    if (!title) return setErrMsg('יש להזין כותרת')
+    if (!title) return setErrMsg(t('admin.taskTmplts.titleRequired'))
 
     taskTmplt.title = title
     // update task template
@@ -99,14 +103,15 @@ function TaskTmpltTitleFormPop({ taskTmplt, render }) {
 
   return (
     <div popover='auto' id='taskTmpltTitleForm' className='pop p-4'>
-      <Input lbl='כותרת' defaultValue={taskTmplt?.title} id='taskTmpltTitle' />
-      <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
+      <Input lbl={t('admin.taskTmplts.titleLabel')} defaultValue={taskTmplt?.title} id='taskTmpltTitle' />
+      <Btn lbl={t('common.save')} icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
       <ConfirmPop
         open={!!errMsg}
         hideCancel
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </div>
   )

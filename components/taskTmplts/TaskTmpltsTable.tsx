@@ -8,6 +8,10 @@ import { redirect } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { addTaskTmplt, deleteTaskTmplt } from '@/actions/tasks'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { useLocalizedColumns } from '@/components/clients/table/useLocalizedColumns'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { taskTmpltColumnLabel } from '@/components/agntsAndGrps/adminLabels'
 
 export type SaleTableProps = {
   props: {
@@ -23,7 +27,11 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
   const [state, setState] = useState([...data])
   const [selected, setSelected] = useState<any>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [columns, setColumns] = useState(tblPref?.[tblId] || saleTableHeaders)
+  const t = useT()
+  const locale = t.locale
+  const [storedColumns, setStoredColumns] = useState(tblPref?.[tblId] || saleTableHeaders)
+  // Headers by column KEY in the interface language; the stored columns keep their Hebrew labels.
+  const { columns, setColumns } = useLocalizedColumns(storedColumns, setStoredColumns, () => {}, taskTmpltColumnLabel)
 
   function onCheckboxChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.name !== 'checkRow') return
@@ -51,7 +59,11 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
     data,
     state,
     setState,
-    funcs: { formatTitle },
+    funcs: {
+      formatTitle,
+      // Outside Hebrew dates use the business time zone; Hebrew keeps the table's own formatter.
+      ...(locale === 'he' ? {} : { formatDate: (value) => (value ? formatLeadDate(locale, value) : '') }),
+    },
   } as ConfigT
 
   return (
@@ -60,7 +72,7 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
         <div className='flex gap-3 items-end mb-2'>
           <Search config={config} />
           {selected && (
-            <Btn lbl='מחק תבנית' icon='trash' variant='outline' onClick={onDelete} className='text-red-500 border-red-300 hover:bg-red-50' />
+            <Btn lbl={t('admin.taskTmplts.delete')} icon='trash' variant='outline' onClick={onDelete} className='text-red-500 border-red-300 hover:bg-red-50' />
           )}
         </div>
         <div className='flex gap-4 items-end mb-2'>
@@ -77,7 +89,8 @@ export default function TaskTmpltsTable({ props }: SaleTableProps) {
         destructive
         onClose={() => setConfirmDelete(false)}
         onConfirm={performDelete}
-        msg={`האם למחוק את התבנית "${selected?.title}"?`}
+        msg={t('admin.taskTmplts.deleteConfirm', { title: String(selected?.title) })}
+        translated
       />
     </div>
   )
@@ -97,10 +110,11 @@ function formatTitle(_, obj) {
 }
 
 function AddTaskTmpltBtn() {
+  const t = useT()
   async function addAndRedirect() {
     const id = await addTaskTmplt()
     redirect(`/settings/edit_tmplts/${id}`)
   }
 
-  return <Btn lbl='יצירת תבנית משימה חדשה' icon='plus' onClick={addAndRedirect} />
+  return <Btn lbl={t('admin.taskTmplts.create')} icon='plus' onClick={addAndRedirect} />
 }

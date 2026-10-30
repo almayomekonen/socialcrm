@@ -5,7 +5,7 @@ import ShowColumns from '@/lib/table/ShowColumns'
 import Table, { ConfigT } from '@/lib/table'
 import { saveTblPref } from '@/actions/global'
 import { Btn } from '@/lib/btns/Btn'
-import { MapRoles, Roles, rolesOpt } from '@/types/roles'
+import { Roles } from '@/types/roles'
 import { Input, Select } from '@/lib/form'
 import Title from '../../lib/Title'
 import { deleteInvitation, sendInvitation } from '@/actions/invitations'
@@ -14,11 +14,20 @@ import { toast } from '@/lib/toast'
 import { isUserExists } from '@/actions/auth'
 import { getFormData2 } from '@/lib/form/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
+import { useLocalizedColumns } from '@/components/clients/table/useLocalizedColumns'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { adminRoleLabel, adminRoleOptions, invitationColumnLabel, invitationErrorText } from '@/components/agntsAndGrps/adminLabels'
 
 export default function InvitationsTable({ data, tblPref }) {
   const tblId = 'invitationsTable194'
   const [state, setState] = useState(data)
-  const [columns, setColumns] = useState(tblPref?.[tblId] || usersTableHeaders)
+  const t = useT()
+  const locale = t.locale
+  const [storedColumns, setStoredColumns] = useState(tblPref?.[tblId] || usersTableHeaders)
+  // Headers by column KEY in the interface language; the stored columns (and what is saved) keep their Hebrew labels.
+  const localized = useLocalizedColumns(storedColumns, setStoredColumns, (next) => saveTblPref(tblId, next), invitationColumnLabel)
   const [invitationToDelete, setInvitationToDelete] = useState<any>(null)
 
   async function performInvitationDelete() {
@@ -32,7 +41,7 @@ export default function InvitationsTable({ data, tblPref }) {
     return (
       <>
         <td className='sticky left-0 z-10 bg-white'>
-          <Btn variant='outline' size='icon' icon='trash' aria-label='מחיקת הזמנה' onClick={() => setInvitationToDelete(invitation)} />
+          <Btn variant='outline' size='icon' icon='trash' aria-label={t('admin.invitations.deleteLabel')} onClick={() => setInvitationToDelete(invitation)} />
         </td>
       </>
     )
@@ -41,23 +50,28 @@ export default function InvitationsTable({ data, tblPref }) {
   function moreHeads() {
     return (
       <>
-        <th className='sticky left-0 z-10 bg-gray-100'>מחיקה</th>
+        <th className='sticky left-0 z-10 bg-gray-100'>{t('admin.invitations.col.delete')}</th>
       </>
     )
   }
 
   const config = {
-    columns,
-    setColumns,
+    columns: localized.columns,
+    setColumns: localized.setColumns,
     data,
     state,
     setState,
     moreHeads,
     moreRows,
-    funcs: { formatRole, formatStatus },
+    funcs: {
+      formatRole: (role) => adminRoleLabel(role, locale),
+      formatStatus: (value, obj) => formatStatus(value, obj, t),
+      // Outside Hebrew dates use the business time zone; Hebrew keeps the table's own formatter.
+      ...(locale === 'he' ? {} : { formatDate: (value) => (value ? formatLeadDate(locale, value) : '') }),
+    },
     noCheckboxs: true,
     getColumns(columns) {
-      saveTblPref(tblId, columns)
+      localized.save(columns as unknown as Parameters<typeof localized.save>[0])
     },
   } as ConfigT
 
@@ -69,8 +83,8 @@ export default function InvitationsTable({ data, tblPref }) {
             <Search config={config} />
             <ShowColumns config={config} />
             <Select
-              placeholder='כל התפקידים'
-              options={rolesOpt}
+              placeholder={t('admin.users.allRoles')}
+              options={adminRoleOptions(locale)}
               onChange={(e) => {
                 const val = e.target.value
                 val ? setState(data.filter((user) => user.role === val)) : setState(data)
@@ -79,7 +93,7 @@ export default function InvitationsTable({ data, tblPref }) {
           </div>
 
           <div className='flex items-end mb-2'>
-            <Btn popoverTarget='invitationsForm' lbl='הזמנת משתמש' />
+            <Btn popoverTarget='invitationsForm' lbl={t('admin.invitations.invite')} />
             <InvitationsForm />
           </div>
         </div>
@@ -92,7 +106,8 @@ export default function InvitationsTable({ data, tblPref }) {
         destructive
         onClose={() => setInvitationToDelete(null)}
         onConfirm={performInvitationDelete}
-        msg='האם למחוק את ההזמנה?'
+        msg={t('admin.invitations.deleteConfirm')}
+        translated
       />
     </>
   )
@@ -109,18 +124,13 @@ export const usersTableHeaders = [
   { key: 'status', label: 'סטטוס', format: 'formatStatus' },
 ]
 
-function formatRole(role) {
-  return MapRoles[role]
+function formatStatus(_, obj, t: Translator) {
+  return <p>{new Date(obj.expiresAt) < new Date() ? t('admin.invitations.expired') : t('admin.invitations.pending')}</p>
 }
-function formatStatus(_, obj) {
-  return <p>{new Date(obj.expiresAt) < new Date() ? 'פג תוקף' : 'ממתין לאישור'}</p>
-}
-
-const GENERIC_ERROR = 'אירעה שגיאה, נסה שוב'
-const EXISTING_USER_MESSAGE =
-  'המשתמש כבר קיים במערכת, ולכן אין צורך בהזמנה. כדי שיהיה נציג — אפשר לשנות את התפקיד שלו בטבלת המשתמשים שמעל.'
 
 function InvitationsForm() {
+  const t = useT()
+  const GENERIC_ERROR = t('admin.invitations.genericError')
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   async function handleSubmit(e) {
@@ -153,7 +163,7 @@ function InvitationsForm() {
      * `users_firstName_lastName_agencyId_unique` forbids a same-name twin inside
      * one agency.
      */
-    if (existing?.id) return setErrMsg(EXISTING_USER_MESSAGE)
+    if (existing?.id) return setErrMsg(t('admin.invitations.existing'))
 
     /**
      * `silentSuccess` matters here. `api()` toasts success for anything that does
@@ -164,21 +174,21 @@ function InvitationsForm() {
      */
     const res = await api(sendInvitation, [data], undefined, undefined, { silentSuccess: true })
     if (res?.err) return setErrMsg(res.msg || GENERIC_ERROR)
-    if (res?.error) return setErrMsg(res.error)
+    if (res?.error) return setErrMsg(invitationErrorText(res.error, t.locale))
 
     toast('success')
     form.reset()
   }
   return (
     <div popover='auto' id='invitationsForm' className='pop'>
-      <Title lbl='משתמש חדש' />
+      <Title lbl={t('admin.invitations.form.title')} />
       <form className=' grid grid-cols-2 gap-4 mt-4' onSubmit={handleSubmit}>
-        <Input name='firstName' lbl='שם פרטי' />
-        <Input name='lastName' lbl='שם משפחה' />
-        <Input name='email' lbl='אימייל' />
-        <Input name='phone' lbl='טלפון' required={false} />
-        <Select lbl='תפקיד' name='role' options={rolesOpt} defaultValue={Roles.AGNT} />
-        <Btn lbl='שליחת הזמנה' className='col-span-2' />
+        <Input name='firstName' lbl={t('admin.invitations.form.firstName')} />
+        <Input name='lastName' lbl={t('admin.invitations.form.lastName')} />
+        <Input name='email' lbl={t('admin.invitations.form.email')} />
+        <Input name='phone' lbl={t('admin.invitations.form.phone')} required={false} />
+        <Select lbl={t('admin.invitations.form.role')} name='role' options={adminRoleOptions(t.locale)} defaultValue={Roles.AGNT} />
+        <Btn lbl={t('admin.invitations.form.send')} className='col-span-2' />
       </form>
       <ConfirmPop
         open={!!errMsg}
@@ -186,6 +196,7 @@ function InvitationsForm() {
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </div>
   )

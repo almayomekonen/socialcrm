@@ -2,6 +2,18 @@ import { BRANCHES, COMPANIES, prdctOptByBranch } from '@/types/lists'
 import { useEffect, useState } from 'react'
 import { Select } from '@/lib/form'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { UiLocale } from '@/lib/i18n/config'
+import { dealBranchLabel, dealCompanyLabel, dealProductLabel, dealProductTypeLabel, labelledOptions } from '@/lib/deals/labels'
+
+/**
+ * Stored Hebrew values stay the option VALUES (what the form submits); outside
+ * Hebrew only the shown name is labelled. Hebrew passes the stored lists
+ * themselves, exactly as before. Only the campaign editor renders this picker.
+ */
+function shown(values: string[], label: (v: unknown, l?: UiLocale) => string, locale: UiLocale) {
+  return locale === 'he' ? values : labelledOptions(values, label, locale)
+}
 
 interface Props {
   index?: string
@@ -9,6 +21,8 @@ interface Props {
 }
 
 export default function SelectPrdctOpts({ prdct, index = '' }: Props) {
+  const t = useT()
+  const locale = t.locale
   const [selectedPrdct, setSelectedPrdct] = useState<any>(prdct)
   useEffect(() => {
     if (selectedPrdct?.branch) setSelectedPrdct(prdctOptByBranch[prdct.branch])
@@ -31,9 +45,9 @@ export default function SelectPrdctOpts({ prdct, index = '' }: Props) {
   return (
     <>
       <Select
-        options={branchOptions}
-        placeholder='בחר ענף'
-        lbl='ענף'
+        options={shown(branchOptions, dealBranchLabel, locale)}
+        placeholder={t('admin.promos.product.pickBranch')}
+        lbl={t('admin.promos.product.branch')}
         onChange={(e) => setSelectedPrdct(prdctOptByBranch[e.target.value])}
         name={`branch${index}`}
         defaultValue={prdct?.branch || ''}
@@ -42,27 +56,27 @@ export default function SelectPrdctOpts({ prdct, index = '' }: Props) {
 
       <MultiSelectSearch
         key={['prdct', ...(selectedPrdct?.prdctList || [])].join('-')}
-        lbl='מוצר'
-        placeholder='בחר מוצרים'
+        lbl={t('admin.promos.product.product')}
+        placeholder={t('admin.promos.product.pickProducts')}
         name={`prdcts${index}`}
-        options={selectedPrdct?.prdctList || []}
+        options={shown(selectedPrdct?.prdctList || [], dealProductLabel, locale)}
         selected={prdct?.prdcts}
       />
 
       <MultiSelectSearch
         key={['prdctType', ...(selectedPrdct?.prdctTypeList || [])].join('-')}
-        lbl='סוג מוצר'
-        placeholder='בחר סוג מוצרים'
+        lbl={t('admin.promos.product.productType')}
+        placeholder={t('admin.promos.product.pickTypes')}
         name={`prdctTypes${index}`}
-        options={selectedPrdct?.prdctTypeList || []}
+        options={shown(selectedPrdct?.prdctTypeList || [], dealProductTypeLabel, locale)}
         selected={prdct?.prdctTypes}
       />
 
       <MultiSelectSearch
-        lbl='חברה'
-        placeholder='בחר חברות'
+        lbl={t('admin.promos.product.company')}
+        placeholder={t('admin.promos.product.pickCompanies')}
         name={`companies${index}`}
-        options={COMPANIES}
+        options={shown(COMPANIES, dealCompanyLabel, locale)}
         selected={prdct?.companies}
       />
     </>

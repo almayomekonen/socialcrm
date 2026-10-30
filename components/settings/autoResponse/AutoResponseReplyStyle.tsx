@@ -1,6 +1,8 @@
 'use client'
 
 import AutoResponseTextField from './AutoResponseTextField'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { untranslatedAttrs } from '@/lib/i18n/config'
 
 /**
  * "סגנון התשובה" — the whole of how a reply is produced.
@@ -14,6 +16,13 @@ import AutoResponseTextField from './AutoResponseTextField'
  * The section owns one idea: given a chosen reply style, what does the owner
  * need to write. Everything about WHEN a reply goes out — the switches, the
  * delay, the cap — stays on the form.
+ *
+ * LANGUAGE. The reply-mode choice, the business name and the fixed message are
+ * product chrome and follow the interface language. The Smart Agent's own
+ * configuration — the description and advanced-instruction fields (their
+ * labels, hints and example prompts) and the AI-derived "not performed" list —
+ * is AI configuration, out of scope by owner order: it stays Hebrew inside a
+ * declared Hebrew region (`untranslatedAttrs`).
  */
 type Props = {
   replyMode: 'ai' | 'fixed'
@@ -71,17 +80,19 @@ export default function AutoResponseReplyStyle({
   nameId,
   maxLength,
 }: Props) {
+  const t = useT()
+  const hebrew = untranslatedAttrs(t.locale)
   return (
       <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
-        <h2 className='text-base font-semibold text-ink'>סגנון התשובה</h2>
-        <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>בחרו איך SocialCRM מנסחת את המענה.</p>
+        <h2 className='text-base font-semibold text-ink'>{t('admin.autoResponse.style.title')}</h2>
+        <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.style.intro')}</p>
 
         {replyMode === 'ai' && needsBusinessName && (
           <div className='mt-4 max-w-md'>
             <label htmlFor={nameId} className='text-sm font-semibold text-gray-700'>
-              שם העסק
+              {t('admin.autoResponse.style.businessName')}
             </label>
-            <p className='mt-0.5 text-xs text-gray-500'>הסוכן פותח איתו כל שיחה. נשמר בחשבון.</p>
+            <p className='mt-0.5 text-xs text-gray-500'>{t('admin.autoResponse.style.businessNameHint')}</p>
             <input
               id={nameId}
               type='text'
@@ -90,7 +101,7 @@ export default function AutoResponseReplyStyle({
               maxLength={120}
               aria-invalid={!!businessNameError}
               aria-describedby={businessNameError ? `${nameId}-error` : undefined}
-              placeholder='למשל: מוסך אלון'
+              placeholder={t('admin.autoResponse.style.businessNamePlaceholder')}
               className='mt-2 block w-full rounded-md border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:outline-2 focus:outline-offset-0 focus:outline-primary aria-invalid:border-red-500'
             />
             {businessNameError && (
@@ -104,7 +115,7 @@ export default function AutoResponseReplyStyle({
         <div className='mt-4 grid gap-x-3 gap-y-4 sm:grid-cols-2'>
           <label className='flex cursor-pointer flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-4.5 py-3.5 transition-colors hover:border-gray-300 has-checked:border-solid has-checked:ring-1 has-checked:ring-solid'>
             <span className='flex items-center justify-between gap-2.5'>
-              <span className='text-md font-semibold text-ink'>מענה חכם</span>
+              <span className='text-md font-semibold text-ink'>{t('admin.autoResponse.style.ai')}</span>
               <input
                 type='radio'
                 name='replyMode'
@@ -113,12 +124,12 @@ export default function AutoResponseReplyStyle({
                 onChange={() => onReplyMode('ai')}
               />
             </span>
-            <span className='text-sm leading-relaxed text-gray-600'>עונה לפי מה שנכתב וממשיך את השיחה</span>
+            <span className='text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.style.aiHint')}</span>
           </label>
 
           <label className='flex cursor-pointer flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-4.5 py-3.5 transition-colors hover:border-gray-300 has-checked:border-solid has-checked:ring-1 has-checked:ring-solid'>
             <span className='flex items-center justify-between gap-2.5'>
-              <span className='text-md font-semibold text-ink'>הודעה קבועה</span>
+              <span className='text-md font-semibold text-ink'>{t('admin.autoResponse.style.fixed')}</span>
               <input
                 type='radio'
                 name='replyMode'
@@ -127,7 +138,7 @@ export default function AutoResponseReplyStyle({
                 onChange={() => onReplyMode('fixed')}
               />
             </span>
-            <span className='text-sm leading-relaxed text-gray-600'>אותו נוסח בכל פעם, פעם אחת בשיחה</span>
+            <span className='text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.style.fixedHint')}</span>
           </label>
 
           {/*
@@ -139,7 +150,7 @@ export default function AutoResponseReplyStyle({
             option without drawing a container around them.
           */}
           {replyMode === 'ai' ? (
-            <div className='flex flex-col gap-4 sm:col-start-1'>
+            <div className='flex flex-col gap-4 sm:col-start-1' {...hebrew}>
               <AutoResponseTextField
                 id={bodyId}
                 label='ספרו לסוכן על העסק ומה תרצו שיעשה'
@@ -156,14 +167,15 @@ export default function AutoResponseReplyStyle({
             <div className='sm:col-start-2'>
               <AutoResponseTextField
                 id={bodyId}
-                label='ההודעה שתישלח'
-                hint='אפשר לשלב {{firstName}}'
+                label={t('admin.autoResponse.style.fixedLabel')}
+                hint={t('admin.autoResponse.style.fixedFieldHint')}
                 value={fixedBody}
                 onChange={(v) => onFixedBody(v)}
                 maxLength={maxLength}
                 sent
                 error={fixedBodyError}
-                placeholder='שלום {{firstName}}, תודה שפנית אלינו! קיבלנו את ההודעה ונחזור אליך בהקדם.'
+                placeholder={t('admin.autoResponse.style.fixedPlaceholder')}
+                translated
               />
             </div>
           )}
@@ -176,7 +188,7 @@ export default function AutoResponseReplyStyle({
           downgrade would be worse than saying so plainly.
         */}
         {replyMode === 'ai' && unsupported.length > 0 && (
-          <div className='mt-4 max-w-2xl rounded-lg border border-gray-200 bg-white px-4.5 py-3.5'>
+          <div className='mt-4 max-w-2xl rounded-lg border border-gray-200 bg-white px-4.5 py-3.5' {...hebrew}>
             <p className='text-sm font-semibold text-ink'>שני דברים שכדאי לדעת</p>
             <p className='mt-1 text-sm leading-relaxed text-gray-600'>
               הסוכן לא מבצע את הפעולות האלה בפועל. הוא יאסוף את הפרטים ויגיד ללקוח שאתם חוזרים אליו:
@@ -197,10 +209,10 @@ export default function AutoResponseReplyStyle({
               aria-expanded={advancedOpen}
               className='text-sm font-medium text-gray-700 underline underline-offset-2'
             >
-              {advancedOpen ? 'הסתרת הגדרות מתקדמות' : 'הגדרות מתקדמות'}
+              {advancedOpen ? t('admin.autoResponse.style.advancedHide') : t('admin.autoResponse.style.advancedShow')}
             </button>
             {advancedOpen && (
-              <div className='mt-3.5 max-w-2xl'>
+              <div className='mt-3.5 max-w-2xl' {...hebrew}>
                 <AutoResponseTextField
                   id={instructionsId}
                   label='הנחיות נוספות לסוכן'

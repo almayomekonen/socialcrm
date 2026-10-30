@@ -27,5 +27,6 @@ import { deals } from './deals'
 import { performance } from './performance'
 import { billing } from './billing'
 import { settings } from './settings'
+import { admin } from './admin'
 
-export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings } as const
+export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin } as const

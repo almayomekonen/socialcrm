@@ -4,6 +4,8 @@ import { useRef, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
 import { previewAgentTurn, type PreviewTurn } from '@/actions/autoResponse/previewAgent'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { untranslatedAttrs } from '@/lib/i18n/config'
 
 /**
  * "בדקו את הסוכן שלכם" — the owner talks to their own agent before a customer
@@ -22,6 +24,10 @@ import { previewAgentTurn, type PreviewTurn } from '@/actions/autoResponse/previ
  *
  * RTL. The conversation reads right-to-left like the real thing; bubbles use the
  * same in/out geometry the inbox uses so a reply looks here as it will there.
+ *
+ * LANGUAGE. This is the AI agent's test chat: its replies, notes and chrome are
+ * AI output / AI configuration, out of scope by owner order (no AI
+ * localization). Outside Hebrew both roots re-declare Hebrew.
  */
 
 type Props = {
@@ -58,6 +64,7 @@ export default function AgentPreview({
   savedDescription,
   businessName,
 }: Props) {
+  const hebrew = untranslatedAttrs(useT().locale)
   const [open, setOpen] = useState(false)
   const [bubbles, setBubbles] = useState<Bubble[]>([])
   const [input, setInput] = useState('')
@@ -130,7 +137,7 @@ export default function AgentPreview({
 
   if (!open) {
     return (
-      <div className='mt-5.5 border-t border-gray-200 pt-5.5'>
+      <div className='mt-5.5 border-t border-gray-200 pt-5.5' {...hebrew}>
         <div className='flex flex-wrap items-center gap-3'>
           <Btn type='button' lbl='בדקו את הסוכן שלכם' onClick={() => setOpen(true)} disabled={!hasDescription} />
           <p className='text-sm text-gray-600'>
@@ -144,7 +151,7 @@ export default function AgentPreview({
   }
 
   return (
-    <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
+    <section className='mt-5.5 border-t border-gray-200 pt-5.5' {...hebrew}>
       <div className='flex flex-wrap items-baseline justify-between gap-2.5'>
         <h2 className='text-base font-semibold text-ink'>בדיקת הסוכן</h2>
         <div className='flex items-center gap-3.5'>

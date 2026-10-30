@@ -16,6 +16,7 @@ import { Input } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { useDrag } from '@/lib/hooksNEvents'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 let crntTask = null,
   editTask = null,
@@ -27,6 +28,7 @@ let crntTask = null,
   taskTmpltId
 
 export default function TaskTmpltStepper({ tasks, taskTmpltIdProp }) {
+  const t = useT()
   const [state, setState] = useState(false)
   const render = () => setState(!state)
 
@@ -63,7 +65,7 @@ export default function TaskTmpltStepper({ tasks, taskTmpltIdProp }) {
         </button>
       </div>
       {crntTask && (
-        <Btn variant='outline' lbl='תת-מעקב' icon='plus' className='my-1' size='small' popoverTarget='subTaskFormTmplt' />
+        <Btn variant='outline' lbl={t('admin.taskTmplts.subTask')} icon='plus' className='my-1' size='small' popoverTarget='subTaskFormTmplt' />
       )}
       <div className='max-h-72 h-72 overflow-y-auto ' key={crntTask?.title}>
         {crntTask &&
@@ -137,6 +139,7 @@ function ChecklistItem({ subtask, tasks, ...props }) {
 }
 
 function StepMenuPop({ tasks, render }) {
+  const t = useT()
   const [confirmDel, setConfirmDel] = useState<any>(null)
 
   function onDelete() {
@@ -164,11 +167,11 @@ function StepMenuPop({ tasks, render }) {
         <div className='*:border-b text-sm *:hover:bg-gray-200 *:justify-center *:w-full w-21 *:py-2 *:last:border-b-0'>
           <button className='flex gap-2' popoverTarget='stepFormTmplt' onClick={render}>
             <Icon name='pen' className='size-3' />
-            <p>עריכה</p>
+            <p>{t('admin.taskTmplts.menu.edit')}</p>
           </button>
           <button className='flex gap-2 hover:!bg-red-100!' onClick={onDelete}>
             <Icon name='trash' className='size-3' />
-            <p>מחיקה</p>
+            <p>{t('admin.taskTmplts.menu.deleteStep')}</p>
           </button>
         </div>
       </div>
@@ -177,13 +180,15 @@ function StepMenuPop({ tasks, render }) {
         destructive
         onClose={() => setConfirmDel(null)}
         onConfirm={performDelete}
-        msg={`האם למחוק את המעקב "${confirmDel?.title}"?`}
+        msg={t('admin.taskTmplts.stepDeleteConfirm', { title: String(confirmDel?.title) })}
+        translated
       />
     </>
   )
 }
 
 function SubTaskMenuPop({ tasks, render }) {
+  const t = useT()
   const [confirmDel, setConfirmDel] = useState<any>(null)
 
   function onDelete() {
@@ -211,11 +216,11 @@ function SubTaskMenuPop({ tasks, render }) {
         <div className='*:border-b text-sm *:hover:bg-gray-200 *:justify-center *:w-full w-21 *:py-2 *:last:border-b-0'>
           <button className='flex gap-2' popoverTarget='subTaskFormTmplt' onClick={render}>
             <Icon name='pen' className='size-3' />
-            <p>עריכה</p>
+            <p>{t('admin.taskTmplts.menu.edit')}</p>
           </button>
           <button className='flex gap-2 hover:!bg-red-100!' onClick={onDelete}>
             <Icon name='trash' className='size-3' />
-            <p>מחיקה</p>
+            <p>{t('admin.taskTmplts.menu.deleteStep')}</p>
           </button>
         </div>
       </div>
@@ -224,21 +229,23 @@ function SubTaskMenuPop({ tasks, render }) {
         destructive
         onClose={() => setConfirmDel(null)}
         onConfirm={performDelete}
-        msg={`האם למחוק את המעקב "${confirmDel?.title}"?`}
+        msg={t('admin.taskTmplts.stepDeleteConfirm', { title: String(confirmDel?.title) })}
+        translated
       />
     </>
   )
 }
 
 function StepFormPop({ tasks, render }) {
+  const tr = useT()
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   function onSave() {
     const title = (document.getElementById('stepTitleTmplt') as HTMLInputElement).value.trim()
 
-    if (!title) return setErrMsg('יש להזין כותרת')
+    if (!title) return setErrMsg(tr('admin.taskTmplts.titleRequired'))
     // check if task title is unique
-    if (title !== editTask?.title && tasks.some((t) => t.title === title)) return setErrMsg(`הכותרת "${title}" כבר קיימת`)
+    if (title !== editTask?.title && tasks.some((t) => t.title === title)) return setErrMsg(tr('admin.taskTmplts.duplicateTitle', { title }))
 
     editTask ? (editTask.title = title) : tasks.push({ title, subTasks: [] })
     // update task
@@ -250,27 +257,29 @@ function StepFormPop({ tasks, render }) {
 
   return (
     <div popover='auto' id='stepFormTmplt' className='pop p-4'>
-      <Input lbl='כותרת השלב' defaultValue={editTask?.title} id='stepTitleTmplt' />
-      <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
+      <Input lbl={tr('admin.taskTmplts.stepTitle')} defaultValue={editTask?.title} id='stepTitleTmplt' />
+      <Btn lbl={tr('common.save')} icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
       <ConfirmPop
         open={!!errMsg}
         hideCancel
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </div>
   )
 }
 
 function SubTaskFormPop({ tasks, render }) {
+  const t = useT()
   const [errMsg, setErrMsg] = useState<string | null>(null)
 
   function onSave() {
     const title = (document.getElementById('subTaskTitleTmplt') as HTMLInputElement).value.trim()
     const desc = (document.getElementById('subTaskDescTmplt') as HTMLTextAreaElement).value.trim()
 
-    if (!title) return setErrMsg('יש להזין כותרת')
+    if (!title) return setErrMsg(t('admin.taskTmplts.titleRequired'))
 
     if (editSubTask) {
       editSubTask.title = title
@@ -286,15 +295,16 @@ function SubTaskFormPop({ tasks, render }) {
 
   return (
     <div popover='auto' id='subTaskFormTmplt' className='pop p-4'>
-      <Input lbl='כותרת תת-המעקב' defaultValue={editSubTask?.title} id='subTaskTitleTmplt' />
-      <Input as='textarea' lbl='תיאור' defaultValue={editSubTask?.desc} id='subTaskDescTmplt' rows={3} />
-      <Btn lbl='שמירה' icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
+      <Input lbl={t('admin.taskTmplts.subTaskTitle')} defaultValue={editSubTask?.title} id='subTaskTitleTmplt' />
+      <Input as='textarea' lbl={t('admin.taskTmplts.subTaskDesc')} defaultValue={editSubTask?.desc} id='subTaskDescTmplt' rows={3} />
+      <Btn lbl={t('common.save')} icon='floppy-disk' className='mt-2 w-full' onClick={onSave} />
       <ConfirmPop
         open={!!errMsg}
         hideCancel
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </div>
   )

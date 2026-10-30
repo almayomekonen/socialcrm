@@ -1,4 +1,5 @@
 import type { AutoResponseReplyMode } from '@/db/autoResponseSettings'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * The auto-response form's props and its editable draft. Moved out of
@@ -44,3 +45,22 @@ export function toDraft(p: AutoResponseFormProps): Draft {
     businessName: p.businessName ?? '',
   }
 }
+
+/**
+ * A refused save, as a CODE (`updateAutoResponseSettings`' `reason`); the form
+ * words it from the catalog. Before i18n the form held the Hebrew sentence and
+ * compared sentences to tell which field it belonged to — it now compares codes
+ * (same outcome: only these two reasons ever produced those two sentences).
+ */
+export type SaveErrorCode = 'fixed_body_required' | 'business_name_required' | 'profile_derivation_failed' | 'unknown'
+
+export function saveErrorCode(reason: string): SaveErrorCode {
+  return reason === 'fixed_body_required' || reason === 'business_name_required' || reason === 'profile_derivation_failed' ? reason : 'unknown'
+}
+
+export const SAVE_ERROR_KEY = {
+  fixed_body_required: 'admin.autoResponse.error.fixed_body_required',
+  business_name_required: 'admin.autoResponse.error.business_name_required',
+  profile_derivation_failed: 'admin.autoResponse.error.profile_derivation_failed',
+  unknown: 'admin.autoResponse.error.unknown',
+} as const satisfies Record<SaveErrorCode, MessageKey>

@@ -5,17 +5,24 @@ import Search from '@/lib/table/Search'
 import ShowColumns from '@/lib/table/ShowColumns'
 import Table, { ConfigT } from '@/lib/table'
 import { saveTblPref } from '@/actions/global'
-import { MapRoles, rolesOpt } from '@/types/roles'
 import TransferSalesForm from './TransferSalesForm'
 import EditUser from './EditUser'
 import { Select } from '@/lib/form'
 import { Btn } from '@/lib/btns/Btn'
 import ExportTable from '@/lib/table/export'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { useLocalizedColumns } from '@/components/clients/table/useLocalizedColumns'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { adminRoleLabel, adminRoleOptions, userColumnLabel } from './adminLabels'
 
 export default function UsersTable({ users, agnts, tblPref, teams }) {
   const tblId = 'usersTable194'
   const [state, setState] = useState(users)
-  const [columns, setColumns] = useState(tblPref?.[tblId] || usersTableHeaders)
+  const t = useT()
+  const locale = t.locale
+  const [storedColumns, setStoredColumns] = useState(tblPref?.[tblId] || usersTableHeaders)
+  // Headers by column KEY in the interface language; the stored columns (and what is saved) keep their Hebrew labels.
+  const localized = useLocalizedColumns(storedColumns, setStoredColumns, (next) => saveTblPref(tblId, next), userColumnLabel)
 
   const [curUser, setCurUser] = useState({})
 
@@ -23,7 +30,7 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
     return (
       <>
         <td className='sticky left-0 z-10 bg-white'>
-          <Btn variant='outline' size='icon' icon='pen' aria-label='עריכת נציג' popoverTarget='editUserForm' onClick={() => setCurUser({ ...user })} />
+          <Btn variant='outline' size='icon' icon='pen' aria-label={t('admin.users.editRep')} popoverTarget='editUserForm' onClick={() => setCurUser({ ...user })} />
         </td>
       </>
     )
@@ -32,23 +39,28 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
   function moreHeads() {
     return (
       <>
-        <th className='sticky left-0 z-10 bg-gray-100'>עריכה</th>
+        <th className='sticky left-0 z-10 bg-gray-100'>{t('admin.users.col.edit')}</th>
       </>
     )
   }
 
   const config = {
-    columns,
-    setColumns,
+    columns: localized.columns,
+    setColumns: localized.setColumns,
     data: users,
     state,
     setState,
     moreHeads,
     moreRows,
-    funcs: { formatArr, formatRole },
+    funcs: {
+      formatArr,
+      formatRole: (role) => adminRoleLabel(role, locale),
+      // Outside Hebrew dates use the business time zone; Hebrew keeps the table's own formatter.
+      ...(locale === 'he' ? {} : { formatDate: (value) => (value ? formatLeadDate(locale, value) : '') }),
+    },
     noCheckboxs: true,
     getColumns(columns) {
-      saveTblPref(tblId, columns)
+      localized.save(columns as unknown as Parameters<typeof localized.save>[0])
     },
   } as ConfigT
 
@@ -60,8 +72,8 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
             <Search config={config} />
             <ShowColumns config={config} />
             <Select
-              placeholder='כל התפקידים'
-              options={rolesOpt}
+              placeholder={t('admin.users.allRoles')}
+              options={adminRoleOptions(locale)}
               onChange={(e) => {
                 const val = e.target.value
                 val ? setState(users.filter((user) => user.role === val)) : setState(users)
@@ -70,7 +82,7 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
           </div>
 
           <div className='flex items-end mb-2'>
-            <ExportTable data={state} columns={columns} />
+            <ExportTable data={state} columns={storedColumns} />
             {/* <div className='flex gap-2'>
               <Btn lbl='משתמש חדש' popoverTarget='editUserForm' icon='user-plus' onClick={() => setCurUser(null)} />
             </div> */}
@@ -80,7 +92,7 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
         <Table config={config} tblCls='mb-0 rounded-b-none' />
 
         <EditUser user={curUser} agnts={agnts} teams={teams} />
-        <TransferSalesForm user={curUser} users={users} />
+        <TransferSalesForm user={curUser} users={users} translated />
       </div>
     </>
   )
@@ -102,7 +114,4 @@ export const usersTableHeaders = [
 function formatArr(arr) {
   if (!arr) return ''
   return arr.map((item) => item.name).join(', ')
-}
-function formatRole(role) {
-  return MapRoles[role]
 }

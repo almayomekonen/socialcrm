@@ -5,7 +5,8 @@ import { useId, useState, useTransition } from 'react'
 import { Switch } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { updateAutoResponseSettings } from '@/actions/autoResponse/updateSettings'
-import { BODY_MAX, toDraft, type AutoResponseFormProps as Props, type Draft } from './autoResponseDraft'
+import { BODY_MAX, SAVE_ERROR_KEY, saveErrorCode, toDraft, type AutoResponseFormProps as Props, type Draft, type SaveErrorCode } from './autoResponseDraft'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 import AutoResponseReplyStyle from './AutoResponseReplyStyle'
 import AgentPreview from './AgentPreview'
 import AutoResponseTiming from './AutoResponseTiming'
@@ -30,7 +31,10 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [baseline, setBaseline] = useState<Draft>(() => toDraft(initial))
   const [draft, setDraft] = useState<Draft>(() => toDraft(initial))
   const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const t = useT()
+  const region = useRegionAttrs()
+  const [errorCode, setError] = useState<SaveErrorCode | null>(null)
+  const error = errorCode ? t(SAVE_ERROR_KEY[errorCode]) : null
   const [pending, startTransition] = useTransition()
 
   const bodyId = useId()
@@ -45,8 +49,8 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [unsupported, setUnsupported] = useState<string[]>([])
   const [savedDescription, setSavedDescription] = useState(initial.guidance ?? '')
   const dirty = (Object.keys(draft) as (keyof Draft)[]).some((k) => draft[k] !== baseline[k])
-  const fixedBodyError = error === 'יש להזין הודעה קבועה' ? error : undefined
-  const businessNameError = error === 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה' ? error : undefined
+  const fixedBodyError = errorCode === 'fixed_body_required' ? error : undefined
+  const businessNameError = errorCode === 'business_name_required' ? error : undefined
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -86,13 +90,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
         // `profile_derivation_failed` is the recoverable one: everything the
         // owner typed IS saved and the agent still works from their words —
         // only the structured view is missing, and saving again retries it.
-        const copy: Record<string, string> = {
-          fixed_body_required: 'יש להזין הודעה קבועה',
-          business_name_required: 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה',
-          profile_derivation_failed:
-            'הטקסט נשמר, אבל לא הצלחנו לעבד אותו כרגע. הסוכן עדיין עובד לפי מה שכתבתם. אפשר לשמור שוב כדי לנסות.',
-        }
-        setError(copy[result.reason] ?? 'לא ניתן לשמור')
+        setError(saveErrorCode(result.reason))
         if (result.reason === 'profile_derivation_failed') {
           setBaseline(draft)
           setSavedDescription(guidance)
@@ -107,12 +105,10 @@ export default function AutoResponseSettingsForm(initial: Props) {
   }
 
   return (
-    <div className='max-w-5xl'>
+    <div className='max-w-5xl' {...region}>
       <header className='mb-8'>
-        <h1 className='title'>מענה אוטומטי</h1>
-        <p className='mt-2 max-w-2xl text-sm leading-relaxed text-gray-600'>
-          ליד שכותב בוואטסאפ מקבל תשובה תוך שניות, גם כשאתם לא ליד המסך. אתם ממשיכים את השיחה משם.
-        </p>
+        <h1 className='title'>{t('admin.autoResponse.title')}</h1>
+        <p className='mt-2 max-w-2xl text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.intro')}</p>
       </header>
 
       <section>
@@ -125,17 +121,17 @@ export default function AutoResponseSettingsForm(initial: Props) {
           */}
           <div className='flex items-center gap-2.5'>
             <Icon type='reg' name='whatsapp' className='size-4.5 bg-[#25D366]' />
-            <h2 className='text-base font-semibold text-ink'>מענה אוטומטי בוואטסאפ</h2>
+            <h2 className='text-base font-semibold text-ink'>{t('admin.autoResponse.master')}</h2>
           </div>
           <Switch
-            aria-label='מענה אוטומטי בוואטסאפ'
+            aria-label={t('admin.autoResponse.master')}
             checked={master}
             onChange={(e) => set('master', e.target.checked)}
           />
-          <p className='text-sm text-gray-500'>{master ? 'מופעל' : 'כבוי'}</p>
+          <p className='text-sm text-gray-500'>{master ? t('admin.autoResponse.on') : t('admin.autoResponse.off')}</p>
         </div>
         <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>
-          {master ? 'כל הודעה נכנסת מקבלת מענה לפי ההגדרות למטה.' : 'כרגע לא נשלח מענה בשום ערוץ.'}
+          {master ? t('admin.autoResponse.masterOn') : t('admin.autoResponse.masterOff')}
         </p>
 
         {/*
@@ -146,14 +142,14 @@ export default function AutoResponseSettingsForm(initial: Props) {
         */}
         {master && (
           <label className='mt-4 flex w-fit cursor-pointer items-center gap-3.5'>
-            <span className='text-sm font-medium text-gray-700'>וואטסאפ</span>
+            <span className='text-sm font-medium text-gray-700'>{t('admin.autoResponse.channel')}</span>
             <input
               type='checkbox'
               className='switch'
               checked={channel}
               onChange={(e) => set('channel', e.target.checked)}
             />
-            <span className='text-sm text-gray-500'>הערוץ שבו נשלח המענה. ערוצים נוספים יתווספו בהמשך.</span>
+            <span className='text-sm text-gray-500'>{t('admin.autoResponse.channelHint')}</span>
           </label>
         )}
       </section>

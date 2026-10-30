@@ -119,7 +119,9 @@ describe('the three kinds of text are told apart on screen', () => {
   const field = read('components/settings/autoResponse/AutoResponseTextField.tsx')
 
   it('every field says whether the customer receives it', () => {
-    expect(field).toContain("sent ? 'הטקסט הזה נשלח ללקוח כלשונו' : 'הטקסט הזה לא נשלח ללקוח'")
+    // The two notes moved to the catalog (Phase E5a); the field still picks one by `sent`.
+    expect(field).toContain("sent ? t('admin.autoResponse.field.sent') : t('admin.autoResponse.field.notSent')")
+    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("field: { sent: 'הטקסט הזה נשלח ללקוח כלשונו', notSent: 'הטקסט הזה לא נשלח ללקוח' }")
   })
 
   it('business information and agent instructions are separate fields, neither sent', () => {
@@ -131,7 +133,9 @@ describe('the three kinds of text are told apart on screen', () => {
   })
 
   it('the fixed message is the only one marked as sent', () => {
-    expect(form).toContain("label='ההודעה שתישלח'")
+    // The fixed message's label moved to the catalog (Phase E5a).
+    expect(form).toContain("label={t('admin.autoResponse.style.fixedLabel')}")
+    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("fixedLabel: 'ההודעה שתישלח'")
     expect(form.match(/sent$/gm) ?? []).toHaveLength(1)
   })
 

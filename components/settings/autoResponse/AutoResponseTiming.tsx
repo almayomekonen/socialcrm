@@ -1,5 +1,7 @@
 'use client'
 
+import { useT } from '@/lib/i18n/I18nProvider'
+
 /**
  * "תזמון ומגבלות" — the delay before a reply and the daily ceiling.
  *
@@ -17,10 +19,11 @@ type Props = {
 }
 
 export default function AutoResponseTiming({ delayId, capId, delaySeconds, dailyCap, onDelaySeconds, onDailyCap }: Props) {
+  const t = useT()
   return (
     <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
-      <h2 className='text-base font-semibold text-ink'>תזמון ומגבלות</h2>
-      <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>שליטה בקצב, כדי שהמענה יישאר טבעי.</p>
+      <h2 className='text-base font-semibold text-ink'>{t('admin.autoResponse.timing.title')}</h2>
+      <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.timing.intro')}</p>
 
       {/*
         One control, not two: the pair shares a single rounded outline and is
@@ -31,10 +34,10 @@ export default function AutoResponseTiming({ delayId, capId, delaySeconds, daily
       <div className='mt-4 max-w-100'>
         <div className='grid grid-cols-2 gap-px'>
           <label htmlFor={delayId} className='ps-3.25 text-sm text-gray-700'>
-            המתנה לפני שליחה
+            {t('admin.autoResponse.timing.delay')}
           </label>
           <label htmlFor={capId} className='ps-3.25 text-sm text-gray-700'>
-            מקסימום מענים ביום
+            {t('admin.autoResponse.timing.cap')}
           </label>
         </div>
 
@@ -49,7 +52,7 @@ export default function AutoResponseTiming({ delayId, capId, delaySeconds, daily
               value={delaySeconds}
               onChange={(e) => onDelaySeconds(e.target.value)}
             />
-            <span className='text-sm text-gray-500'>שניות</span>
+            <span className='text-sm text-gray-500'>{t('admin.autoResponse.timing.seconds')}</span>
           </div>
           <div className='flex h-10 items-center gap-2 bg-white ps-3.25 pe-3.25'>
             <input
@@ -60,13 +63,13 @@ export default function AutoResponseTiming({ delayId, capId, delaySeconds, daily
               value={dailyCap}
               onChange={(e) => onDailyCap(e.target.value)}
             />
-            <span className='text-sm text-gray-500'>הודעות</span>
+            <span className='text-sm text-gray-500'>{t('admin.autoResponse.timing.messages')}</span>
           </div>
         </div>
 
         <div className='mt-1.75 grid grid-cols-2 gap-px'>
-          <p className='ps-3.25 text-xs text-gray-500'>אפס שולח מיד.</p>
-          <p className='ps-3.25 text-xs text-gray-500'>תקרה יומית לכל העסק.</p>
+          <p className='ps-3.25 text-xs text-gray-500'>{t('admin.autoResponse.timing.delayHint')}</p>
+          <p className='ps-3.25 text-xs text-gray-500'>{t('admin.autoResponse.timing.capHint')}</p>
         </div>
       </div>
     </section>

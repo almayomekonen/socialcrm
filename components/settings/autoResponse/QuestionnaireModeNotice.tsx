@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * "A fixed questionnaire is answering for you."
@@ -20,28 +23,30 @@ import Link from 'next/link'
  * notice is exactly what it was.
  */
 export default function QuestionnaireModeNotice({ active, builderHref }: { active: boolean; builderHref?: string }) {
+  const t = useT()
+  const region = useRegionAttrs()
   if (!active) return null
 
   return (
-    <div className='mb-6 max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3'>
-      <p className='text-sm font-medium text-gray-900'>שאלון אוטומטי פעיל בוואטסאפ</p>
+    <div className='mb-6 max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3' {...region}>
+      <p className='text-sm font-medium text-gray-900'>{t('admin.autoResponse.questionnaire.title')}</p>
       <p className='mt-1 text-sm leading-relaxed text-gray-700'>
         {builderHref
-          ? 'הפניות בוואטסאפ נענות כרגע בשאלון קבוע, ולא במענה החכם, ולכן ההגדרות בעמוד הזה אינן משפיעות על מה שהפונים מקבלים.'
-          : 'הפניות בוואטסאפ נענות כרגע בשאלון קבוע, ולא במענה החכם. השאלון מוגדר עבורכם על ידי צוות SocialCRM, ולכן ההגדרות בעמוד הזה אינן משפיעות על מה שהפונים מקבלים.'}
+          ? t('admin.autoResponse.questionnaire.builderBody')
+          : t('admin.autoResponse.questionnaire.staffBody')}
       </p>
       <p className='mt-1 text-sm leading-relaxed text-gray-700'>
-        כדי לעצור את המענה האוטומטי כולו, כבו את המענה האוטומטי למעלה.{' '}
+        {t('admin.autoResponse.questionnaire.stop')}{' '}
         {builderHref ? (
           <>
-            לשינוי השאלון:{' '}
+            {t('admin.autoResponse.questionnaire.change')}{' '}
             <Link href={builderHref} className='font-medium text-ink underline underline-offset-2'>
-              שאלון וואטסאפ
+              {t('admin.autoResponse.questionnaire.link')}
             </Link>
             .
           </>
         ) : (
-          'לשינוי השאלון, פנו אלינו.'
+          t('admin.autoResponse.questionnaire.contact')
         )}
       </p>
     </div>

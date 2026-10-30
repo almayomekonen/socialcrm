@@ -20,6 +20,7 @@ import {
 } from '@/lib/quotes/templateValidation'
 import QuoteTemplateItemsEditor from './QuoteTemplateItemsEditor'
 import { quoteTemplateErrorMessage } from './templateCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Create / edit in ONE sheet — the `AutomationSheet` shape, reused rather than
@@ -56,6 +57,7 @@ export default function QuoteTemplateSheet({
   onClose: () => void
   onSaved: () => void
 }) {
+  const t = useT()
   const [name, setName] = useState(draft.name)
   const [title, setTitle] = useState(draft.title)
   const [introText, setIntroText] = useState(draft.introText)
@@ -83,34 +85,34 @@ export default function QuoteTemplateSheet({
   function save() {
     setError(null)
     const issue = validateQuoteTemplateDraft(current())
-    if (issue) return setError(quoteTemplateErrorMessage(issue))
+    if (issue) return setError(quoteTemplateErrorMessage(issue, t.locale))
 
     startTransition(async () => {
       const res = await saveQuoteTemplateAction({ templateId: draft.id ?? null, draft: current() })
-      if ('reason' in res) return setError(quoteTemplateErrorMessage(res.reason))
-      toast('success', draft.id ? 'התבנית עודכנה' : 'התבנית נשמרה')
+      if ('reason' in res) return setError(quoteTemplateErrorMessage(res.reason, t.locale))
+      toast('success', draft.id ? t('admin.quotes.sheet.updatedToast') : t('admin.quotes.sheet.savedToast'))
       onSaved()
     })
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='top' label={draft.id ? 'עריכת תבנית הצעת מחיר' : 'תבנית הצעת מחיר חדשה'}>
+    <ModalPop open onClose={onClose} pos='top' label={draft.id ? t('admin.quotes.sheet.editTitle') : t('admin.quotes.sheet.newTitle')} translated>
       <div className='grid gap-5 w-[min(90vw,560px)] pt-2'>
         <h2 className='text-lg font-semibold text-gray-800'>
-          {draft.id ? 'עריכת תבנית הצעת מחיר' : 'תבנית הצעת מחיר חדשה'}
+          {draft.id ? t('admin.quotes.sheet.editTitle') : t('admin.quotes.sheet.newTitle')}
         </h2>
 
         <Input
-          lbl='שם התבנית'
-          info='לשימוש פנימי — כך תזהו אותה ברשימה'
+          lbl={t('admin.quotes.sheet.name')}
+          info={t('admin.quotes.sheet.nameInfo')}
           value={name}
           maxLength={MAX_NAME_LENGTH}
           onChange={(e) => setName(e.target.value)}
         />
 
         <Input
-          lbl='כותרת ההצעה'
-          info='מה שהלקוח יראה'
+          lbl={t('admin.quotes.sheet.offerTitle')}
+          info={t('admin.quotes.sheet.offerTitleInfo')}
           required={false}
           value={title}
           maxLength={MAX_TITLE_LENGTH}
@@ -118,7 +120,7 @@ export default function QuoteTemplateSheet({
         />
 
         <Input
-          lbl='תוקף ההצעה בימים'
+          lbl={t('admin.quotes.sheet.validityDays')}
           type='number'
           min={MIN_VALIDITY_DAYS}
           max={MAX_VALIDITY_DAYS}
@@ -134,7 +136,7 @@ export default function QuoteTemplateSheet({
 
         <Input
           as='textarea'
-          lbl='פתיח (אופציונלי)'
+          lbl={t('admin.quotes.sheet.intro')}
           required={false}
           rows={3}
           value={introText}
@@ -142,7 +144,7 @@ export default function QuoteTemplateSheet({
         />
         <Input
           as='textarea'
-          lbl='תנאים (אופציונלי)'
+          lbl={t('admin.quotes.sheet.terms')}
           required={false}
           rows={3}
           value={termsText}
@@ -154,11 +156,12 @@ export default function QuoteTemplateSheet({
             <SubscriptionExpiredState
               mode='inline'
               source='quote_template_save'
-              feature='חידוש המנוי מחזיר את עריכת תבניות הצעות המחיר'
+              feature={t('admin.quotes.expiredFeature')}
+              translated
             />
           ) : (
             <Btn
-              lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור תבנית'}
+              lbl={pending ? t('admin.quotes.sheet.saving') : draft.id ? t('admin.quotes.sheet.saveChanges') : t('admin.quotes.sheet.saveNew')}
               icon={pending ? 'spinner' : 'floppy-disk'}
               iconClassName={pending ? 'animate-spin' : undefined}
               disabled={pending}

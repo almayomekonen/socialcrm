@@ -1,5 +1,10 @@
 'use client'
 
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
+
 /**
  * One labelled free-text field on the מענה אוטומטי form.
  *
@@ -28,6 +33,8 @@ type Props = {
   sent: boolean
   rows?: number
   error?: string
+  /** Follow the interface language (the auto-response fixed message). Default Hebrew: the questionnaire builder is not translated yet. */
+  translated?: boolean
 }
 
 export default function AutoResponseTextField({
@@ -41,7 +48,10 @@ export default function AutoResponseTextField({
   sent,
   rows = 3,
   error,
+  translated = false,
 }: Props) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   return (
     <div>
       <div className='flex items-baseline gap-2.5'>
@@ -64,7 +74,7 @@ export default function AutoResponseTextField({
           placeholder={placeholder}
         />
         <div className='mx-4 flex items-center justify-between border-t border-gray-100 py-2 text-xs text-gray-500'>
-          <span id={`${id}-note`}>{sent ? 'הטקסט הזה נשלח ללקוח כלשונו' : 'הטקסט הזה לא נשלח ללקוח'}</span>
+          <span id={`${id}-note`}>{sent ? t('admin.autoResponse.field.sent') : t('admin.autoResponse.field.notSent')}</span>
           <span>
             {value.length} / {maxLength}
           </span>

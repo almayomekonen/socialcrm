@@ -9,7 +9,9 @@ import { formatCurrency } from '@/lib/funcs'
 import { setQuoteTemplateStateAction } from '@/actions/quotes/templates'
 import type { QuoteTemplateOverview } from '@/db/quotes/templateWrites'
 import QuoteTemplateSheet, { BLANK_TEMPLATE, type TemplateSheetDraft } from './QuoteTemplateSheet'
-import { quoteTemplateErrorMessage, TEMPLATE_STATE_LABEL, updatedLabel, validityLabel } from './templateCopy'
+import { quoteTemplateErrorMessage, templateStateLabel, updatedLabel, validityLabelIn } from './templateCopy'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import { customerTextAttrs } from '@/lib/i18n/config'
 
 /**
  * תבניות הצעות מחיר — the agency's price list.
@@ -34,6 +36,8 @@ export default function QuoteTemplatesSettings({
   drafts: Record<number, TemplateSheetDraft>
 }) {
   const router = useRouter()
+  const t = useT()
+  const region = useRegionAttrs()
   const [sheet, setSheet] = useState<TemplateSheetDraft | null>(null)
   const [confirmArchive, setConfirmArchive] = useState<QuoteTemplateOverview | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
@@ -41,31 +45,29 @@ export default function QuoteTemplatesSettings({
 
   // One clock for every row, so no two disagree about "לפני שעתיים".
   const now = useMemo(() => Date.now(), [])
-  const active = templates.filter((t) => t.state === 'active')
-  const archived = templates.filter((t) => t.state === 'archived')
+  const active = templates.filter((tpl) => tpl.state === 'active')
+  const archived = templates.filter((tpl) => tpl.state === 'archived')
 
-  function setState(t: QuoteTemplateOverview, state: 'active' | 'archived') {
-    setBusyId(t.id)
+  function setState(tpl: QuoteTemplateOverview, state: 'active' | 'archived') {
+    setBusyId(tpl.id)
     startTransition(async () => {
-      const res = await setQuoteTemplateStateAction(t.id, state)
+      const res = await setQuoteTemplateStateAction(tpl.id, state)
       setBusyId(null)
       setConfirmArchive(null)
-      if ('reason' in res) return toast('error', quoteTemplateErrorMessage(res.reason))
-      toast('success', state === 'archived' ? 'התבנית הועברה לארכיון' : 'התבנית הוחזרה לשימוש')
+      if ('reason' in res) return toast('error', quoteTemplateErrorMessage(res.reason, t.locale))
+      toast('success', state === 'archived' ? t('admin.quotes.archived') : t('admin.quotes.restored'))
       router.refresh()
     })
   }
 
   return (
-    <div className='grid gap-6 max-w-3xl'>
+    <div className='grid gap-6 max-w-3xl' {...region}>
       <header className='flex items-end justify-between gap-4'>
         <div>
-          <h1 className='text-xl font-semibold text-gray-800'>תבניות הצעות מחיר</h1>
-          <p className='text-sm text-gray-500 mt-1'>
-            המחירים שמהם נבנות ההצעות. הצעה שנשלחה שומרת את המחיר שלה — עדכון תבנית לא משנה הצעות קיימות.
-          </p>
+          <h1 className='text-xl font-semibold text-gray-800'>{t('admin.quotes.title')}</h1>
+          <p className='text-sm text-gray-500 mt-1'>{t('admin.quotes.intro')}</p>
         </div>
-        <Btn icon='file-plus' lbl='הצעת מחיר חדשה' onClick={() => setSheet({ ...BLANK_TEMPLATE })} />
+        <Btn icon='file-plus' lbl={t('admin.quotes.create')} onClick={() => setSheet({ ...BLANK_TEMPLATE })} />
       </header>
 
       {templates.length === 0 ? (
@@ -82,14 +84,14 @@ export default function QuoteTemplatesSettings({
           />
           {archived.length > 0 && (
             <section className='grid gap-3'>
-              <h2 className='text-sm font-semibold text-gray-600'>ארכיון</h2>
+              <h2 className='text-sm font-semibold text-gray-600'>{t('admin.quotes.archiveTitle')}</h2>
               <TemplateList
                 rows={archived}
                 now={now}
                 busyId={busyId}
                 drafts={drafts}
                 onEdit={setSheet}
-                onRestore={(t) => setState(t, 'active')}
+                onRestore={(tpl) => setState(tpl, 'active')}
               />
             </section>
           )}
@@ -113,10 +115,11 @@ export default function QuoteTemplatesSettings({
         onConfirm={() => confirmArchive && setState(confirmArchive, 'archived')}
         msg={
           confirmArchive
-            ? `להעביר את "${confirmArchive.name}" לארכיון?\nהצעות קיימות לא ישתנו, אבל לא יהיה אפשר לבחור בתבנית להצעות חדשות.`
+            ? t('admin.quotes.archiveConfirm', { name: confirmArchive.name })
             : ''
         }
-        confirmLbl='העבר לארכיון'
+        confirmLbl={t('admin.quotes.archiveConfirmLbl')}
+        translated
       />
     </div>
   )
@@ -139,26 +142,44 @@ function TemplateList({
   onArchive?: (t: QuoteTemplateOverview) => void
   onRestore?: (t: QuoteTemplateOverview) => void
 }) {
-  if (rows.length === 0) return <p className='text-sm text-gray-500'>אין תבניות פעילות.</p>
+  const tr = useT()
+  const locale = tr.locale
+  if (rows.length === 0) return <p className='text-sm text-gray-500'>{tr('admin.quotes.noActive')}</p>
 
   return (
     <ul className='border rounded-md bg-white divide-y'>
       {rows.map((t) => {
-        const touched = updatedLabel(t.updatedAt, now)
+        const touched = updatedLabel(t.updatedAt, now, locale)
         return (
           <li key={t.id} className='px-4 py-3 flex items-start justify-between gap-4'>
             <div className='min-w-0'>
-              <p className='font-semibold text-gray-800 truncate'>{t.name}</p>
+              <p className='font-semibold text-gray-800 truncate' {...customerTextAttrs(locale)}>
+                {t.name}
+              </p>
               <p className='text-sm text-gray-500 mt-0.5'>
-                {t.itemCount === 1 ? 'שורה אחת' : `${t.itemCount} שורות`}
-                {t.optionalItemCount > 0 && ` · ${t.optionalItemCount} אופציונליות`}
-                {' · '}
-                {formatCurrency(t.subtotalAmount)} לפני מע״מ
-                {' · '}
-                תוקף {validityLabel(t.validityDays)}
+                {locale === 'he' ? (
+                  <>
+                    {t.itemCount === 1 ? 'שורה אחת' : `${t.itemCount} שורות`}
+                    {t.optionalItemCount > 0 && ` · ${t.optionalItemCount} אופציונליות`}
+                    {' · '}
+                    {formatCurrency(t.subtotalAmount)} לפני מע״מ
+                    {' · '}
+                    תוקף {validityLabelIn(t.validityDays)}
+                  </>
+                ) : (
+                  // One sentence per fact (amounts keep the ILS formatter; quotes carry no currency of their own).
+                  [
+                    tr('admin.quotes.lines', { count: t.itemCount }),
+                    t.optionalItemCount > 0 ? tr('admin.quotes.optional', { count: String(t.optionalItemCount) }) : '',
+                    ' · ',
+                    tr('admin.quotes.beforeVat', { amount: formatCurrency(t.subtotalAmount) }),
+                    ' · ',
+                    tr('admin.quotes.validity', { days: validityLabelIn(t.validityDays, locale) }),
+                  ].join('')
+                )}
               </p>
               <p className='text-sm text-gray-400 mt-0.5'>
-                {TEMPLATE_STATE_LABEL[t.state]}
+                {templateStateLabel(t.state, locale)}
                 {touched && ` · ${touched}`}
               </p>
             </div>
@@ -166,7 +187,7 @@ function TemplateList({
               <Btn
                 variant='outline'
                 size='small'
-                lbl='עריכה'
+                lbl={tr('admin.quotes.edit')}
                 disabled={busyId === t.id || !drafts[t.id]}
                 onClick={() => drafts[t.id] && onEdit(drafts[t.id])}
               />
@@ -174,7 +195,7 @@ function TemplateList({
                 <Btn
                   variant='ghost'
                   size='small'
-                  lbl='לארכיון'
+                  lbl={tr('admin.quotes.archive')}
                   disabled={busyId === t.id}
                   onClick={() => onArchive(t)}
                 />
@@ -183,7 +204,7 @@ function TemplateList({
                 <Btn
                   variant='ghost'
                   size='small'
-                  lbl='החזרה לשימוש'
+                  lbl={tr('admin.quotes.restore')}
                   disabled={busyId === t.id}
                   onClick={() => onRestore(t)}
                 />
@@ -198,13 +219,12 @@ function TemplateList({
 
 /** What / why / what next — the ux-guidelines §4 empty state. */
 function EmptyState({ onCreate }: { onCreate: () => void }) {
+  const t = useT()
   return (
     <div className='border border-dashed rounded-md bg-white text-center py-12 px-6'>
-      <p className='text-base text-gray-700 mb-1'>אין עדיין תבניות הצעות מחיר</p>
-      <p className='text-sm text-gray-500 mb-4'>
-        תבנית מרכזת את המחירים שאתם מציעים, כך שאפשר לשלוח הצעה בלי להקליד אותה מחדש בכל פעם.
-      </p>
-      <Btn icon='file-plus' lbl='הצעת מחיר חדשה' onClick={onCreate} />
+      <p className='text-base text-gray-700 mb-1'>{t('admin.quotes.empty.title')}</p>
+      <p className='text-sm text-gray-500 mb-4'>{t('admin.quotes.empty.body')}</p>
+      <Btn icon='file-plus' lbl={t('admin.quotes.create')} onClick={onCreate} />
     </div>
   )
 }
