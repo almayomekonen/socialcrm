@@ -3,6 +3,8 @@ import { formatDate } from '@/lib/dates'
 import { ToolTip } from '../../lib/Tooltip'
 import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
+import { withAdminDefaultDateRange, withoutDateRange } from '@/lib/filter/adminDefaultDateRange'
+import type { Roles } from '@/types/roles'
 import { useT } from '@/lib/i18n/I18nProvider'
 import type { MessageKey } from '@/lib/i18n/translate'
 import type { UiLocale } from '@/lib/i18n/config'
@@ -71,8 +73,10 @@ function chips(locale: UiLocale, on: string): Chip[] {
 /** Chips that always show their single value instead of a count + tooltip. */
 const ONE_VALUE = ['branch', 'action']
 
-export function FilterChips({ filter }) {
+export function FilterChips({ filter: urlFilter, role }: { filter: any; role?: Roles }) {
   const router = useRouter()
+  // Show the filter the server applies, including an admin's default month.
+  const filter = withAdminDefaultDateRange(urlFilter ?? {}, role)
   const t = useT()
   const all = chips(t.locale, t('deals.filter.chips.on'))
 
@@ -91,8 +95,9 @@ export function FilterChips({ filter }) {
     const chip = all.find((c) => c.id === id)
     if (!chip) return
 
-    const tmp = { ...filter }
-    chip.keysToRemove.forEach((key) => delete tmp[key])
+    let tmp = { ...filter }
+    if (id === 'offerDate') tmp = withoutDateRange(tmp, role)
+    else chip.keysToRemove.forEach((key) => delete tmp[key])
     router.replace(`?filter=${JSON.stringify(tmp)}`)
   }
 
