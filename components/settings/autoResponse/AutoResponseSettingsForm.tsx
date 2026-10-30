@@ -1,56 +1,15 @@
 'use client'
 
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { useId, useState, useTransition } from 'react'
-import { Btn } from '@/lib/btns/Btn'
 import { Switch } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { updateAutoResponseSettings } from '@/actions/autoResponse/updateSettings'
-import type { AutoResponseReplyMode } from '@/db/autoResponseSettings'
+import { BODY_MAX, toDraft, type AutoResponseFormProps as Props, type Draft } from './autoResponseDraft'
 import AutoResponseReplyStyle from './AutoResponseReplyStyle'
 import AgentPreview from './AgentPreview'
-
-type Props = {
-  masterEnabled: boolean
-  channelEnabled: boolean
-  dailyCap: number
-  guidance: string | null
-  agentInstructions: string | null
-  replyMode: AutoResponseReplyMode
-  fixedBody: string | null
-  delaySeconds: number
-  /** From the account. Empty ⇒ the form asks for it inline. */
-  businessName: string
-}
-
-type Draft = {
-  master: boolean
-  channel: boolean
-  dailyCap: string
-  guidance: string
-  agentInstructions: string
-  replyMode: AutoResponseReplyMode
-  fixedBody: string
-  delaySeconds: string
-  businessName: string
-}
-
-const BODY_MAX = 1000
-
-function toDraft(p: Props): Draft {
-  return {
-    master: p.masterEnabled,
-    channel: p.channelEnabled,
-    dailyCap: String(p.dailyCap),
-    guidance: p.guidance ?? '',
-    agentInstructions: p.agentInstructions ?? '',
-    replyMode: p.replyMode,
-    fixedBody: p.fixedBody ?? '',
-    delaySeconds: String(p.delaySeconds),
-    businessName: p.businessName ?? '',
-  }
-}
+import AutoResponseTiming from './AutoResponseTiming'
+import AutoResponseSaveBar from './AutoResponseSaveBar'
 
 /**
  * Workspace control for WhatsApp Auto Response. Master switch gates everything;
@@ -233,96 +192,27 @@ export default function AutoResponseSettingsForm(initial: Props) {
             />
           )}
 
-          <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
-            <h2 className='text-base font-semibold text-ink'>תזמון ומגבלות</h2>
-            <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>שליטה בקצב, כדי שהמענה יישאר טבעי.</p>
-
-            {/*
-              One control, not two: the pair shares a single rounded outline and is
-              split by a 1px rule, so the ceiling reads as part of the same pacing
-              decision as the delay. The 1px is the container's own background
-              showing through `gap-px`.
-            */}
-            <div className='mt-4 max-w-100'>
-              <div className='grid grid-cols-2 gap-px'>
-                <label htmlFor={delayId} className='ps-3.25 text-sm text-gray-700'>
-                  המתנה לפני שליחה
-                </label>
-                <label htmlFor={capId} className='ps-3.25 text-sm text-gray-700'>
-                  מקסימום מענים ביום
-                </label>
-              </div>
-
-              <div className='mt-1.75 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-gray-200 bg-gray-200 focus-within:outline-2 focus-within:outline-offset-0 focus-within:outline-primary'>
-                <div className='flex h-10 items-center gap-2 bg-white ps-3.25 pe-3.25'>
-                  <input
-                    id={delayId}
-                    type='number'
-                    min={0}
-                    max={3600}
-                    className='w-full min-w-0 bg-transparent text-md outline-none'
-                    value={delaySeconds}
-                    onChange={(e) => set('delaySeconds', e.target.value)}
-                  />
-                  <span className='text-sm text-gray-500'>שניות</span>
-                </div>
-                <div className='flex h-10 items-center gap-2 bg-white ps-3.25 pe-3.25'>
-                  <input
-                    id={capId}
-                    type='number'
-                    min={0}
-                    className='w-full min-w-0 bg-transparent text-md outline-none'
-                    value={dailyCap}
-                    onChange={(e) => set('dailyCap', e.target.value)}
-                  />
-                  <span className='text-sm text-gray-500'>הודעות</span>
-                </div>
-              </div>
-
-              <div className='mt-1.75 grid grid-cols-2 gap-px'>
-                <p className='ps-3.25 text-xs text-gray-500'>אפס שולח מיד.</p>
-                <p className='ps-3.25 text-xs text-gray-500'>תקרה יומית לכל העסק.</p>
-              </div>
-            </div>
-          </section>
+          <AutoResponseTiming
+            delayId={delayId}
+            capId={capId}
+            delaySeconds={delaySeconds}
+            dailyCap={dailyCap}
+            onDelaySeconds={(v) => set('delaySeconds', v)}
+            onDailyCap={(v) => set('dailyCap', v)}
+          />
         </>
       )}
 
-      <div className='mt-5.5 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5.5'>
-        <div className='flex items-center gap-2.5'>
-          {error && !fixedBodyError && (
-            <p className='text-sm text-red-600' role='alert'>
-              {error}
-            </p>
-          )}
-          {!error && dirty && (
-            <>
-              <span className='size-1.25 rounded-full bg-warning' />
-              <p className='text-sm text-gray-500'>יש שינויים שלא נשמרו</p>
-            </>
-          )}
-          {!error && !dirty && saved && <p className='text-sm text-gray-500'>השינויים נשמרו</p>}
-        </div>
-
-        {proLocked ? (
-          <SubscriptionExpiredState
-            mode='inline'
-            source='auto_response_save'
-            feature='חידוש המנוי מחזיר את המענה האוטומטי'
-          />
-        ) : (
-          <div className='flex items-center gap-2.5'>
-            <Btn variant='outline' lbl='ביטול' disabled={!dirty || pending} onClick={cancel} />
-            <Btn
-              lbl={pending ? 'שומר…' : 'שמור שינויים'}
-              icon={pending ? 'spinner' : undefined}
-              iconClassName={pending ? 'animate-spin' : undefined}
-              disabled={pending}
-              onClick={save}
-            />
-          </div>
-        )}
-      </div>
+      <AutoResponseSaveBar
+        error={error}
+        showError={!!error && !fixedBodyError}
+        dirty={dirty}
+        saved={saved}
+        pending={pending}
+        proLocked={proLocked}
+        onCancel={cancel}
+        onSave={save}
+      />
     </div>
   )
 }

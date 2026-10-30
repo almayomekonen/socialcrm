@@ -339,9 +339,12 @@ describe('Tier 2: the feature is visible, the spend is gated', () => {
   })
 
   it('saving auto-response is gated even though the configuration is visible', () => {
-    const src = read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')
-    expect(src).toContain('const proLocked = useAccessDenied()')
-    expect(src).toContain("source='auto_response_save'")
+    // The save bar (and its lock) moved to AutoResponseSaveBar; the form still owns the gate.
+    const form = read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')
+    const bar = read('components/settings/autoResponse/AutoResponseSaveBar.tsx')
+    expect(form).toContain('const proLocked = useAccessDenied()')
+    expect(form).toContain('proLocked={proLocked}')
+    expect(bar).toContain("source='auto_response_save'")
   })
 })
 

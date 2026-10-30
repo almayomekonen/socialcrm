@@ -1,5 +1,15 @@
 'use client'
 
+/**
+ * NOTE: This file is over the 250-line soft limit (~300 lines) and intentionally
+ * so (architecture-rules §6). The step strip, the sub-task list and their four
+ * popovers (two context menus, two forms) share ONE module-level popover state
+ * (`crntTask`, `editTask`, `editSubTask` and the popover elements) that the
+ * strip's context menus write and the forms read. Splitting the popovers into
+ * another file would mean exporting that mutable state across modules for no
+ * readability gain. Any new concern added here must go to a sibling file.
+ */
+
 import { Btn } from '@/lib/btns/Btn'
 import { useEffect, useState } from 'react'
 import { Input } from '@/lib/form'
