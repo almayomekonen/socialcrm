@@ -1,5 +1,6 @@
 import { Btn } from '@/lib/btns/Btn'
-import { STATUS_STYLES } from '@/lib/leads/statusStyles'
+import { STATUS_STYLES, leadStatusLabel } from '@/lib/leads/statusStyles'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { SuggestedLeadStatus } from '@/lib/calendar/outcomeStatusSuggestion'
 
 // Inline banner shown inside MeetingDetailsDialog after a successful outcome
@@ -16,7 +17,10 @@ type Props = {
 }
 
 export default function LeadStatusNudge({ suggested, onApply, onDismiss, busy }: Props) {
+  const t = useT()
   const s = STATUS_STYLES[suggested]
+  // The status label by CODE in the interface language (Hebrew: the STATUS_STYLES label, as before).
+  const label = leadStatusLabel(suggested, t.locale) ?? s.label
   return (
     <div className='rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm'>
       {/* Lead with the rep's just-completed action ("סימנת…") so the banner
@@ -24,20 +28,20 @@ export default function LeadStatusNudge({ suggested, onApply, onDismiss, busy }:
           asking for the next move. Pill reuses STATUS_STYLES so the visual
           matches the leads-table palette one-to-one. */}
       <div className='text-gray-800'>
-        סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-
+        {t('calendar.outcome.nudge')}
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium ${s.bg} ${s.text} ${s.border}`}
         >
           <span className={`size-1.5 rounded-full ${s.dot}`} />
-          {s.label}
+          {label}
         </span>
       </div>
       <div className='flex gap-2 justify-end'>
-        <Btn lbl='לא עכשיו' variant='outline' onClick={onDismiss} disabled={busy} />
+        <Btn lbl={t('calendar.outcome.notNow')} variant='outline' onClick={onDismiss} disabled={busy} />
         {/* No quotes around the label — straight ASCII quotes render as
             neutral characters in Hebrew RTL and can flip visually. */}
         <Btn
-          lbl={busy ? 'מעדכן…' : `עדכן סטטוס ל${s.label}`}
+          lbl={busy ? t('calendar.outcome.updating') : t('calendar.outcome.apply', { status: label })}
           variant='solid'
           onClick={onApply}
           disabled={busy}

@@ -5,11 +5,16 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import { recordEducationEvent } from '@/actions/education/recordEducationEvent'
 import { useEducation } from './EducationProvider'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { regionAttrs } from '@/lib/i18n/config'
 
 export default function HelpMenu({ onClose }: { onClose: () => void }) {
   const { startTour, copilotEnabled } = useEducation()
   const pathname = usePathname()
   const router = useRouter()
+  const t = useT()
+  // Hebrew keeps its explicit `dir='rtl'`; otherwise the dialog declares the interface language.
+  const region = regionAttrs(t.locale)
 
   function act(action: string, run: () => void) {
     recordEducationEvent('help_action_clicked', { action }).catch(() => {})
@@ -17,17 +22,17 @@ export default function HelpMenu({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='middle' labelledBy='help-menu-title' closeOutside className='w-[min(100%,24rem)]'>
-      <div dir='rtl' className='grid gap-4 text-start'>
+    <ModalPop open onClose={onClose} pos='middle' labelledBy='help-menu-title' closeOutside className='w-[min(100%,24rem)]' translated>
+      <div dir={region.dir ?? 'rtl'} lang={region.lang} className='grid gap-4 text-start'>
         <div>
           <h2 id='help-menu-title' className='text-lg font-bold text-ink'>
-            עזרה
+            {t('shell.help')}
           </h2>
-          <p className='mt-1 text-sm text-gray-600'>סיור קצר, מדריכים, או דיווח על בעיה.</p>
+          <p className='mt-1 text-sm text-gray-600'>{t('education.help.body')}</p>
         </div>
 
         <Btn
-          lbl='הראה לי איך המערכת עובדת'
+          lbl={t('education.help.overview')}
           icon='map'
           onClick={() =>
             act('overview', () => {
@@ -38,7 +43,7 @@ export default function HelpMenu({ onClose }: { onClose: () => void }) {
         />
         <Btn
           variant='outline'
-          lbl='סיור בלידים'
+          lbl={t('education.help.pipeline')}
           icon='image-polaroid-user'
           onClick={() =>
             act('pipeline', () => {
@@ -50,20 +55,20 @@ export default function HelpMenu({ onClose }: { onClose: () => void }) {
         />
         <Btn
           variant='outline'
-          lbl='מדריכים'
+          lbl={t('education.help.guides')}
           icon='book-open'
           href='/support/guides'
           onClick={() => recordEducationEvent('help_action_clicked', { action: 'guides' }).catch(() => {})}
         />
         <Btn
           variant='ghost'
-          lbl='יש לי בעיה'
+          lbl={t('education.help.problem')}
           icon='circle-exclamation'
           href='/support/new?kind=problem'
           onClick={() => recordEducationEvent('help_action_clicked', { action: 'problem' }).catch(() => {})}
         />
 
-        {copilotEnabled && <p className='text-xs text-gray-500'>J + ⌘  העוזר החכם</p>}
+        {copilotEnabled && <p className='text-xs text-gray-500'>{t('education.help.copilotHint')}</p>}
       </div>
     </ModalPop>
   )

@@ -7,8 +7,15 @@ import { api } from '@/lib/funcs'
 import Title from '@/lib/Title'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export default function TransferSalesForm({ user, users, setCurUser = null }) {
+const HEBREW = translatorFor('he')
+
+/** `translated`: follow the interface language (settings → reps). Default Hebrew: the admin users table is not translated yet. */
+export default function TransferSalesForm({ user, users, setCurUser = null, translated = false }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const [pending, setPending] = useState<{ userId: number; name: string } | null>(null)
 
   function onSubmit(e) {
@@ -28,16 +35,17 @@ export default function TransferSalesForm({ user, users, setCurUser = null }) {
 
   return (
     <div id='transferSales' className='modal_pop' popover='auto'>
-      <Title lbl='העברת לידים לנציג' />
+      <Title lbl={t('settings.account.transfer.title')} />
       <form onSubmit={onSubmit} className='py-4'>
-        <SelectSearch className='w-64' name='userId' lbl='בחר נציג להעברת הלידים' options={users} />
-        <Btn lbl='העברת לידים לנציג' className='mt-4 w-full' />
+        <SelectSearch className='w-64' name='userId' lbl={t('settings.account.transfer.pick')} options={users} />
+        <Btn lbl={t('settings.account.transfer.submit')} className='mt-4 w-full' />
       </form>
       <ConfirmPop
         open={!!pending}
         onClose={() => setPending(null)}
         onConfirm={onConfirm}
-        msg={`האם להעביר את הלידים של ${user?.name} לנציג ${pending?.name}?`}
+        msg={t('settings.account.transfer.confirm', { from: String(user?.name), to: String(pending?.name) })}
+        translated={translated}
       />
     </div>
   )

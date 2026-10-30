@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ComponentType } from 'react'
 import { creatorFor, type InlineCreatorProps } from './firstPartyCreators'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Loads the registered creator for a first-party source and renders it.
@@ -15,6 +16,7 @@ import { creatorFor, type InlineCreatorProps } from './firstPartyCreators'
  * the dialog's own `enum_agency` fallback still offers the plain picker.
  */
 export default function InlineCreator(props: InlineCreatorProps) {
+  const t = useT()
   const [Creator, setCreator] = useState<ComponentType<InlineCreatorProps> | null>(null)
 
   useEffect(() => {
@@ -29,6 +31,6 @@ export default function InlineCreator(props: InlineCreatorProps) {
     }
   }, [props.variable.optionSource])
 
-  if (!Creator) return <p className='text-sm text-gray-500 ms-1'>טוען…</p>
+  if (!Creator) return <p className='text-sm text-gray-500 ms-1'>{t('admin.automationTemplates.install.loading')}</p>
   return <Creator {...props} />
 }

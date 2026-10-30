@@ -1,0 +1,627 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — edit meeting > loading, load failures, the form 1`] = `
+{
+  "form": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><form class="grid gap-4 pt-2"><h2 class="text-xl font-bold">עריכת פגישה</h2><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כותרת</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value="פגישת היכרות עם יוסי" name="title"></div><div class="grid grid-cols-2 gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">התחלה</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-29T11:00" name="startAt"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">סיום</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-29T12:00" name="endAt"></div></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><p class="text-gray-600 text-sm font-medium ">משתתפים</p></div><div class="flex flex-wrap items-center gap-1.5 min-h-10 w-full px-2 py-1.5 rounded-md border bg-white transition-colors border-gray-200 focus-within:outline-2 focus-within:outline-primary"><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="yossi@example.test">yossi@example.test</span><button type="button" aria-label="הסר yossi@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="rep@example.test">rep@example.test</span><button type="button" aria-label="הסר rep@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><input class="flex-1 min-w-[140px] outline-none bg-transparent text-sm py-0.5" autocomplete="off" autocapitalize="off" spellcheck="false" type="email" value=""></div></div><p class="text-xs text-gray-500 leading-relaxed -mt-2">שינויים בכותרת או בזמן יישלחו לכל המשתתפים. שינויים ברשימת המשתתפים יוסיפו או יסירו אנשים מהפגישה.<br>אזור זמן: Asia/Jerusalem</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="submit"><span>שמור שינויים</span></button></div></form></div>",
+  "invalid_input": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><h2 class="text-xl font-bold">שגיאה</h2><p class="text-sm text-gray-600">טעינת הפגישה נכשלה</p><div class="flex justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+  "loading": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-3 pt-2"><div class="h-6 bg-gray-100 rounded animate-pulse"></div><div class="h-9 bg-gray-100 rounded animate-pulse"></div><div class="grid grid-cols-2 gap-3"><div class="h-9 bg-gray-100 rounded animate-pulse"></div><div class="h-9 bg-gray-100 rounded animate-pulse"></div></div><div class="h-9 bg-gray-100 rounded animate-pulse"></div></div></div>",
+  "not_found": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><h2 class="text-xl font-bold">שגיאה</h2><p class="text-sm text-gray-600">הפגישה לא נמצאה</p><div class="flex justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+  "not_owner": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><h2 class="text-xl font-bold">שגיאה</h2><p class="text-sm text-gray-600">אינך מורשה לערוך פגישה זו</p><div class="flex justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — edit meeting > validation, no changes, every update result; what is sent 1`] = `
+{
+  "endBeforeStart": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><form class="grid gap-4 pt-2"><h2 class="text-xl font-bold">עריכת פגישה</h2><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כותרת</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value="פגישת היכרות עם יוסי" name="title"></div><div class="grid grid-cols-2 gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">התחלה</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-29T11:00" name="startAt"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">סיום</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-29T11:00" name="endAt"></div></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><p class="text-gray-600 text-sm font-medium ">משתתפים</p></div><div class="flex flex-wrap items-center gap-1.5 min-h-10 w-full px-2 py-1.5 rounded-md border bg-white transition-colors border-gray-200 focus-within:outline-2 focus-within:outline-primary"><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="yossi@example.test">yossi@example.test</span><button type="button" aria-label="הסר yossi@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="rep@example.test">rep@example.test</span><button type="button" aria-label="הסר rep@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><input class="flex-1 min-w-[140px] outline-none bg-transparent text-sm py-0.5" autocomplete="off" autocapitalize="off" spellcheck="false" type="email" value=""></div></div><p class="text-xs text-gray-500 leading-relaxed -mt-2">שינויים בכותרת או בזמן יישלחו לכל המשתתפים. שינויים ברשימת המשתתפים יוסיפו או יסירו אנשים מהפגישה.<br>אזור זמן: Asia/Jerusalem</p><div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">שעת הסיום חייבת להיות אחרי שעת ההתחלה</div><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="submit"><span>שמור שינויים</span></button></div></form></div>",
+  "invalidDate": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><form class="grid gap-4 pt-2"><h2 class="text-xl font-bold">עריכת פגישה</h2><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כותרת</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value="כותרת חדשה" name="title"></div><div class="grid grid-cols-2 gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">התחלה</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="" name="startAt"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">סיום</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-29T12:00" name="endAt"></div></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><p class="text-gray-600 text-sm font-medium ">משתתפים</p></div><div class="flex flex-wrap items-center gap-1.5 min-h-10 w-full px-2 py-1.5 rounded-md border bg-white transition-colors border-gray-200 focus-within:outline-2 focus-within:outline-primary"><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="yossi@example.test">yossi@example.test</span><button type="button" aria-label="הסר yossi@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="rep@example.test">rep@example.test</span><button type="button" aria-label="הסר rep@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><input class="flex-1 min-w-[140px] outline-none bg-transparent text-sm py-0.5" autocomplete="off" autocapitalize="off" spellcheck="false" type="email" value=""></div></div><p class="text-xs text-gray-500 leading-relaxed -mt-2">שינויים בכותרת או בזמן יישלחו לכל המשתתפים. שינויים ברשימת המשתתפים יוסיפו או יסירו אנשים מהפגישה.<br>אזור זמן: Asia/Jerusalem</p><div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">יש להזין תאריך ושעה תקינים</div><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="submit"><span>שמור שינויים</span></button></div></form></div>",
+  "noChanges": {
+    "closes": 1,
+    "pro": [],
+    "refreshes": 0,
+    "toasts": [
+      [
+        "success",
+        "לא בוצעו שינויים",
+      ],
+    ],
+  },
+  "noTitle": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><form class="grid gap-4 pt-2"><h2 class="text-xl font-bold">עריכת פגישה</h2><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כותרת</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value=" " name="title"></div><div class="grid grid-cols-2 gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">התחלה</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-29T11:00" name="startAt"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">סיום</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-29T12:00" name="endAt"></div></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><p class="text-gray-600 text-sm font-medium ">משתתפים</p></div><div class="flex flex-wrap items-center gap-1.5 min-h-10 w-full px-2 py-1.5 rounded-md border bg-white transition-colors border-gray-200 focus-within:outline-2 focus-within:outline-primary"><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="yossi@example.test">yossi@example.test</span><button type="button" aria-label="הסר yossi@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="rep@example.test">rep@example.test</span><button type="button" aria-label="הסר rep@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><input class="flex-1 min-w-[140px] outline-none bg-transparent text-sm py-0.5" autocomplete="off" autocapitalize="off" spellcheck="false" type="email" value=""></div></div><p class="text-xs text-gray-500 leading-relaxed -mt-2">שינויים בכותרת או בזמן יישלחו לכל המשתתפים. שינויים ברשימת המשתתפים יוסיפו או יסירו אנשים מהפגישה.<br>אזור זמן: Asia/Jerusalem</p><div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">יש להזין כותרת לפגישה</div><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="submit"><span>שמור שינויים</span></button></div></form></div>",
+  "past": "<div role="dialog" aria-modal="true" aria-label="עריכת פגישה" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[480px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><form class="grid gap-4 pt-2"><h2 class="text-xl font-bold">עריכת פגישה</h2><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כותרת</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value="פגישת היכרות עם יוסי" name="title"></div><div class="grid grid-cols-2 gap-3"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">התחלה</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-01T10:00" name="startAt"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">סיום</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="datetime-local" value="2026-10-01T11:00" name="endAt"></div></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><p class="text-gray-600 text-sm font-medium ">משתתפים</p></div><div class="flex flex-wrap items-center gap-1.5 min-h-10 w-full px-2 py-1.5 rounded-md border bg-white transition-colors border-gray-200 focus-within:outline-2 focus-within:outline-primary"><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="yossi@example.test">yossi@example.test</span><button type="button" aria-label="הסר yossi@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><span class="inline-flex items-center gap-1 ps-2 pe-1 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-sm text-gray-900 max-w-full"><span class="truncate max-w-[220px] font-medium" title="rep@example.test">rep@example.test</span><button type="button" aria-label="הסר rep@example.test" class="inline-flex items-center justify-center size-4 rounded-sm text-gray-400 hover:bg-gray-200 hover:text-red-600 transition-colors"><svg viewBox="0 0 8 8" class="size-2.5" aria-hidden="true"><path d="M1 1 L7 7 M7 1 L1 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span><input class="flex-1 min-w-[140px] outline-none bg-transparent text-sm py-0.5" autocomplete="off" autocapitalize="off" spellcheck="false" type="email" value=""></div></div><p class="text-xs text-gray-500 leading-relaxed -mt-2">שינויים בכותרת או בזמן יישלחו לכל המשתתפים. שינויים ברשימת המשתתפים יוסיפו או יסירו אנשים מהפגישה.<br>אזור זמן: Asia/Jerusalem</p><div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">לא ניתן להעביר פגישה לתאריך שעבר</div><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="submit"><span>שמור שינויים</span></button></div></form></div>",
+  "results": [
+    {
+      "closes": 1,
+      "error": null,
+      "pro": [],
+      "refreshes": 1,
+      "result": {
+        "ok": true,
+        "syncStatus": "synced",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [
+        [
+          "success",
+          "הפגישה עודכנה וסונכרנה ליומן Google",
+        ],
+      ],
+    },
+    {
+      "closes": 1,
+      "error": null,
+      "pro": [],
+      "refreshes": 1,
+      "result": {
+        "ok": true,
+        "syncStatus": "not_synced",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [
+        [
+          "success",
+          "הפגישה עודכנה ב-CRM (לא מסונכרנת ליומן Google)",
+        ],
+      ],
+    },
+    {
+      "closes": 1,
+      "error": null,
+      "pro": [],
+      "refreshes": 1,
+      "result": {
+        "ok": true,
+        "syncStatus": "reauth_required",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [
+        [
+          "error",
+          "הפגישה עודכנה ב-CRM. נדרש חיבור מחדש ליומן Google.",
+        ],
+      ],
+    },
+    {
+      "closes": 1,
+      "error": null,
+      "pro": [],
+      "refreshes": 1,
+      "result": {
+        "ok": true,
+        "syncStatus": "failed",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [
+        [
+          "error",
+          "הפגישה עודכנה ב-CRM. סנכרון ליומן Google נכשל.",
+        ],
+      ],
+    },
+    {
+      "closes": 1,
+      "error": null,
+      "pro": [],
+      "refreshes": 1,
+      "result": {
+        "ok": false,
+        "reason": "conflict",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [
+        [
+          "error",
+          "הפגישה עודכנה ב-CRM. סנכרון ליומן Google נכשל (נדרש רענון).",
+        ],
+      ],
+    },
+    {
+      "closes": 0,
+      "error": "אינך מורשה לערוך פגישה זו",
+      "pro": [],
+      "refreshes": 0,
+      "result": {
+        "ok": false,
+        "reason": "not_owner",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [],
+    },
+    {
+      "closes": 0,
+      "error": "הפגישה לא נמצאה",
+      "pro": [],
+      "refreshes": 0,
+      "result": {
+        "ok": false,
+        "reason": "not_found",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [],
+    },
+    {
+      "closes": 0,
+      "error": "משך הפגישה חייב להיות לפחות 5 דקות",
+      "pro": [],
+      "refreshes": 0,
+      "result": {
+        "details": "duration_too_short",
+        "ok": false,
+        "reason": "invalid_input",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [],
+    },
+    {
+      "closes": 0,
+      "error": "שעת הסיום חייבת להיות אחרי שעת ההתחלה",
+      "pro": [],
+      "refreshes": 0,
+      "result": {
+        "details": "end_before_start",
+        "ok": false,
+        "reason": "invalid_input",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [],
+    },
+    {
+      "closes": 0,
+      "error": "לא ניתן לערוך פגישה מבוטלת",
+      "pro": [],
+      "refreshes": 0,
+      "result": {
+        "details": "cancelled",
+        "ok": false,
+        "reason": "invalid_input",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [],
+    },
+    {
+      "closes": 0,
+      "error": "עדכון הפגישה נכשל",
+      "pro": [],
+      "refreshes": 0,
+      "result": {
+        "details": "startAt",
+        "ok": false,
+        "reason": "invalid_input",
+      },
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [],
+    },
+    {
+      "closes": 0,
+      "error": "אירעה שגיאה. נסה שוב.",
+      "pro": [],
+      "refreshes": 0,
+      "result": "throw",
+      "sent": [
+        [
+          {
+            "attendees": undefined,
+            "endAt": undefined,
+            "meetingId": 1,
+            "sendUpdates": "all",
+            "startAt": undefined,
+            "timezone": undefined,
+            "title": "כותרת חדשה",
+          },
+        ],
+      ],
+      "toasts": [],
+    },
+  ],
+}
+`;
+
+exports[`Hebrew baseline — meeting details > badges as data: every sync status, every outcome with and without a date 1`] = `
+{
+  "outcome": [
+    "",
+    "",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-success-bg);color:var(--color-success-text);border-color:var(--color-success-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-success-dot)"></span><span>הושלמה</span></span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-success-bg);color:var(--color-success-text);border-color:var(--color-success-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-success-dot)"></span><span>הושלמה<span class="mx-1 opacity-50">·</span><span class="tabular-nums">26/10/2026</span></span></span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-neutral-bg);color:var(--color-neutral-text);border-color:var(--color-neutral-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-neutral-dot)"></span><span>לא הגיע</span></span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-neutral-bg);color:var(--color-neutral-text);border-color:var(--color-neutral-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-neutral-dot)"></span><span>לא הגיע<span class="mx-1 opacity-50">·</span><span class="tabular-nums">26/10/2026</span></span></span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-neutral-bg);color:var(--color-neutral-text);border-color:var(--color-neutral-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-neutral-dot)"></span><span>בוטלה</span></span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-neutral-bg);color:var(--color-neutral-text);border-color:var(--color-neutral-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-neutral-dot)"></span><span>בוטלה</span></span>",
+  ],
+  "sync": [
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-info-bg);color:var(--color-info-text);border-color:var(--color-info-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-info-dot)"></span>מסונכרן…</span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-success-bg);color:var(--color-success-text);border-color:var(--color-success-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-success-dot)"></span>מסונכרן</span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-error-bg);color:var(--color-error-text);border-color:var(--color-error-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-error-dot)"></span>סנכרון נכשל</span>",
+    "<span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color:var(--color-warning-bg);color:var(--color-warning-text);border-color:var(--color-warning-border)"><span class="shrink-0 rounded-full size-1.5 " style="background-color:var(--color-warning-dot)"></span>דרוש חיבור מחדש</span>",
+  ],
+}
+`;
+
+exports[`Hebrew baseline — meeting details > cancel confirmation; expired: edit and outcome prompt, edit hand-off when active 1`] = `
+{
+  "confirm": "<div role="dialog" aria-modal="true" aria-label="לבטל את הפגישה &quot;פגישת היכרות עם יוסי&quot;?
+המשתתפים יקבלו הודעת ביטול." tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">לבטל את הפגישה "פגישת היכרות עם יוסי"?
+המשתתפים יקבלו הודעת ביטול.</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>ביטול הפגישה</span></button></div></div></div>",
+  "edit": [
+    "edit",
+  ],
+  "expired": {
+    "closes": 0,
+    "marked": 0,
+    "pro": [
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לערוך פגישות.",
+        "source": "calendar_edit",
+        "title": "עריכת פגישות זמינה עם Pro",
+      },
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לעדכן תוצאות.",
+        "source": "calendar_outcome",
+        "title": "עדכון תוצאת פגישה זמין עם Pro",
+      },
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לעדכן תוצאות.",
+        "source": "calendar_outcome",
+        "title": "עדכון תוצאת פגישה זמין עם Pro",
+      },
+    ],
+    "refreshes": 0,
+    "toasts": [],
+  },
+}
+`;
+
+exports[`Hebrew baseline — meeting details > every meeting variant; busy labels 1`] = `
+{
+  "1:scheduled:synced": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">פגישת היכרות עם יוסי</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span>מסונכרן</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>29/10/2026, 11:00 – 29/10/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><a href="https://meet.google.com/abc-defg-hij" target="_blank" rel="noreferrer" class="inline-flex items-center justify-center h-10 px-4 rounded-md bg-solid text-white font-semibold hover:bg-solid/85">פתח Google Meet</a><div class="flex gap-2 flex-wrap pt-1"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>סמן כהושלמה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סמן כלא הגיע</span></button></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ערוך פגישה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>ביטול הפגישה</span></button></div></div></div></div>",
+  "2:scheduled:failed": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">שיחת תיאום</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-error-bg); color: var(--color-error-text); border-color: var(--color-error-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-error-dot);"></span>סנכרון נכשל</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>30/10/2026, 11:00 – 30/10/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 wrap-break-word"><span class="font-medium">פרטי כשל: </span>Google API 500: backendError</div><div class="flex gap-2 flex-wrap pt-1"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>סמן כהושלמה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סמן כלא הגיע</span></button></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>נסה לסנכרן שוב</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ערוך פגישה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>ביטול הפגישה</span></button></div></div></div></div>",
+  "3:scheduled:reauth_required": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">הדגמת מוצר</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-warning-bg); color: var(--color-warning-text); border-color: var(--color-warning-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-warning-dot);"></span>דרוש חיבור מחדש</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>31/10/2026, 11:00 – 31/10/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 wrap-break-word"><span class="font-medium">פרטי כשל: </span>invalid_grant</div><div class="flex gap-2 flex-wrap pt-1"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>סמן כהושלמה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סמן כלא הגיע</span></button></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ערוך פגישה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>ביטול הפגישה</span></button></div></div></div></div>",
+  "4:scheduled:pending": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">מעקב חוזה</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-info-bg); color: var(--color-info-text); border-color: var(--color-info-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-info-dot);"></span>מסונכרן…</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>1/11/2026, 11:00 – 1/11/2026, 12:00</div></div><div class="flex gap-2 flex-wrap pt-1"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>סמן כהושלמה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סמן כלא הגיע</span></button></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ערוך פגישה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>ביטול הפגישה</span></button></div></div></div></div>",
+  "5:completed:synced": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">פגישה שהושלמה</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span><span>הושלמה<span class="mx-1 opacity-50">·</span><span class="tabular-nums">26/10/2026</span></span></span><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span>מסונכרן</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>26/10/2026, 11:00 – 26/10/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"></div></div></div></div>",
+  "6:no_show:synced": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">לקוח לא הגיע</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: var(--color-neutral-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-neutral-dot);"></span><span>לא הגיע<span class="mx-1 opacity-50">·</span><span class="tabular-nums">27/10/2026</span></span></span><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span>מסונכרן</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>27/10/2026, 11:00 – 27/10/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"></div></div></div></div>",
+  "7:cancelled:synced": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">פגישה מבוטלת</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: var(--color-neutral-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-neutral-dot);"></span><span>בוטלה</span></span><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span>מסונכרן</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>4/11/2026, 11:00 – 4/11/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"></div></div></div></div>",
+  "busy": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">שיחת תיאום</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-error-bg); color: var(--color-error-text); border-color: var(--color-error-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-error-dot);"></span>סנכרון נכשל</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>30/10/2026, 11:00 – 30/10/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 wrap-break-word"><span class="font-medium">פרטי כשל: </span>Google API 500: backendError</div><div class="flex gap-2 flex-wrap pt-1"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled=""><span>סמן כהושלמה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>סמן כלא הגיע</span></button></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>סגור</span></button><div class="flex gap-2 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>מסנכרן…</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>ערוך פגישה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3" disabled=""><span>מבטל…</span></button></div></div></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — meeting details > outcome: completed with a nudge (apply, dismiss, apply fails), no-show, every refusal, throw 1`] = `
+{
+  "applied": {
+    "closes": 1,
+    "pro": [],
+    "refreshes": 2,
+    "sent": [
+      [
+        {
+          "id": 41,
+          "status": "interested",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "success",
+        "סומן כהושלמה",
+      ],
+      [
+        "success",
+        "סטטוס הליד עודכן",
+      ],
+    ],
+  },
+  "applyFailed": {
+    "closes": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "success",
+        "סומן כהושלמה",
+      ],
+      [
+        "error",
+        "עדכון הליד נכשל",
+      ],
+    ],
+  },
+  "dismissed": {
+    "closes": 1,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "success",
+        "סומן כהושלמה",
+      ],
+    ],
+  },
+  "noShow": {
+    "closes": 1,
+    "pro": [],
+    "refreshes": 1,
+    "sent": [
+      [
+        {
+          "meetingId": 1,
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "success",
+        "סומן כלא הגיע",
+      ],
+    ],
+  },
+  "nudge": "<div role="dialog" aria-modal="true" aria-labelledby="meeting-details-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[95vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-2 flex-wrap"><h2 id="meeting-details-title" class="text-xl font-bold flex-1 min-w-0 wrap-break-word">פגישת היכרות עם יוסי</h2><div class="flex items-center gap-1.5 flex-wrap"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span>מסונכרן</span></div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">זמן</div><div>29/10/2026, 11:00 – 29/10/2026, 12:00</div></div><div class="grid gap-1 text-sm"><div class="text-gray-500 text-xs uppercase tracking-wide">ליד</div><div class="flex items-center justify-between gap-2"><a class="text-blue-700 hover:underline w-fit" href="/clients/41/summary">צפה בליד ←</a><div class="inline-flex" data-edu="lead-followup"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3 tabular-nums" aria-haspopup="menu" aria-expanded="false"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/calendar.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>קבע מעקב</span></button></div></div></div><a href="https://meet.google.com/abc-defg-hij" target="_blank" rel="noreferrer" class="inline-flex items-center justify-center h-10 px-4 rounded-md bg-solid text-white font-semibold hover:bg-solid/85">פתח Google Meet</a><div class="rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm"><div class="text-gray-800">סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium bg-green-50 text-green-700 border-green-200"><span class="size-1.5 rounded-full bg-green-500"></span>מעוניין</span></div><div class="flex gap-2 justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>לא עכשיו</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>עדכן סטטוס למעוניין</span></button></div></div><div class="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-gray-100 flex-wrap"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button><div class="flex gap-2 flex-wrap"></div></div></div></div>",
+  "refusals": {
+    "already_cancelled": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "הפגישה כבר בוטלה",
+        ],
+        [
+          "error",
+          "הפגישה כבר בוטלה",
+        ],
+      ],
+    },
+    "already_completed": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "הפגישה כבר סומנה כהושלמה",
+        ],
+        [
+          "error",
+          "הפגישה כבר סומנה כהושלמה",
+        ],
+      ],
+    },
+    "already_no_show": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "הפגישה כבר סומנה כלא הגיע",
+        ],
+        [
+          "error",
+          "הפגישה כבר סומנה כלא הגיע",
+        ],
+      ],
+    },
+    "invalid_input": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "קלט לא תקין",
+        ],
+        [
+          "error",
+          "קלט לא תקין",
+        ],
+      ],
+    },
+    "not_found": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "הפגישה לא נמצאה",
+        ],
+        [
+          "error",
+          "הפגישה לא נמצאה",
+        ],
+      ],
+    },
+    "not_owner": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "אינך מורשה לעדכן פגישה זו",
+        ],
+        [
+          "error",
+          "אינך מורשה לעדכן פגישה זו",
+        ],
+      ],
+    },
+    "other": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "עדכון הפגישה נכשל",
+        ],
+        [
+          "error",
+          "עדכון הפגישה נכשל",
+        ],
+      ],
+    },
+    "throw": {
+      "closes": 0,
+      "pro": [],
+      "refreshes": 0,
+      "toasts": [
+        [
+          "error",
+          "אירעה שגיאה. נסה שוב.",
+        ],
+        [
+          "error",
+          "אירעה שגיאה. נסה שוב.",
+        ],
+      ],
+    },
+  },
+}
+`;
+
+exports[`Hebrew baseline — meeting details > the nudge for every suggested status 1`] = `
+[
+  [
+    "<div class="rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm"><div class="text-gray-800">סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium bg-yellow-50 text-yellow-700 border-yellow-200"><span class="size-1.5 rounded-full bg-yellow-500"></span>בטיפול</span></div><div class="flex gap-2 justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>לא עכשיו</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>עדכן סטטוס לבטיפול</span></button></div></div>",
+    "<div class="rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm"><div class="text-gray-800">סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium bg-yellow-50 text-yellow-700 border-yellow-200"><span class="size-1.5 rounded-full bg-yellow-500"></span>בטיפול</span></div><div class="flex gap-2 justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>לא עכשיו</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled=""><span>מעדכן…</span></button></div></div>",
+  ],
+  [
+    "<div class="rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm"><div class="text-gray-800">סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium bg-green-50 text-green-700 border-green-200"><span class="size-1.5 rounded-full bg-green-500"></span>מעוניין</span></div><div class="flex gap-2 justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>לא עכשיו</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>עדכן סטטוס למעוניין</span></button></div></div>",
+    "<div class="rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm"><div class="text-gray-800">סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium bg-green-50 text-green-700 border-green-200"><span class="size-1.5 rounded-full bg-green-500"></span>מעוניין</span></div><div class="flex gap-2 justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>לא עכשיו</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled=""><span>מעדכן…</span></button></div></div>",
+  ],
+  [
+    "<div class="rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm"><div class="text-gray-800">סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium bg-gray-100 text-gray-600 border-gray-200"><span class="size-1.5 rounded-full bg-gray-400"></span>סגור</span></div><div class="flex gap-2 justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>לא עכשיו</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>עדכן סטטוס לסגור</span></button></div></div>",
+    "<div class="rounded-md border border-blue-200 bg-blue-50/60 p-3 grid gap-2 text-sm"><div class="text-gray-800">סימנת את הפגישה כהושלמה. מומלץ לעדכן את סטטוס הליד ל-<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 mx-1 text-xs font-medium bg-gray-100 text-gray-600 border-gray-200"><span class="size-1.5 rounded-full bg-gray-400"></span>סגור</span></div><div class="flex gap-2 justify-end"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" disabled=""><span>לא עכשיו</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled=""><span>מעדכן…</span></button></div></div>",
+  ],
+]
+`;

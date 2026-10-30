@@ -11,6 +11,15 @@ import { LEAD_TABS_SURFACES } from './leadTabsSurfaces'
 import { INBOX_SURFACES } from './inboxSurfaces'
 import { MESSENGER_COMMENTS_SURFACES } from './messengerCommentsSurfaces'
 import { INBOX_MOBILE_SURFACES } from './inboxMobileSurfaces'
+import { GLOBAL_TASKS_FILES_SURFACES } from './globalTasksFilesSurfaces'
+import { CALENDAR_SURFACES } from './calendarSurfaces'
+import { DEALS_SURFACES } from './dealsSurfaces'
+import { BILLING_SURFACES } from './billingSurfaces'
+import { SETTINGS_SURFACES } from './settingsSurfaces'
+import { ADMIN_SURFACES } from './adminSurfaces'
+import { AUTOMATIONS_SURFACES } from './automationsSurfaces'
+import { QUESTIONNAIRE_SURFACES } from './questionnaireSurfaces'
+import { SHARED_SURFACES } from './sharedSurfaces'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -197,6 +206,15 @@ export const SURFACES: Surface[] = [
   ...INBOX_SURFACES,
   ...MESSENGER_COMMENTS_SURFACES,
   ...INBOX_MOBILE_SURFACES,
+  ...GLOBAL_TASKS_FILES_SURFACES,
+  ...CALENDAR_SURFACES,
+  ...DEALS_SURFACES,
+  ...BILLING_SURFACES,
+  ...SETTINGS_SURFACES,
+  ...ADMIN_SURFACES,
+  ...AUTOMATIONS_SURFACES,
+  ...QUESTIONNAIRE_SURFACES,
+  ...SHARED_SURFACES,
   ...(
     [
       ['desktop, Today brief v2 + analytics', { mobile: false, v2: true, stats: STATS }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],

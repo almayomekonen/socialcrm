@@ -4,13 +4,15 @@ import AddPromoForm from './AddPromoForm'
 import DeletePromoBtn from './DeletePromoBtn'
 import { useState } from 'react'
 import ModalPop from '../../lib/modals/ModalPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function PromoCards({ promos, teams, users }) {
+  const t = useT()
   const [curPromo, setcurPromo] = useState(false)
 
   return (
     <div>
-      <Btn lbl='מבצע חדש' icon='plus' className='mb-4 w-fit' onClick={() => setcurPromo(true)} />
+      <Btn lbl={t('admin.promos.newPromo')} icon='plus' className='mb-4 w-fit' onClick={() => setcurPromo(true)} />
 
       <section className='flex '>
         {promos.map((promo) => (
@@ -19,7 +21,7 @@ export default function PromoCards({ promos, teams, users }) {
             <div className='grid grid-cols-[auto,1fr] gap-2 items-center my-3'>
               <h1 className='text-lg font-semibold'>{promo.title}</h1>
               <span className='flex gap-2 justify-self-end flex-nowrap'>
-                <Btn variant='outline' size='icon' aria-label='עריכת קמפיין' onClick={() => setcurPromo(promo)} icon='pen' />
+                <Btn variant='outline' size='icon' aria-label={t('admin.promos.edit')} onClick={() => setcurPromo(promo)} icon='pen' />
                 <DeletePromoBtn promoId={promo.id} />
               </span>
             </div>
@@ -28,7 +30,7 @@ export default function PromoCards({ promos, teams, users }) {
         ))}
       </section>
 
-      <ModalPop open={!!curPromo} className='w-[800px]' pos='middle' onClose={() => setcurPromo(false)} label='עריכת קמפיין'>
+      <ModalPop open={!!curPromo} className='w-[800px]' pos='middle' onClose={() => setcurPromo(false)} label={t('admin.promos.edit')} translated>
         <AddPromoForm teams={teams} users={users} promo={curPromo} setcurPromo={setcurPromo} />
       </ModalPop>
     </div>

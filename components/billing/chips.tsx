@@ -2,6 +2,8 @@ import type { DocState, FulfillState } from '@/db/billing/invoices'
 import { docStateLabel, fulfillStateLabel } from './funcs'
 import { StatusBadge, type StatusRole } from '@/lib/StatusBadge'
 import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 const DOC_STATE_ROLE: Record<DocState, StatusRole> = {
   draft: 'neutral',
@@ -10,7 +12,7 @@ const DOC_STATE_ROLE: Record<DocState, StatusRole> = {
   replaced: 'neutral',
 }
 
-/** `locale`: the lead billing list passes the interface language; the editor (Phase E) passes none and stays Hebrew. */
+/** `locale`: the lead billing list and the invoice screens pass the interface language; default Hebrew. */
 export function DocStateChip({ state, locale = 'he' }: { state: DocState; locale?: UiLocale }) {
   return <StatusBadge role={DOC_STATE_ROLE[state]} label={docStateLabel(state, locale)} size='xs' data-doc-state={state} />
 }
@@ -32,12 +34,13 @@ export function FulfillStateChip({ state, locale = 'he' }: { state: FulfillState
 
 export type PdfStatus = 'scheduled' | 'rendering' | 'ready' | 'failed' | 'not_applicable'
 
-const PDF_STATUS_LABELS: Record<PdfStatus, string> = {
-  not_applicable: 'אין מסמך',
-  scheduled: 'PDF בקרוב',
-  rendering: 'מופק כעת',
-  ready: 'מסמך זמין',
-  failed: 'שגיאה בהפקה',
+/** Labels by status CODE; Hebrew is `billing.issued.pdf.*` (the words this chip always showed). */
+const PDF_STATUS_KEY: Record<PdfStatus, MessageKey> = {
+  not_applicable: 'billing.issued.pdf.not_applicable',
+  scheduled: 'billing.issued.pdf.scheduled',
+  rendering: 'billing.issued.pdf.rendering',
+  ready: 'billing.issued.pdf.ready',
+  failed: 'billing.issued.pdf.failed',
 }
 
 const PDF_STATUS_ROLE: Record<PdfStatus, StatusRole> = {
@@ -48,6 +51,6 @@ const PDF_STATUS_ROLE: Record<PdfStatus, StatusRole> = {
   failed: 'error',
 }
 
-export function PdfStatusChip({ status }: { status: PdfStatus }) {
-  return <StatusBadge role={PDF_STATUS_ROLE[status]} label={PDF_STATUS_LABELS[status]} size='xs' data-pdf-status={status} />
+export function PdfStatusChip({ status, locale = 'he' }: { status: PdfStatus; locale?: UiLocale }) {
+  return <StatusBadge role={PDF_STATUS_ROLE[status]} label={translatorFor(locale)(PDF_STATUS_KEY[status])} size='xs' data-pdf-status={status} />
 }

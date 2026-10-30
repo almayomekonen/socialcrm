@@ -1,0 +1,792 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — /calendar (server HTML) > never connected, disabled, connected, reauth required; the list read 1`] = `
+{
+  "connected": "<div class="p-5"><div class="grid gap-4"><div class="flex items-center justify-between gap-3 flex-wrap"><h1 class="title">פגישות</h1><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>פגישה חדשה</span></button></div><div class="rounded-lg border border-gray-200 bg-white p-3 sm:p-5 shadow-sm calendar-shell"><div class="h-[600px] grid place-items-center text-sm text-gray-500">טוען יומן…</div></div></div></div>",
+  "disabled": "<div class="p-5"><h1 class="title">פגישות</h1><div class="mt-6 max-w-lg rounded-lg border border-gray-200 bg-white p-8 grid gap-4 text-center"><div aria-hidden="true" class="dark:bg-white size-12 bg-gray-400 mx-auto " style="mask-image:url(https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/calendar.svg);-webkit-mask-image:url(https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/calendar.svg);mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;mask-size:contain;-webkit-mask-size:contain;mask-type:alpha"></div><div class="grid gap-1"><h2 class="text-xl font-bold">חבר את היומן שלך</h2><p class="text-gray-600 text-sm leading-relaxed">חבר את חשבון Google שלך כדי לנהל פגישות עם לידים, ליצור קישורי Meet אוטומטית ולסנכרן ליומן Google.</p></div><div class="flex justify-center"><a class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" href="/settings/integrations?section=google-calendar"><span>לחיבור היומן</span></a></div></div></div>",
+  "listArgs": [
+    {
+      "fromAt": 2026-10-28T00:00:00.000Z,
+      "limit": 100,
+    },
+    {
+      "fromAt": 2026-10-28T00:00:00.000Z,
+      "limit": 100,
+    },
+  ],
+  "notConnected": "<div class="p-5"><h1 class="title">פגישות</h1><div class="mt-6 max-w-lg rounded-lg border border-gray-200 bg-white p-8 grid gap-4 text-center"><div aria-hidden="true" class="dark:bg-white size-12 bg-gray-400 mx-auto " style="mask-image:url(https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/calendar.svg);-webkit-mask-image:url(https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/calendar.svg);mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;mask-size:contain;-webkit-mask-size:contain;mask-type:alpha"></div><div class="grid gap-1"><h2 class="text-xl font-bold">חבר את היומן שלך</h2><p class="text-gray-600 text-sm leading-relaxed">חבר את חשבון Google שלך כדי לנהל פגישות עם לידים, ליצור קישורי Meet אוטומטית ולסנכרן ליומן Google.</p></div><div class="flex justify-center"><a class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" href="/settings/integrations?section=google-calendar"><span>לחיבור היומן</span></a></div></div></div>",
+  "reauth": "<div class="p-5"><div class="grid gap-4"><div class="flex items-center justify-between gap-3 flex-wrap"><h1 class="title">פגישות</h1><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>פגישה חדשה</span></button></div><div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-3 flex-wrap sm:flex-nowrap"><div aria-hidden="true" class="dark:bg-white size-5 bg-amber-700 mt-0.5 shrink-0 " style="mask-image:url(https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/triangle-exclamation.svg);-webkit-mask-image:url(https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/triangle-exclamation.svg);mask-repeat:no-repeat;-webkit-mask-repeat:no-repeat;mask-position:center;-webkit-mask-position:center;mask-size:contain;-webkit-mask-size:contain;mask-type:alpha"></div><div class="flex-1 min-w-0"><p class="font-medium">החיבור ליומן Google פג</p><p class="text-xs mt-0.5">פגישות חדשות לא יסונכרנו עד החיבור מחדש.</p></div><a class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-9 px-3 gap-3 text-[15px]" href="/settings/integrations?section=google-calendar"><span>חבר מחדש</span></a></div><div class="rounded-lg border border-gray-200 bg-white p-3 sm:p-5 shadow-sm calendar-shell"><div class="h-[600px] grid place-items-center text-sm text-gray-500">טוען יומן…</div></div></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — the grid > FullCalendar configuration (text, locale, direction, week start, clock) 1`] = `
+{
+  "allDaySlot": false,
+  "buttonText": {
+    "day": "יום",
+    "month": "חודש",
+    "today": "היום",
+    "week": "שבוע",
+  },
+  "contentHeight": 680,
+  "dayMaxEvents": 3,
+  "direction": "rtl",
+  "editable": true,
+  "eventDurationEditable": true,
+  "eventStartEditable": true,
+  "eventTimeFormat": {
+    "hour": "2-digit",
+    "hour12": false,
+    "minute": "2-digit",
+  },
+  "events": 7,
+  "firstDay": 0,
+  "headerToolbar": {
+    "center": "title",
+    "end": "dayGridMonth,timeGridWeek,timeGridDay",
+    "start": "prev,next today",
+  },
+  "height": "auto",
+  "initialView": "dayGridMonth",
+  "locale": "he",
+  "nowIndicator": true,
+  "plugins": 3,
+  "selectMirror": true,
+  "selectable": true,
+  "slotDuration": "00:30:00",
+  "slotLabelFormat": {
+    "hour": "2-digit",
+    "hour12": false,
+    "minute": "2-digit",
+  },
+  "slotMaxTime": "22:00:00",
+  "slotMinTime": "07:00:00",
+  "stickyHeaderDates": true,
+  "views": {
+    "dayGridMonth": {
+      "eventDurationEditable": false,
+    },
+  },
+}
+`;
+
+exports[`Hebrew baseline — the grid > date click / select open the new-meeting form; expired prompts instead 1`] = `
+{
+  "formTitle": "פגישה חדשה",
+  "log": {
+    "pro": [
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לקבוע פגישות.",
+        "source": "calendar_create",
+        "title": "יצירת פגישות זמינה עם Pro",
+      },
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לקבוע פגישות.",
+        "source": "calendar_create",
+        "title": "יצירת פגישות זמינה עם Pro",
+      },
+    ],
+    "refreshes": 0,
+    "toasts": [],
+  },
+  "newMeetingButton": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>פגישה חדשה</span></button>",
+}
+`;
+
+exports[`Hebrew baseline — the grid > details dialog retry / cancel from the grid: every result; expired prompts 1`] = `
+[
+  {
+    "action": "retry",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "success",
+        "הפגישה סונכרנה",
+      ],
+    ],
+  },
+  {
+    "action": "retry",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "error",
+        "נדרש חיבור מחדש ליומן",
+      ],
+    ],
+  },
+  {
+    "action": "retry",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "error",
+        "הסנכרון נכשל",
+      ],
+    ],
+  },
+  {
+    "action": "retry",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "error",
+        "הסנכרון נכשל",
+      ],
+    ],
+  },
+  {
+    "action": "cancel",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "success",
+        "הפגישה בוטלה",
+      ],
+    ],
+  },
+  {
+    "action": "cancel",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "error",
+        "הפגישה בוטלה ב-CRM. נדרש חיבור מחדש ליומן.",
+      ],
+    ],
+  },
+  {
+    "action": "cancel",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "error",
+        "הפגישה בוטלה ב-CRM. מחיקה ביומן Google נכשלה.",
+      ],
+    ],
+  },
+  {
+    "action": "cancel",
+    "dialogOpen": 0,
+    "pro": [],
+    "refreshes": 1,
+    "toasts": [
+      [
+        "error",
+        "ביטול הפגישה נכשל",
+      ],
+    ],
+  },
+  {
+    "action": "retry",
+    "dialogOpen": 1,
+    "pro": [
+      {
+        "body": "חידוש המנוי יחזיר את הסנכרון ליומן Google.",
+        "source": "calendar_retry_sync",
+        "title": "סנכרון יומן זמין עם Pro",
+      },
+    ],
+    "refreshes": 0,
+    "toasts": [],
+  },
+  {
+    "action": "cancel",
+    "dialogOpen": 1,
+    "pro": [
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לבטל פגישות.",
+        "source": "calendar_cancel",
+        "title": "ביטול פגישות זמין עם Pro",
+      },
+    ],
+    "refreshes": 0,
+    "toasts": [],
+  },
+]
+`;
+
+exports[`Hebrew baseline — the grid > drag while another update is in flight; expired drag and resize 1`] = `
+{
+  "busy": {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": [
+      0,
+      1,
+      1,
+    ],
+    "toasts": [
+      [
+        "error",
+        "פגישה אחרת בעיצומה של עדכון. נסה שוב בעוד רגע.",
+      ],
+      [
+        "error",
+        "פגישה אחרת בעיצומה של עדכון. נסה שוב בעוד רגע.",
+      ],
+      [
+        "success",
+        "הפגישה הועברה וסונכרנה ליומן Google",
+      ],
+    ],
+  },
+  "expired": {
+    "pro": [
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לערוך פגישות.",
+        "source": "calendar_move",
+        "title": "עריכת פגישות זמינה עם Pro",
+      },
+      {
+        "body": "חידוש המנוי יחזיר את האפשרות לערוך פגישות.",
+        "source": "calendar_move",
+        "title": "עריכת פגישות זמינה עם Pro",
+      },
+    ],
+    "refreshes": 0,
+    "reverts": [
+      1,
+      1,
+    ],
+    "sent": 0,
+    "toasts": [],
+  },
+}
+`;
+
+exports[`Hebrew baseline — the grid > drag: every refusal, every sync status, every failure reason 1`] = `
+[
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [],
+    "toasts": [
+      [
+        "error",
+        "לא ניתן להזיז פגישה שכבר סומנה",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 0,
+    "sent": [],
+    "toasts": [],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [],
+    "toasts": [
+      [
+        "error",
+        "לא ניתן להזיז פגישה לתאריך שעבר",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "success",
+        "הפגישה הועברה וסונכרנה ליומן Google",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "success",
+        "הפגישה הועברה וסונכרנה ליומן Google",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "success",
+        "הפגישה הועברה ב-CRM (לא מסונכרנת ליומן Google)",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "הפגישה הועברה ב-CRM. נדרש חיבור מחדש ליומן Google.",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "הפגישה הועברה ב-CRM. סנכרון ליומן Google נכשל.",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "הפגישה הועברה ב-CRM. סנכרון ליומן Google נכשל (נדרש רענון).",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "אינך מורשה להעביר פגישה זו",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "משך הפגישה חייב להיות לפחות 5 דקות",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "הזמנים שהוזנו אינם תקינים",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "העברת הפגישה נכשלה",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+          "startAt": "2026-10-29T10:00:00.000Z",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "אירעה שגיאה. נסה שוב.",
+      ],
+    ],
+  },
+]
+`;
+
+exports[`Hebrew baseline — the grid > event chips for every sync state and outcome 1`] = `
+[
+  "<div class="crm-event" style="--crm-event-bg:#eff6ff;--crm-event-bg-hover:#dbeafe;--crm-event-fg:#1e3a8a;--crm-event-accent:#3b82f6"><span class="crm-event-avatar">פ</span><span class="crm-event-title">פגישת היכרות עם יוסי</span><span class="crm-event-time">11:00</span><svg class="crm-event-meet" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="M22 6 L17 9.5 L17 14.5 L22 18 Z"></path></svg></div>",
+  "<div class="crm-event" style="--crm-event-bg:#fef2f2;--crm-event-bg-hover:#fee2e2;--crm-event-fg:#991b1b;--crm-event-accent:#ef4444"><span class="crm-event-avatar">ש</span><span class="crm-event-title">שיחת תיאום</span><span class="crm-event-time">11:00</span></div>",
+  "<div class="crm-event" style="--crm-event-bg:#fffbeb;--crm-event-bg-hover:#fef3c7;--crm-event-fg:#92400e;--crm-event-accent:#f59e0b"><span class="crm-event-avatar">ה</span><span class="crm-event-title">הדגמת מוצר</span><span class="crm-event-time">11:00</span></div>",
+  "<div class="crm-event" style="--crm-event-bg:#f8fafc;--crm-event-bg-hover:#f1f5f9;--crm-event-fg:#475569;--crm-event-accent:#94a3b8"><span class="crm-event-avatar">מ</span><span class="crm-event-title">מעקב חוזה</span><span class="crm-event-time">11:00</span></div>",
+  "<div class="crm-event crm-event--completed" style="--crm-event-bg:#eff6ff;--crm-event-bg-hover:#dbeafe;--crm-event-fg:#1e3a8a;--crm-event-accent:#3b82f6"><span class="crm-event-avatar">פ</span><span class="crm-event-title">פגישה שהושלמה</span><span class="crm-event-time">11:00</span></div>",
+  "<div class="crm-event crm-event--no-show" style="--crm-event-bg:#eff6ff;--crm-event-bg-hover:#dbeafe;--crm-event-fg:#1e3a8a;--crm-event-accent:#3b82f6"><span class="crm-event-avatar">ל</span><span class="crm-event-title">לקוח לא הגיע</span><span class="crm-event-time">11:00</span></div>",
+  "<div class="crm-event" style="--crm-event-bg:#eff6ff;--crm-event-bg-hover:#dbeafe;--crm-event-fg:#1e3a8a;--crm-event-accent:#3b82f6"><span class="crm-event-avatar">פ</span><span class="crm-event-title">פגישה מבוטלת</span><span class="crm-event-time">11:00</span></div>",
+]
+`;
+
+exports[`Hebrew baseline — the grid > resize: every refusal, every sync status, every failure reason 1`] = `
+[
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [],
+    "toasts": [
+      [
+        "error",
+        "לא ניתן לשנות משך פגישה שכבר סומנה",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [],
+    "toasts": [],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 0,
+    "sent": [],
+    "toasts": [],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [],
+    "toasts": [
+      [
+        "error",
+        "משך הפגישה חייב להיות לפחות 5 דקות",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "success",
+        "משך הפגישה עודכן וסונכרן ליומן Google",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "success",
+        "משך הפגישה עודכן ב-CRM (לא מסונכרנת ליומן Google)",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "משך הפגישה עודכן ב-CRM. נדרש חיבור מחדש ליומן Google.",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "משך הפגישה עודכן ב-CRM. סנכרון ליומן Google נכשל.",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 1,
+    "reverts": 0,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "משך הפגישה עודכן ב-CRM. סנכרון ליומן Google נכשל (נדרש רענון).",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "אינך מורשה לעדכן פגישה זו",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "משך הפגישה חייב להיות לפחות 5 דקות",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "הזמנים שהוזנו אינם תקינים",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "עדכון משך הפגישה נכשל",
+      ],
+    ],
+  },
+  {
+    "pro": [],
+    "refreshes": 0,
+    "reverts": 1,
+    "sent": [
+      [
+        {
+          "endAt": "2026-10-29T11:00:00.000Z",
+          "meetingId": 1,
+          "sendUpdates": "externalOnly",
+        },
+      ],
+    ],
+    "toasts": [
+      [
+        "error",
+        "אירעה שגיאה. נסה שוב.",
+      ],
+    ],
+  },
+]
+`;

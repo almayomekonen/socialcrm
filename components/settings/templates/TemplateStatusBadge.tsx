@@ -1,6 +1,8 @@
 import { StatusBadge, type StatusRole } from '@/lib/StatusBadge'
 import { statusLabel } from '@/lib/whatsapp/templates/statusCopy'
 import type { TemplateStatus } from '@/lib/whatsapp/templates/types'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { templateStatusKey } from './templateCopy'
 
 /**
  * Status pill for a ready-made message — a domain wrapper over the unified
@@ -16,5 +18,8 @@ const STATUS_ROLE: Record<TemplateStatus, StatusRole> = {
 }
 
 export default function TemplateStatusBadge({ status }: { status: TemplateStatus }) {
-  return <StatusBadge role={STATUS_ROLE[status]} label={statusLabel(status)} pulse={status === 'pending'} />
+  const t = useT()
+  const key = templateStatusKey(status)
+  const label = t.locale === 'he' || !key ? statusLabel(status) : t(key)
+  return <StatusBadge role={STATUS_ROLE[status]} label={label} pulse={status === 'pending'} />
 }

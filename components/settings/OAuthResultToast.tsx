@@ -2,17 +2,20 @@
 
 import { useEffect, useRef } from 'react'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
-const MESSAGES: Record<string, { icon: 'success' | 'error'; msg: string }> = {
-  gcal: { icon: 'success', msg: 'Google Calendar חובר בהצלחה' },
-  gdrive: { icon: 'success', msg: 'Google Drive חובר בהצלחה' },
-  gcal_error: { icon: 'error', msg: 'החיבור ל-Google Calendar נכשל. נסה שוב.' },
-  gdrive_error: { icon: 'error', msg: 'החיבור ל-Google Drive נכשל. נסה שוב.' },
+const MESSAGES: Record<string, { icon: 'success' | 'error'; msg: MessageKey }> = {
+  gcal: { icon: 'success', msg: 'settings.integrations.oauth.gcal' },
+  gdrive: { icon: 'success', msg: 'settings.integrations.oauth.gdrive' },
+  gcal_error: { icon: 'error', msg: 'settings.integrations.oauth.gcalError' },
+  gdrive_error: { icon: 'error', msg: 'settings.integrations.oauth.gdriveError' },
 }
 
 const SUCCESS_VALUE = 'connected'
 
 export default function OAuthResultToast() {
+  const t = useT()
   const firedRef = useRef(false)
 
   useEffect(() => {
@@ -21,7 +24,7 @@ export default function OAuthResultToast() {
     const url = new URL(window.location.href)
     const params = url.searchParams
 
-    let matched: { icon: 'success' | 'error'; msg: string } | null = null
+    let matched: { icon: 'success' | 'error'; msg: MessageKey } | null = null
     for (const key of Object.keys(MESSAGES)) {
       if (!params.has(key)) continue
       const isError = key.endsWith('_error')
@@ -33,7 +36,7 @@ export default function OAuthResultToast() {
     if (!matched) return
     firedRef.current = true
 
-    toast(matched.icon, matched.msg)
+    toast(matched.icon, t(matched.msg))
 
     for (const key of Object.keys(MESSAGES)) params.delete(key)
     const query = params.toString()

@@ -13,7 +13,8 @@ import {
 import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import AutoResponseTextField from '@/components/settings/autoResponse/AutoResponseTextField'
-import { describeCondition } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
+import { describeConditionIn, issueTextIn } from './issueText'
+import { useT } from '@/lib/i18n/I18nProvider'
 import ConditionEditor from './ConditionEditor'
 import LimitedButton from './LimitedButton'
 import { rowsFor, type ConfirmRequest } from './builderCopy'
@@ -42,6 +43,7 @@ export default function EndingsSection({
   onFocusEnding: (index: number) => void
 }) {
   const id = useId()
+  const t = useT()
   const [editing, setEditing] = useState<number | null>(null)
   const sources = conditionSources(model, '')
   const custom = model.endings.custom
@@ -54,33 +56,35 @@ export default function EndingsSection({
     >
       <div>
         <h2 id={`${id}-title`} className='text-base font-semibold text-ink'>
-          סיום השיחה
+          {t('admin.questionnaire.endings.title')}
         </h2>
-        <p className='mt-1 text-sm text-gray-600'>ההודעה שהלקוח מקבל אחרי השאלה האחרונה.</p>
+        <p className='mt-1 text-sm text-gray-600'>{t('admin.questionnaire.endings.intro')}</p>
       </div>
 
       <div onFocusCapture={() => onFocusEnding(-1)}>
         <AutoResponseTextField
           id={`${id}-standard`}
-          label='הודעת הסיום'
-          hint='נשלחת לכל מי שסיים, אלא אם הוגדר לו סיום שונה'
+          label={t('admin.questionnaire.endings.standard')}
+          hint={t('admin.questionnaire.endings.standardHint')}
           value={model.endings.standard}
           onChange={(v) => edit((m) => ({ ...m, endings: { ...m.endings, standard: v } }))}
-          placeholder='למשל: מעולה, קיבלנו את הפרטים. נחזור אליכם בהקדם.'
+          placeholder={t('admin.questionnaire.endings.standardPlaceholder')}
           maxLength={900}
           sent
           rows={rowsFor(model.endings.standard, 3)}
-          error={standardIssues[0]?.text}
+          error={standardIssues[0] ? issueTextIn(standardIssues[0], model, t) : undefined}
+          translated
         />
       </div>
 
       <div className='grid gap-3'>
-        <h3 className='text-sm font-semibold text-gray-700'>סיום שונה לפי תשובה</h3>
-        {custom.length > 1 && <p className='text-xs text-gray-500'>נבדק מלמעלה למטה. הלקוח מקבל את הסיום הראשון שמתאים לו.</p>}
+        <h3 className='text-sm font-semibold text-gray-700'>{t('admin.questionnaire.endings.custom')}</h3>
+        {custom.length > 1 && <p className='text-xs text-gray-500'>{t('admin.questionnaire.endings.order')}</p>}
 
         {custom.map((ending, index) => {
           const condition = ending.sentWhen.conditions[0] ?? null
           const issues = endingIssues[index] ?? []
+          const number = String(index + 1)
           return (
             <div
               key={index}
@@ -88,14 +92,14 @@ export default function EndingsSection({
               className={`grid gap-3 rounded-md border p-3 ${issues.length ? 'border-red-300' : 'border-gray-200'}`}
             >
               <div className='flex items-center justify-between gap-2'>
-                <p className='text-sm font-medium text-gray-800'>סיום שונה {index + 1}</p>
+                <p className='text-sm font-medium text-gray-800'>{t('admin.questionnaire.endings.item', { number })}</p>
                 <div className='flex items-center gap-1'>
                   <Btn
                     type='button'
                     size='small'
                     variant='ghost'
                     icon='arrow-up'
-                    aria-label={`העברת סיום שונה ${index + 1} למעלה`}
+                    aria-label={t('admin.questionnaire.endings.moveUp', { number })}
                     onClick={() => edit((m) => moveEnding(m, index, -1))}
                     disabled={index === 0}
                   />
@@ -104,7 +108,7 @@ export default function EndingsSection({
                     size='small'
                     variant='ghost'
                     icon='arrow-down'
-                    aria-label={`העברת סיום שונה ${index + 1} למטה`}
+                    aria-label={t('admin.questionnaire.endings.moveDown', { number })}
                     onClick={() => edit((m) => moveEnding(m, index, 1))}
                     disabled={index === custom.length - 1}
                   />
@@ -113,11 +117,11 @@ export default function EndingsSection({
                     size='small'
                     variant='ghost'
                     icon='trash'
-                    aria-label={`מחיקת סיום שונה ${index + 1}`}
+                    aria-label={t('admin.questionnaire.endings.remove', { number })}
                     onClick={() =>
                       confirm({
-                        msg: `למחוק את סיום שונה ${index + 1}?`,
-                        confirmLbl: 'מחיקת הסיום',
+                        msg: t('admin.questionnaire.endings.removeMsg', { number }),
+                        confirmLbl: t('admin.questionnaire.endings.removeLbl'),
                         destructive: true,
                         run: () => edit((m) => removeEnding(m, index)),
                       })
@@ -134,8 +138,8 @@ export default function EndingsSection({
                     condition={condition}
                     onChange={(c) => c && edit((m) => updateEnding(m, index, { condition: c }))}
                     allowAlways={false}
-                    legend='מתי נשלח הסיום הזה'
-                    sentencePrefix='נשלח כאשר:'
+                    legend={t('admin.questionnaire.endings.legend')}
+                    sentencePrefix={t('admin.questionnaire.endings.prefix')}
                   />
                   {condition?.anyOf.length ? (
                     <div>
@@ -144,7 +148,7 @@ export default function EndingsSection({
                         onClick={() => setEditing(null)}
                         className='text-sm font-medium text-ink underline underline-offset-2'
                       >
-                        סיום
+                        {t('admin.questionnaire.when.done')}
                       </button>
                     </div>
                   ) : null}
@@ -152,33 +156,34 @@ export default function EndingsSection({
               ) : (
                 <p className='flex flex-wrap items-baseline gap-x-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800'>
                   <span>
-                    <span className='font-medium'>נשלח כאשר:</span> {describeCondition(model, condition)}
+                    <span className='font-medium'>{t('admin.questionnaire.endings.prefix')}</span> {describeConditionIn(model, condition, t)}
                   </span>
                   <button
                     type='button'
                     onClick={() => setEditing(index)}
                     className='text-xs text-gray-600 underline underline-offset-2'
                   >
-                    שינוי
+                    {t('admin.questionnaire.when.change')}
                   </button>
                 </p>
               )}
               <AutoResponseTextField
                 id={`${id}-custom-${index}`}
-                label='ההודעה'
-                hint='למשל הודעת הסיום עם קישור מתאים'
+                label={t('admin.questionnaire.endings.message')}
+                hint={t('admin.questionnaire.endings.messageHint')}
                 value={ending.message}
                 onChange={(v) => edit((m) => updateEnding(m, index, { message: v }))}
                 placeholder=''
                 maxLength={900}
                 sent
                 rows={rowsFor(ending.message, 3)}
+                translated
               />
               {issues.length > 0 && (
                 <ul className='grid gap-1'>
                   {issues.map((i, n) => (
                     <li key={n} className='text-sm text-red-700'>
-                      {i.text}
+                      {issueTextIn(i, model, t)}
                     </li>
                   ))}
                 </ul>
@@ -192,12 +197,12 @@ export default function EndingsSection({
             size='small'
             variant='outline'
             icon='plus'
-            lbl='הוספת סיום שונה לפי תשובה'
+            lbl={t('admin.questionnaire.endings.add')}
             blockedReason={
               !sources.length
-                ? 'כדי לשלוח סיום שונה לפי תשובה, צריכה להיות בשאלון שאלה עם אפשרויות לבחירה.'
+                ? t('admin.questionnaire.endings.needsChoice')
                 : custom.length >= 10
-                  ? 'אפשר עד 10 סיומים שונים.'
+                  ? t('admin.questionnaire.endings.maxTen')
                   : null
             }
             onClick={() => edit((m) => addEnding(m, { questionId: keyOf(sources[0]), anyOf: [] }))}

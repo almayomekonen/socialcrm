@@ -6,15 +6,17 @@ import { Input } from '@/lib/form'
 import { updateSavedFilters } from '../../actions/filter'
 import { toast } from '@/lib/toast'
 import { useDrag } from '@/lib/hooksNEvents'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function EditFilters({ filters, user }) {
+  const t = useT()
   const [state, setState] = useState(false)
   const render = () => setState(!state)
 
   async function onSubmit() {
     toast('loading')
     await updateSavedFilters({ data: filters, id: user.id })
-    toast('success', 'סינונים נשמרו בהצלחה')
+    toast('success', t('settings.account.filters.saved'))
   }
 
   return (
@@ -28,7 +30,7 @@ export default function EditFilters({ filters, user }) {
               variant='outline'
               size='icon'
               icon='trash'
-              aria-label='מחיקת סינון שמור'
+              aria-label={t('settings.account.filters.delete')}
               onClick={() => {
                 filters.splice(i, 1)
                 render()
@@ -37,10 +39,10 @@ export default function EditFilters({ filters, user }) {
           </div>
         ))
       ) : (
-        <p className='text-center my-2'>אין סינונים שמורים</p>
+        <p className='text-center my-2'>{t('settings.account.filters.none')}</p>
       )}
 
-      <Btn lbl='שמירה' icon='floppy-disk' className='w-full' onClick={onSubmit} />
+      <Btn lbl={t('settings.account.filters.save')} icon='floppy-disk' className='w-full' onClick={onSubmit} />
     </div>
   )
 }

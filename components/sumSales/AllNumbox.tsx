@@ -1,26 +1,30 @@
 import { getSaleStats } from '@/db/sumSales'
 import { formatCurrency } from '@/lib/funcs'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export default async function AllNumbox({ props }) {
+/** Amounts stay ILS in every language: deals have no currency source (claude/i18n.md). */
+export default async function AllNumbox({ props, locale = 'he' }: { props: any; locale?: UiLocale }) {
   const { sqlFilter } = props
   const details = await getSaleStats(sqlFilter)
 
   return (
     <div className='my-8 w-full min-w-0'>
-      <ClientsBoxes details={details} />
+      <ClientsBoxes details={details} locale={locale} />
     </div>
   )
 }
 
-function ClientsBoxes({ details }) {
+function ClientsBoxes({ details, locale }: { details: any; locale: UiLocale }) {
+  const t = translatorFor(locale)
   const { hofakCount, inProcessCount, totalRevenue, pipelineValue } = details || {}
 
   return (
     <div className='flex flex-wrap gap-4 min-w-0 mobile:grid grid-cols-2'>
-      <NumboxPrecent title='סך הכנסות (שולם)' num={formatCurrency(totalRevenue)} className='bg-softy border-soft text-solid font-bold' />
-      <NumboxPrecent title='עסקאות שנסגרו' num={hofakCount} />
-      <NumboxPrecent title='פייפליין' num={formatCurrency(pipelineValue)} />
-      <NumboxPrecent title='עסקאות בתהליך' num={inProcessCount} />
+      <NumboxPrecent title={t('performance.overview.revenuePaid')} num={formatCurrency(totalRevenue)} className='bg-softy border-soft text-solid font-bold' />
+      <NumboxPrecent title={t('performance.overview.closedDeals')} num={hofakCount} />
+      <NumboxPrecent title={t('performance.overview.pipeline')} num={formatCurrency(pipelineValue)} />
+      <NumboxPrecent title={t('performance.overview.inProgress')} num={inProcessCount} />
     </div>
   )
 }

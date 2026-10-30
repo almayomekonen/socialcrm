@@ -9,8 +9,10 @@ import { InputSides } from '@/lib/form'
 import { Btn } from '@/lib/btns/Btn'
 import { Seperator } from '@/lib/Seperator'
 import AccordionItem from '@/lib/AccordionItem'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function AiSettingsForm({ data, userId }) {
+  const t = useT()
   const [coldEnabled, setColdEnabled] = useState(!!data.isRiskUpdated)
   const [stuckEnabled, setStuckEnabled] = useState(!!data.isMahalotKashotUpdated)
 
@@ -22,20 +24,20 @@ export default function AiSettingsForm({ data, userId }) {
   return (
     <form onSubmit={onSubmit}>
       <div className='accordion border rounded-lg mb-6 max-w-3xl bg-white'>
-        <AccordionItem title='זיהוי לידים' bodyClass='p-6' open>
+        <AccordionItem title={t('settings.account.system.detection')} bodyClass='p-6' open>
           <div className='grid gap-6'>
             {/* Cold lead */}
             <div className='grid gap-3'>
               <CheckboxBool
-                lbl='הפעל זיהוי לידים קרים'
+                lbl={t('settings.account.system.cold')}
                 name='isRiskUpdated'
                 defaultChecked={data.isRiskUpdated}
                 onChange={(e: any) => setColdEnabled(e.target.checked)}
               />
-              <p className='text-sm text-gray-500 ms-1'>ליד שלא עודכן מספיק זמן יסומן כקר ברשימת הלידים</p>
+              <p className='text-sm text-gray-500 ms-1'>{t('settings.account.system.coldHint')}</p>
               <InputSides
-                lblRight='ליד ללא פעילות מעל'
-                lblLeft='חודשים'
+                lblRight={t('settings.account.system.coldOver')}
+                lblLeft={t('settings.account.system.months')}
                 name='monthsLidimSheloHufku'
                 type='number'
                 min='1'
@@ -50,15 +52,15 @@ export default function AiSettingsForm({ data, userId }) {
             {/* Stuck lead */}
             <div className='grid gap-3'>
               <CheckboxBool
-                lbl='הפעל זיהוי לידים תקועים'
+                lbl={t('settings.account.system.stuck')}
                 name='isMahalotKashotUpdated'
                 defaultChecked={data.isMahalotKashotUpdated}
                 onChange={(e: any) => setStuckEnabled(e.target.checked)}
               />
-              <p className='text-sm text-gray-500 ms-1'>ליד שנשאר באותו מצב זמן רב יסומן לבדיקה</p>
+              <p className='text-sm text-gray-500 ms-1'>{t('settings.account.system.stuckHint')}</p>
               <InputSides
-                lblRight='ליד ללא שינוי מעל'
-                lblLeft='חודשים'
+                lblRight={t('settings.account.system.stuckOver')}
+                lblLeft={t('settings.account.system.months')}
                 name='monthsUpdated'
                 type='number'
                 min='1'
@@ -70,20 +72,20 @@ export default function AiSettingsForm({ data, userId }) {
           </div>
         </AccordionItem>
 
-        <AccordionItem title='ניהול שיוך' bodyClass='p-6'>
+        <AccordionItem title={t('settings.account.system.assignment')} bodyClass='p-6'>
           <div className='grid gap-3'>
             <CheckboxBool
-              lbl='הדגש לידים ללא נציג'
+              lbl={t('settings.account.system.unassigned')}
               name='isBituachHaimMutzarHaser'
               defaultChecked={data.isBituachHaimMutzarHaser}
             />
-            <p className='text-sm text-gray-500 ms-1'>לידים שלא שויכו לנציג יסומנו ברשימה</p>
+            <p className='text-sm text-gray-500 ms-1'>{t('settings.account.system.unassignedHint')}</p>
           </div>
         </AccordionItem>
       </div>
 
       <div className='max-w-3xl'>
-        <Btn lbl='שמור הגדרות' className='w-full' />
+        <Btn lbl={t('settings.account.system.save')} className='w-full' />
       </div>
     </form>
   )

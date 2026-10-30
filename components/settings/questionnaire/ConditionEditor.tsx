@@ -2,7 +2,8 @@
 
 import { useId } from 'react'
 import { Select } from '@/lib/form'
-import { describeCondition, questionName } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
+import { describeConditionIn, questionNameIn } from './issueText'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { keyOf, optionsOf, type Condition } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 
@@ -35,16 +36,18 @@ export default function ConditionEditor({
   sentencePrefix: string
 }) {
   const id = useId()
+  const t = useT()
   const conditional = condition !== null || !allowAlways
   const source = condition ? sources.find((q) => keyOf(q) === condition.questionId) : undefined
-  const sentence = describeCondition(model, condition)
+  const sentence = describeConditionIn(model, condition, t)
 
   if (!sources.length) {
     return (
       <fieldset className='grid gap-2'>
         <legend className='text-sm font-semibold text-gray-700'>{legend}</legend>
         <p className='text-sm text-gray-600'>
-          {allowAlways ? 'השאלה מופיעה תמיד. ' : ''}כדי לבחור לפי תשובה, צריכה להיות לפני כן שאלה עם אפשרויות לבחירה.
+          {allowAlways ? t('admin.questionnaire.condition.alwaysNote') : ''}
+          {t('admin.questionnaire.condition.noSources')}
         </p>
       </fieldset>
     )
@@ -71,7 +74,7 @@ export default function ConditionEditor({
               checked={!conditional}
               onChange={() => onChange(null)}
             />
-            תמיד
+            {t('admin.questionnaire.condition.always')}
           </label>
           <label className='flex items-center gap-2 text-sm'>
             <input
@@ -81,7 +84,7 @@ export default function ConditionEditor({
               checked={conditional}
               onChange={() => pickSource(keyOf(sources[sources.length - 1]))}
             />
-            רק לפי תשובה קודמת
+            {t('admin.questionnaire.condition.byAnswer')}
           </label>
         </div>
       )}
@@ -89,15 +92,15 @@ export default function ConditionEditor({
       {conditional && (
         <div className='grid gap-3 rounded-md border border-gray-200 bg-gray-50 p-3'>
           <Select
-            lbl='לפי התשובה לשאלה'
+            lbl={t('admin.questionnaire.condition.source')}
             value={condition?.questionId ?? ''}
             onChange={(e) => pickSource(e.target.value)}
-            placeholder={allowAlways ? undefined : 'בחרו שאלה'}
-            options={sources.map((q) => ({ id: keyOf(q), name: questionName(q) }))}
+            placeholder={allowAlways ? undefined : t('admin.questionnaire.condition.pick')}
+            options={sources.map((q) => ({ id: keyOf(q), name: questionNameIn(q, t) }))}
           />
           {source && (
-            <div role='group' aria-label='התשובות שבהן זה קורה' className='flex flex-wrap gap-x-5 gap-y-1.5'>
-              <p className='w-full text-sm text-gray-700'>כשהלקוח בחר:</p>
+            <div role='group' aria-label={t('admin.questionnaire.condition.answers')} className='flex flex-wrap gap-x-5 gap-y-1.5'>
+              <p className='w-full text-sm text-gray-700'>{t('admin.questionnaire.condition.chose')}</p>
               {optionsOf(source).map((o) => (
                 <label key={keyOf(o)} className='flex items-center gap-2 text-sm'>
                   <input
@@ -106,7 +109,7 @@ export default function ConditionEditor({
                     checked={condition?.anyOf.includes(keyOf(o)) ?? false}
                     onChange={(e) => toggle(keyOf(o), e.target.checked)}
                   />
-                  {o.label.trim() || 'אפשרות ללא שם'}
+                  {o.label.trim() || t('admin.questionnaire.condition.unnamedOption')}
                 </label>
               ))}
             </div>

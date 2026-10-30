@@ -19,7 +19,11 @@ import AdsCrmOnlySection from '@/modules/adsReporting/components/AdsCrmOnlySecti
 import type { AdsSelectionQuery } from '@/lib/facebook/ads/selection'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import MetaPermissionButton from '@/components/settings/MetaPermissionButton'
-import { ADS_NOTICES, FAILURE_NOTICE, noConnectionNotice, type AdsNoticeKind } from '@/modules/adsReporting/notices'
+import { FAILURE_NOTICE, adsNotice, noConnectionNotice, type AdsNoticeKind } from '@/modules/adsReporting/notices'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { noticeReasonsLabel } from '@/lib/inbox/whatsappComposerDecision'
 import AdsReportShell from '@/modules/adsReporting/components/AdsReportShell'
 import AdsReportControls from '@/modules/adsReporting/components/AdsReportControls'
 import AdsReportView from '@/modules/adsReporting/components/AdsReportView'
@@ -38,7 +42,11 @@ import DisconnectAdsButton from '@/modules/adsReporting/components/DisconnectAds
  * LOADING: first entry shows loading.tsx; later changes keep this report on screen
  * inside AdsReportShell ("מעדכן נתונים…"), which also guards against stale responses.
  */
-export const metadata: Metadata = { title: 'ביצועי מודעות' }
+/** Tab title in the interface language — Hebrew ('ביצועי מודעות') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('performance.ads.title') }
+}
 // Several sequential Meta reads per render (report + drill-down), like other external-call routes.
 export const maxDuration = 60
 
@@ -56,12 +64,27 @@ function todayIn(timeZone: string | null): string | null {
   }
 }
 
-function Notice({ kind, extra, inAppBrowser }: { kind: AdsNoticeKind; extra?: React.ReactNode; inAppBrowser?: InAppBrowser }) {
-  const notice = ADS_NOTICES[kind]
+/** Hebrew passes nothing extra, so the notice renders exactly as before. */
+const reasonsProp = (locale: UiLocale) => (locale === 'he' ? {} : { reasonsLabel: noticeReasonsLabel(locale) })
+
+function Notice({
+  kind,
+  extra,
+  inAppBrowser,
+  locale = 'he',
+}: {
+  kind: AdsNoticeKind
+  extra?: React.ReactNode
+  inAppBrowser?: InAppBrowser
+  locale?: UiLocale
+}) {
+  const notice = adsNotice(kind, locale)
   return (
     <div className='grid max-w-2xl gap-2'>
-      <ConnectionNotice notice={notice} />
-      {notice.cta === 'connect' && <MetaPermissionButton href='/api/auth/facebook/ads' lbl={notice.action!} inAppBrowser={inAppBrowser} />}
+      <ConnectionNotice notice={notice} {...reasonsProp(locale)} />
+      {notice.cta === 'connect' && (
+        <MetaPermissionButton href='/api/auth/facebook/ads' lbl={notice.action!} inAppBrowser={inAppBrowser} {...(locale === 'he' ? {} : { locale })} />
+      )}
       {notice.cta === 'retry' && <AdsRetryButton lbl={notice.action} />}
       {extra}
     </div>
@@ -72,16 +95,19 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
   const user = await getUser()
   if (!user?.agencyId) redirect('/auth')
   if (!isFacebookAdsReportingEnabledForAgency(user.agencyId)) redirect('/sum_sales')
+  // Resolved once by the same request-memoised call the (app) layout makes (whose region this page inherits).
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
 
   const page = (body: React.ReactNode) => (
     <div className='grid grid-cols-[minmax(0,1fr)] gap-4 py-6'>
-      <h1 className='title'>ביצועי מודעות</h1>
+      <h1 className='title'>{t('performance.ads.title')}</h1>
       {body}
     </div>
   )
 
   if (!isAdmin(user.role as Roles)) {
-    return page(<p className='text-sm text-gray-600'>ביצועי המודעות זמינים למנהלי החשבון בלבד.</p>)
+    return page(<p className='text-sm text-gray-600'>{t('performance.ads.adminOnly')}</p>)
   }
 
   const raw = await searchParams
@@ -109,7 +135,7 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
     return page(
       <>
         {notice}
-        <AdsCrmOnlySection groups={groups} period={period} />
+        <AdsCrmOnlySection groups={groups} period={period} locale={locale} />
       </>,
     )
   }
@@ -118,13 +144,13 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
   try {
     connection = await getAdConnection(agencyId, user.id)
   } catch {
-    return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
+    return withCrmOnly(<Notice locale={locale} inAppBrowser={inAppBrowser} kind='expired' />)
   }
 
-  if (!connection) return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind={noConnectionNotice(sp.ads_error)} />)
-  if (!connection.grantedScopes.includes('ads_read')) return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='declined' />)
+  if (!connection) return withCrmOnly(<Notice locale={locale} inAppBrowser={inAppBrowser} kind={noConnectionNotice(sp.ads_error)} />)
+  if (!connection.grantedScopes.includes('ads_read')) return withCrmOnly(<Notice locale={locale} inAppBrowser={inAppBrowser} kind='declined' />)
   if (connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() <= Date.now()) {
-    return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='expired' />)
+    return withCrmOnly(<Notice locale={locale} inAppBrowser={inAppBrowser} kind='expired' />)
   }
 
   const disconnect = <DisconnectAdsButton />
@@ -139,13 +165,13 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
       transient && connection.selectedAccountId
         ? await readSnapshot<AdAccount>({ agencyId, accountId: connection.selectedAccountId, kind: 'account' }, 'meta').catch(() => null)
         : null
-    if (!remembered) return page(<Notice inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[listed.reason]} extra={disconnect} />)
+    if (!remembered) return page(<Notice locale={locale} inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[listed.reason]} extra={disconnect} />)
     accounts = [remembered.payload]
     accountsFromCache = true
   } else {
     accounts = listed.value
   }
-  if (accounts.length === 0) return withCrmOnly(<Notice inAppBrowser={inAppBrowser} kind='no_accounts' extra={disconnect} />)
+  if (accounts.length === 0) return withCrmOnly(<Notice locale={locale} inAppBrowser={inAppBrowser} kind='no_accounts' extra={disconnect} />)
 
   // Only an account Meta listed for THIS token can be read: the URL's choice, else
   // the remembered one, else the first. Ids from anywhere else are never used.
@@ -184,21 +210,23 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
           timezone: account.timezone,
           currency: account.currency,
           freshness: 'value' in reportRead ? { fetchedAt: reportRead.value.fetchedAt, stale: reportRead.value.stale } : null,
+          ...(locale === 'he' ? {} : { locale }),
         })
       : null
 
   const body =
     'reason' in report ? (
-      <Notice inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[report.reason]} />
+      <Notice locale={locale} inAppBrowser={inAppBrowser} kind={FAILURE_NOTICE[report.reason]} />
     ) : report.value.totals === null ? (
       // Meta returned no rows for the account in this range: no delivery IN THIS RANGE.
-      <Notice inAppBrowser={inAppBrowser} kind='no_activity' />
+      <Notice locale={locale} inAppBrowser={inAppBrowser} kind='no_activity' />
     ) : (
       <AdsReportView
         report={{ ...report.value, totals: report.value.totals }}
         breakdown={breakdown}
         account={{ name: account.name, currency: account.currency, timezone: account.timezone }}
         intel={intel}
+        locale={locale}
       />
     )
 
@@ -207,7 +235,7 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
   return page(
     <AdsReportShell
       rendered={rendered}
-      renderedLabel={`${account.name} · ${adsRangeLabel(range)}`}
+      renderedLabel={`${account.name} · ${adsRangeLabel(range, locale)}`}
       controls={
         <div className='flex flex-wrap items-end justify-between gap-3'>
           <AdsReportControls accounts={accounts.map(({ id, name }) => ({ id, name }))} accountId={account.id} today={today} />
@@ -215,7 +243,7 @@ export default async function AdsReportingPage({ searchParams }: { searchParams:
         </div>
       }
     >
-      {invalid && <ConnectionNotice notice={ADS_NOTICES.invalid_range} />}
+      {invalid && <ConnectionNotice notice={adsNotice('invalid_range', locale)} />}
       {body}
     </AdsReportShell>,
   )

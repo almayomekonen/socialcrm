@@ -6,6 +6,8 @@ import ModalPop from '@/lib/modals/ModalPop'
 import IssuerIdentityForm from './IssuerIdentityForm'
 import { fieldsByTier, type IssuerData } from '@/lib/billing/issuer/fields'
 import { updateIssuerIdentityAction } from '@/actions/billing/issuer'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { localizeIssuerFields } from './localizedFields'
 
 export default function IssuerIdentityModal({
   open,
@@ -18,6 +20,7 @@ export default function IssuerIdentityModal({
   onSavedAndContinue: () => void
   onCancel: () => void
 }) {
+  const t = useT()
   const [busy, setBusy] = useState(false)
 
   async function handleSubmit(values: Record<string, unknown>) {
@@ -27,7 +30,7 @@ export default function IssuerIdentityModal({
       updateIssuerIdentityAction,
       [values],
       undefined,
-      'שמירת פרטי העסק נכשלה',
+      t('billing.issuer.saveFailed'),
       { silentSuccess: true },
     )
     setBusy(false)
@@ -41,25 +44,27 @@ export default function IssuerIdentityModal({
       open={open}
       pos='middle'
       onClose={busy ? () => {} : onCancel}
-      label='פרטי העסק'
+      label={t('billing.issuer.dialogLabel')}
       className='w-[520px] max-w-[92vw]'
+      translated
     >
       <div className='pt-2 grid gap-5'>
         <header className='grid gap-1.5'>
-          <h2 className='text-xl font-bold text-dark'>לפני שמנפיקים את החשבונית הראשונה</h2>
+          <h2 className='text-xl font-bold text-dark'>{t('billing.issuer.heading')}</h2>
           <p className='text-sm text-gray-600 leading-relaxed'>
-            צריך להשלים כמה פרטים חד-פעמיים על העסק. זה לוקח רק כמה שניות, ויופיע על כל החשבוניות שתנפיקו.
+            {t('billing.issuer.intro')}
           </p>
         </header>
 
         <IssuerIdentityForm
-          fields={fieldsByTier([1])}
+          fields={localizeIssuerFields(fieldsByTier([1]), t.locale)}
           initialValues={initialValues}
           onSubmit={handleSubmit}
-          submitLabel='שמור והמשך'
+          submitLabel={t('billing.issuer.submit')}
           busy={busy}
-          cancelLabel='ביטול'
+          cancelLabel={t('common.dialog.cancel')}
           onCancel={onCancel}
+          translated
         />
       </div>
     </ModalPop>

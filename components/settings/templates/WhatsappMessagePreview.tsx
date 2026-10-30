@@ -1,4 +1,5 @@
 import type { TemplateVariable } from '@/lib/whatsapp/templates/types'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Live WhatsApp bubble preview — shows the owner exactly what a lead will see, so
@@ -17,17 +18,21 @@ function withSamples(bodyText: string, variables: TemplateVariable[]): string {
 export default function WhatsappMessagePreview({
   bodyText,
   variables,
+  translated = false,
 }: {
   bodyText: string
   variables: TemplateVariable[]
+  /** The empty placeholder follows the interface language (the settings create dialog). Default Hebrew. */
+  translated?: boolean
 }) {
+  const t = useT()
   const preview = withSamples(bodyText, variables).trim()
   return (
     <div className={`rounded-lg p-3 ${WALLPAPER}`} aria-hidden='true'>
       <div className='flex justify-end'>
         <div className='max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5'>
           <p className='min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800'>
-            {preview || 'תצוגה מקדימה של ההודעה'}
+            {preview || (translated ? t('settings.templates.form.previewEmpty') : 'תצוגה מקדימה של ההודעה')}
           </p>
         </div>
       </div>

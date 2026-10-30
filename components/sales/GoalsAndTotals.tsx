@@ -1,8 +1,11 @@
 'use client'
 import { isAgentOrMngr } from '@/types/roles'
 import { formatCurrency } from '@/lib/funcs'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dealBranchLabel } from '@/lib/deals/labels'
 
 export default function GoalsAndTotals({ user, data }) {
+  const t = useT()
   if (!user || !isAgentOrMngr(user.role)) return null
   if (!data) return null
 
@@ -32,14 +35,14 @@ export default function GoalsAndTotals({ user, data }) {
       <div className='text-md w-auto font-semibold'>
         {/* Header row */}
         <div className='mb-2.5 pb-1 border-b flex'>
-          <div className='w-24 font-bold text-sm'>קטגוריות</div>
+          <div className='w-24 font-bold text-sm'>{t('performance.overview.goals.categories')}</div>
           <div className='flex flex-row gap-4'>
-            <div className='w-28 text-left font-bold text-sm'>עסקאות החודש</div>
+            <div className='w-28 text-left font-bold text-sm'>{t('performance.overview.goals.monthDeals')}</div>
             {thereAreGoals && (
               <>
-                <div className='w-24 text-left font-bold text-sm'>יעד חודשי</div>
-                <div className='w-20 text-left font-bold text-sm'>הגעה ליעד</div>
-                <div className='w-20 text-left font-bold text-sm'>קצב שנתי</div>
+                <div className='w-24 text-left font-bold text-sm'>{t('performance.overview.goals.monthlyGoal')}</div>
+                <div className='w-20 text-left font-bold text-sm'>{t('performance.overview.goals.progress')}</div>
+                <div className='w-20 text-left font-bold text-sm'>{t('performance.overview.goals.annualPace')}</div>
               </>
             )}
           </div>
@@ -62,7 +65,7 @@ export default function GoalsAndTotals({ user, data }) {
 
           return (
             <div key={key} className='mb-2 flex flex-nowrap'>
-              <div className='w-24 font-bold'>{key}</div>
+              <div className='w-24 font-bold'>{dealBranchLabel(key, t.locale)}</div>
               <div className='flex flex-row flex-nowrap gap-4'>
                 <div className='w-28 text-left text-sm'>{formatCurrency(monthlyTotal)}</div>
                 {hasValidGoal && (

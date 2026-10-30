@@ -1,0 +1,25 @@
+/** /promotion (campaigns list) and /promotion/[id] (campaign detail). Hebrew verbatim. */
+export const promotion = {
+  title: 'קמפיינים',
+  detailTitle: 'פרטי קמפיין',
+  heading: 'הקמפיינים',
+  empty: {
+    title: 'אין עדיין קמפיינים',
+    line1: 'קמפיינים הם תחרויות מכירה פנימיות בין הנציגים.',
+    line2: 'המנהל יוצר קמפיין עם יעדים ופרסים ואתה רואה כאן את ההתקדמות שלך.',
+  },
+  past: 'קמפיינים שחלפו',
+  notFound: 'קמפיין לא נמצא',
+  loadError: 'שגיאה בטעינת הקמפיין',
+  noData: 'אין עדיין נתונים למבצע',
+  notIncluded: 'אינך כלול בקמפיין הנוכחי',
+  period: 'תקופת המבצע: {start} - {end}',
+  managerCampaign: 'קמפיין למנהל',
+  rules: 'תקנון:',
+  totalCommission: 'עמלה כוללת',
+  deals: 'עסקאות',
+  filterReps: 'סינון נציגים...',
+  resetFilter: 'איפוס סינון',
+  filterRepsButton: 'סינון נציגים',
+  column: { rep: 'נציג', team: 'צוות' },
+} as const

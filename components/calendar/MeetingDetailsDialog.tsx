@@ -5,7 +5,8 @@ import Link from 'next/link'
 import ModalPop from '@/lib/modals/ModalPop'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { Btn } from '@/lib/btns/Btn'
-import { formatDateTime } from '@/lib/dates'
+import { formatLeadDateTime } from '@/lib/leads/leadDate'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { MeetingSummaryDTO } from '@/actions/calendar'
 import SyncStatusBadge from './SyncStatusBadge'
 import MeetingOutcomeBadge from './MeetingOutcomeBadge'
@@ -34,6 +35,8 @@ export default function MeetingDetailsDialog({
   retrying,
   cancelling,
 }: Props) {
+  const t = useT()
+  const locale = t.locale
   const [confirmCancel, setConfirmCancel] = useState(false)
   /**
    * Entitlement from the shared context. Outcome, cancel, edit and sync-retry
@@ -57,14 +60,14 @@ export default function MeetingDetailsDialog({
 
   const promptEdit = () =>
     proToast({
-      title: 'עריכת פגישות זמינה עם Pro',
-      body: 'חידוש המנוי יחזיר את האפשרות לערוך פגישות.',
+      title: t('calendar.pro.move.title'),
+      body: t('calendar.pro.move.body'),
       source: 'calendar_edit',
     })
   const promptOutcome = () =>
     proToast({
-      title: 'עדכון תוצאת פגישה זמין עם Pro',
-      body: 'חידוש המנוי יחזיר את האפשרות לעדכן תוצאות.',
+      title: t('calendar.pro.outcome.title'),
+      body: t('calendar.pro.outcome.body'),
       source: 'calendar_outcome',
     })
   const busy = retrying || cancelling || outcome.busy !== null
@@ -77,6 +80,7 @@ export default function MeetingDetailsDialog({
         pos='middle'
         labelledBy='meeting-details-title'
         className='w-[460px] max-w-[95vw]'
+        translated
       >
         <div className='grid gap-4 pt-2'>
           <div className='flex items-start gap-2 flex-wrap'>
@@ -92,18 +96,18 @@ export default function MeetingDetailsDialog({
           </div>
 
           <div className='grid gap-1 text-sm'>
-            <div className='text-gray-500 text-xs uppercase tracking-wide'>זמן</div>
+            <div className='text-gray-500 text-xs uppercase tracking-wide'>{t('calendar.details.time')}</div>
             <div>
-              {formatDateTime(meeting.startAt)} – {formatDateTime(meeting.endAt)}
+              {formatLeadDateTime(locale, meeting.startAt)} – {formatLeadDateTime(locale, meeting.endAt)}
             </div>
           </div>
 
           {meeting.leadId && (
             <div className='grid gap-1 text-sm'>
-              <div className='text-gray-500 text-xs uppercase tracking-wide'>ליד</div>
+              <div className='text-gray-500 text-xs uppercase tracking-wide'>{t('calendar.details.lead')}</div>
               <div className='flex items-center justify-between gap-2'>
                 <Link href={`/clients/${meeting.leadId}/summary`} className='text-blue-700 hover:underline w-fit'>
-                  צפה בליד ←
+                  {t('calendar.details.viewLead')}
                 </Link>
                 <FollowUpControl leadId={meeting.leadId} />
               </div>
@@ -112,7 +116,7 @@ export default function MeetingDetailsDialog({
 
           {meeting.syncError && meeting.syncStatus !== 'synced' && (
             <div className='rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 wrap-break-word'>
-              <span className='font-medium'>פרטי כשל: </span>
+              <span className='font-medium'>{t('calendar.details.syncError')}</span>
               {meeting.syncError}
             </div>
           )}
@@ -124,20 +128,20 @@ export default function MeetingDetailsDialog({
               rel='noreferrer'
               className='inline-flex items-center justify-center h-10 px-4 rounded-md bg-solid text-white font-semibold hover:bg-solid/85'
             >
-              פתח Google Meet
+              {t('calendar.details.openMeet')}
             </a>
           )}
 
           {isScheduled && !outcome.pendingNudge && (
             <div className='flex gap-2 flex-wrap pt-1'>
               <Btn
-                lbl={outcome.busy === 'completed' ? 'מסמן…' : 'סמן כהושלמה'}
+                lbl={outcome.busy === 'completed' ? t('calendar.details.marking') : t('calendar.details.markCompleted')}
                 variant='solid'
                 onClick={() => (expired ? promptOutcome() : outcome.markCompleted(meeting.id))}
                 disabled={busy}
               />
               <Btn
-                lbl={outcome.busy === 'no_show' ? 'מסמן…' : 'סמן כלא הגיע'}
+                lbl={outcome.busy === 'no_show' ? t('calendar.details.marking') : t('calendar.details.markNoShow')}
                 variant='outline'
                 onClick={() => (expired ? promptOutcome() : outcome.markNoShow(meeting.id))}
                 disabled={busy}
@@ -161,7 +165,7 @@ export default function MeetingDetailsDialog({
                 "rep closed without seeing it"). Behaviorally identical today
                 — dismissNudge calls onSettled which is onClose. */}
             <Btn
-              lbl='סגור'
+              lbl={t('calendar.details.close')}
               variant='outline'
               onClick={outcome.pendingNudge ? outcome.dismissNudge : onClose}
               disabled={busy}
@@ -169,7 +173,7 @@ export default function MeetingDetailsDialog({
             <div className='flex gap-2 flex-wrap'>
               {canRetry && (
                 <Btn
-                  lbl={retrying ? 'מסנכרן…' : 'נסה לסנכרן שוב'}
+                  lbl={retrying ? t('calendar.details.retrying') : t('calendar.details.retry')}
                   variant='outline'
                   onClick={onRetry}
                   disabled={busy}
@@ -182,9 +186,9 @@ export default function MeetingDetailsDialog({
                   also offer a hidden third "exit" from the nudge decision. */}
               {isScheduled && !outcome.pendingNudge && (
                 <>
-                  <Btn lbl='ערוך פגישה' variant='outline' onClick={expired ? promptEdit : onEdit} disabled={busy} />
+                  <Btn lbl={t('calendar.details.edit')} variant='outline' onClick={expired ? promptEdit : onEdit} disabled={busy} />
                   <Btn
-                    lbl={cancelling ? 'מבטל…' : 'ביטול הפגישה'}
+                    lbl={cancelling ? t('calendar.details.cancelling') : t('calendar.details.cancel')}
                     variant='destructive'
                     onClick={() => setConfirmCancel(true)}
                     disabled={busy}
@@ -203,9 +207,10 @@ export default function MeetingDetailsDialog({
           await onCancel()
           setConfirmCancel(false)
         }}
-        msg={`לבטל את הפגישה "${meeting.title}"?\nהמשתתפים יקבלו הודעת ביטול.`}
-        confirmLbl='ביטול הפגישה'
+        msg={t('calendar.details.cancelConfirm', { title: meeting.title })}
+        confirmLbl={t('calendar.details.cancel')}
         destructive
+        translated
       />
     </>
   )

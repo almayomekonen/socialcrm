@@ -269,7 +269,8 @@ describe('mobile and architecture stay unchanged', () => {
 
   it('keeps Help → סיור בלידים on /leads as startTour pipeline', () => {
     const help = readFileSync('components/education/HelpMenu.tsx', 'utf8')
-    const handler = help.split("lbl='סיור בלידים'")[1]?.split("lbl='מדריכים'")[0] ?? ''
+    // The button labels come from the catalog (Phase E6); in Hebrew they are the same words.
+    const handler = help.split("lbl={t('education.help.pipeline')}")[1]?.split("lbl={t('education.help.guides')}")[0] ?? ''
     expect(handler).toContain("startTour('pipeline'")
     expect(handler).toContain("pathname.startsWith('/leads')")
   })

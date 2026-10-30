@@ -4,6 +4,8 @@ import TaskTmpltStepper from '@/components/taskTmplts/TaskTmpltStepper'
 import TaskNotes from '@/components/tasks/TaskNotes'
 import TaskFiles from '@/components/tasks/TaskFiles'
 import { getTaskTmpltById } from '@/db/tasks'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
 
 export default async function TmpltTaskPage({ params }) {
   const { tmpltTaskId } = await params
@@ -14,9 +16,10 @@ export default async function TmpltTaskPage({ params }) {
   if (!taskTmplt) return null
   if (!Array.isArray(taskTmplt.tasks)) taskTmplt.tasks = []
   if (!Array.isArray(taskTmplt.notes)) taskTmplt.notes = []
+  const { locale } = await getUiLocaleState(user)
 
   return (
-    <div className='paper my-4'>
+    <div className='paper my-4' {...regionAttrs(locale)}>
       <div className='grid xl:grid-cols-3 gap-12'>
         <div className='xl:col-span-2' key={Math.random()}>
           <TaskTmpltHeader taskTmplt={taskTmplt} />
@@ -24,7 +27,7 @@ export default async function TmpltTaskPage({ params }) {
           <TaskFiles task={taskTmplt} />
         </div>
         <div className='xl:col-span-1'>
-          <TaskNotes task={taskTmplt} userName={user?.name ?? ''} type='template' />
+          <TaskNotes task={taskTmplt} userName={user?.name ?? ''} type='template' translated />
         </div>
       </div>
     </div>

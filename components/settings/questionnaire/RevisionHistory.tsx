@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import { listQuestionnaireRevisions } from '@/actions/questionnaire/builderPublish'
-import { formatDateTime } from './builderCopy'
+import { formatDateTimeIn } from './copyIn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Revision = {
   revision: number
@@ -34,6 +35,7 @@ export default function RevisionHistory({
   /** Whether the newest version is what WhatsApp customers actually receive. */
   answering: boolean
 }) {
+  const t = useT()
   const [revisions, setRevisions] = useState<Revision[] | null>(null)
   const [error, setError] = useState(false)
 
@@ -56,23 +58,20 @@ export default function RevisionHistory({
   const live = revisions?.[0]?.revision ?? null
 
   return (
-    <ModalPop open={open} onClose={onClose} pos='middle' label='היסטוריית הגרסאות'>
+    <ModalPop open={open} onClose={onClose} pos='middle' label={t('admin.questionnaire.history.title')} translated>
       <div className='grid min-w-[min(32rem,85vw)] gap-4 pt-2'>
         <div>
-          <h2 className='text-lg font-semibold text-ink'>היסטוריית הגרסאות</h2>
-          <p className='mt-1 text-sm text-gray-600'>
-            כל פרסום שומר גרסה חדשה, וגרסאות קודמות נשארות כאן. &quot;יצירת טיוטה מגרסה זו&quot; מעתיקה גרסה לעריכה. היא תגיע
-            ללקוחות רק אחרי שתפרסמו אותה, כגרסה חדשה.
-          </p>
+          <h2 className='text-lg font-semibold text-ink'>{t('admin.questionnaire.history.title')}</h2>
+          <p className='mt-1 text-sm text-gray-600'>{t('admin.questionnaire.history.intro')}</p>
         </div>
 
         {error && (
           <p role='alert' className='text-sm text-red-600'>
-            לא הצלחנו לטעון את הגרסאות. נסו שוב.
+            {t('admin.questionnaire.history.error')}
           </p>
         )}
-        {!error && revisions === null && <p className='text-sm text-gray-500'>טוען…</p>}
-        {revisions?.length === 0 && <p className='text-sm text-gray-600'>עוד לא פורסמה גרסה.</p>}
+        {!error && revisions === null && <p className='text-sm text-gray-500'>{t('admin.questionnaire.history.loading')}</p>}
+        {revisions?.length === 0 && <p className='text-sm text-gray-600'>{t('admin.questionnaire.history.none')}</p>}
 
         {revisions && revisions.length > 0 && (
           <ul className='grid max-h-[60vh] gap-2 overflow-y-auto'>
@@ -83,24 +82,24 @@ export default function RevisionHistory({
               >
                 <div className='grid gap-0.5'>
                   <p className='text-sm font-semibold text-ink'>
-                    גרסה {r.revision}
+                    {t('admin.questionnaire.history.revision', { revision: String(r.revision) })}
                     {r.revision === live && (
                       <span className='ms-2 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-800'>
-                        {answering ? 'פעילה בוואטסאפ' : 'הגרסה האחרונה שפורסמה'}
+                        {answering ? t('admin.questionnaire.history.activeWa') : t('admin.questionnaire.history.latest')}
                       </span>
                     )}
                   </p>
                   <p className='text-xs text-gray-600'>
                     {/* A backfilled row's date is when history began, not when that version went live. */}
                     {r.source === 'backfill'
-                      ? 'הגרסה שהייתה פעילה כשהתחלנו לשמור היסטוריה · הוגדרה על ידי צוות SocialCRM'
-                      : `פורסמה ב־${formatDateTime(r.publishedAt)}${r.publishedByName ? ` · ${r.publishedByName}` : r.source === 'staff' ? ' · על ידי צוות SocialCRM' : ''}`}
+                      ? t('admin.questionnaire.history.backfill')
+                      : `${t('admin.questionnaire.history.publishedAt', { date: formatDateTimeIn(r.publishedAt, t) })}${r.publishedByName ? ` · ${r.publishedByName}` : r.source === 'staff' ? t('admin.questionnaire.history.byStaff') : ''}`}
                   </p>
                   {r.activeSessions > 0 && (
                     <p className='text-xs text-gray-600'>
                       {r.activeSessions === 1
-                        ? 'שיחה פעילה אחת ממשיכה בגרסה הזו'
-                        : `${r.activeSessions} שיחות פעילות ממשיכות בגרסה הזו`}
+                        ? t('admin.questionnaire.history.sessionsOne')
+                        : t('admin.questionnaire.history.sessionsMany', { count: String(r.activeSessions) })}
                     </p>
                   )}
                 </div>
@@ -108,7 +107,7 @@ export default function RevisionHistory({
                   type='button'
                   size='small'
                   variant='outline'
-                  lbl='יצירת טיוטה מגרסה זו'
+                  lbl={t('admin.questionnaire.history.restore')}
                   onClick={() => onRestore(r.revision)}
                 />
               </li>

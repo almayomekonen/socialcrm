@@ -3,6 +3,7 @@
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
 import type { SetupGuide } from '@/lib/automations/connectors/types'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Renders whatever a connector says the customer must do — steps, an optional
@@ -12,10 +13,12 @@ import type { SetupGuide } from '@/lib/automations/connectors/types'
  * connector knows, the UI renders. The alternative was a WordPress-shaped
  * branch inside a page that is meant to serve five hundred integrations.
  */
+/** `guide` arrives worded for the screen (`setupGuideIn`); the snippet's code is shown and copied as the connector wrote it. */
 export default function SetupGuidePanel({ guide, webhookUrl }: { guide: SetupGuide | null; webhookUrl: string }) {
+  const t = useT()
   return (
     <div className='grid gap-4 min-w-0'>
-      <CopyRow label='כתובת לשליחה' value={webhookUrl} />
+      <CopyRow label={t('admin.connections.connect.webhookUrl')} value={webhookUrl} copyLabel={t('admin.connections.connect.copy')} copiedLabel={t('admin.connections.connect.copied')} />
 
       {guide && (
         <>
@@ -35,11 +38,11 @@ export default function SetupGuidePanel({ guide, webhookUrl }: { guide: SetupGui
                 <Btn
                   variant='outline'
                   size='small'
-                  lbl='העתקת הקוד'
+                  lbl={t('admin.connections.connect.copyCode')}
                   icon='copy'
                   onClick={() => {
                     navigator.clipboard?.writeText(guide.snippet!.code)
-                    toast('success', 'הועתק')
+                    toast('success', t('admin.connections.connect.copied'))
                   }}
                 />
               </div>
@@ -61,7 +64,8 @@ export default function SetupGuidePanel({ guide, webhookUrl }: { guide: SetupGui
   )
 }
 
-export function CopyRow({ label, value }: { label: string; value: string }) {
+/** `copyLabel` / `copiedLabel`: the caller's words when its screen is translated (AI connections). Default Hebrew. */
+export function CopyRow({ label, value, copyLabel = 'העתקה', copiedLabel = 'הועתק' }: { label: string; value: string; copyLabel?: string; copiedLabel?: string }) {
   return (
     <div className='grid gap-1.5 min-w-0'>
       <span className='text-sm text-gray-500'>{label}</span>
@@ -78,11 +82,11 @@ export function CopyRow({ label, value }: { label: string; value: string }) {
         <Btn
           variant='outline'
           size='small'
-          lbl='העתקה'
+          lbl={copyLabel}
           icon='copy'
           onClick={() => {
             navigator.clipboard?.writeText(value)
-            toast('success', 'הועתק')
+            toast('success', copiedLabel)
           }}
         />
       </div>

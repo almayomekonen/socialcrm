@@ -7,8 +7,15 @@ import Link from 'next/link'
 import AccordionItem from '@/lib/AccordionItem'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'קמפיינים' }
+/** Tab title in the interface language — Hebrew ('קמפיינים') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('performance.promotion.title') }
+}
 
 export default async function PromotionPage() {
   const user = await getUser()
@@ -20,6 +27,10 @@ export default async function PromotionPage() {
    */
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='promotion' />
 
+  // Resolved once by the same request-memoised call the (app) layout makes.
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
+  const region = regionAttrs(locale)
   const { gotPermIds } = await getPerms(user)
   let promos = isAdmin(user.role) ? await getPromos() : await getPromosByUserId(user.id, gotPermIds)
 
@@ -30,27 +41,27 @@ export default async function PromotionPage() {
 
   if (!promos.length)
     return (
-      <div className='my-8'>
-        <h1 className='title mb-6'>הקמפיינים</h1>
+      <div className='my-8' {...region}>
+        <h1 className='title mb-6'>{t('performance.promotion.heading')}</h1>
         <div className='text-center py-16 border rounded-lg bg-white max-w-md mx-auto'>
           <p className='text-4xl mb-4'>🏆</p>
-          <p className='text-xl font-semibold mb-2'>אין עדיין קמפיינים</p>
+          <p className='text-xl font-semibold mb-2'>{t('performance.promotion.empty.title')}</p>
           <p className='text-gray-500 text-sm leading-relaxed'>
-            קמפיינים הם תחרויות מכירה פנימיות בין הנציגים.
+            {t('performance.promotion.empty.line1')}
             <br />
-            המנהל יוצר קמפיין עם יעדים ופרסים ואתה רואה כאן את ההתקדמות שלך.
+            {t('performance.promotion.empty.line2')}
           </p>
         </div>
       </div>
     )
 
   return (
-    <div className=''>
-      <h1 className='title mb-4'>הקמפיינים</h1>
+    <div className='' {...region}>
+      <h1 className='title mb-4'>{t('performance.promotion.heading')}</h1>
 
       <PromoBox promos={promos} />
       <div className='accordion border rounded-lg my-6  bg-white'>
-        <AccordionItem title='קמפיינים שחלפו'>
+        <AccordionItem title={t('performance.promotion.past')}>
           <PromoBox promos={pastPromos} />
         </AccordionItem>
       </div>

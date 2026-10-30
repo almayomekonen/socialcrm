@@ -6,9 +6,9 @@ import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * Billing state labels by CODE. Hebrew (the default) is the catalog's
- * `leadTabs.billing.*`, the exact words these chips always showed — the invoice
- * editor (Phase E) passes no locale and keeps them. The lead billing LIST passes
- * the interface language. An unknown code is shown as stored.
+ * `leadTabs.billing.*`, the exact words these chips always showed. The lead
+ * billing list and the invoice screens (Phase E3) pass the interface language.
+ * An unknown code is shown as stored.
  */
 const DOC_STATE_KEY: Record<DocState, MessageKey> = {
   draft: 'leadTabs.billing.docState.draft',

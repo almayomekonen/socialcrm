@@ -10,6 +10,14 @@ import { leadDetail } from './leadDetail'
 import { entitlement } from './entitlement'
 import { leadTabs } from './leadTabs'
 import { inbox } from './inbox'
+import { tasks } from './tasks'
+import { calendar } from './calendar'
+import { deals } from './deals'
+import { performance } from './performance'
+import { billing } from './billing'
+import { settings } from './settings'
+import { admin } from './admin'
+import { education } from './education'
 
 /** Arabic (Modern Standard, Latin digits) — pilot draft; native review is recorded in lib/i18n/review.ts. */
-export const ar: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox }
+export const ar: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education }

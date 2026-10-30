@@ -5,6 +5,9 @@ import { Btn } from '@/lib/btns/Btn'
 import type { FieldDescriptor, IssuerData } from '@/lib/billing/issuer/fields'
 import { validateIssuerValues } from '@/lib/billing/issuer/validation'
 import { FieldRenderer } from './IssuerFieldRenderers'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+import { localizeIssuerError } from './localizedFields'
 
 /**
  * IssuerIdentityForm — registry-driven business-identity form.
@@ -33,6 +36,8 @@ import { FieldRenderer } from './IssuerFieldRenderers'
 
 type FieldValues = Record<string, unknown>
 
+const HEBREW = translatorFor('he')
+
 export default function IssuerIdentityForm({
   fields,
   initialValues,
@@ -41,6 +46,7 @@ export default function IssuerIdentityForm({
   busy = false,
   cancelLabel,
   onCancel,
+  translated = false,
 }: {
   /** Fields to render. Caller pre-filters by tier. Order = render order. */
   fields: ReadonlyArray<FieldDescriptor>
@@ -55,7 +61,17 @@ export default function IssuerIdentityForm({
   /** When set, renders a secondary outline button. */
   cancelLabel?: string
   onCancel?: () => void
+  /**
+   * The caller passes fields and labels already in the interface language
+   * (the issue flow's dialog); the form's own hint, default cancel and the
+   * validators' messages then follow it too (the issue flow's dialog, and
+   * settings' `EditAgency` since Phase E4). Default: Hebrew.
+   */
+  translated?: boolean
 }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
+  const locale = t.locale
   const [values, setValues] = useState<FieldValues>(() => initializeValues(fields, initialValues))
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -123,20 +139,21 @@ export default function IssuerIdentityForm({
           key={field.key}
           field={field}
           value={values[field.key]}
-          error={errors[field.key]}
+          error={localizeIssuerError(errors[field.key], locale)}
           onChange={(v) => setFieldValue(field.key, v)}
           onBlur={() => handleFieldBlur(field.key)}
           disabled={busy}
+          translated={translated}
         />
       ))}
 
-      <p className='text-xs text-gray-500 ms-1'>פרטים אלו יופיעו על המסמכים שתנפיקו</p>
+      <p className='text-xs text-gray-500 ms-1'>{t('billing.issuer.formHint')}</p>
 
       <div className='flex justify-end gap-2 mt-2'>
         {onCancel && (
           <Btn
             variant='outline'
-            lbl={cancelLabel ?? 'ביטול'}
+            lbl={cancelLabel ?? t('common.dialog.cancel')}
             onClick={onCancel}
             disabled={busy}
             type='button'

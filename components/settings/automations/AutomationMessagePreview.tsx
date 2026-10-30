@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { previewAutomationMessage } from '@/actions/automations/previewMessage'
-import { errorMessage as msg } from './sheetOptions'
+import { errorMessageIn } from './sheetOptions'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The Builder preview for a MESSAGE action — the real resolver, not an
@@ -33,6 +35,8 @@ export default function AutomationMessagePreview({
   templateId: string
   bindings: Record<string, string>
 }) {
+  const t = useT()
+  const msg = (reason: string) => errorMessageIn(reason, t.locale)
   const [state, setState] = useState<State>({ kind: 'idle' })
   // Serialised so the effect re-runs when a mapping changes, not on every render
   // of an equal object.
@@ -61,7 +65,7 @@ export default function AutomationMessagePreview({
   }, [templateId, bindingsKey])
 
   if (state.kind === 'idle') {
-    return <p className='text-sm text-gray-600'>אחרי שתבחר הודעה מוכנה, כאן יופיע מה שהליד יקבל.</p>
+    return <p className='text-sm text-gray-600'>{t('admin.automationSheet.preview.messageIdle')}</p>
   }
 
   if (state.kind === 'error') {
@@ -84,11 +88,13 @@ export default function AutomationMessagePreview({
   return (
     <div className='grid gap-2'>
       <div className='max-w-[85%] rounded-lg rounded-ss-none bg-white border border-gray-200 px-3 py-2'>
-        <p className='text-sm text-gray-800 whitespace-pre-line'>{state.text || 'ללא תוכן'}</p>
+        <p className='text-sm text-gray-800 whitespace-pre-line' {...(state.text ? customerTextAttrs(t.locale) : {})}>
+          {state.text || t('admin.automationSheet.preview.noContent')}
+        </p>
       </div>
       {state.notApproved && (
         <p className='text-sm text-amber-700' role='alert'>
-          ההודעה הזו אינה מאושרת כרגע ולא תישלח.
+          {t('admin.automationSheet.preview.messageNotApproved')}
         </p>
       )}
     </div>

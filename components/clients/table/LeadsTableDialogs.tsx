@@ -54,7 +54,7 @@ export function LeadsTableDialogs({
       </ModalPop>
 
       {formProps && (
-        <ModalPop open={open.sale} label={t('leads.dialog.deal')} onClose={() => close('sale')}>
+        <ModalPop open={open.sale} label={t('leads.dialog.deal')} onClose={() => close('sale')} translated>
           <SaleForm
             props={formProps}
             curSale={curClient ? ({ clientId: curClient.id, clientData: curClient.name } as any) : undefined}

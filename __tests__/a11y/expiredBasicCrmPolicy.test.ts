@@ -339,9 +339,12 @@ describe('Tier 2: the feature is visible, the spend is gated', () => {
   })
 
   it('saving auto-response is gated even though the configuration is visible', () => {
-    const src = read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')
-    expect(src).toContain('const proLocked = useAccessDenied()')
-    expect(src).toContain("source='auto_response_save'")
+    // The save bar (and its lock) moved to AutoResponseSaveBar; the form still owns the gate.
+    const form = read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')
+    const bar = read('components/settings/autoResponse/AutoResponseSaveBar.tsx')
+    expect(form).toContain('const proLocked = useAccessDenied()')
+    expect(form).toContain('proLocked={proLocked}')
+    expect(bar).toContain("source='auto_response_save'")
   })
 })
 
@@ -421,17 +424,23 @@ describe('expired copy speaks in value, and never joins words with a dash', () =
     expect(src).toContain('נשארים זמינים')
   })
 
-  it('no locked surface describes itself with a bare "מושהה"', () => {
+  it('no locked surface describes itself with a bare "מושהה"', async () => {
     // Rendered lines only: the comments deliberately quote the old wording.
     for (const line of renderedHebrew('lib/i18n/messages/he/entitlement.ts')) {
       expect(line, line.trim()).not.toMatch(/מושה/)
     }
-    const all = require('node:child_process')
-      .execSync("grep -rho \"feature='[^']*'\" components modules app || true", { encoding: 'utf8' })
-      .split('\n')
-      .filter(Boolean)
-    expect(all.length).toBeGreaterThan(10)
+    const grep = (pattern: string) =>
+      require('node:child_process')
+        .execSync(`grep -rhoE "${pattern}" components modules app || true`, { encoding: 'utf8' })
+        .split('\n')
+        .filter(Boolean) as string[]
+    const all = grep("feature='[^']*'")
+    // Translated screens pass the sentence by catalog KEY: the Hebrew it renders is checked the same way.
+    const { translatorFor } = await import('@/lib/i18n/translators')
+    const keyed = grep("feature=\\{(t|translatorFor\\(locale\\))\\('[^']+'").map((m) => m.slice(m.lastIndexOf("('") + 2, -1))
+    expect(all.length + keyed.length).toBeGreaterThan(10)
     for (const f of all) expect(f, f).toContain('חידוש המנוי')
+    for (const key of keyed) expect(translatorFor('he')(key as never), key).toContain('חידוש המנוי')
   })
 })
 
@@ -793,8 +802,11 @@ describe('the automations page answers a lapsed subscription with billing, not a
     expect(src).toContain('return expired ? proPrompt() : ')
   })
 
-  it('a genuine failure still reads as a failure', () => {
-    expect(settings()).toContain("toast('error', 'הפעולה נכשלה. נסו שוב.')")
+  it('a genuine failure still reads as a failure', async () => {
+    // The sentence moved to the catalog (Phase E5b); the toast still says it.
+    expect(settings()).toContain("toast('error', t('admin.automations.toast.failed'))")
+    const { translatorFor } = await import('@/lib/i18n/translators')
+    expect(translatorFor('he')('admin.automations.toast.failed')).toBe('הפעולה נכשלה. נסו שוב.')
   })
 
   it('the run log is gated too, and cannot throw to the boundary', () => {
@@ -864,7 +876,8 @@ describe('the Pro toast is a subscription action, not an error', () => {
     const src = toastSrc()
     expect(src).toContain('{pop.pro.title}')
     expect(src).toContain('{pop.pro.body}')
-    expect(src).toContain("{pop.pro.cta ?? 'חידוש מנוי'}")
+    // Outside Hebrew the default CTA is the interface language's (Phase E6, lib/toastChrome.ts).
+    expect(src).toContain("{pop.pro.cta ?? proLang?.cta ?? 'חידוש מנוי'}")
   })
 
   it('the CTA reuses the existing billing destination, with no second mechanism', () => {
@@ -902,13 +915,20 @@ describe('the new automation copy follows the Hebrew rule', () => {
     }
   })
 
-  it('is the copy the product actually renders', () => {
+  it('is the copy the product actually renders', async () => {
+    // The sentences moved to the catalog (Phase E5b): the components name their keys, the keys hold them.
+    const { translatorFor } = await import('@/lib/i18n/translators')
+    const he = translatorFor('he')
     const settings = read('components/settings/automations/AutomationsSettings.tsx')
-    expect(settings).toContain(NEW_COPY[0])
-    expect(settings).toContain(NEW_COPY[1])
+    expect(settings).toContain("t('admin.automations.pro.title')")
+    expect(settings).toContain("t('admin.automations.pro.body')")
+    expect(he('admin.automations.pro.title')).toBe(NEW_COPY[0])
+    expect(he('admin.automations.pro.body')).toBe(NEW_COPY[1])
     const sheet = read('components/settings/automations/AutomationSheet.tsx')
-    expect(sheet).toContain(NEW_COPY[2])
-    expect(sheet).toContain(NEW_COPY[3])
+    expect(sheet).toContain("t('admin.automationSheet.pro.title')")
+    expect(sheet).toContain("t('admin.automationSheet.pro.body')")
+    expect(he('admin.automationSheet.pro.title')).toBe(NEW_COPY[2])
+    expect(he('admin.automationSheet.pro.body')).toBe(NEW_COPY[3])
   })
 })
 

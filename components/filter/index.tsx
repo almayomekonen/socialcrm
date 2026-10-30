@@ -15,6 +15,8 @@ import { getFormData2 } from '@/lib/form/funcs'
 import { searchContacts } from '@/actions/clients'
 import { useUser } from '@/lib/hooksNEvents'
 import { clearPersistedFilter, filterSectionForPath } from '@/lib/filter/activeFilter'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dealActionLabel, dealBranchLabel, dealCompanyLabel, dealProductLabel, dealProductTypeLabel, dealStatusLabel, labelledOptions } from '@/lib/deals/labels'
 
 type Props = {
   props: {
@@ -25,6 +27,7 @@ type Props = {
   }
 }
 export default function Filter({ props }: Props) {
+  const t = useT()
   const pathname = usePathname()
   const show = getShow(pathname)
   const user = useUser()
@@ -41,6 +44,9 @@ export default function Filter({ props }: Props) {
     prdctTypeList: filterPrdct?.prdctTypeList || [],
   })
 
+  // Stored values stay the option values (the URL JSON is unchanged); only their text is labelled.
+  const opts = (values: readonly string[] | undefined, label: Parameters<typeof labelledOptions>[1]) => labelledOptions(values ?? [], label, t.locale)
+
   function onSubmit(e) {
     const fd = getFormData2(e) as any
     console.log('filterdata', fd)
@@ -50,22 +56,22 @@ export default function Filter({ props }: Props) {
 
   return (
     <div popover='auto' className='modal_pop pb-0 pt-4 w-[660px] bg-white mobile:w-full mobile:p-3' id='filterPop'>
-      <Title lbl='סינונים' icon='filter' className='mb-4' />
+      <Title lbl={t('deals.filter.title')} icon='filter' className='mb-4' />
       <form onSubmit={onSubmit}>
         <div className='grid grid-cols-2 gap-4'>
-          <SelectDateRange name='dateRange' lbl='תאריך פנייה:' start='start' end='end' filter={rawFilter} />
-          <SelectDateRange name='saleDtRange' lbl='תאריך סגירה:' filter={rawFilter} start='saleDtStart' end='saleDtEnd' />
+          <SelectDateRange name='dateRange' lbl={t('deals.filter.offerDate')} start='start' end='end' filter={rawFilter} />
+          <SelectDateRange name='saleDtRange' lbl={t('deals.filter.closeDate')} filter={rawFilter} start='saleDtStart' end='saleDtEnd' />
         </div>
 
         <section className='grid grid-cols-2 gap-4 mt-4 items-end'>
-          {show.company && <MultiSelectSearch name='company' options={COMPANIES} lbl='חברה' selected={rawFilter.company} />}
+          {show.company && <MultiSelectSearch name='company' options={opts(COMPANIES, dealCompanyLabel)} lbl={t('deals.filter.company')} selected={rawFilter.company} />}
           {show.branchArea && (
             <>
               <Select
                 name='branch'
-                lbl='ענף:'
-                options={BRANCHES}
-                placeholder='הכל'
+                lbl={t('deals.filter.branch')}
+                options={opts(BRANCHES, dealBranchLabel)}
+                placeholder={t('deals.filter.all')}
                 onChange={(e) => setPrdct(prdctOptByBranch[e.target.value])}
                 required={false}
                 defaultValue={rawFilter.branch}
@@ -73,26 +79,26 @@ export default function Filter({ props }: Props) {
               <MultiSelectSearch
                 key={['prdct', ...(prdct?.prdctList || [])].join('-')}
                 name='prdct'
-                options={prdct?.prdctList}
-                lbl='מוצר'
+                options={opts(prdct?.prdctList, dealProductLabel)}
+                lbl={t('deals.filter.product')}
                 selected={rawFilter.prdct}
               />
               <MultiSelectSearch
                 key={['prdctType', ...(prdct?.prdctTypeList || [])].join('-')}
                 name='prdctType'
-                options={prdct?.prdctTypeList}
-                lbl='סוג המוצר'
+                options={opts(prdct?.prdctTypeList, dealProductTypeLabel)}
+                lbl={t('deals.filter.productType')}
                 selected={rawFilter.prdctType}
               />
             </>
           )}
-          <MultiSelectSearch name='status' options={STATUS_LIST} lbl='סטטוס' selected={rawFilter.status} />
+          <MultiSelectSearch name='status' options={opts(STATUS_LIST, dealStatusLabel)} lbl={t('deals.filter.status')} selected={rawFilter.status} />
 
           {handlers && show.handlers && (
             <MultiSelectSearch
               name='handlerIds'
               options={handlers}
-              lbl='אחראי'
+              lbl={t('deals.filter.handler')}
               returnShow='handlerNames'
               selected={rawFilter.handlerIds}
             />
@@ -106,7 +112,7 @@ export default function Filter({ props }: Props) {
                 name='clientIds'
                 returnShow='clientNames'
                 show='details'
-                lbl='לידים'
+                lbl={t('deals.filter.leads')}
               />
             </div>
           )}
@@ -116,7 +122,7 @@ export default function Filter({ props }: Props) {
               <MultiSelectSearch
                 name='userIds'
                 options={omitOffice(users)}
-                lbl='נציגים'
+                lbl={t('deals.filter.reps')}
                 returnShow='userNames'
                 selected={rawFilter.userIds}
               />
@@ -128,7 +134,7 @@ export default function Filter({ props }: Props) {
               <MultiSelectSearch
                 name='teamIds'
                 options={teams}
-                lbl='צוותים'
+                lbl={t('deals.filter.teams')}
                 returnShow='teamNames'
                 selected={rawFilter.teamIds}
               />
@@ -137,20 +143,20 @@ export default function Filter({ props }: Props) {
 
           <div className='col-span-2 grid grid-cols-[1fr_auto_auto] gap-3 items-end'>
             <Select
-              lbl='פעולה'
+              lbl={t('deals.filter.action')}
               name='action'
-              options={['מכירה', 'הצטרפות', 'הכל']}
+              options={opts(['מכירה', 'הצטרפות', 'הכל'], dealActionLabel)}
               defaultValue={rawFilter.action}
               required={false}
             />
-            <InputCheckbox lbl='החלפה בלבד' name='replace' defaultChecked={rawFilter.replace} />
-            <InputCheckbox lbl='שת"פ בלבד' name='isCollab' defaultChecked={rawFilter.isCollab} />
+            <InputCheckbox lbl={t('deals.filter.replaceOnly')} name='replace' defaultChecked={rawFilter.replace} />
+            <InputCheckbox lbl={t('deals.filter.collabOnly')} name='isCollab' defaultChecked={rawFilter.isCollab} />
           </div>
         </section>
 
         <section className='sticky bottom-0 left-0 grid grid-cols-2 gap-4 bg-white py-4 mt-4'>
-          <Btn variant='outline' lbl='איפוס סינונים' type='button' href='?' icon='eraser' onClick={onReset} />
-          <Btn lbl='סינון' icon='filter' />
+          <Btn variant='outline' lbl={t('deals.filter.reset')} type='button' href='?' icon='eraser' onClick={onReset} />
+          <Btn lbl={t('deals.filter.apply')} icon='filter' />
         </section>
       </form>
     </div>

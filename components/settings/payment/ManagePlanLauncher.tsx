@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import ManagePlanModal from './ManagePlanModal'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Serialized payload that crosses the server→client boundary.
@@ -25,11 +26,12 @@ export type SubscriptionClientView = {
  * to lift logic up here that should live in the modal.
  */
 export default function ManagePlanLauncher({ subscription }: { subscription: SubscriptionClientView }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
 
   return (
     <>
-      <Btn variant='outline' lbl='נהל מסלול' onClick={() => setOpen(true)} />
+      <Btn variant='outline' lbl={t('settings.payment.plan.manage')} onClick={() => setOpen(true)} />
       <ManagePlanModal open={open} onClose={() => setOpen(false)} subscription={subscription} />
     </>
   )

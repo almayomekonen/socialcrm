@@ -4,7 +4,10 @@ import AutoResponseTextField from '@/components/settings/autoResponse/AutoRespon
 import { addQuestion, keyOf, questionsFull, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { EditorIssue, EditorView } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
-import { QUESTIONS_FULL, rowsFor, type ConfirmRequest } from './builderCopy'
+import { rowsFor, type ConfirmRequest } from './builderCopy'
+import { questionsFullIn } from './copyIn'
+import { issueTextIn } from './issueText'
+import { useT } from '@/lib/i18n/I18nProvider'
 import EndingsSection from './EndingsSection'
 import ExtraMessages from './ExtraMessages'
 import LimitedButton from './LimitedButton'
@@ -47,15 +50,17 @@ export default function EditorColumn({
   /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
   allowAllEnabled?: boolean
 }) {
+  const t = useT()
   const shown = (part: string, issues: EditorIssue[] | undefined) => (revealAll || touched.has(part) ? (issues ?? []) : [])
   const general = view.issues[''] ?? []
+  const errorText = (issue: EditorIssue | undefined) => (issue ? issueTextIn(issue, model, t) : undefined)
   const leave = (part: string) => (e: React.FocusEvent<HTMLElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onLeave(part)
   }
 
   return (
     <fieldset disabled={!canEdit} className='hidden min-w-0 gap-5 desktop:grid'>
-      <legend className='sr-only'>עריכת השאלון</legend>
+      <legend className='sr-only'>{t('admin.questionnaire.editor.legend')}</legend>
       <section
         className='rounded-lg border border-gray-200 bg-white p-5'
         onFocusCapture={() => onFocus(null)}
@@ -63,21 +68,22 @@ export default function EditorColumn({
       >
         <AutoResponseTextField
           id='questionnaire-opening'
-          label='הודעת הפתיחה'
-          hint='נשלחת ללקוח בהודעה הראשונה, יחד עם השאלה הראשונה'
+          label={t('admin.questionnaire.editor.openingLabel')}
+          hint={t('admin.questionnaire.editor.openingHint')}
           value={model.opening}
           onChange={(v) => edit((m) => ({ ...m, opening: v }))}
-          placeholder='למשל: היי, תודה שפניתם אלינו.'
+          placeholder={t('admin.questionnaire.editor.openingPlaceholder')}
           maxLength={900}
           sent
           rows={rowsFor(model.opening, 3)}
-          error={shown('opening', general).find((i) => i.field === 'opening')?.text}
+          error={errorText(shown('opening', general).find((i) => i.field === 'opening'))}
+          translated
         />
       </section>
 
       <section aria-labelledby='questionnaire-questions' className='grid gap-4'>
         <h2 id='questionnaire-questions' className='text-base font-semibold text-ink'>
-          השאלות
+          {t('admin.questionnaire.editor.questions')}
         </h2>
         {model.questions.map((q, index) => (
           <QuestionCard
@@ -94,16 +100,16 @@ export default function EditorColumn({
             allowAllEnabled={allowAllEnabled}
           />
         ))}
-        {model.questions.length === 0 && <p className='text-sm text-gray-600'>אין עדיין שאלות. הוסיפו את השאלה הראשונה.</p>}
+        {model.questions.length === 0 && <p className='text-sm text-gray-600'>{t('admin.questionnaire.editor.noQuestions')}</p>}
         <div>
           <LimitedButton
             variant='outline'
             icon='plus'
-            lbl='הוספת שאלה'
-            blockedReason={questionsFull(model) ? QUESTIONS_FULL : null}
+            lbl={t('admin.questionnaire.editor.addQuestion')}
+            blockedReason={questionsFull(model) ? questionsFullIn(t) : null}
             onClick={() => {
               edit(addQuestion)
-              announce('נוספה שאלה חדשה בסוף הרשימה')
+              announce(t('admin.questionnaire.editor.added'))
             }}
           />
         </div>

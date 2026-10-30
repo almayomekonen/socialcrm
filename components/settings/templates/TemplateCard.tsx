@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
@@ -9,7 +9,11 @@ import { uninstallTemplate } from '@/actions/automations/templates'
 import type { TemplateView } from '@/lib/automations/templates/overview'
 import TemplateArt from './TemplateArt'
 import TemplateInstallDialog from './TemplateInstallDialog'
-import { errorMessage } from './copy'
+import { errorMessageIn } from './copy'
+import { localizeRequirement } from '@/lib/automations/catalogI18n'
+import { localizeTemplate } from '@/lib/automations/templateI18n'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import { useCardMenu } from './useCardMenu'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
@@ -35,44 +39,14 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [pending, start] = useTransition()
 
-  /*
-    Anchored to the card rather than to the viewport.
+  const { menuOpen, setMenuOpen, menuRef, triggerRef } = useCardMenu()
 
-    The shared floating-menu hook places against the viewport using the
-    Follow-Up menu's dimensions — 224px wide and a 248px height estimate — so a
-    one-item menu got flipped and clamped, and landed nowhere near the button
-    that opened it. A menu positioned inside the card cannot drift: it is laid
-    out against the trigger and travels with the card.
-  */
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    function onPointerDown(e: MouseEvent) {
-      const t = e.target as Node
-      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return
-      setMenuOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return
-      setMenuOpen(false)
-      // Escape hands the focus back, or the keyboard user is left nowhere.
-      triggerRef.current?.focus()
-    }
-    // Pressing another card's trigger is an outside press here, so opening one
-    // menu closes any other: only one is ever open.
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
-
-  const { template, availability, installed, updateAvailable } = view
-  const locked = availability.state === 'locked' ? availability.requirement : null
+  const t = useT()
+  const region = useRegionAttrs()
+  const { availability, installed, updateAvailable } = view
+  /** Shown words only: removal and install address the template by its key. */
+  const template = localizeTemplate(view.template, t.locale)
+  const locked = localizeRequirement(availability.state === 'locked' ? availability.requirement : null, t.locale)
 
   /**
    * TIER 2. The card and its status stay readable; removing a template deletes
@@ -84,13 +58,18 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
     start(async () => {
       const res = await uninstallTemplate(template.key)
       setConfirmRemove(false)
-      if (res.ok === false) return toast('error', errorMessage(res.reason))
-      toast('success', 'התבנית הוסרה')
+      if (res.ok === false) return toast('error', errorMessageIn(res.reason, t.locale))
+      toast('success', t('admin.automationTemplates.card.removed'))
       onChanged()
     })
   }
 
-  const countLabel = installed === 0 ? 'לא מותקן' : installed === 1 ? 'מותקנת אחת' : `${installed} מותקנות`
+  const countLabel =
+    installed === 0
+      ? t('admin.automationTemplates.card.notInstalled')
+      : installed === 1
+        ? t('admin.automationTemplates.card.installedOne')
+        : t('admin.automationTemplates.card.installedMany', { count: String(installed) })
 
   return (
     <div
@@ -112,16 +91,16 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
         {installed > 0 && (
           <span className='absolute bottom-3 start-3 flex items-center gap-1.5 rounded-full bg-[#eff9f3] px-2.5 py-1'>
             <Icon name='check' type='sol' className='size-3 bg-[#1f7a4a]' />
-            <span className='text-xs font-semibold text-[#1f7a4a]'>מותקן</span>
+            <span className='text-xs font-semibold text-[#1f7a4a]'>{t('admin.automationTemplates.card.installed')}</span>
           </span>
         )}
         {locked && (
           <span
             className='absolute bottom-3 start-3 flex items-center gap-1.5 rounded-full bg-[#fdf6ea] px-2.5 py-1'
-            title='התבנית הזו דורשת חיבור שעדיין לא קיים בחשבון.'
+            title={t('admin.automationTemplates.card.lockedTitle')}
           >
             <Icon name='triangle-exclamation' type='reg' className='size-3 bg-[#a3701a]' />
-            <span className='text-xs font-semibold text-[#a3701a]'>דורש חיבור</span>
+            <span className='text-xs font-semibold text-[#a3701a]'>{t('admin.automationTemplates.card.locked')}</span>
           </span>
         )}
       </div>
@@ -141,7 +120,7 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
           <button
             ref={triggerRef}
             type='button'
-            aria-label={`פעולות · ${template.title}`}
+            aria-label={t('admin.automationTemplates.card.actions', { title: template.title })}
             aria-haspopup='menu'
             aria-expanded={menuOpen}
             disabled={pending}
@@ -154,6 +133,7 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
             <div
               ref={menuRef}
               role='menu'
+              {...region}
               className='anim-popanchor-in absolute end-0 top-full z-20 mt-1.5 flex w-40 flex-col gap-0.5 rounded-xl border border-border bg-white p-1.5 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
             >
               {proLocked ? (
@@ -161,7 +141,8 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
                   <SubscriptionExpiredState
                     mode='inline'
                     source='automation_template_remove'
-                    feature='חידוש המנוי מחזיר את ניהול התבניות'
+                    feature={t('admin.automationTemplates.card.removeExpired')}
+                    translated
                   />
                 </div>
               ) : (
@@ -171,7 +152,7 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
                   onClick={() => (setMenuOpen(false), setConfirmRemove(true))}
                   className='rounded-md px-3 py-2 text-start text-[13px] text-error hover:bg-[#f7f8fa]'
                 >
-                  הסרה
+                  {t('admin.automationTemplates.card.remove')}
                 </button>
               )}
             </div>
@@ -190,10 +171,10 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
                   have untouched. */}
               <span
                 aria-hidden='true'
-                title='קיימת גרסה חדשה של התבנית'
+                title={t('admin.automationTemplates.card.update')}
                 className='mb-1.5 ms-2 inline-block size-1.5 rounded-full bg-[#5e6ad2] align-middle'
               />
-              <span className='sr-only'> — קיימת גרסה חדשה של התבנית</span>
+              <span className='sr-only'>{t('admin.automationTemplates.card.updateSr')}</span>
             </>
           )}
         </h3>
@@ -219,7 +200,7 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
         ) : (
           <Btn
             variant={installed > 0 ? 'outline' : 'solid'}
-            lbl={installed > 0 ? 'התקנה נוספת' : 'התקנה'}
+            lbl={installed > 0 ? t('admin.automationTemplates.card.installAgain') : t('admin.automationTemplates.card.install')}
             disabled={Boolean(locked) || pending}
             onClick={() => setInstalling(true)}
             className={
@@ -247,9 +228,14 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
         open={confirmRemove}
         onClose={() => setConfirmRemove(false)}
         onConfirm={remove}
-        msg={`הסרת "${template.title}" תמחק ${installed === 1 ? 'את האוטומציה שנוצרה ממנה' : `את ${installed} האוטומציות שנוצרו ממנה`}. אוטומציות שיצרתם בעצמכם לא ייגעו.`}
-        confirmLbl='הסרה'
+        msg={
+          installed === 1
+            ? t('admin.automationTemplates.card.removeOne', { title: template.title })
+            : t('admin.automationTemplates.card.removeMany', { title: template.title, count: String(installed) })
+        }
+        confirmLbl={t('admin.automationTemplates.card.remove')}
         destructive
+        translated
       />
     </div>
   )

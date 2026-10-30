@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { cellInputCls, cellSubInputCls, parseNum, type LineFormPayload } from './types'
 
 /**
@@ -12,6 +13,7 @@ import { cellInputCls, cellSubInputCls, parseNum, type LineFormPayload } from '.
  * the signal "user hasn't finished yet" — no phantom $0 rows on tab.
  */
 export default function NewLineRow({ onAdd }: { onAdd: (payload: LineFormPayload) => Promise<void> | void }) {
+  const t = useT()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [quantity, setQuantity] = useState('1')
@@ -32,8 +34,8 @@ export default function NewLineRow({ onAdd }: { onAdd: (payload: LineFormPayload
 
   async function tryCommit({ refocus }: { refocus: boolean }) {
     if (busy) return
-    const t = title.trim()
-    if (!t) return
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) return
     if (!unitPrice.trim()) return
     const q = parseNum(quantity, 0)
     const u = parseNum(unitPrice, 0)
@@ -42,7 +44,7 @@ export default function NewLineRow({ onAdd }: { onAdd: (payload: LineFormPayload
     setBusy(true)
     try {
       await onAdd({
-        title: t,
+        title: trimmedTitle,
         description: description.trim(),
         quantity: q,
         unitPrice: u,
@@ -78,7 +80,7 @@ export default function NewLineRow({ onAdd }: { onAdd: (payload: LineFormPayload
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder='+ פריט חדש'
+          placeholder={t('billing.editor.lines.newLine')}
           disabled={busy}
         />
         {title && (
@@ -88,7 +90,7 @@ export default function NewLineRow({ onAdd }: { onAdd: (payload: LineFormPayload
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder='תיאור (אופציונלי)'
+            placeholder={t('billing.editor.lines.descriptionPlaceholder')}
             disabled={busy}
           />
         )}

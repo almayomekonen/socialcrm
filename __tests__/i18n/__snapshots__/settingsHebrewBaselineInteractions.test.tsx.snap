@@ -1,0 +1,439 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — account page interactions > Facebook login: SDK missing → error toast; linked failure toast 1`] = `
+{
+  "html": "<div><h1 class="title">אבטחה</h1><p class="mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed">הגדרות האבטחה של החשבון שלך</p><div class="accordion mb-6 max-w-2xl"><details name="x" class="group/acrdn border-b-2 last:border-b-0"><summary><div class="flex items-center gap-2"><p class="group-open/acrdn:text-solid">חשבונות מחוברים</p></div><div aria-hidden="true" class="bg-gray-800 size-[18.5px] dark:bg-white duration-200 group-hover/acrdn:bg-gray-950 group-open/acrdn:rotate-90 group-open/acrdn:bg-solid " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></summary><div class="p-6"><div><p class="text-sm text-gray-600 leading-relaxed">חברו את חשבון Facebook לחשבון הקיים. לאחר החיבור אפשר להתחבר עם Facebook.</p><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3 w-full mt-4" type="button"><span>חיבור Facebook</span></button></div></div></details><details name="x" class="group/acrdn border-b-2 last:border-b-0"><summary><div class="flex items-center gap-2"><p class="group-open/acrdn:text-solid">פרק הזמן לניתוק מהמערכת</p></div><div aria-hidden="true" class="bg-gray-800 size-[18.5px] dark:bg-white duration-200 group-hover/acrdn:bg-gray-950 group-open/acrdn:rotate-90 group-open/acrdn:bg-solid " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></summary><div class="p-6"><form><div class="block"><select id="«id»" required="" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary pe-8 ps-2" name="logoutMinutes"><option value="5">5 דקות</option><option value="10">10 דקות</option><option value="20" selected="">20 דקות</option><option value="30">30 דקות</option></select></div><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3 w-full mt-4"><span>שמירה</span></button></form></div></details><details name="x" class="group/acrdn border-b-2 last:border-b-0"><summary><div class="flex items-center gap-2"><p class="group-open/acrdn:text-solid">פעילות התחברות אחרונה</p></div><div aria-hidden="true" class="bg-gray-800 size-[18.5px] dark:bg-white duration-200 group-hover/acrdn:bg-gray-950 group-open/acrdn:rotate-90 group-open/acrdn:bg-solid " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></summary><div class="p-6"><div class="grid"><div class="tbl mb-0 rounded-b-none" id="ipsTable4135"><table><thead class="sticky top-0 z-50"><tr class="tblHead"><th><div class="flex"><input id="checkAll" type="checkbox"></div></th><th class="cursor-move " draggable="true"><span class="flex items-center gap-2 flex-nowrap">מכשיר / דפדפן<div aria-hidden="true" class="dark:bg-white size-3.5 bg-gray-700 opacity-0 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/arrow-down-short-wide.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/arrow-down-short-wide.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span></th><th class="cursor-move " draggable="true"><span class="flex items-center gap-2 flex-nowrap">כתובת IP<div aria-hidden="true" class="dark:bg-white size-3.5 bg-gray-700 opacity-0 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/arrow-down-short-wide.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/arrow-down-short-wide.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span></th><th class="cursor-move " draggable="true"><span class="flex items-center gap-2 flex-nowrap">מתי<div aria-hidden="true" class="dark:bg-white size-3.5 bg-gray-700 opacity-0 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/arrow-down-short-wide.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/arrow-down-short-wide.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span></th></tr></thead><tbody class=""><tr class="undefined undefined"><td><input type="checkbox" name="checkRow"></td><td class="truncate max-w-64" title="Chrome · macOS">Chrome · macOS</td><td class="truncate max-w-64" title="84.229.10.5">84.229.10.5</td><td class="truncate max-w-64" title="28/10/2026, 9:00">28/10/2026, 9:00</td></tr></tbody></table></div></div></div></details></div></div>",
+  "toasts": [
+    [
+      "toast",
+      "error",
+      "ההתחברות נכשלה, נסה שוב",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — account page interactions > WhatsApp reminders: consent gate, code issued, start refused, turn off, cancel a pending code 1`] = `
+{
+  "calls": [
+    [
+      "startWhatsappReminderActivation",
+      {
+        "consent": true,
+      },
+    ],
+    [
+      "startWhatsappReminderActivation",
+      {
+        "consent": true,
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "התזכורות כבר פעילות",
+    ],
+    [
+      "turnOffWhatsappReminders",
+    ],
+    [
+      "toast",
+      "success",
+      "התזכורות כובו",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "turnOffWhatsappReminders",
+    ],
+    [
+      "toast",
+      "success",
+      "התזכורות כובו",
+    ],
+    [
+      "router.refresh",
+    ],
+  ],
+  "issued": "<div><h1 class="title">תזכורות בוואטסאפ</h1><p class="mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed">תזכורת בוואטסאפ כשליד מחכה למענה ועדיין לא חזרו אליו</p><div class="accordion mb-6 max-w-2xl"><details name="x" class="group/acrdn border-b-2 last:border-b-0" open=""><summary><div class="flex items-center gap-2"><p class="group-open/acrdn:text-solid">התזכורות שלי</p></div><div aria-hidden="true" class="bg-gray-800 size-[18.5px] dark:bg-white duration-200 group-hover/acrdn:bg-gray-950 group-open/acrdn:rotate-90 group-open/acrdn:bg-solid " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/chevron-left.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></summary><div class="p-6"><div class="space-y-4"><p class="text-sm">כדי לאמת את המספר, שלחו את קוד ההפעלה מהטלפון שלכם בוואטסאפ:</p><p dir="ltr" class="text-2xl font-semibold tracking-widest text-center">482-913</p><p class="text-sm text-gray-600 leading-relaxed">הקוד תקף ל-15 דקות. אחרי השליחה, בדקו כאן שהתזכורות פעילות.</p><div class="flex flex-wrap gap-3"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="button"><span>שליחת הקוד בוואטסאפ</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>בדיקה אם התזכורות פעילות</span></button></div></div></div></details></div></div>",
+  "offButton": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="button" disabled="" title="צריך לאשר קבלת תזכורות"><span>הפעלת תזכורות בוואטסאפ</span></button>",
+}
+`;
+
+exports[`Hebrew baseline — account page interactions > business details: validation errors, save toasts and payload 1`] = `
+{
+  "calls": [
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "updateIssuerIdentityAction",
+      {
+        "address": "הרצל 10
+חיפה 3303010",
+        "businessType": "authorized",
+        "email": "billing@example.test",
+        "img": null,
+        "name": "דנה כהן ייעוץ",
+        "phone": "04-1234567",
+        "taxId": "514123456",
+      },
+    ],
+    [
+      "toast",
+      "success",
+      "הפרטים נשמרו",
+    ],
+  ],
+  "invalid": "<form class="grid gap-5"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-red-500 focus:outline-red-200 px-2.5" placeholder="לדוגמה: רחל כהן ייעוץ" type="text" value="" aria-invalid="true" aria-describedby="«id»-error"><p id="«id»-error" role="alert" class="text-red-600 text-sm mt-1 ms-1">שם העסק חובה</p></div></div><div><p class="mb-2 ms-1 text-sm text-gray-600">סוג העסק</p><div class="grid gap-2"><label class="flex items-start gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors border-gray-200 hover:border-gray-300"><input class="mt-1" type="radio" value="exempt" name="issuer-radio-businessType"><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">עוסק פטור</p><p class="text-sm text-gray-500">הכנסה שנתית עד 120,000 ₪. לא גובה מע"מ.</p></div></label><label class="flex items-start gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors border-solid bg-softy/50"><input class="mt-1" type="radio" value="authorized" checked="" name="issuer-radio-businessType"><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">עוסק מורשה</p><p class="text-sm text-gray-500">רוב העצמאים בישראל. גובה מע"מ.</p></div></label><label class="flex items-start gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors border-gray-200 hover:border-gray-300"><input class="mt-1" type="radio" value="company" name="issuer-radio-businessType"><div class="min-w-0 flex-1"><p class="font-medium text-gray-900">חברה בע"מ</p><p class="text-sm text-gray-500">חברה רשומה ברשם החברות (ח.פ).</p></div></label></div><p class="mt-1 ms-1 text-xs text-gray-500">לא בטוחים? תוכלו לעדכן בהמשך בהגדרות.</p></div><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">מספר עוסק / ח.פ</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" placeholder="123456789" type="text" value="514123456"></div><p class="mt-1 ms-1 text-xs text-gray-500">8 ספרות לעצמאי, 9 ספרות לחברה. ללא מקפים.</p></div><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">כתובת</label></div><textarea id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary min-h-24 p-2.5" placeholder="לדוגמה:
+רוטשילד 12
+תל אביב 6688112">הרצל 10
+חיפה 3303010</textarea></div><p class="mt-1 ms-1 text-xs text-gray-500">תופיע על החשבוניות. נדרשת לעוסק מורשה ולחברה.</p></div><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">טלפון</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" placeholder="054-1234567" type="tel" value="04-1234567"></div></div><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">אימייל לחשבוניות</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-red-500 focus:outline-red-200 px-2.5" placeholder="billing@yourbusiness.com" type="email" value="not-an-email" aria-invalid="true" aria-describedby="«id»-error"><p id="«id»-error" role="alert" class="text-red-600 text-sm mt-1 ms-1">כתובת אימייל לא תקינה</p></div></div><div><p class="mb-1 ms-1 text-sm text-gray-600">לוגו</p><div class=""><div class="grid gap-2"><label class="btn"><div aria-hidden="true" class="bg-gray-800 dark:bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/image.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/image.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><p>לוגו</p><input accept="image/*" class="hidden" type="file"></label><input type="hidden" value="null" name="img"></div></div><p class="mt-1 ms-1 text-xs text-gray-500">תמונת PNG או JPG. תופיע בראש החשבונית.</p></div><p class="text-xs text-gray-500 ms-1">פרטים אלו יופיעו על המסמכים שתנפיקו</p><div class="flex justify-end gap-2 mt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="submit"><span>שמור פרטים</span></button></div></form>",
+}
+`;
+
+exports[`Hebrew baseline — account page interactions > self_edit: permission add / remove, rep chip edit / delete / refused delete / duplicate, transfer leads, saved filters 1`] = `
+{
+  "calls": [
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "removeAuthUser",
+      7,
+      8,
+    ],
+    [
+      "toast",
+      "success",
+      "ההרשאה נמחקה",
+    ],
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "deleteExtUser",
+      31,
+    ],
+    [
+      "toast",
+      "error",
+      null,
+    ],
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "upsertExtUser",
+      {
+        "firstName": "יעל",
+        "lastName": "שמש",
+      },
+      31,
+    ],
+    [
+      "toast",
+      "error",
+      null,
+    ],
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "updateSavedFilters",
+      {
+        "data": [
+          {
+            "name": "פייסבוק בלבד",
+          },
+        ],
+        "id": 7,
+      },
+    ],
+    [
+      "toast",
+      "success",
+      "סינונים נשמרו בהצלחה",
+    ],
+  ],
+  "deleteRefused": "<div role="dialog" aria-modal="true" aria-label="המשתמש יעל שמש לא נמחק, מכיוון שיש לידים על שמו.
+מחק את הלידים
+או העבר אותם לנציג אחר
+ונסה שוב" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">המשתמש יעל שמש לא נמחק, מכיוון שיש לידים על שמו.
+מחק את הלידים
+או העבר אותם לנציג אחר
+ונסה שוב</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>אישור</span></button></div></div></div>",
+  "deleteRepDialog": "<div role="dialog" aria-modal="true" aria-label="האם למחוק את יעל שמש?" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">האם למחוק את יעל שמש?</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>אישור</span></button></div></div></div>",
+  "duplicateOrFailure": "<div role="dialog" aria-modal="true" aria-label="שם זה כבר קיים במערכת" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">שם זה כבר קיים במערכת</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>אישור</span></button></div></div></div>",
+  "editingForm": "<form class="max-w-72 "><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 mb-1" required="" value="יעל" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" value="שמש" name="lastName"></div><div class="grid grid-cols-2 mt-4 gap-4"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/floppy-disk-pen.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/floppy-disk-pen.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שמור עריכה</span></button></div></form>",
+  "removePermDialog": "<div role="dialog" aria-modal="true" aria-label="בטוח למחוק את ההרשאה?" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">בטוח למחוק את ההרשאה?</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>אישור</span></button></div></div></div>",
+  "transferConfirm": "<div role="dialog" aria-modal="true" aria-label="שם זה כבר קיים במערכת" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">שם זה כבר קיים במערכת</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>אישור</span></button></div></div></div>
+<div role="dialog" aria-modal="true" aria-label="האם להעביר את הלידים של יעל שמש לנציג undefined?" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">האם להעביר את הלידים של יעל שמש לנציג undefined?</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>אישור</span></button></div></div></div>",
+  "transferPopover": "<div id="transferSales" class="modal_pop" popover="auto"><div class="inline-flex items-center gap-4 border-b pb-2 border-gray-400"><p class="text-lg font-semibold">העברת לידים לנציג</p></div><form class="py-4"><div class="relative w-64"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">בחר נציג להעברת הלידים</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" placeholder="חיפוש..." role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" value=""></div><div class="block"><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5 absolute top-0 right-0 -z-50 opacity-0" required="" name="userId"></div></div><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3 mt-4 w-full"><span>העברת לידים לנציג</span></button></form></div>",
+}
+`;
+
+exports[`Hebrew baseline — account page interactions > user details / contact / logout minutes / system settings submit; cold-lead toggle disables its months 1`] = `
+{
+  "calls": [
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "updateFullUser",
+      {
+        "userData": {
+          "email": "dana@example.test",
+          "firstName": "דנה",
+          "idNum": "123456782",
+          "lastName": "כהן",
+        },
+        "userInfoData": {
+          "tifulEmail": "office@example.test",
+        },
+      },
+      null,
+    ],
+    [
+      "toast",
+      "success",
+      null,
+    ],
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "updateFullUser",
+      {
+        "userData": {
+          "phone": "050-1234567",
+        },
+        "userInfoData": {
+          "officePhone": "03-5551234",
+        },
+      },
+      null,
+    ],
+    [
+      "toast",
+      "success",
+      null,
+    ],
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "updateUserInfoData",
+      {
+        "logoutMinutes": "20",
+      },
+      null,
+    ],
+    [
+      "toast",
+      "success",
+      null,
+    ],
+    [
+      "toast",
+      "loading",
+    ],
+    [
+      "updateDefaultSettings",
+      {
+        "isBituachHaimMutzarHaser": true,
+        "isMahalotKashotUpdated": "false",
+        "isRiskUpdated": true,
+        "monthsLidimSheloHufku": "3",
+      },
+      7,
+    ],
+    [
+      "toast",
+      "success",
+      null,
+    ],
+  ],
+  "coldOff": "<input class="h-10 w-28 rounded-md border border-gray-200 bg-white px-2.5 focus:outline-2 focus:outline-offset-0 focus:outline-primary" required="" min="1" type="number" value="3" name="monthsLidimSheloHufku">",
+}
+`;
+
+exports[`Hebrew baseline — payment interactions > card on file: replace (consent → continue, failure), cancel before the charge (dialog, every error), resume 1`] = `
+{
+  "calls": [
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": true,
+        "purpose": "card_update",
+      },
+    ],
+    [
+      "cancelRenewal",
+    ],
+    [
+      "cancelRenewal",
+    ],
+    [
+      "cancelRenewal",
+    ],
+    [
+      "cancelRenewal",
+    ],
+    [
+      "resumeRenewal",
+    ],
+  ],
+  "cancelDialog": "<div role="dialog" aria-modal="true" aria-label="ביטול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div dir="rtl" class="flex flex-col gap-4 p-1"><h2 class="text-xl font-bold">לבטל את המשך המנוי?</h2><p class="text-sm text-gray-700">לא יבוצע חיוב של ₪89. הגישה נמשכת עד סוף התקופה הנוכחית, והלידים והנתונים שלך יישמרו.</p><div class="flex items-center gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>ביטול המנוי</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>חזרה</span></button></div></div></div>",
+  "cancelError_boom": "<p class="text-sm text-red-500" role="alert">אירעה שגיאה, נסו שוב</p>",
+  "cancelError_no_subscription": "<p class="text-sm text-red-500" role="alert">לא נמצא מנוי פעיל</p>",
+  "cancelError_reactivation_required": "<p class="text-sm text-red-500" role="alert">הגישה כבר הסתיימה. כדי לחדש יש לאשר אמצעי תשלום מחדש בעמוד הכניסה למערכת.</p>",
+  "chargeInProgressNotice": "<p class="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" role="status">הביטול נרשם. החיוב האחרון כבר נשלח לעיבוד ואי אפשר לעצור אותו — נעדכן ברגע שתתקבל תשובה.</p>",
+  "replace": "<div class="mb-6 max-w-3xl p-6 bg-white rounded-lg border border-gray-200 flex flex-col gap-3" dir="rtl"><div class="flex items-center justify-between gap-4 flex-wrap"><p class="text-lg font-semibold">אמצעי תשלום</p><span class="rounded-full px-2.5 py-0.5 text-xs font-medium border bg-gray-50 border-gray-200 text-gray-700">חיוב חודשי פעיל</span></div><p class="text-sm text-gray-700">כרטיס שמור · Visa •••• 4242</p><p class="text-sm text-gray-700">החיוב הבא: ₪89 ב־01/11/2026, ומדי חודש לאחר מכן.</p><p class="text-sm text-gray-600">החיוב הקרוב ממתין לביצוע.</p><div class="flex flex-col gap-3"><p class="text-sm text-gray-700">הכרטיס החדש יישמר במקום הקיים, והחיוב החודשי יימשך ממנו.</p><label class="has-[:checked]:bg-solid/5 grid grid-cols-[16px_1fr] items-center gap-4 min-h-10 cursor-pointer bg-white px-4 py-2 rounded-md border border-gray-200 w-auto"><input class="size-4 accent-solid" type="checkbox"><p>אני מאשר/ת שפרטי הכרטיס יישמרו באופן מאובטח אצל ספק הסליקה Grow, ושניתן יהיה לחייב אותו בעתיד עבור המנוי</p></label><div class="flex gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled=""><span>המשך להחלפת הכרטיס</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>חזרה</span></button></div></div></div>",
+  "replaceError": "<p class="text-sm text-red-500" role="alert">לא הצלחנו לפתוח את דף התשלום. נסו שוב בעוד רגע.</p>",
+}
+`;
+
+exports[`Hebrew baseline — payment interactions > card setup form: every refusal, the holder field error, network failure, redirect payload 1`] = `
+{
+  "calls": [
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": false,
+        "acceptedTerms": false,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+    [
+      "startCardSetup",
+      {
+        "acceptedCardStorage": true,
+        "acceptedTerms": true,
+        "fullName": "",
+        "phone": "",
+        "purpose": "trial_start",
+      },
+    ],
+  ],
+  "error_card_storage_consent_required": "<p class="text-sm text-red-500" role="alert">יש לאשר את שמירת פרטי הכרטיס כדי להמשיך</p>",
+  "error_not_eligible": "<p class="text-sm text-red-500" role="alert">לא ניתן להפעיל את תקופת הניסיון עבור החשבון הזה</p>",
+  "error_provider_unavailable": "<p class="text-sm text-red-500" role="alert">לא הצלחנו לפתוח את דף התשלום. נסו שוב בעוד רגע.</p>",
+  "error_something_else": "<p class="text-sm text-red-500" role="alert">אירעה שגיאה, נסו שוב</p>",
+  "error_terms_required": "<p class="text-sm text-red-500" role="alert">יש לאשר את תנאי המנוי כדי להמשיך</p>",
+  "error_unauthorized": "<p class="text-sm text-red-500" role="alert">רק מנהל החשבון יכול להוסיף אמצעי תשלום</p>",
+  "holderError": "<section id="card-setup" class="mt-12 scroll-mt-6"><h2 class="text-xl font-bold">אמצעי תשלום</h2><p class="mt-1 text-sm text-gray-500">המנוי מחויב ב־₪89 לחודש מהכרטיס השמור. אפשר לבטל בכל רגע.</p><div class="mt-4"><div class="flex flex-col gap-4 mobile:gap-3"><div class="grid grid-cols-2 gap-3 mobile:grid-cols-1"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">שם מלא כפי שמופיע בכרטיס</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="cc-name" value=""></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">טלפון נייד</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-red-500 focus:outline-red-200 px-2.5" required="" inputmode="tel" autocomplete="tel" value="" aria-invalid="true" aria-describedby="«id»-error"><p id="«id»-error" role="alert" class="text-red-600 text-sm mt-1 ms-1">מספר הטלפון אינו תקין</p></div></div><div class="flex flex-col gap-2 rounded-xl bg-primary-tint/60 p-4 ring-1 ring-info-border/60 mobile:gap-1.5 mobile:p-3"><p class="text-sm leading-relaxed text-gray-700"><strong class="text-[0.95rem] font-bold text-gray-900">7 ימים</strong> ללא עלות מרגע ההפעלה. היום לא יבוצע חיוב.</p><p class="text-sm leading-relaxed text-gray-700">לצורך אימות הכרטיס תיתכן הקפאה זמנית של ₪1 אצל חברת האשראי. זו אינה גבייה. לפי ספק הסליקה Grow, ההקפאה משתחררת בתוך עד 10 ימים.</p><p class="text-sm leading-relaxed text-gray-700">בתום 7 הימים יחויב הכרטיס ב־<strong class="text-[0.95rem] font-bold text-gray-900">₪89</strong> לחודש, ומדי חודש לאחר מכן, עד לביטול.</p><p class="text-sm leading-relaxed text-gray-700">אפשר לבטל בכל רגע לפני החיוב הראשון בעמוד המנוי ואז לא יבוצע חיוב.</p></div><div class="flex flex-col gap-1.5"><label class="grid grid-cols-[16px_1fr] gap-4 min-h-10 cursor-pointer w-auto items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent mobile:py-2.5"><input class="size-4 accent-solid" type="checkbox"><p>אני מאשר/ת את <a href="/terms" target="_blank" rel="noreferrer" class="text-primary-text underline underline-offset-2">תנאי השימוש והתקנון</a>, לרבות חיוב חודשי אוטומטי בתום תקופת הניסיון, עד לביטול.</p></label><label class="grid grid-cols-[16px_1fr] gap-4 min-h-10 cursor-pointer w-auto items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent mobile:py-2.5"><input class="size-4 accent-solid" type="checkbox"><p>אני מאשר/ת שפרטי הכרטיס יישמרו באופן מאובטח אצל ספק הסליקה Grow, ושניתן יהיה לחייב אותו בעתיד עבור המנוי</p></label><a href="/terms" target="_blank" rel="noreferrer" class="tap-44 self-start text-sm font-medium text-primary-text underline underline-offset-2">קריאת תנאי השימוש והתקנון</a></div><button class="flex items-center min-w-fit font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-11 px-5 gap-4 text-lg w-full justify-center"><span>הוספת כרטיס והפעלת הניסיון</span></button><p class="text-xs text-gray-500 text-center -mt-1">הזנת פרטי הכרטיס מתבצעת בעמוד המאובטח של Grow.</p></div></div></section>",
+  "network": "<p class="text-sm text-red-500" role="alert">אירעה שגיאה ברשת, נסו שוב</p>",
+}
+`;
+
+exports[`Hebrew baseline — payment interactions > manage plan: renewing → confirm cancel → refused (both codes) → cancelled; cancelling → resume; expired; not manageable 1`] = `
+{
+  "afterCancel": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">מסלול Pro</h2><div class="space-y-1 text-sm text-gray-700"><p>גישה ל־Pro עד: 9/11/2026</p><p>סטטוס: בקשת הביטול נקלטה</p></div><div class="flex gap-3 justify-end pt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>חידוש מסלול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+  "calls": [
+    [
+      "cancelRenewal",
+    ],
+    [
+      "cancelRenewal",
+    ],
+    [
+      "cancelRenewal",
+    ],
+    [
+      "router.refresh",
+    ],
+    [
+      "resumeRenewal",
+    ],
+  ],
+  "cancelError_boom": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">לבטל את מסלול ה־Pro?</h2><p class="text-sm text-gray-700">בקשת הביטול תירשם, והגישה שלך ל־Pro תישאר פעילה עד 9/11/2026.</p><p class="text-sm text-red-700">אירעה שגיאה, נסו שוב</p><div class="flex gap-3 justify-end pt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>בטל מנוי</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>חזור</span></button></div></div></div>",
+  "cancelError_no_subscription": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">לבטל את מסלול ה־Pro?</h2><p class="text-sm text-gray-700">בקשת הביטול תירשם, והגישה שלך ל־Pro תישאר פעילה עד 9/11/2026.</p><p class="text-sm text-red-700">לא ניתן לבטל מסלול שאינו פעיל</p><div class="flex gap-3 justify-end pt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>בטל מנוי</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>חזור</span></button></div></div></div>",
+  "confirmCancel": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">לבטל את מסלול ה־Pro?</h2><p class="text-sm text-gray-700">בקשת הביטול תירשם, והגישה שלך ל־Pro תישאר פעילה עד 9/11/2026.</p><div class="flex gap-3 justify-end pt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>בטל מנוי</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>חזור</span></button></div></div></div>",
+  "expired": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">מסלול Pro</h2><div class="space-y-1 text-sm text-gray-700"><p>המנוי הסתיים ב: 27/10/2026</p><p>סטטוס: המנוי הסתיים</p></div><div class="flex gap-3 justify-end pt-2"><a href="/settings/update_payment?source=manage_plan_modal" class="press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">חידוש מנוי</a><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+  "manage": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">מסלול Pro</h2><div class="space-y-1 text-sm text-gray-700"><p>החיוב הבא: 9/11/2026</p><p>סטטוס: פעיל</p></div><div class="flex gap-3 justify-end pt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>בטל מנוי</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+  "notManageable": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">מסלול Pro</h2><div class="space-y-1 text-sm text-gray-700"><p>החיוב הבא: 9/11/2026</p><p>סטטוס: פעיל</p></div><p class="text-sm text-gray-500">לא ניתן לנהל את המסלול הנוכחי</p><div class="flex gap-3 justify-end pt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3" disabled=""><span>בטל מנוי</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+  "resumeError": "<div role="dialog" aria-modal="true" aria-label="ניהול המנוי" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[min(90vw,28rem)]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="space-y-5" dir="rtl"><h2 class="text-xl font-bold">מסלול Pro</h2><div class="space-y-1 text-sm text-gray-700"><p>גישה ל־Pro עד: 9/11/2026</p><p>סטטוס: בקשת הביטול נקלטה</p></div><p class="text-sm text-red-700">לא ניתן לחדש מסלול שאינו פעיל</p><div class="flex gap-3 justify-end pt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>חידוש מסלול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>סגור</span></button></div></div></div>",
+}
+`;

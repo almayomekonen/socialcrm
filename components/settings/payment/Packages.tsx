@@ -2,6 +2,8 @@
 import { twMerge } from 'tailwind-merge'
 import { Btn } from '@/lib/btns/Btn'
 import { packages, type Pkg } from '@/lib/plans'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { planIncluded, planLine } from './planCopy'
 
 /**
  * In-app pricing surface shown under settings/update_payment.
@@ -33,6 +35,7 @@ import { packages, type Pkg } from '@/lib/plans'
 type PackagesProps = { plan?: string; trialActive?: boolean; cardBilled?: boolean }
 
 export default function Packages({ plan = 'free', trialActive = false, cardBilled = false }: PackagesProps) {
+  const t = useT()
   return (
     <div className='my-6 grid gap-6 max-w-md'>
       {packages.map((pkg) => (
@@ -41,7 +44,7 @@ export default function Packages({ plan = 'free', trialActive = false, cardBille
       {/* Stated only where it is true. A LEGACY (trialExempt) agency is also
           plan 'free' and reaches this surface, and has no trial to end. */}
       {trialActive && (
-        <p className='text-sm text-gray-500'>ללא מנוי פעיל, הגישה למערכת נפסקת בתום תקופת הניסיון.</p>
+        <p className='text-sm text-gray-500'>{t('settings.payment.packages.trialEnds')}</p>
       )}
     </div>
   )
@@ -58,6 +61,7 @@ function PackageCard({
   trialActive: boolean
   cardBilled: boolean
 }) {
+  const t = useT()
   const isProPlan = currentPlan === 'pro'
   const isProCard = pkg.id === 'pro'
   // During an active Pro trial the user is on Pro-by-trial: the card wears a
@@ -68,7 +72,7 @@ function PackageCard({
   const isThisPlan = !trialActive && isProPlan
 
   const headlinePrice = pkg.pricePerMonth
-  const headlineSuffix = ' / לחודש'
+  const headlineSuffix = t('settings.payment.packages.perMonth')
 
   return (
     <fieldset
@@ -84,13 +88,13 @@ function PackageCard({
             isProCard ? 'bg-white text-gray-900' : 'bg-gray-900 text-white',
           )}
         >
-          התוכנית הנוכחית שלך
+          {t('settings.payment.packages.current')}
         </legend>
       )}
 
       {proTrialBadge && (
         <legend className='rounded-full px-3 py-0.5 text-xs font-semibold bg-white text-gray-900'>
-          תקופת הניסיון שלך
+          {t('settings.payment.packages.trial')}
         </legend>
       )}
 
@@ -98,7 +102,7 @@ function PackageCard({
         <h2 className='text-xl font-bold'>{pkg.name}</h2>
         <p className={twMerge('text-2xl font-extrabold', isProCard ? 'text-white' : 'text-gray-900')}>
           {pkg.pricePerMonth === 0 ? (
-            'חינם'
+            t('settings.payment.packages.free')
           ) : (
             <>
               ₪{headlinePrice}
@@ -108,16 +112,16 @@ function PackageCard({
             </>
           )}
         </p>
-        <p className={twMerge('text-sm', isProCard ? 'text-white/70' : 'text-gray-500')}>{pkg.tagline}</p>
+        <p className={twMerge('text-sm', isProCard ? 'text-white/70' : 'text-gray-500')}>{planLine(pkg.tagline, t)}</p>
         {pkg.pricePerMonth > 0 && (
           <p className={twMerge('text-[11px]', isProCard ? 'text-white/40' : 'text-gray-400')}>
-            לסביבת עבודה, כולל את כל הצוות. ניתן לבטל בכל רגע.
+            {t('settings.payment.packages.workspace')}
           </p>
         )}
 
 
         <ul className='mt-4 space-y-2'>
-          {pkg.included.map((item) => (
+          {planIncluded(pkg.included, t).map((item) => (
             <li
               key={item}
               className={twMerge('text-sm flex items-start gap-2', isProCard ? 'text-white/90' : 'text-gray-700')}
@@ -134,13 +138,13 @@ function PackageCard({
           <p
             className={twMerge('text-sm font-semibold text-center', isProCard ? 'text-white/80' : 'text-green-700')}
           >
-            פעיל
+            {t('settings.payment.packages.active')}
           </p>
         ) : isProCard && !cardBilled ? (
           /* Only rendered when #card-setup exists — the same condition the page
              uses to render it — so this scroll can never be a silent no-op. */
           <Btn
-            lbl='שדרג ל-Pro'
+            lbl={t('settings.payment.packages.upgrade')}
             className='w-full bg-white text-gray-900 hover:bg-gray-100'
             onClick={() => {
               document.getElementById('card-setup')?.scrollIntoView({ behavior: 'smooth' })

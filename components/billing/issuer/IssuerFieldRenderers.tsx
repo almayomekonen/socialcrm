@@ -11,6 +11,7 @@ export function FieldRenderer({
   onChange,
   onBlur,
   disabled,
+  translated = false,
 }: {
   field: FieldDescriptor
   value: unknown
@@ -18,6 +19,8 @@ export function FieldRenderer({
   onChange: (v: unknown) => void
   onBlur?: () => void
   disabled: boolean
+  /** The form follows the interface language: the logo uploader's chrome does too (FileUploader's `translated`). */
+  translated?: boolean
 }) {
   switch (field.inputType) {
     case 'text':
@@ -63,6 +66,7 @@ export function FieldRenderer({
           error={error}
           onChange={onChange}
           disabled={disabled}
+          translated={translated}
         />
       )
   }
@@ -196,12 +200,14 @@ function FileField({
   error,
   onChange,
   disabled,
+  translated,
 }: {
   field: FieldDescriptor
   value: number | null
   error?: string
   onChange: (v: number | null) => void
   disabled: boolean
+  translated: boolean
 }) {
   return (
     <div>
@@ -214,6 +220,7 @@ function FileField({
         title={field.label}
         tooltipClass='h-20'
         disabled={disabled}
+        translated={translated}
         onFilesChange={(files: any) => {
           const first = Array.isArray(files) ? files[0] : files
           onChange(first?.id ?? null)

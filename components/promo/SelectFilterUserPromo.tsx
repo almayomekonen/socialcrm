@@ -2,10 +2,12 @@ import { Btn } from '@/lib/btns/Btn'
 import { getFormData2 } from '@/lib/form/funcs'
 import { useState } from 'react'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function SelectFilterUserPromo({ data, setState }) {
   console.log('data:', data)
   const [selectedUsers, setSelectedUsers] = useState([])
+  const t = useT()
 
   async function onSubmit(e) {
     const { users } = getFormData2(e) as { users: string[] }
@@ -34,11 +36,11 @@ export default function SelectFilterUserPromo({ data, setState }) {
         returnShow='userNames'
         selected={selectedUsers}
         className='rounded-e-none'
-        placeholder='סינון נציגים...'
+        placeholder={t('performance.promotion.filterReps')}
       />
       {selectedUsers.length > 0 && (
         <Btn
-          title='איפוס סינון'
+          title={t('performance.promotion.resetFilter')}
           variant='outline'
           size='icon'
           className='rounded-none border-s-0 shadow-none'
@@ -46,7 +48,7 @@ export default function SelectFilterUserPromo({ data, setState }) {
           onClick={clearFilters}
         />
       )}
-      <Btn title='סינון נציגים' variant='outline' size='icon' className='rounded-s-none border-s-0 shadow-none' icon='filter' />
+      <Btn title={t('performance.promotion.filterRepsButton')} variant='outline' size='icon' className='rounded-s-none border-s-0 shadow-none' icon='filter' />
     </form>
   )
 }

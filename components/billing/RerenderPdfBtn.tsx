@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { api } from '@/lib/funcs'
 import { rerenderInvoicePdfAction } from '@/actions/billing/render'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Explicit "render again" trigger. Used both for first-time renders that
@@ -15,12 +16,13 @@ import { rerenderInvoicePdfAction } from '@/actions/billing/render'
 export default function RerenderPdfBtn({
   invoiceId,
   leadId,
-  lbl = 'הפק PDF מחדש',
+  lbl,
 }: {
   invoiceId: number
   leadId: number
   lbl?: string
 }) {
+  const t = useT()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
 
@@ -30,8 +32,8 @@ export default function RerenderPdfBtn({
     const result = await api(
       rerenderInvoicePdfAction,
       [{ invoiceId, leadId }],
-      'בקשת הפקה נשלחה',
-      'בקשת ההפקה נכשלה',
+      t('billing.issued.toast.rerenderSent'),
+      t('billing.issued.toast.rerenderFailed'),
       { silentSuccess: false },
     )
     setBusy(false)
@@ -40,5 +42,5 @@ export default function RerenderPdfBtn({
     }
   }
 
-  return <Btn variant='outline' icon='rotate' lbl={lbl} onClick={onClick} disabled={busy} />
+  return <Btn variant='outline' icon='rotate' lbl={lbl ?? t('billing.issued.rerender')} onClick={onClick} disabled={busy} />
 }

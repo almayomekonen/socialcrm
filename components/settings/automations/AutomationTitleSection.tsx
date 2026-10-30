@@ -4,6 +4,8 @@ import { type RefObject } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { Input } from '@/lib/form'
 import { variableTokenFor } from '@/lib/automations/variables'
+import { fieldLabelIn } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { ParameterDefinition } from '@/lib/automations/catalog/types'
 
 /**
@@ -58,13 +60,14 @@ export default function AutomationTitleSection({
   onChange: (next: string) => void
   onInsertToken: (token: string) => void
 }) {
+  const t = useT()
   return (
     <section className='grid gap-3'>
       <h3 className='text-sm font-semibold text-gray-800'>{title}</h3>
 
       <Input
         ref={inputRef}
-        lbl={parameter?.label ?? 'כותרת'}
+        lbl={parameter?.label ?? t('admin.automationSheet.content.titleFallback')}
         info={parameter?.help}
         value={value}
         maxLength={parameter?.validation?.maxLength}
@@ -72,9 +75,9 @@ export default function AutomationTitleSection({
       />
 
       <div className='flex flex-wrap items-center gap-2'>
-        <span className='text-sm text-gray-500'>הוספת פרטים:</span>
+        <span className='text-sm text-gray-500'>{t('admin.automationSheet.content.insert')}</span>
         {TITLE_CHIPS.map((v) => (
-          <Btn key={v.field} variant='outline' size='small' lbl={v.token} onClick={() => onInsertToken(v.token)} />
+          <Btn key={v.field} variant='outline' size='small' lbl={fieldLabelIn(v.field, v.token, t.locale)} onClick={() => onInsertToken(v.token)} />
         ))}
       </div>
     </section>

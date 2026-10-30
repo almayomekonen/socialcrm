@@ -1,0 +1,713 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — billing label producers (default arguments) > issue errors, PDF chips, kinds, legal titles, payment methods, issuer registry and validation 1`] = `
+{
+  "businessTypes": [
+    {
+      "description": "הכנסה שנתית עד 120,000 ₪. לא גובה מע"מ.",
+      "label": "עוסק פטור",
+      "value": "exempt",
+    },
+    {
+      "description": "רוב העצמאים בישראל. גובה מע"מ.",
+      "label": "עוסק מורשה",
+      "value": "authorized",
+    },
+    {
+      "description": "חברה רשומה ברשם החברות (ח.פ).",
+      "label": "חברה בע"מ",
+      "value": "company",
+    },
+  ],
+  "issueErrors": [
+    "הסכום שהתקבל לא יכול להיות גבוה מסכום המסמך",
+    "יש להשלים את פרטי התשלום",
+    "יש להשלים את פרטי העסק",
+    "אין הרשאה להנפיק",
+    "הליד לא נמצא",
+    "החשבונית לא נמצאה",
+    "החשבונית כבר הונפקה",
+    "החשבונית כבר הונפקה",
+    "יש להוסיף לפחות פריט אחד",
+    "פרופיל החיוב לא פעיל",
+    "יש להזין שם לחיוב",
+    "סכום המסמך חייב להיות גדול מאפס",
+    "אחד הפריטים לא נמצא",
+    "נתונים לא תקינים",
+    "הנפקת החשבונית נכשלה",
+    "הנפקת החשבונית נכשלה",
+    "הנפקת החשבונית נכשלה",
+  ],
+  "issuerFields": [
+    [
+      "name",
+      "שם העסק",
+      "כפי שיופיע בחשבוניות",
+      "לדוגמה: רחל כהן ייעוץ",
+      1,
+      "text",
+    ],
+    [
+      "businessType",
+      "סוג העסק",
+      "לא בטוחים? תוכלו לעדכן בהמשך בהגדרות.",
+      undefined,
+      1,
+      "radio",
+    ],
+    [
+      "taxId",
+      "מספר עוסק / ח.פ",
+      "8 ספרות לעצמאי, 9 ספרות לחברה. ללא מקפים.",
+      "123456789",
+      1,
+      "text",
+    ],
+    [
+      "address",
+      "כתובת",
+      "תופיע על החשבוניות. נדרשת לעוסק מורשה ולחברה.",
+      "לדוגמה:
+רוטשילד 12
+תל אביב 6688112",
+      2,
+      "textarea",
+    ],
+    [
+      "phone",
+      "טלפון",
+      undefined,
+      "054-1234567",
+      2,
+      "tel",
+    ],
+    [
+      "email",
+      "אימייל לחשבוניות",
+      "משמש ככתובת המשיב כשהלקוח עונה למייל.",
+      "billing@yourbusiness.com",
+      2,
+      "email",
+    ],
+    [
+      "img",
+      "לוגו",
+      "תמונת PNG או JPG. תופיע בראש החשבונית.",
+      undefined,
+      2,
+      "file",
+    ],
+  ],
+  "kindLabels": [
+    "חשבונית",
+    "חשבונית/קבלה",
+    "חשבונית",
+  ],
+  "legalTitles": [
+    "חשבונית מס",
+    "חשבונית מס/קבלה",
+    "חשבונית מס",
+  ],
+  "methodLabels": [
+    "מזומן",
+    "שיק",
+    "",
+    "",
+  ],
+  "methods": [
+    {
+      "label": "מזומן",
+      "value": "cash",
+    },
+    {
+      "label": "העברה בנקאית",
+      "value": "bank_transfer",
+    },
+    {
+      "label": "כרטיס אשראי",
+      "value": "credit_card",
+    },
+    {
+      "label": "שיק",
+      "value": "check",
+    },
+    {
+      "label": "אמצעי דיגיטלי",
+      "value": "digital",
+    },
+    {
+      "label": "אחר",
+      "value": "other",
+    },
+  ],
+  "pdfChips": [
+    "<span data-pdf-status="not_applicable" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color:var(--color-neutral-bg);color:var(--color-neutral-text);border-color:var(--color-neutral-border)"><span class="shrink-0 rounded-full size-1 " style="background-color:var(--color-neutral-dot)"></span>אין מסמך</span>",
+    "<span data-pdf-status="scheduled" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color:var(--color-info-bg);color:var(--color-info-text);border-color:var(--color-info-border)"><span class="shrink-0 rounded-full size-1 " style="background-color:var(--color-info-dot)"></span>PDF בקרוב</span>",
+    "<span data-pdf-status="rendering" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color:var(--color-info-bg);color:var(--color-info-text);border-color:var(--color-info-border)"><span class="shrink-0 rounded-full size-1 " style="background-color:var(--color-info-dot)"></span>מופק כעת</span>",
+    "<span data-pdf-status="ready" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color:var(--color-success-bg);color:var(--color-success-text);border-color:var(--color-success-border)"><span class="shrink-0 rounded-full size-1 " style="background-color:var(--color-success-dot)"></span>מסמך זמין</span>",
+    "<span data-pdf-status="failed" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color:var(--color-error-bg);color:var(--color-error-text);border-color:var(--color-error-border)"><span class="shrink-0 rounded-full size-1 " style="background-color:var(--color-error-dot)"></span>שגיאה בהפקה</span>",
+  ],
+  "validation": [
+    {
+      "ok": true,
+    },
+    {
+      "errors": {
+        "businessType": "יש לבחור סוג עסק",
+        "name": "שם העסק חובה",
+        "taxId": "מספר עוסק / ח.פ חובה",
+      },
+      "ok": false,
+    },
+    {
+      "errors": {
+        "taxId": "מספר עוסק / ח.פ לא נראה תקין",
+      },
+      "ok": false,
+    },
+    {
+      "errors": {
+        "taxId": "מספר עוסק / ח.פ לא נראה תקין",
+      },
+      "ok": false,
+    },
+    {
+      "errors": {
+        "email": "כתובת אימייל לא תקינה",
+      },
+      "ok": false,
+    },
+  ],
+}
+`;
+
+exports[`Hebrew baseline — draft editor interactions > issue from a draft: confirm, success, failures, thrown; expired lock; payment save failure 1`] = `
+{
+  "calls": [
+    [
+      "issueInvoiceAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "issueInvoiceAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "issueInvoiceAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "issueInvoiceAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "issueInvoiceAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "issueInvoiceAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "updateDraftKindAndPaymentAction",
+      {
+        "invoiceId": 9,
+        "kind": "invoice_receipt",
+        "leadId": 41,
+        "paymentAmount": 1000,
+        "paymentDate": "2026-10-27",
+        "paymentMethod": "cash",
+      },
+    ],
+  ],
+  "confirm": "<div role="dialog" aria-modal="true" aria-label="החשבונית תקבל מספר ותיסגר לעריכה.
+אם צריך לתקן משהו בהמשך, אפשר לבטל ולהנפיק חשבונית חדשה." tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">החשבונית תקבל מספר ותיסגר לעריכה.
+אם צריך לתקן משהו בהמשך, אפשר לבטל ולהנפיק חשבונית חדשה.</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3"><span>הנפק חשבונית</span></button></div></div></div>",
+  "expired": "<div class="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 shadow-sm"><div class="ps-20 pe-8 py-3 flex items-center justify-between gap-3"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/trash.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>מחק טיוטה</span></button><div class="flex items-center gap-2"><div data-testid="subscription-expired-inline" class="flex flex-wrap items-center gap-3 rounded-lg border border-warning-border bg-warning-bg px-3.5 py-3 "><div aria-hidden="true" class="dark:bg-white size-4 shrink-0 bg-warning-text " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><p class="min-w-0 flex-1 text-[13px] leading-snug text-warning-text">חידוש המנוי מחזיר את הפקת החשבוניות</p><a href="/settings/update_payment?source=invoice_issue" class="shrink-0 text-[13px] font-semibold text-warning-text underline underline-offset-2">חידוש מנוי</a></div></div></div></div>",
+  "nav": [
+    "refresh",
+    "refresh",
+  ],
+  "toasts": [
+    [
+      "error",
+      "החשבונית כבר הונפקה",
+    ],
+    [
+      "error",
+      "פרופיל החיוב לא פעיל",
+    ],
+    [
+      "error",
+      "יש להזין שם לחיוב",
+    ],
+    [
+      "error",
+      "אחד הפריטים לא נמצא",
+    ],
+    [
+      "error",
+      "הנפקת החשבונית נכשלה",
+    ],
+    [
+      "error",
+      "שמירת פרטי התשלום נכשלה",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — draft editor interactions > line add / update / delete, meta save, draft delete — success then failure 1`] = `
+{
+  "calls": [
+    [
+      "addLineAction",
+      {
+        "leadId": 41,
+        "line": {
+          "description": "",
+          "discount": 0,
+          "invoiceId": 9,
+          "quantity": 1,
+          "title": "שעת עבודה",
+          "unitPrice": 300,
+        },
+      },
+    ],
+    [
+      "updateLineAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+        "line": {
+          "description": "פגישה של שעתיים",
+          "discount": 50,
+          "lineId": 1,
+          "quantity": 2,
+          "title": "ייעוץ עסקי מורחב",
+          "unitPrice": 450,
+        },
+      },
+    ],
+    [
+      "removeLineAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+        "lineId": 1,
+      },
+    ],
+    [
+      "updateDraftMetaAction",
+      {
+        "customerFooter": "",
+        "dueAt": null,
+        "internalNotes": "לבדוק מול רואה החשבון",
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "deleteDraftAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "addLineAction",
+      {
+        "leadId": 41,
+        "line": {
+          "description": "",
+          "discount": 0,
+          "invoiceId": 9,
+          "quantity": 1,
+          "title": "שעת עבודה",
+          "unitPrice": 300,
+        },
+      },
+    ],
+    [
+      "updateLineAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+        "line": {
+          "description": "פגישה של שעתיים",
+          "discount": 50,
+          "lineId": 1,
+          "quantity": 2,
+          "title": "ייעוץ עסקי מורחב",
+          "unitPrice": 450,
+        },
+      },
+    ],
+    [
+      "removeLineAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+        "lineId": 1,
+      },
+    ],
+    [
+      "updateDraftMetaAction",
+      {
+        "customerFooter": "",
+        "dueAt": null,
+        "internalNotes": "לבדוק מול רואה החשבון",
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+    [
+      "deleteDraftAction",
+      {
+        "invoiceId": 9,
+        "leadId": 41,
+      },
+    ],
+  ],
+  "draftDelete": "<div role="dialog" aria-modal="true" aria-label="למחוק את הטיוטה? פעולה זו אינה הפיכה." tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">למחוק את הטיוטה? פעולה זו אינה הפיכה.</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>מחק טיוטה</span></button></div></div></div>",
+  "lineDelete": "<div role="dialog" aria-modal="true" aria-label="למחוק את הפריט &quot;ייעוץ עסקי&quot;?" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="flex flex-col gap-6 min-w-[320px] pt-4"><p class="font-semibold whitespace-pre-line pe-6">למחוק את הפריט "ייעוץ עסקי"?</p><div class="flex justify-end gap-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-10 px-4 gap-3"><span>מחק פריט</span></button></div></div></div>",
+  "nav": [
+    "refresh",
+    "refresh",
+    "refresh",
+    "refresh",
+    "/clients/41/billing",
+  ],
+  "toasts": [
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "הפריט נוסף",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "הפריט עודכן",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "הפריט נמחק",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "השינויים נשמרו",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "הטיוטה נמחקה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "הוספת הפריט נכשלה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "עדכון הפריט נכשל",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "מחיקת הפריט נכשלה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "שמירת השינויים נכשלה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "מחיקת הטיוטה נכשלה",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — issued view interactions > duplicate and re-render (success, failure, thrown); hero titles; the live PDF chip 1`] = `
+{
+  "afterPoll": "<div class="flex items-center gap-2 flex-wrap text-sm text-gray-500"><span class="text-xs font-medium px-2 py-0.5 rounded bg-softy text-gray-700">חשבונית</span><span data-doc-state="issued" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: var(--color-neutral-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-neutral-dot);"></span>הונפקה</span><span data-fulfill-state="open" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: var(--color-neutral-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-neutral-dot);"></span>ממתינה לתשלום</span><span data-pdf-status="ready" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-success-dot);"></span>מסמך זמין</span><span class="ms-2">הונפקה ב-27/10/2026</span></div>",
+  "hero": "<section class="bg-dark text-white rounded-xl px-7 py-6"><div class="flex items-start justify-between gap-6 flex-wrap"><div class="min-w-0"><h2 class="text-3xl font-bold tracking-tight tabular-nums">חשבונית #00042</h2><div class="mt-2 flex items-center gap-x-3 gap-y-1 text-base text-white/70 flex-wrap"><a class="font-medium text-white hover:underline underline-offset-2" href="/clients/41/summary">יוסי לוי בע"מ</a><span class="text-white/40">·</span><span class="font-semibold text-white tabular-nums">‏2,419.59&nbsp;‏₪</span><span class="text-white/40">·</span><span class="tabular-nums">27/10/2026</span></div></div><div class="flex items-center gap-2 shrink-0"><button type="button" disabled="" title="יש לנסות להפיק את ה-PDF מחדש" class="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-white text-dark hover:bg-white/90 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"><span>שלח חשבונית</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><div aria-hidden="true" class="dark:bg-white bg-black size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/rotate.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/rotate.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>נסה שוב</span></button><button type="button" class="inline-flex items-center gap-2 h-10 px-4 rounded-md border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold transition-colors disabled:opacity-60"><span>צור חשבונית חדשה מבוססת על זו</span></button></div></div></section>",
+  "heroAfterPoll": "<section class="bg-dark text-white rounded-xl px-7 py-6"><div class="flex items-start justify-between gap-6 flex-wrap"><div class="min-w-0"><h2 class="text-3xl font-bold tracking-tight tabular-nums">חשבונית #00042</h2><div class="mt-2 flex items-center gap-x-3 gap-y-1 text-base text-white/70 flex-wrap"><a class="font-medium text-white hover:underline underline-offset-2" href="/clients/41/summary">יוסי לוי בע"מ</a><span class="text-white/40">·</span><span class="font-semibold text-white tabular-nums">‏2,419.59&nbsp;‏₪</span><span class="text-white/40">·</span><span class="tabular-nums">27/10/2026</span></div></div><div class="flex items-center gap-2 shrink-0"><button type="button" class="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-white text-dark hover:bg-white/90 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"><span>שלח חשבונית</span></button><a href="/api/billing/invoice/9/download" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 h-10 px-4 rounded-md border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold transition-colors" data-testid="invoice-download-pdf"><div aria-hidden="true" class="dark:bg-white size-4 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/download.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/download.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>הורד PDF</span></a><button type="button" class="inline-flex items-center gap-2 h-10 px-4 rounded-md border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold transition-colors disabled:opacity-60"><span>צור חשבונית חדשה מבוססת על זו</span></button></div></div></section>",
+  "nav": [
+    "/clients/41/billing/79",
+    "refresh",
+    "refresh",
+  ],
+  "rendering": "<div class="flex items-center gap-2 flex-wrap text-sm text-gray-500"><span class="text-xs font-medium px-2 py-0.5 rounded bg-softy text-gray-700">חשבונית</span><span data-doc-state="issued" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: var(--color-neutral-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-neutral-dot);"></span>הונפקה</span><span data-fulfill-state="open" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-neutral-bg); color: var(--color-neutral-text); border-color: var(--color-neutral-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-neutral-dot);"></span>ממתינה לתשלום</span><span data-pdf-status="rendering" class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-info-bg); color: var(--color-info-text); border-color: var(--color-info-border);"><span class="shrink-0 rounded-full size-1 animate-pulse" style="background-color: var(--color-info-dot);"></span>מופק כעת</span><span class="ms-2">הונפקה ב-27/10/2026</span></div>",
+  "toasts": [
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "בקשת הפקה נשלחה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "בקשת הפקה נשלחה",
+    ],
+    [
+      "error",
+      "שכפול החשבונית נכשל",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "בקשת ההפקה נכשלה",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — issued view interactions > post-issue banner in every PDF state, both kinds; "later" hides it 1`] = `
+{
+  "invoice:failed": "<section class="rounded-xl border border-gray-200 bg-gray-50 px-6 py-5 flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="post-issue-send-banner" data-pdf-status="failed"><div class="size-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0"><div aria-hidden="true" class="dark:bg-white size-5 bg-gray-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/triangle-exclamation.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/triangle-exclamation.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><div class="min-w-0 flex-1"><p class="text-base font-semibold text-gray-900">הפקת ה-PDF נכשלה</p><p class="text-sm mt-0.5 text-gray-600">אפשר לנסות להפיק שוב מתפריט הפעולות.</p></div><div class="flex items-center gap-2 shrink-0"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled="" title="יש לנסות להפיק את ה-PDF מחדש" data-testid="post-issue-send-banner-send"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" data-testid="post-issue-send-banner-later"><span>מאוחר יותר</span></button></div></section>",
+  "invoice:none": "<section class="rounded-xl border border-gray-200 bg-gray-50/80 px-6 py-5 flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="post-issue-send-banner" data-pdf-status="none"><div class="size-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0"><span class="inline-block size-3 rounded-full bg-gray-500 animate-pulse"></span></div><div class="min-w-0 flex-1"><p class="text-base font-semibold text-gray-900">מפיק את החשבונית…</p><p class="text-sm mt-0.5 text-gray-600">ברגע שהמסמך יהיה מוכן אפשר יהיה לשלוח אותו.</p></div><div class="flex items-center gap-2 shrink-0"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled="" title="המסמך עדיין מופק…" data-testid="post-issue-send-banner-send"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" data-testid="post-issue-send-banner-later"><span>מאוחר יותר</span></button></div></section>",
+  "invoice:ready": "<section class="rounded-xl border border-emerald-200 bg-emerald-50/60 px-6 py-5 flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="post-issue-send-banner" data-pdf-status="ready"><div class="size-10 rounded-full bg-white border border-emerald-200 flex items-center justify-center shrink-0"><div aria-hidden="true" class="dark:bg-white size-5 bg-emerald-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/circle-check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/circle-check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><div class="min-w-0 flex-1"><p class="text-base font-semibold text-emerald-900">החשבונית מוכנה</p><p class="text-sm mt-0.5 text-emerald-800/80">לשלוח ללקוח עכשיו?</p></div><div class="flex items-center gap-2 shrink-0"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" data-testid="post-issue-send-banner-send"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" data-testid="post-issue-send-banner-later"><span>מאוחר יותר</span></button></div></section>",
+  "invoice_receipt:ready": "<section class="rounded-xl border border-emerald-200 bg-emerald-50/60 px-6 py-5 flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="post-issue-send-banner" data-pdf-status="ready"><div class="size-10 rounded-full bg-white border border-emerald-200 flex items-center justify-center shrink-0"><div aria-hidden="true" class="dark:bg-white size-5 bg-emerald-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/circle-check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/circle-check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><div class="min-w-0 flex-1"><p class="text-base font-semibold text-emerald-900">חשבונית/קבלה מוכנה</p><p class="text-sm mt-0.5 text-emerald-800/80">לשלוח ללקוח עכשיו?</p></div><div class="flex items-center gap-2 shrink-0"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" data-testid="post-issue-send-banner-send"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית/קבלה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" data-testid="post-issue-send-banner-later"><span>מאוחר יותר</span></button></div></section>",
+  "invoice_receipt:rendering": "<section class="rounded-xl border border-gray-200 bg-gray-50/80 px-6 py-5 flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="post-issue-send-banner" data-pdf-status="rendering"><div class="size-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0"><span class="inline-block size-3 rounded-full bg-gray-500 animate-pulse"></span></div><div class="min-w-0 flex-1"><p class="text-base font-semibold text-gray-900">מפיק את החשבונית/קבלה…</p><p class="text-sm mt-0.5 text-gray-600">ברגע שהמסמך יהיה מוכן אפשר יהיה לשלוח אותו.</p></div><div class="flex items-center gap-2 shrink-0"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" disabled="" title="המסמך עדיין מופק…" data-testid="post-issue-send-banner-send"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית/קבלה</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" data-testid="post-issue-send-banner-later"><span>מאוחר יותר</span></button></div></section>",
+  "later": "ABSENT",
+}
+`;
+
+exports[`Hebrew baseline — issued view interactions > send dialog: validation, advanced options, success, every failure reason, thrown; expired 1`] = `
+{
+  "advanced": "<div role="dialog" aria-modal="true" aria-label="שליחת חשבונית" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[92vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-3"><div class="size-11 rounded-lg bg-softy border border-soft flex items-center justify-center shrink-0"><img alt="SocialCRM" class="size-6" draggable="false" src="/media/fav.svg"></div><div class="min-w-0"><p class="text-xs text-gray-500">שליחת חשבונית/קבלה</p><h3 class="text-lg font-semibold tabular-nums text-dark leading-tight">חשבונית/קבלה #00042</h3><p class="mt-1 text-sm text-gray-600 leading-relaxed">ללקוח יישלח מייל עם קישור להורדת המסמך כקובץ PDF.</p></div></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">לאיזה מייל לשלוח</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" dir="ltr" placeholder="client@example.com" data-testid="send-invoice-recipient" type="email" value="yossi@example.test" name="recipientEmail"></div><button type="button" class="self-start text-sm text-solid hover:underline underline-offset-2">הסתר אפשרויות נוספות</button><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">הודעה אישית (אופציונלי)</label></div><textarea id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary min-h-24 p-2.5" name="customMessage" placeholder="שלום, מצורפת החשבונית. תודה!"></textarea></div><div class="flex justify-end gap-2 mt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="button" data-testid="send-invoice-submit"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית</span></button></div></div></div>",
+  "calls": [
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+    [
+      "sendInvoiceEmailAction",
+      {
+        "customMessage": undefined,
+        "invoiceId": 9,
+        "leadId": 41,
+        "recipientEmail": "yossi@example.test",
+      },
+    ],
+  ],
+  "dialog": "<div role="dialog" aria-modal="true" aria-label="שליחת חשבונית" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[92vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div class="grid gap-4 pt-2"><div class="flex items-start gap-3"><div class="size-11 rounded-lg bg-softy border border-soft flex items-center justify-center shrink-0"><img alt="SocialCRM" class="size-6" draggable="false" src="/media/fav.svg"></div><div class="min-w-0"><p class="text-xs text-gray-500">שליחת חשבונית/קבלה</p><h3 class="text-lg font-semibold tabular-nums text-dark leading-tight">חשבונית/קבלה #00042</h3><p class="mt-1 text-sm text-gray-600 leading-relaxed">ללקוח יישלח מייל עם קישור להורדת המסמך כקובץ PDF.</p></div></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="«id»" class="text-gray-600 text-sm font-medium ">לאיזה מייל לשלוח</label></div><input id="«id»" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" dir="ltr" placeholder="client@example.com" data-testid="send-invoice-recipient" type="email" value="yossi@example.test" name="recipientEmail"></div><button type="button" class="self-start text-sm text-solid hover:underline underline-offset-2">אפשרויות נוספות</button><div class="flex justify-end gap-2 mt-2"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3" type="button"><span>ביטול</span></button><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="button" data-testid="send-invoice-submit"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית</span></button></div></div></div>",
+  "expired": "<div role="dialog" aria-modal="true" aria-label="שליחת חשבונית" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-8 max-h-[90vh] rounded-lg w-[460px] max-w-[92vw]"><button class="absolute top-2 left-2" title="יציאה ללא שמירה" aria-label="סגירה"><div aria-hidden="true" class="dark:bg-white size-[22px] bg-red-700 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/lit/circle-xmark.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></button><div data-testid="subscription-expired-state" class="flex flex-col items-center gap-4 text-center px-6 py-12 "><span class="flex size-14 items-center justify-center rounded-full bg-gray-100"><div aria-hidden="true" class="dark:bg-white size-6 bg-gray-500 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/lock.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><div class="max-w-[380px]"><h2 class="text-lg font-bold text-ink">המנוי שלך הסתיים</h2><p class="mt-1.5 text-sm leading-relaxed text-gray-500">חידוש המנוי מחזיר את שליחת החשבוניות. כל הלידים, השיחות וההיסטוריה שלכם שמורים ונשארים זמינים. חידוש המנוי מחזיר את היכולות המתקדמות מיד.</p><p class="mt-1.5 text-[13px] text-gray-400">תוקף המנוי הסתיים בתאריך 20 באוקטובר 2026</p></div><a href="/settings/update_payment?source=invoice_send" class="press inline-flex min-h-11 items-center justify-center rounded-md bg-solid px-5 font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">חידוש מנוי</a></div></div>",
+  "invalid": "<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-solid text-white hover:bg-solid/85 h-10 px-4 gap-3" type="button" data-testid="send-invoice-submit" disabled="" title="הזן כתובת מייל תקינה"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/paper-plane.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>שלח חשבונית</span></button>",
+  "toasts": [
+    [
+      "loading",
+    ],
+    [
+      "success",
+      "החשבונית נשלחה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "אין הרשאה לשליחת חשבוניות",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "הליד לא נמצא",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "החשבונית לא נמצאה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "החשבונית עדיין טיוטה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "קובץ ה-PDF עדיין לא מוכן",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "כתובת המייל אינה תקינה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "נשלחה בקשה לאחרונה — נסו שוב בעוד מספר שניות",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "שירות המייל סירב — בדקו את הלוגים",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "שליחת החשבונית נכשלה",
+    ],
+    [
+      "loading",
+    ],
+    [
+      "error",
+      "שליחת החשבונית נכשלה",
+    ],
+  ],
+}
+`;

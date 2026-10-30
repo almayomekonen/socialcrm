@@ -44,21 +44,22 @@ export function formatIconFile(type: string) {
   return <Icon name={`file-${fileType}`} className={`${bgColors[fileType]} size-4`} />
 }
 
-function getTypeName(file: any) {
+function getTypeName(file: any, unavailable: string) {
   if (typeof file === 'object' && file.url) {
     return {
       ...file,
       fileType: getFileType(file.type),
     }
   }
-  return { type: 'other', name: 'לא ניתן להציג', url: '' }
+  return { type: 'other', name: unavailable, url: '' }
 }
 
-export function FileDisplay({ files, onRemove = null, className = '', tooltipClass = '' }) {
+/** `unavailableLabel`: the caller's words for an entry that is not a file (Hebrew by default). */
+export function FileDisplay({ files, onRemove = null, className = '', tooltipClass = '', unavailableLabel = 'לא ניתן להציג' }) {
   return (
     <div className={twMerge('text-sm mb-2', className)}>
       {files.map((file, i) => {
-        file = getTypeName(file)
+        file = getTypeName(file, unavailableLabel)
         return (
           <div key={i} className='grid grid-cols-[auto_1fr_auto] gap-2 group mb-1 items-center relative w-full'>
             {formatIconFile(file.type)}

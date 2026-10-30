@@ -1,56 +1,16 @@
 'use client'
 
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { useId, useState, useTransition } from 'react'
-import { Btn } from '@/lib/btns/Btn'
 import { Switch } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { updateAutoResponseSettings } from '@/actions/autoResponse/updateSettings'
-import type { AutoResponseReplyMode } from '@/db/autoResponseSettings'
+import { BODY_MAX, SAVE_ERROR_KEY, saveErrorCode, toDraft, type AutoResponseFormProps as Props, type Draft, type SaveErrorCode } from './autoResponseDraft'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 import AutoResponseReplyStyle from './AutoResponseReplyStyle'
 import AgentPreview from './AgentPreview'
-
-type Props = {
-  masterEnabled: boolean
-  channelEnabled: boolean
-  dailyCap: number
-  guidance: string | null
-  agentInstructions: string | null
-  replyMode: AutoResponseReplyMode
-  fixedBody: string | null
-  delaySeconds: number
-  /** From the account. Empty ⇒ the form asks for it inline. */
-  businessName: string
-}
-
-type Draft = {
-  master: boolean
-  channel: boolean
-  dailyCap: string
-  guidance: string
-  agentInstructions: string
-  replyMode: AutoResponseReplyMode
-  fixedBody: string
-  delaySeconds: string
-  businessName: string
-}
-
-const BODY_MAX = 1000
-
-function toDraft(p: Props): Draft {
-  return {
-    master: p.masterEnabled,
-    channel: p.channelEnabled,
-    dailyCap: String(p.dailyCap),
-    guidance: p.guidance ?? '',
-    agentInstructions: p.agentInstructions ?? '',
-    replyMode: p.replyMode,
-    fixedBody: p.fixedBody ?? '',
-    delaySeconds: String(p.delaySeconds),
-    businessName: p.businessName ?? '',
-  }
-}
+import AutoResponseTiming from './AutoResponseTiming'
+import AutoResponseSaveBar from './AutoResponseSaveBar'
 
 /**
  * Workspace control for WhatsApp Auto Response. Master switch gates everything;
@@ -71,7 +31,10 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [baseline, setBaseline] = useState<Draft>(() => toDraft(initial))
   const [draft, setDraft] = useState<Draft>(() => toDraft(initial))
   const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const t = useT()
+  const region = useRegionAttrs()
+  const [errorCode, setError] = useState<SaveErrorCode | null>(null)
+  const error = errorCode ? t(SAVE_ERROR_KEY[errorCode]) : null
   const [pending, startTransition] = useTransition()
 
   const bodyId = useId()
@@ -86,8 +49,8 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [unsupported, setUnsupported] = useState<string[]>([])
   const [savedDescription, setSavedDescription] = useState(initial.guidance ?? '')
   const dirty = (Object.keys(draft) as (keyof Draft)[]).some((k) => draft[k] !== baseline[k])
-  const fixedBodyError = error === 'יש להזין הודעה קבועה' ? error : undefined
-  const businessNameError = error === 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה' ? error : undefined
+  const fixedBodyError = errorCode === 'fixed_body_required' ? error : undefined
+  const businessNameError = errorCode === 'business_name_required' ? error : undefined
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -127,13 +90,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
         // `profile_derivation_failed` is the recoverable one: everything the
         // owner typed IS saved and the agent still works from their words —
         // only the structured view is missing, and saving again retries it.
-        const copy: Record<string, string> = {
-          fixed_body_required: 'יש להזין הודעה קבועה',
-          business_name_required: 'צריך שם עסק כדי שהסוכן יוכל לפתוח שיחה',
-          profile_derivation_failed:
-            'הטקסט נשמר, אבל לא הצלחנו לעבד אותו כרגע. הסוכן עדיין עובד לפי מה שכתבתם. אפשר לשמור שוב כדי לנסות.',
-        }
-        setError(copy[result.reason] ?? 'לא ניתן לשמור')
+        setError(saveErrorCode(result.reason))
         if (result.reason === 'profile_derivation_failed') {
           setBaseline(draft)
           setSavedDescription(guidance)
@@ -148,12 +105,10 @@ export default function AutoResponseSettingsForm(initial: Props) {
   }
 
   return (
-    <div className='max-w-5xl'>
+    <div className='max-w-5xl' {...region}>
       <header className='mb-8'>
-        <h1 className='title'>מענה אוטומטי</h1>
-        <p className='mt-2 max-w-2xl text-sm leading-relaxed text-gray-600'>
-          ליד שכותב בוואטסאפ מקבל תשובה תוך שניות, גם כשאתם לא ליד המסך. אתם ממשיכים את השיחה משם.
-        </p>
+        <h1 className='title'>{t('admin.autoResponse.title')}</h1>
+        <p className='mt-2 max-w-2xl text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.intro')}</p>
       </header>
 
       <section>
@@ -166,17 +121,17 @@ export default function AutoResponseSettingsForm(initial: Props) {
           */}
           <div className='flex items-center gap-2.5'>
             <Icon type='reg' name='whatsapp' className='size-4.5 bg-[#25D366]' />
-            <h2 className='text-base font-semibold text-ink'>מענה אוטומטי בוואטסאפ</h2>
+            <h2 className='text-base font-semibold text-ink'>{t('admin.autoResponse.master')}</h2>
           </div>
           <Switch
-            aria-label='מענה אוטומטי בוואטסאפ'
+            aria-label={t('admin.autoResponse.master')}
             checked={master}
             onChange={(e) => set('master', e.target.checked)}
           />
-          <p className='text-sm text-gray-500'>{master ? 'מופעל' : 'כבוי'}</p>
+          <p className='text-sm text-gray-500'>{master ? t('admin.autoResponse.on') : t('admin.autoResponse.off')}</p>
         </div>
         <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>
-          {master ? 'כל הודעה נכנסת מקבלת מענה לפי ההגדרות למטה.' : 'כרגע לא נשלח מענה בשום ערוץ.'}
+          {master ? t('admin.autoResponse.masterOn') : t('admin.autoResponse.masterOff')}
         </p>
 
         {/*
@@ -187,14 +142,14 @@ export default function AutoResponseSettingsForm(initial: Props) {
         */}
         {master && (
           <label className='mt-4 flex w-fit cursor-pointer items-center gap-3.5'>
-            <span className='text-sm font-medium text-gray-700'>וואטסאפ</span>
+            <span className='text-sm font-medium text-gray-700'>{t('admin.autoResponse.channel')}</span>
             <input
               type='checkbox'
               className='switch'
               checked={channel}
               onChange={(e) => set('channel', e.target.checked)}
             />
-            <span className='text-sm text-gray-500'>הערוץ שבו נשלח המענה. ערוצים נוספים יתווספו בהמשך.</span>
+            <span className='text-sm text-gray-500'>{t('admin.autoResponse.channelHint')}</span>
           </label>
         )}
       </section>
@@ -233,96 +188,27 @@ export default function AutoResponseSettingsForm(initial: Props) {
             />
           )}
 
-          <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
-            <h2 className='text-base font-semibold text-ink'>תזמון ומגבלות</h2>
-            <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>שליטה בקצב, כדי שהמענה יישאר טבעי.</p>
-
-            {/*
-              One control, not two: the pair shares a single rounded outline and is
-              split by a 1px rule, so the ceiling reads as part of the same pacing
-              decision as the delay. The 1px is the container's own background
-              showing through `gap-px`.
-            */}
-            <div className='mt-4 max-w-100'>
-              <div className='grid grid-cols-2 gap-px'>
-                <label htmlFor={delayId} className='ps-3.25 text-sm text-gray-700'>
-                  המתנה לפני שליחה
-                </label>
-                <label htmlFor={capId} className='ps-3.25 text-sm text-gray-700'>
-                  מקסימום מענים ביום
-                </label>
-              </div>
-
-              <div className='mt-1.75 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-gray-200 bg-gray-200 focus-within:outline-2 focus-within:outline-offset-0 focus-within:outline-primary'>
-                <div className='flex h-10 items-center gap-2 bg-white ps-3.25 pe-3.25'>
-                  <input
-                    id={delayId}
-                    type='number'
-                    min={0}
-                    max={3600}
-                    className='w-full min-w-0 bg-transparent text-md outline-none'
-                    value={delaySeconds}
-                    onChange={(e) => set('delaySeconds', e.target.value)}
-                  />
-                  <span className='text-sm text-gray-500'>שניות</span>
-                </div>
-                <div className='flex h-10 items-center gap-2 bg-white ps-3.25 pe-3.25'>
-                  <input
-                    id={capId}
-                    type='number'
-                    min={0}
-                    className='w-full min-w-0 bg-transparent text-md outline-none'
-                    value={dailyCap}
-                    onChange={(e) => set('dailyCap', e.target.value)}
-                  />
-                  <span className='text-sm text-gray-500'>הודעות</span>
-                </div>
-              </div>
-
-              <div className='mt-1.75 grid grid-cols-2 gap-px'>
-                <p className='ps-3.25 text-xs text-gray-500'>אפס שולח מיד.</p>
-                <p className='ps-3.25 text-xs text-gray-500'>תקרה יומית לכל העסק.</p>
-              </div>
-            </div>
-          </section>
+          <AutoResponseTiming
+            delayId={delayId}
+            capId={capId}
+            delaySeconds={delaySeconds}
+            dailyCap={dailyCap}
+            onDelaySeconds={(v) => set('delaySeconds', v)}
+            onDailyCap={(v) => set('dailyCap', v)}
+          />
         </>
       )}
 
-      <div className='mt-5.5 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5.5'>
-        <div className='flex items-center gap-2.5'>
-          {error && !fixedBodyError && (
-            <p className='text-sm text-red-600' role='alert'>
-              {error}
-            </p>
-          )}
-          {!error && dirty && (
-            <>
-              <span className='size-1.25 rounded-full bg-warning' />
-              <p className='text-sm text-gray-500'>יש שינויים שלא נשמרו</p>
-            </>
-          )}
-          {!error && !dirty && saved && <p className='text-sm text-gray-500'>השינויים נשמרו</p>}
-        </div>
-
-        {proLocked ? (
-          <SubscriptionExpiredState
-            mode='inline'
-            source='auto_response_save'
-            feature='חידוש המנוי מחזיר את המענה האוטומטי'
-          />
-        ) : (
-          <div className='flex items-center gap-2.5'>
-            <Btn variant='outline' lbl='ביטול' disabled={!dirty || pending} onClick={cancel} />
-            <Btn
-              lbl={pending ? 'שומר…' : 'שמור שינויים'}
-              icon={pending ? 'spinner' : undefined}
-              iconClassName={pending ? 'animate-spin' : undefined}
-              disabled={pending}
-              onClick={save}
-            />
-          </div>
-        )}
-      </div>
+      <AutoResponseSaveBar
+        error={error}
+        showError={!!error && !fixedBodyError}
+        dirty={dirty}
+        saved={saved}
+        pending={pending}
+        proLocked={proLocked}
+        onCancel={cancel}
+        onSave={save}
+      />
     </div>
   )
 }

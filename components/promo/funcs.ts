@@ -2,6 +2,25 @@ import { getFormData2 } from '@/lib/form/funcs'
 import { formatRoundCurrency, omit } from '@/lib/funcs'
 import { formatShortCurrency } from '@/lib/funcs'
 import { Promo } from '@/types/global'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { dealBranchLabel } from '@/lib/deals/labels'
+
+/**
+ * A campaign row's column KEY (`formatNumAndPrecent`): 'נציג' / 'צוות', or
+ * `<branch> - <prize> (<goal>)`, where the branch is a stored value and the prize
+ * is campaign data. Display only: the key itself is what Hebrew shows.
+ */
+export function promoColumnLabel(key: string, locale: UiLocale): string | null {
+  const t = translatorFor(locale)
+  if (key === 'נציג') return t('performance.promotion.column.rep')
+  if (key === 'צוות') return t('performance.promotion.column.team')
+  const cut = key.indexOf(' - ')
+  if (cut < 0) return null
+  const branch = key.slice(0, cut)
+  const label = dealBranchLabel(branch, locale)
+  return label === branch ? null : label + key.slice(cut)
+}
 
 export function formatNumAndPrecent(user, promo: Promo) {
   const goals = promo?.goals?.target || []

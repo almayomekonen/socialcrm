@@ -49,13 +49,28 @@ describe('education overlay and RTL skin', () => {
 
   it('configures a translucent ink overlay and Hebrew tour chrome', () => {
     const src = readFileSync('components/education/runTour.ts', 'utf8')
-    expect(src).toMatch(/overlayColor:\s*'#0a2540'/)
-    expect(src).toMatch(/overlayOpacity:\s*0\.45/)
-    expect(src).toContain("nextBtnText: 'הבא'")
-    expect(src).toContain("prevBtnText: 'חזרה'")
-    expect(src).toContain("doneBtnText: 'הבנתי'")
-    expect(src).toContain("progressText: '{{current}} מתוך {{total}}'")
-    expect(src).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
-    expect(src).toContain("skip.textContent = 'דלג'")
+    // The overlay config every Driver.js run shares lives in tourPopover.ts (baseDriverConfig).
+    const shared = readFileSync('components/education/tourPopover.ts', 'utf8')
+    expect(shared).toMatch(/overlayColor:\s*'#0a2540'/)
+    expect(shared).toMatch(/overlayOpacity:\s*0\.45/)
+    expect(src.match(/\.\.\.baseDriverConfig\(reduceMotion\)/g)?.length).toBe(2)
+    // The chrome words come from the catalog (Phase E6); in Hebrew they are the same words,
+    // and Driver.js's counters are passed through as {{current}} / {{total}}.
+    const chrome = readFileSync('lib/i18n/messages/he/education/chrome.ts', 'utf8')
+    expect(src).toContain('nextBtnText: chrome.nextBtnText')
+    expect(src).toContain('prevBtnText: chrome.prevBtnText')
+    expect(src).toContain('doneBtnText: chrome.doneBtnText')
+    expect(src).toContain('progressText: chrome.progressText')
+    expect(chrome).toContain("next: 'הבא'")
+    expect(chrome).toContain("prev: 'חזרה'")
+    expect(chrome).toContain("done: 'הבנתי'")
+    expect(chrome).toContain("progress: '{current} מתוך {total}'")
+    expect(readFileSync('lib/education/tourCopy.ts', 'utf8')).toContain("{ current: '{{current}}', total: '{{total}}' }")
+    // The popover decoration (dir, role, the extra footer button) lives in tourPopover.ts.
+    const popover = readFileSync('components/education/tourPopover.ts', 'utf8')
+    expect(popover).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
+    expect(src).toContain("extra: { text: chrome.skip, onClick: () => finish('dismissed') }")
+    expect(chrome).toContain("skip: 'דלג'")
+    expect(popover).toContain('extra.textContent = opts.extra.text')
   })
 })

@@ -22,6 +22,10 @@ import PlanStatusBox from '@/components/settings/payment/PlanStatusBox'
 import { refreshCardSetupState } from '@/lib/payments/cardTrial/recoverCardSetup'
 import CardTrialSetupForm from '@/components/trial/CardTrialSetupForm'
 import PaymentsUnavailableNotice from '@/components/billing/PaymentsUnavailableNotice'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 type SearchParams = Promise<{ mode?: string | string[] }>
 
@@ -51,17 +55,19 @@ type SearchParams = Promise<{ mode?: string | string[] }>
  * in CardBillingControls. So here it always means "add a first card", and
  * "החלפת הכרטיס השמור" would name a card that does not exist.
  */
-const SETUP_LABEL = {
-  trial_start: 'הוספת כרטיס והפעלת הניסיון',
-  reactivate: 'עדכון אמצעי תשלום והמשך',
-  card_update: 'שמירת כרטיס לחשבון',
-} as const
+const SETUP_LABEL: Record<'trial_start' | 'reactivate' | 'card_update', MessageKey> = {
+  trial_start: 'settings.payment.setup.trial_start',
+  reactivate: 'settings.payment.setup.reactivate',
+  card_update: 'settings.payment.setup.card_update',
+}
 
 export default async function page({ searchParams }: { searchParams?: SearchParams }) {
   const sp = searchParams ? await searchParams : {}
   const isLocalMode = sp.mode === 'local'
 
   const user = await getUser()
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   /**
    * The nav entry for this page sits inside the `role == 'ADMIN'` block, so it
    * was hidden from other roles — but hidden is not denied. The page itself had
@@ -70,7 +76,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
    * subscription actions use, so page and action now agree.
    */
   if (!user || !isAdmin(user.role)) {
-    return <div>אין לך הרשאה לצפות בדף זה</div>
+    return <div {...regionAttrs(locale)}>{t('settings.account.denied')}</div>
   }
   const productAccess = await getAgencyProductAccess(user.agencyId)
   const plan = await getAgencyPlan(user.agencyId)
@@ -129,26 +135,28 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
     })
   }
 
+  // Amounts and the recorded terms are passed / kept as they are; only the chrome follows the interface.
+  const monthly = `₪${PRICING.monthly}`
   return (
-    <div>
-      <h1 className='title mb-8'>פרטי חבילה ותשלום</h1>
+    <div {...regionAttrs(locale)}>
+      <h1 className='title mb-8'>{t('settings.account.title.billing')}</h1>
 
       {isLocalMode && (
         <div
           role='status'
-          dir='rtl'
+          dir={locale === 'he' ? 'rtl' : undefined}
           className='mb-6 max-w-3xl p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3'
         >
           <Icon name='circle-exclamation' className='bg-amber-700 size-5 mt-0.5 shrink-0' />
           <div className='space-y-1 text-sm'>
-            <p className='font-semibold text-amber-900'>מצב פיתוח</p>
-            <p className='text-amber-800'>תשלומים אמיתיים אינם זמינים בסביבת פיתוח.</p>
-            <p className='text-amber-800'>כדי לבדוק תשלומים אמיתיים השתמש בפרודקשן.</p>
+            <p className='font-semibold text-amber-900'>{t('settings.payment.devMode.title')}</p>
+            <p className='text-amber-800'>{t('settings.payment.devMode.line1')}</p>
+            <p className='text-amber-800'>{t('settings.payment.devMode.line2')}</p>
           </div>
         </div>
       )}
 
-      {cardView.cardBilled && <CardOnFileSummary view={cardView} granted={subscription?.source === 'grant'} />}
+      {cardView.cardBilled && <CardOnFileSummary view={cardView} granted={subscription?.source === 'grant'} locale={locale} />}
 
       {trialActive && trial?.endsAt && trialRow?.trialStartedAt && (
         <TrialStatusCard
@@ -157,6 +165,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
           daysRemaining={trial.daysRemaining ?? 0}
           cardBilled={cardView.cardBilled}
           cancelAtPeriodEnd={cardView.cancelAtPeriodEnd}
+          locale={locale}
         />
       )}
 
@@ -165,26 +174,26 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
           {/* Named first so the truth is the first thing read on the page. */}
           {!productAccess.hasAccess && (
             <div className='mb-6 max-w-3xl'>
-              <SubscriptionExpiredState mode='inline' source='billing_page' />
+              <SubscriptionExpiredState mode='inline' source='billing_page' translated />
             </div>
           )}
-          <ProPlanCard subscription={subscription} hasAccess={productAccess.hasAccess} />
+          <ProPlanCard subscription={subscription} hasAccess={productAccess.hasAccess} locale={locale} />
         </>
       ) : (
-        <PlanStatusBox trialActive={trialActive} canAddFirstCard={!cardView.cardBilled} />
+        <PlanStatusBox trialActive={trialActive} canAddFirstCard={!cardView.cardBilled} locale={locale} />
       )}
 
-      {usage && <SubscriptionUsage usage={usage} />}
+      {usage && <SubscriptionUsage usage={usage} locale={locale} />}
 
-      <BillingHistory charges={charges} />
+      <BillingHistory charges={charges} locale={locale} />
 
       {!cardView.cardBilled && (
         <section id='card-setup' className='mt-12 scroll-mt-6'>
-          <h2 className='text-xl font-bold'>אמצעי תשלום</h2>
+          <h2 className='text-xl font-bold'>{t('settings.payment.method.title')}</h2>
           <p className='mt-1 text-sm text-gray-500'>
             {subscription?.source === 'grant'
-              ? 'הכרטיס יישמר לשימוש עתידי. לא ייווצר מנוי ולא יבוצע חיוב.'
-              : `המנוי מחויב ב־₪${PRICING.monthly} לחודש מהכרטיס השמור. אפשר לבטל בכל רגע.`}
+              ? t('settings.payment.method.grantNote')
+              : t('settings.payment.method.subscriptionNote', { amount: monthly })}
           </p>
           <div className='mt-4'>
             {canStartSetup && setupPurpose ? (
@@ -193,10 +202,11 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
                 /* Entitled already, adding a first card: no trial, no ₪89, and
                    no subscription consent — none of them are true here. */
                 mode={setupPurpose === 'card_update' ? 'entitled' : 'subscription'}
-                submitLabel={SETUP_LABEL[setupPurpose]}
+                submitLabel={t(SETUP_LABEL[setupPurpose])}
+                translated
               />
             ) : (
-              <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} />
+              <PaymentsUnavailableNotice action='start' hasAccess={productAccess.hasAccess} locale={locale} />
             )}
           </div>
         </section>
@@ -205,7 +215,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       {!isPro && (
         <>
           <h2 id='packages' className='text-xl font-bold mt-12 scroll-mt-6'>
-            חבילות
+            {t('settings.payment.packagesTitle')}
           </h2>
           <Packages plan={plan} trialActive={trialActive} cardBilled={cardView.cardBilled} />
         </>
@@ -213,7 +223,7 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
 
       <div className='mt-10 flex max-w-3xl items-center gap-2.5 text-xs text-gray-500'>
         <Icon name='lock' type='reg' className='size-3.5 shrink-0 bg-gray-400' />
-        התשלומים מעובדים באופן מאובטח דרך ספק הסליקה שלנו. פרטי הכרטיס אינם נשמרים אצלנו.
+        {t('settings.payment.secureNote')}
       </div>
     </div>
   )

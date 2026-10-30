@@ -14,6 +14,8 @@ import TemplateList from '@/components/settings/templates/TemplateList'
 import type { TemplateRowActions } from '@/components/settings/templates/TemplateRow'
 import TemplatesEmptyState from '@/components/settings/templates/TemplatesEmptyState'
 import CreateTemplateModal from '@/components/settings/templates/CreateTemplateModal'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { templateSentence } from '@/components/settings/templates/templateCopy'
 
 /**
  * Client store + workspace for ready-made messages (mirrors the inbox store's
@@ -26,6 +28,7 @@ import CreateTemplateModal from '@/components/settings/templates/CreateTemplateM
  * row, on failure it is rolled back and the mapped Hebrew error is toasted.
  */
 export default function TemplatesWorkspace({ initial }: { initial: Template[] }) {
+  const t = useT()
   const [templates, setTemplates] = useState<Template[]>(initial)
   const [createOpen, setCreateOpen] = useState(false)
   // When set, the modal is a retry of this rejected template (RFC §3).
@@ -87,10 +90,10 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
             .filter((t) => t.id !== retryOf) // old rejected row was archived server-side
             .map((t) => (t.id === tempId ? res.template : t)), // reconcile
         )
-        toast('success', 'ההודעה נוצרה ונשלחה לאישור וואטסאפ')
+        toast('success', t('settings.templates.created'))
       } else if ('error' in res) {
         setTemplates((prev) => prev.filter((t) => t.id !== tempId)) // rollback (old row stays)
-        toast('error', res.error)
+        toast('error', templateSentence(res.error, t))
       }
     })
   }
@@ -102,15 +105,15 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
       archiveTemplate(id).then((res) => {
         if (res.ok) {
           setTemplates((prev) => prev.filter((t) => t.id !== id))
-          toast('success', 'ההודעה הועברה לארכיון')
-        } else if ('error' in res) toast('error', res.error)
+          toast('success', t('settings.templates.archived'))
+        } else if ('error' in res) toast('error', templateSentence(res.error, t))
       }),
     onDiscard: (id) =>
       discardTemplate(id).then((res) => {
         if (res.ok) {
           setTemplates((prev) => prev.filter((t) => t.id !== id))
-          toast('success', 'ההודעה הוסרה')
-        } else if ('error' in res) toast('error', res.error)
+          toast('success', t('settings.templates.discarded'))
+        } else if ('error' in res) toast('error', templateSentence(res.error, t))
       }),
     onRetry: (template) => {
       setRetryTarget(template)
@@ -130,7 +133,7 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
         <>
           <div className='flex justify-end'>
             <Btn
-              lbl='הודעה מוכנה חדשה'
+              lbl={t('settings.templates.newMessage')}
               icon='plus'
               size='small'
               className='w-fit'
@@ -149,11 +152,11 @@ export default function TemplatesWorkspace({ initial }: { initial: Template[] })
           setEditTarget(null)
         }}
         onCreate={handleCreate}
-        heading={editTarget ? 'עריכת הודעה' : 'הודעה מוכנה חדשה'}
-        submitLabel='שלח לבדיקה'
+        heading={editTarget ? t('settings.templates.editMessage') : t('settings.templates.newMessage')}
+        submitLabel={t('settings.templates.submit')}
         note={
           editTarget
-            ? 'יצירת גרסה חדשה לבדיקה. ההודעה הנוכחית תישאר פעילה עד שהגרסה החדשה תאושר — אפשר להעביר אותה לארכיון לאחר מכן.'
+            ? t('settings.templates.editNote')
             : undefined
         }
         initial={

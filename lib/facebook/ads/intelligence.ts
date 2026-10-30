@@ -11,6 +11,7 @@ import type { DayRange } from '@/lib/facebook/ads/periods'
 import type { AdsTopAd } from '@/lib/facebook/ads/topAds'
 import type { AdCreative } from '@/lib/facebook/ads/creatives'
 import type { AdsSignal } from '@/lib/facebook/ads/signals'
+import type { UiLocale } from '@/lib/i18n/config'
 
 /**
  * Server-side assembly of the Meta ↔ SocialCRM sections. Called only after the
@@ -48,6 +49,8 @@ export async function loadAdsIntelligence(input: {
   currency: string | null
   freshness: { fetchedAt: string; stale: boolean } | null
   now?: Date
+  /** Language of the signal sentences (display only; Hebrew by default). */
+  locale?: UiLocale
 }): Promise<AdsIntelligenceData | null> {
   if (!input.report.period) return null
   const now = input.now ?? new Date()
@@ -88,6 +91,7 @@ export async function loadAdsIntelligence(input: {
         crm: byCampaign.get(c.id)?.outcome,
       })),
       input.currency,
+      input.locale,
     )
 
     return {

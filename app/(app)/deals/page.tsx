@@ -15,12 +15,15 @@ import SalesSection from '@/components/sales/SalesSection'
 import DashboardSummary from '@/components/dashboard/DashboardSummary'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
 
 const Filter = dynamic(() => import('@/components/filter'))
 
-export const metadata: Metadata = {
-  title: 'עסקאות',
-  description: 'ניהול עסקאות ולידים',
+/** Tab title in the interface language — Hebrew ('עסקאות') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('deals.page.title'), description: t('deals.page.description') }
 }
 
 export default async function SalesPage({ searchParams }) {
@@ -35,6 +38,9 @@ export default async function SalesPage({ searchParams }) {
    * of them (architecture-rules.md §9).
    */
   if (await isMobileWorkspaceRequest(user.agencyId)) return <MobileDesktopOnly section='deals' />
+
+  // Resolved once by the same request-memoised call the (app) layout makes.
+  const { locale } = await getUiLocaleState(user)
 
   // Explicit ?filter= wins; otherwise the user's remembered deals filter; otherwise the default.
   const filter = await resolveActiveFilter('deals', user.id, urlFilter)
@@ -61,6 +67,7 @@ export default async function SalesPage({ searchParams }) {
   return (
     <Provider
       className='flex flex-col min-h-0 h-full relative'
+      regionAttrs={regionAttrs(locale)}
       props={{
         tableLength: tblData.length,
         count,
@@ -71,7 +78,7 @@ export default async function SalesPage({ searchParams }) {
     >
       <div className='shrink-0'>
         {/* Same filtered query as the table below — the cards follow the active filter. */}
-        <DashboardSummary count={count} revenue={revenue} rawFilter={rawFilter} />
+        <DashboardSummary count={count} revenue={revenue} rawFilter={rawFilter} locale={locale} />
       </div>
 
       <div className='shrink-0'>

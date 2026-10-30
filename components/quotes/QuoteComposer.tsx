@@ -3,14 +3,16 @@
 import { useEffect, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { Input, Select } from '@/lib/form'
-import { formatCurrency } from '@/lib/funcs'
 import { computeQuoteTotals } from '@/lib/quotes/totals'
 import { MAX_ITEMS, MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS, validateQuoteTemplateDraft, type QuoteTemplateItemDraft } from '@/lib/quotes/templateValidation'
 import { getQuoteComposerDataAction, saveQuoteTemplateAction, type QuoteComposerData } from '@/actions/quotes/templates'
 import type { InlineCreatorProps } from '@/components/settings/templates/firstPartyCreators'
 import QuoteComposerRow from './QuoteComposerRow'
+import QuoteComposerTotals from './QuoteComposerTotals'
 import { proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { customerTextAttrs } from '@/lib/i18n/config'
 
 /**
  * Build the quotation INSIDE the automation install flow.
@@ -38,9 +40,6 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 const NEW = '__new__'
 
-/** `formatCurrency` widens to `string | number` for NaN; the document wants text. */
-const money = (n: number): string => String(formatCurrency(n))
-
 const blankItem = (): QuoteTemplateItemDraft => ({
   title: '',
   description: '',
@@ -53,10 +52,11 @@ const blankItem = (): QuoteTemplateItemDraft => ({
 export default function QuoteComposer({ variable, value, onChange, onResolverChange }: InlineCreatorProps) {
   /** Saving a quote template is Pro configuration. */
   const expired = useAccessDenied()
+  const t = useT()
   const promptQuote = () =>
     proToast({
-      title: 'עריכת הצעות מחיר זמינה עם Pro',
-      body: 'חידוש המנוי יחזיר את עריכת הצעות המחיר.',
+      title: t('admin.automationTemplates.composer.pro.title'),
+      body: t('admin.automationTemplates.composer.pro.body'),
       source: 'quote_composer',
     })
   const [data, setData] = useState<QuoteComposerData | null>(null)
@@ -119,7 +119,7 @@ export default function QuoteComposer({ variable, value, onChange, onResolverCha
   const patch = (index: number, changes: Partial<QuoteTemplateItemDraft>) =>
     setItems(items.map((it, i) => (i === index ? { ...it, ...changes } : it)))
 
-  if (!data) return <p className='text-sm text-gray-500 ms-1'>טוען…</p>
+  if (!data) return <p className='text-sm text-gray-500 ms-1'>{t('admin.automationTemplates.install.loading')}</p>
 
   return (
     <section className='grid gap-3'>
@@ -128,7 +128,7 @@ export default function QuoteComposer({ variable, value, onChange, onResolverCha
           lbl={variable.label}
           options={[
             ...data.templates.map((t) => ({ id: String(t.id), name: t.name })),
-            { id: NEW, name: 'בניית הצעה חדשה' },
+            { id: NEW, name: t('admin.automationTemplates.composer.buildNew') },
           ]}
           value={choice}
           onChange={(e) => {
@@ -141,32 +141,33 @@ export default function QuoteComposer({ variable, value, onChange, onResolverCha
       {creating && (
         <>
           <Input
-            lbl='שם ההצעה'
-            info='לשימוש פנימי'
+            lbl={t('admin.automationTemplates.composer.name')}
+            info={t('admin.automationTemplates.composer.nameInfo')}
             value={name}
             maxLength={120}
-            placeholder='לדוגמה: בניית אתר'
+            placeholder={t('admin.automationTemplates.composer.namePlaceholder')}
             onChange={(e) => setName(e.target.value)}
           />
 
           {/* The document. What the lead will eventually be looking at. */}
           <div className='rounded-lg border border-gray-200 bg-white overflow-hidden'>
             <header className='flex items-baseline justify-between gap-3 bg-gray-50/70 px-4 py-3 border-b border-gray-100'>
-              <span className='text-[15px] font-semibold text-gray-800'>הצעת מחיר</span>
-              <span className='text-sm text-gray-500 truncate'>{data.businessName}</span>
+              <span className='text-[15px] font-semibold text-gray-800'>{t('admin.automationTemplates.composer.document')}</span>
+              <span className='text-sm text-gray-500 truncate' {...customerTextAttrs(t.locale)}>{data.businessName}</span>
             </header>
 
             <div className='px-4 pt-3 pb-4'>
               <p className='text-sm text-gray-500 mb-3'>
-                לכבוד: <span className='text-gray-700'>{'{{שם הליד}}'}</span>
-                <span className='text-gray-400'> · שם הליד יושלם אוטומטית</span>
+                {t('admin.automationTemplates.composer.to')}
+                <span className='text-gray-700'>{'{{שם הליד}}'}</span>
+                <span className='text-gray-400'>{t('admin.automationTemplates.composer.autoName')}</span>
               </p>
 
               <div className='grid grid-cols-[1fr_58px_84px_auto] gap-2 pb-1 border-b border-gray-100 text-[12.5px] text-gray-500'>
-                <span>תיאור</span>
-                <span className='text-center'>כמות</span>
-                <span>מחיר ליחידה</span>
-                <span className='w-[86px] text-end'>סה״כ</span>
+                <span>{t('admin.automationTemplates.composer.description')}</span>
+                <span className='text-center'>{t('admin.quotes.items.quantity')}</span>
+                <span>{t('admin.quotes.items.unitPrice')}</span>
+                <span className='w-[86px] text-end'>{t('admin.automationTemplates.composer.lineTotal')}</span>
               </div>
 
               {items.map((item, i) => (
@@ -186,56 +187,35 @@ export default function QuoteComposer({ variable, value, onChange, onResolverCha
                   variant='ghost'
                   size='small'
                   icon='plus'
-                  lbl='הוספת שורה'
+                  lbl={t('admin.quotes.items.add')}
                   disabled={items.length >= MAX_ITEMS}
                   onClick={() => setItems([...items, blankItem()])}
                 />
               </div>
 
-              <dl className='mt-3 border-t border-gray-100 pt-3 grid gap-1.5 text-sm'>
-                <Row label='סכום ביניים' value={money(totals.subtotalAmount)} />
-                {totals.discountAmount > 0 && (
-                  <Row label='הנחה' value={`־${money(totals.discountAmount)}`} />
-                )}
-                <Row label={`מע״מ ${data.taxRatePercent}%`} value={money(totals.taxAmount)} />
-                <div className='flex items-baseline justify-between gap-3 border-t border-gray-100 pt-2 mt-0.5'>
-                  <dt className='text-[15px] font-semibold text-gray-800'>סה״כ לתשלום</dt>
-                  <dd className='text-[17px] font-semibold text-gray-900 tabular-nums'>
-                    {money(totals.totalAmount)}
-                  </dd>
-                </div>
-              </dl>
+              <QuoteComposerTotals totals={totals} taxRatePercent={data.taxRatePercent} />
 
               <div className='mt-3 flex items-center gap-2 border-t border-gray-100 pt-3'>
-                <span className='text-sm text-gray-500'>תוקף ההצעה</span>
+                <span className='text-sm text-gray-500'>{t('admin.automationTemplates.composer.validity')}</span>
                 <input
                   className='h-9 w-16 rounded-md border border-gray-200 bg-gray-50 px-2 text-center tabular-nums focus:bg-white focus:border-gray-400 focus:outline-2 focus:outline-primary'
                   type='number'
                   min={MIN_VALIDITY_DAYS}
                   max={MAX_VALIDITY_DAYS}
                   value={validityDays}
-                  aria-label='תוקף ההצעה בימים'
+                  aria-label={t('admin.quotes.sheet.validityDays')}
                   onChange={(e) => setValidityDays(e.target.value)}
                 />
-                <span className='text-sm text-gray-500'>ימים</span>
+                <span className='text-sm text-gray-500'>{t('admin.automationTemplates.composer.days')}</span>
               </div>
             </div>
           </div>
 
           <p className='text-sm text-gray-500 ms-1'>
-            המחירים נשמרים על כל הצעה שנוצרת — שינוי ההצעה בהמשך לא ישנה הצעות שכבר נשלחו.
+            {t('admin.automationTemplates.composer.note')}
           </p>
         </>
       )}
     </section>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className='flex items-baseline justify-between gap-3'>
-      <dt className='text-gray-500'>{label}</dt>
-      <dd className='text-gray-700 tabular-nums'>{value}</dd>
-    </div>
   )
 }

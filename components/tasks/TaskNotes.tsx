@@ -38,7 +38,7 @@ export default function TaskNotes({
   const editNoteRef = useRef<any>(null)
   const ctxMenuRef = useRef<HTMLElement | null>(null)
   const render = () => setState((s) => !s)
-  const { loading, error, setError, run } = useAction()
+  const { loading, error, setError, run } = useAction({ translated })
 
   useEffect(() => {
     ctxMenuRef.current = document.getElementById('noteCtxMenu')

@@ -1,24 +1,14 @@
 'use client'
 
-import { useMemo, useRef, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
-import { Input, Select } from '@/lib/form'
+import { Input } from '@/lib/form'
 import { Seperator } from '@/lib/Seperator'
 import { toast, proToast } from '@/lib/toast'
-import { variableChipsForEvent } from '@/lib/automations/variables'
-import { TIMING_ACCURACY_COPY } from '@/lib/automations/copy'
-import {
-  getEvent,
-  listActionsForEvent,
-  listAnchorFields,
-  listIntegrations,
-  listSelectableEvents,
-  listSubjects,
-} from '@/lib/automations/catalog/registry'
-import { evaluateEvents, isSelectable, type RequirementContext } from '@/lib/automations/requirements'
+import type { RequirementContext } from '@/lib/automations/requirements'
 import type { Connection } from '@/lib/automations/catalog/types'
 import { type CtaDraft } from './AutomationContentSection'
 import AutomationActionSection from './AutomationActionSection'
@@ -28,10 +18,13 @@ import AutomationPreviewSection from './AutomationPreviewSection'
 import type { Timing } from '@/lib/automations/timing'
 import type { Condition } from '@/lib/automations/conditions'
 import { createAutomation, updateAutomation } from '@/actions/automations/manage'
-import type { AutomationInput } from '@/lib/automations/definitionInput'
 import { sendTestEmail } from '@/actions/automations/sendTest'
-import { errorMessage as msg, timingKey, timingOptionsFor } from './sheetOptions'
+import { errorMessageIn } from './sheetOptions'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { localizeRequirement } from '@/lib/automations/catalogI18n'
+import { sheetDisplay } from './sheetDisplay'
 import ConditionsEditor from './ConditionsEditor'
+import { useAutomationSheetDraft } from './useAutomationSheetDraft'
 
 /**
  * Creation/edit in ONE sheet (frozen spec §7) — now fully EVENT-FIRST and
@@ -85,137 +78,18 @@ export default function AutomationSheet({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [name, setName] = useState(draft.name)
-  const [eventKey, setEventKey] = useState(draft.eventKey)
-  const [conditions, setConditions] = useState<Condition[]>(draft.conditions ?? [])
-  const [connectionId, setConnectionId] = useState<string | null>(draft.connectionId ?? null)
-  const [parameters, setParameters] = useState<Record<string, string>>(draft.parameters ?? {})
-  const [subject, setSubject] = useState(draft.subject)
-  const [body, setBody] = useState(draft.body)
-  const [cta, setCta] = useState<CtaDraft | null>(draft.cta ?? null)
-  const [chosenActionKey, setChosenActionKey] = useState<string | null>(draft.actionKey ?? null)
-  const [templateId, setTemplateId] = useState<string>(draft.templateId ? String(draft.templateId) : '')
-  const [templateBindings, setTemplateBindings] = useState<Record<string, string>>(draft.templateBindings ?? {})
-  const [taskTitle, setTaskTitle] = useState(draft.title ?? '')
-  const [actionParameters, setActionParameters] = useState<Record<string, string>>(draft.actionParameters ?? {})
-  const [timing, setTiming] = useState<Timing>(draft.timing)
+  const d = useAutomationSheetDraft(draft, requirementContext, connections)
+  const { name, eventKey, conditions, parameters, subject, body, cta, templateId, templateBindings, taskTitle, actionParameters, timing } = d
+  const { event, actions, actionKey, action, chips, anchors, grouped, locked, eligibleConnections, boundConnectionId, payload } = d
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [testing, startTest] = useTransition()
 
-  const subjectRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
-  const bodyRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
-  const titleRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
-  const lastFocused = useRef<'subject' | 'body'>('body')
-
-  const evaluated = useMemo(() => evaluateEvents(listSelectableEvents(), requirementContext), [requirementContext])
-  const events = evaluated.map((e) => e.event)
-  const event = getEvent(eventKey)
-  /**
-   * The actions this event can offer, and the one selected.
-   *
-   * Which actions exist is the catalog's answer (`requires` × the event's field
-   * types); which one runs is the customer's, defaulting to the first. The Builder
-   * still names none of them — it renders `a.title` from the catalog.
-   */
-  const actions = useMemo(() => (event ? listActionsForEvent(event) : []), [event])
-  const actionKey = chosenActionKey && actions.some((a) => a.key === chosenActionKey) ? chosenActionKey : (actions[0]?.key ?? '')
-  const action = actions.find((a) => a.key === actionKey) ?? null
-  /** A template-shaped action stores a chosen message instead of authored text. */
-  const isTemplateAction = Boolean(action?.parameters.some((p) => p.key === 'templateId'))
-  /** A title-shaped action authors ONE line — no subject, no body, no CTA. */
-  const isTitleAction = Boolean(action?.parameters.some((p) => p.key === 'title'))
-  const chips = useMemo(() => (event ? variableChipsForEvent(event.fields) : []), [event])
-  const anchors = event ? listAnchorFields(event) : []
-
-  /** Events grouped by their declared subject — the picker's only structure. */
-  const grouped = useMemo(() => {
-    return listSubjects()
-      .map((s) => ({ subject: s, items: evaluated.filter((e) => e.event.subject === s.key) }))
-      .filter((g) => g.items.length > 0)
-  }, [evaluated])
-
-  /** The locked entry for the currently chosen event, if it is not runnable. */
-  const lockedRequirement = evaluated.find((e) => e.event.key === eventKey && e.availability.state === 'locked')
-  const locked = lockedRequirement?.availability.state === 'locked' ? lockedRequirement.availability.requirement : null
-
-  /**
-   * The connections that can actually satisfy THIS event.
-   *
-   * An event declares the capability it needs; an integration declares the
-   * capabilities it provides. Intersecting the two is what stops a calendar
-   * connection being offered for a website-form event — and it names no
-   * integration to do it.
-   *
-   * An event with no connection requirement gets an empty list: binding a
-   * `lead.created` automation to a connection would make it read as broken the
-   * day that connection is revoked, which it would not be.
-   */
-  const eligibleConnections = useMemo(() => {
-    const needed = new Set((event?.requirements ?? []).filter((r) => r.type === 'connection').map((r) => r.key))
-    if (needed.size === 0) return []
-    const providers = listIntegrations()
-    return connections.filter((c) => {
-      const integration = providers.find((i) => i.key === c.integrationKey)
-      return integration?.capabilities.some((cap) => needed.has(cap)) ?? false
-    })
-  }, [connections, event])
-
-  /**
-   * §12 open question 3, answered the way the spec recommended: force a choice
-   * when several exist, AUTO-SELECT when exactly one does.
-   *
-   * Without this the single-connection case saved `null` while the parameter
-   * picker resolved its options against that same connection — so an
-   * automation that plainly belonged to a connection was not bound to it, and
-   * the Connections page reported "0 automations" for a connection actively
-   * in use.
-   */
-  const boundConnectionId = connectionId ?? (eligibleConnections.length === 1 ? eligibleConnections[0].id : null)
-
-  function insertToken(token: string) {
-    // A title-shaped action has ONE field, so a chip always lands there. The
-    // subject/body pair tracks focus because it has two.
-    const target = isTitleAction ? 'title' : lastFocused.current
-    const el = target === 'title' ? titleRef.current : target === 'subject' ? subjectRef.current : bodyRef.current
-    const value = target === 'title' ? taskTitle : target === 'subject' ? subject : body
-    const set = target === 'title' ? setTaskTitle : target === 'subject' ? setSubject : setBody
-    const at = el?.selectionStart ?? value.length
-    const before = value.slice(0, at)
-    const after = value.slice(at)
-    // Inserting a chip against another one produced `{{שם העסק}}{{שם העסק}}`,
-    // which rendered as one run-together name in the real email. A chip always
-    // lands separated from its neighbours.
-    const lead = before.endsWith('}}') ? ' ' : ''
-    const trail = after.startsWith('{{') ? ' ' : ''
-    set(`${before}${lead}{{${token}}}${trail}${after}`)
-    queueMicrotask(() => el?.focus())
-  }
-
-  const payload = (): AutomationInput => ({
-    name,
-    recipeKey: draft.recipeKey,
-    eventKey,
-    conditions,
-    connectionId: boundConnectionId,
-    parameters,
-    // Explicit, so the server validates the content against the action the
-    // customer actually chose rather than the event's first offerable one.
-    actionKey,
-    templateId: isTemplateAction && templateId ? Number(templateId) : null,
-    templateBindings: isTemplateAction ? templateBindings : null,
-    // Carried only by the action that authors it, so an email automation's
-    // content document is unchanged from what it was before this field existed.
-    title: isTitleAction ? taskTitle : null,
-    actionParameters,
-    subject,
-    body,
-    // One block: an incomplete pair is sent as no block, matching what the
-    // renderer would draw.
-    ctaLabel: cta?.label?.trim() ? cta.label.trim() : null,
-    ctaUrl: cta?.url?.trim() ? cta.url.trim() : null,
-    timing,
-  })
+  // What the sections SHOW, in the interface language (sheetDisplay.ts).
+  const t = useT()
+  const L = t.locale
+  const msg = (reason: string) => errorMessageIn(reason, L)
+  const shown = useMemo(() => sheetDisplay({ grouped, event, actions, action, anchors, chips }, L), [L, grouped, event, actions, action, anchors, chips])
 
   /**
    * TIER 2. The definition stays fully editable to read and explore; saving is
@@ -228,7 +102,7 @@ export default function AutomationSheet({
     startTransition(async () => {
       const res = draft.id ? await updateAutomation(draft.id, payload()) : await createAutomation(payload())
       if (res.ok === false) return setError(msg(res.reason))
-      toast('success', draft.id ? 'האוטומציה עודכנה' : 'האוטומציה נשמרה כטיוטה')
+      toast('success', draft.id ? t('admin.automationSheet.updated') : t('admin.automationSheet.saved'))
       onSaved()
     })
   }
@@ -238,8 +112,8 @@ export default function AutomationSheet({
     // other spend. Answered as a billing prompt before the request is made.
     if (proLocked) {
       return proToast({
-        title: 'שליחת אימייל בדיקה זמינה עם Pro',
-        body: 'חידוש המנוי יחזיר את שליחת הבדיקות.',
+        title: t('admin.automationSheet.pro.title'),
+        body: t('admin.automationSheet.pro.body'),
         source: 'automation_test_send',
       })
     }
@@ -252,71 +126,71 @@ export default function AutomationSheet({
         ctaUrl: cta?.url ?? null,
       })
       if (res.ok === false) return setError(msg(res.reason))
-      toast('success', 'אימייל הבדיקה נשלח אליך')
+      toast('success', t('admin.automationSheet.testSent'))
     })
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='top' label={draft.id ? 'עריכת אוטומציה' : 'אוטומציה חדשה'}>
+    <ModalPop open onClose={onClose} pos='top' label={draft.id ? t('admin.automationSheet.editTitle') : t('admin.automationSheet.newTitle')} translated>
       <div className='grid gap-5 w-[min(90vw,560px)] pt-2'>
-        <h2 className='text-lg font-semibold text-gray-800'>{draft.id ? 'עריכת אוטומציה' : 'אוטומציה חדשה'}</h2>
+        <h2 className='text-lg font-semibold text-gray-800'>{draft.id ? t('admin.automationSheet.editTitle') : t('admin.automationSheet.newTitle')}</h2>
 
-        <Input lbl='שם האוטומציה' value={name} onChange={(e) => setName(e.target.value)} />
+        <Input lbl={t('admin.automationSheet.name')} value={name} onChange={(e) => d.setName(e.target.value)} />
 
         <Seperator className='my-0' />
 
         <AutomationTriggerSection
-          grouped={grouped}
-          event={event}
+          grouped={shown.grouped}
+          event={shown.event}
           eventKey={eventKey}
-          locked={locked}
+          locked={localizeRequirement(locked, L)}
           eligibleConnections={eligibleConnections}
           boundConnectionId={boundConnectionId}
           parameters={parameters}
           onEventKeyChange={(next) => {
-            setEventKey(next)
-            setConditions([]) // conditions belong to the event's fields
+            d.setEventKey(next)
+            d.setConditions([]) // conditions belong to the event's fields
           }}
-          onConnectionChange={setConnectionId}
-          onParametersChange={setParameters}
+          onConnectionChange={d.setConnectionId}
+          onParametersChange={d.setParameters}
         />
 
         <Seperator className='my-0' />
 
-        <ConditionsEditor event={event} conditions={conditions} onChange={setConditions} />
+        <ConditionsEditor event={shown.event} conditions={conditions} onChange={d.setConditions} />
 
         <Seperator className='my-0' />
 
         <AutomationActionSection
-          actions={actions}
-          action={action}
+          actions={shown.actions}
+          action={shown.action}
           actionKey={actionKey}
-          onActionKeyChange={setChosenActionKey}
+          onActionKeyChange={d.setChosenActionKey}
           subject={subject}
           body={body}
           cta={cta}
-          chips={chips}
-          subjectRef={subjectRef}
-          bodyRef={bodyRef}
+          chips={shown.chips}
+          subjectRef={d.subjectRef}
+          bodyRef={d.bodyRef}
           templateId={templateId}
           templateBindings={templateBindings}
           titleValue={taskTitle}
-          titleRef={titleRef}
+          titleRef={d.titleRef}
           actionParameters={actionParameters}
-          onFocusField={(field) => (lastFocused.current = field)}
-          onSubjectChange={setSubject}
-          onBodyChange={setBody}
-          onCtaChange={setCta}
-          onInsertToken={insertToken}
-          onTemplateChange={setTemplateId}
-          onBindingsChange={setTemplateBindings}
-          onTitleChange={setTaskTitle}
-          onActionParametersChange={setActionParameters}
+          onFocusField={(field) => (d.lastFocused.current = field)}
+          onSubjectChange={d.setSubject}
+          onBodyChange={d.setBody}
+          onCtaChange={d.setCta}
+          onInsertToken={d.insertToken}
+          onTemplateChange={d.setTemplateId}
+          onBindingsChange={d.setTemplateBindings}
+          onTitleChange={d.setTaskTitle}
+          onActionParametersChange={d.setActionParameters}
         />
 
         <Seperator className='my-0' />
 
-        <AutomationTimingSection timing={timing} anchors={anchors} onChange={setTiming} />
+        <AutomationTimingSection timing={timing} anchors={shown.anchors} onChange={d.setTiming} />
 
         <Seperator className='my-0' />
 
@@ -336,11 +210,12 @@ export default function AutomationSheet({
             <SubscriptionExpiredState
               mode='inline'
               source='automation_save'
-              feature='חידוש המנוי מחזיר את הפעלת האוטומציות'
+              feature={t('admin.automations.expiredFeature')}
+              translated
             />
           ) : (
             <Btn
-              lbl={pending ? 'שומר…' : draft.id ? 'שמור שינויים' : 'שמור אוטומציה'}
+              lbl={pending ? t('admin.automationSheet.saving') : draft.id ? t('admin.automationSheet.saveChanges') : t('admin.automationSheet.save')}
               icon={pending ? 'spinner' : 'floppy-disk'}
               iconClassName={pending ? 'animate-spin' : undefined}
               disabled={pending || testing || !!locked}
@@ -351,7 +226,7 @@ export default function AutomationSheet({
           {action?.testable && (
             <Btn
               variant='outline'
-              lbl={testing ? 'שולח…' : 'שלח אליי בדיקה'}
+              lbl={testing ? t('admin.automationSheet.sending') : t('admin.automationSheet.test')}
               icon={testing ? 'spinner' : 'paper-plane'}
               iconClassName={testing ? 'animate-spin' : undefined}
               disabled={pending || testing}

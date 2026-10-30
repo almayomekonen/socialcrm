@@ -10,6 +10,9 @@ import {
   releaseTourLock,
 } from '@/lib/education'
 import type { TourDefinition, TourStatus } from '@/lib/education/types'
+import { introCopy, localizeTourSteps, tourChrome } from '@/lib/education/tourCopy'
+import { baseDriverConfig, decorateTourPopover } from './tourPopover'
+import { tourTranslator } from './tourLanguage'
 
 export type TourOutcome = {
   status: TourStatus
@@ -70,28 +73,24 @@ export async function runTour(def: TourDefinition, hooks: Hooks = {}): Promise<T
     return null
   }
 
+  // The interface language, read when the popover is built (tourLanguage.ts).
+  // Hebrew: the registry's own steps and the Hebrew catalog chrome.
+  const t = tourTranslator()
+  const chrome = tourChrome(t)
+  const shown = localizeTourSteps(def.id, steps, t)
+
   return new Promise((resolve) => {
     const instance = driverFn({
-      animate: !reduceMotion,
-      smoothScroll: !reduceMotion,
-      allowClose: true,
-      allowKeyboardControl: true,
-      allowScroll: true,
-      overlayColor: '#0a2540',
-      overlayOpacity: 0.45,
-      overlayClickBehavior: 'close',
-      stagePadding: 8,
-      stageRadius: 12,
-      popoverOffset: 12,
+      ...baseDriverConfig(reduceMotion),
       popoverClass: 'edu-popover',
       showProgress: true,
-      progressText: '{{current}} מתוך {{total}}',
-      nextBtnText: 'הבא',
-      prevBtnText: 'חזרה',
-      doneBtnText: 'הבנתי',
+      progressText: chrome.progressText,
+      nextBtnText: chrome.nextBtnText,
+      prevBtnText: chrome.prevBtnText,
+      doneBtnText: chrome.doneBtnText,
       skipMissingElement: true,
       disableActiveInteraction: false,
-      steps: steps.map((step) => ({
+      steps: shown.map((step) => ({
         element: step.element,
         popover: {
           title: step.title,
@@ -101,18 +100,12 @@ export async function runTour(def: TourDefinition, hooks: Hooks = {}): Promise<T
           popoverClass: 'edu-popover',
         },
       })),
-      onPopoverRender: (popover) => {
-        popover.wrapper.setAttribute('dir', 'rtl')
-        popover.wrapper.setAttribute('role', 'dialog')
-        popover.wrapper.setAttribute('aria-modal', 'true')
-        popover.wrapper.setAttribute('aria-label', popover.title.textContent || 'סיור מודרך')
-        const skip = document.createElement('button')
-        skip.type = 'button'
-        skip.className = 'edu-popover-skip'
-        skip.textContent = 'דלג'
-        skip.addEventListener('click', () => finish('dismissed'))
-        popover.footerButtons.appendChild(skip)
-      },
+      onPopoverRender: (popover) =>
+        decorateTourPopover(popover, {
+          label: popover.title.textContent || chrome.fallbackLabel,
+          extra: { text: chrome.skip, onClick: () => finish('dismissed') },
+          t,
+        }),
       onHighlightStarted: (_el, _step, { index }) => {
         lastStep = index ?? 0
         hooks.onStep?.(lastStep)
@@ -154,11 +147,12 @@ export async function runTour(def: TourDefinition, hooks: Hooks = {}): Promise<T
 export async function runOverviewIntro(): Promise<OverviewIntroOutcome | null> {
   if (typeof window === 'undefined') return null
 
+  // Only the target matters until the popover is built; its words are `introCopy`.
   const steps = [
     {
       element: eduSel(HELP_TRIGGER_EDU),
-      title: 'ברוכים הבאים ל־SocialCRM',
-      description: 'רוצה סיור קצר במערכת?',
+      title: '',
+      description: '',
       side: 'bottom' as const,
       align: 'end' as const,
     },
@@ -181,54 +175,45 @@ export async function runOverviewIntro(): Promise<OverviewIntroOutcome | null> {
     return null
   }
 
+  const t = tourTranslator()
+  const copy = introCopy(t)
+  // Driver.js still renders a progress line and a back button the intro's CSS
+  // hides; outside Hebrew they get the interface words too (Hebrew: unchanged).
+  const hidden = t.locale === 'he' ? {} : { progressText: tourChrome(t).progressText, prevBtnText: tourChrome(t).prevBtnText }
+
   return new Promise((resolve) => {
     const instance = driverFn({
-      animate: !reduceMotion,
-      smoothScroll: !reduceMotion,
-      allowClose: true,
-      allowKeyboardControl: true,
-      allowScroll: true,
-      overlayColor: '#0a2540',
-      overlayOpacity: 0.45,
-      overlayClickBehavior: 'close',
-      stagePadding: 8,
-      stageRadius: 12,
-      popoverOffset: 12,
+      ...baseDriverConfig(reduceMotion),
       popoverClass: 'edu-popover edu-popover-intro',
       showProgress: false,
       showButtons: ['next'],
-      nextBtnText: 'התחל סיור',
-      doneBtnText: 'התחל סיור',
+      nextBtnText: copy.start,
+      doneBtnText: copy.start,
+      ...hidden,
       skipMissingElement: true,
       disableActiveInteraction: true,
       steps: [
         {
           element: steps[0].element,
           popover: {
-            title: steps[0].title,
-            description: steps[0].description,
+            title: copy.title,
+            description: copy.description,
             side: steps[0].side,
             align: steps[0].align,
             popoverClass: 'edu-popover edu-popover-intro',
             showProgress: false,
             showButtons: ['next'],
-            doneBtnText: 'התחל סיור',
-            nextBtnText: 'התחל סיור',
+            doneBtnText: copy.start,
+            nextBtnText: copy.start,
           },
         },
       ],
-      onPopoverRender: (popover) => {
-        popover.wrapper.setAttribute('dir', 'rtl')
-        popover.wrapper.setAttribute('role', 'dialog')
-        popover.wrapper.setAttribute('aria-modal', 'true')
-        popover.wrapper.setAttribute('aria-label', steps[0].title)
-        const later = document.createElement('button')
-        later.type = 'button'
-        later.className = 'edu-popover-skip'
-        later.textContent = 'אולי אחר כך'
-        later.addEventListener('click', () => finish('declined'))
-        popover.footerButtons.appendChild(later)
-      },
+      onPopoverRender: (popover) =>
+        decorateTourPopover(popover, {
+          label: copy.title,
+          extra: { text: copy.later, onClick: () => finish('declined') },
+          t,
+        }),
       onNextClick: () => finish('accepted'),
       onDoneClick: () => finish('accepted'),
       onCloseClick: () => finish('declined'),

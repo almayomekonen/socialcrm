@@ -7,6 +7,10 @@
  * 37-month lookback (https://developers.facebook.com/docs/marketing-api/reference/ad-account/insights/).
  */
 
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
+
 export const ADS_RANGE_PRESETS = ['today', 'last_7d', 'last_30d', 'this_month', 'last_month'] as const
 export type AdsRangePreset = (typeof ADS_RANGE_PRESETS)[number]
 
@@ -62,8 +66,22 @@ export function insightsRangeParams(range: AdsRange): Record<string, string> {
     : { time_range: JSON.stringify({ since: range.since, until: range.until }) }
 }
 
-export function adsRangeLabel(range: AdsRange): string {
-  return range.kind === 'preset' ? ADS_RANGE_LABEL[range.preset] : `${range.since} – ${range.until}`
+const RANGE_KEY: Record<AdsRangePreset | 'custom', MessageKey> = {
+  today: 'performance.adsIntel.range.today',
+  last_7d: 'performance.adsIntel.range.last7d',
+  last_30d: 'performance.adsIntel.range.last30d',
+  this_month: 'performance.adsIntel.range.thisMonth',
+  last_month: 'performance.adsIntel.range.lastMonth',
+  custom: 'performance.adsIntel.range.custom',
+}
+
+/** A preset's name in the interface language; Hebrew is `ADS_RANGE_LABEL` itself. */
+export function adsPresetLabel(preset: AdsRangePreset | 'custom', locale: UiLocale = 'he'): string {
+  return locale === 'he' ? ADS_RANGE_LABEL[preset] : translatorFor(locale)(RANGE_KEY[preset])
+}
+
+export function adsRangeLabel(range: AdsRange, locale: UiLocale = 'he'): string {
+  return range.kind === 'preset' ? adsPresetLabel(range.preset, locale) : `${range.since} – ${range.until}`
 }
 
 const addDays = (day: string, n: number) => {

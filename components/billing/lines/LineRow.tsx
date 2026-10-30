@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { formatCurrency } from '@/lib/funcs'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { cellInputCls, cellSubInputCls, formatField, parseNum, type EditableLine, type LineFormPayload } from './types'
 
 /**
@@ -20,6 +21,7 @@ export default function LineRow({
   onUpdate: (lineId: number, payload: LineFormPayload) => Promise<void> | void
   onAskDelete: () => void
 }) {
+  const t = useT()
   const [title, setTitle] = useState(line.title)
   const [description, setDescription] = useState(line.description)
   const [quantity, setQuantity] = useState(formatField(line.quantity))
@@ -93,7 +95,7 @@ export default function LineRow({
           onChange={(e) => setTitle(e.target.value)}
           onBlur={commitIfChanged}
           onKeyDown={onKeyDown}
-          placeholder='שם הפריט'
+          placeholder={t('billing.editor.lines.titlePlaceholder')}
           disabled={busy}
         />
         <input
@@ -103,7 +105,7 @@ export default function LineRow({
           onChange={(e) => setDescription(e.target.value)}
           onBlur={commitIfChanged}
           onKeyDown={onKeyDown}
-          placeholder='תיאור (אופציונלי)'
+          placeholder={t('billing.editor.lines.descriptionPlaceholder')}
           disabled={busy}
         />
       </td>

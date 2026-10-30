@@ -4,10 +4,24 @@ import { useState } from 'react'
 import Table, { ConfigT } from '@/lib/table'
 import Search from '@/lib/table/Search'
 import ShowColumns from '@/lib/table/ShowColumns'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
+import { formatLeadDateTime } from '@/lib/leads/leadDate'
+
+/** Headers in the interface language (Hebrew: the constant below itself, unchanged). */
+function headersFor(t: Translator) {
+  if (t.locale === 'he') return headers
+  return [
+    { key: 'device', label: t('settings.account.security.col.device') },
+    { key: 'ip', label: t('settings.account.security.col.ip') },
+    { key: 'at', label: t('settings.account.security.col.at'), format: 'formatDateTime' },
+  ]
+}
 
 export default function IpsTable({ data }) {
+  const t = useT()
   const [state, setState] = useState(data)
-  const [columns, setColumns] = useState(headers)
+  const [columns, setColumns] = useState(() => headersFor(t))
   const tblId = 'ipsTable4135'
 
   //   function moreRows(client) {
@@ -27,7 +41,8 @@ export default function IpsTable({ data }) {
     setState,
     // moreHeads,
     // moreRows,
-    funcs: {},
+    // Outside Hebrew the sign-in time is shown in the business time zone (lib/leads/leadDate); Hebrew keeps the table's own formatter.
+    funcs: t.locale === 'he' ? {} : { formatDateTime: (value) => formatLeadDateTime(t.locale, value) },
   } as ConfigT
 
   return (

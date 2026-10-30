@@ -33,5 +33,16 @@ export const common = {
     ban: 'אינך מורשה',
     message: 'הודעה חדשה',
     pro: 'הפעולה זמינה עם Pro',
+    /** The Pro toast's default call-to-action (`lib/toast.tsx`). */
+    proCta: 'חידוש מנוי',
+  },
+  /** `useAction`'s generic failure line (Phase E6; `lib/useAction.ts`). */
+  actionFailed: 'משהו השתבש, נסה שוב',
+  /** The (app) segment error boundary (`app/(app)/error.tsx`). */
+  appError: {
+    title: 'חלה שגיאה במערכת',
+    body: 'משהו השתבש בטעינת המסך. אפשר לנסות שוב, או לחזור לרשימת הלידים.',
+    retry: 'נסה שנית',
+    back: 'חזרה ללידים',
   },
 } as const

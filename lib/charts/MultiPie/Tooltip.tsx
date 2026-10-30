@@ -12,9 +12,14 @@ type TooltipProps = {
     nameMap: Record<string, string>
   }
   otherLabel: string
+  /** Display text for a slice name / pie label (identity by default). */
+  nameLabel?: (name: string) => string
+  pieLabel?: (label: string) => string
 }
 
-export const Tooltip = ({ hovered, pos, data, otherLabel }: TooltipProps) => {
+const same = (s: string) => s
+
+export const Tooltip = ({ hovered, pos, data, otherLabel, nameLabel = same, pieLabel = same }: TooltipProps) => {
   if (!hovered.data && !hovered.legend) return null
 
   let info: any = null
@@ -69,7 +74,7 @@ export const Tooltip = ({ hovered, pos, data, otherLabel }: TooltipProps) => {
     <div className={`flex justify-between gap-8 w-full border-b border-gray-100 pb-1 last:border-b-0 last:pb-0 ${className}`}>
       <div className='flex gap-2'>
         {!hideDot && <span className='size-1.5 rounded-full bg-gray-500' />}
-        <span>{name}</span>
+        <span>{nameLabel(name)}</span>
       </div>
       <span className='text-right'>
         {formatCurrency(val)} <span className='opacity-70'>({pct(val)})</span>
@@ -83,9 +88,9 @@ export const Tooltip = ({ hovered, pos, data, otherLabel }: TooltipProps) => {
       style={{ left: pos.x - 10, top: pos.y + 10, transform: 'translateX(-100%)' }}
     >
       <div className='flex justify-between gap-4 font-bold mb-2'>
-        <p>{info.name}</p>
+        <p>{nameLabel(info.name)}</p>
         <span className='flex gap-1'>
-          <p>{info.label}:</p>
+          <p>{pieLabel(info.label)}:</p>
           <p>{formatCurrency(info.value)}</p>
         </span>
       </div>

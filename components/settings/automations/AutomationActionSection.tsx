@@ -7,6 +7,8 @@ import AutomationContentSection, { type CtaDraft } from './AutomationContentSect
 import AutomationTemplateSection from './AutomationTemplateSection'
 import AutomationTitleSection from './AutomationTitleSection'
 import RemoteParameters from './RemoteParameters'
+import { actionFallbackIn } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * WHAT the automation does — the choice, and the configuration that choice needs.
@@ -66,7 +68,7 @@ export default function AutomationActionSection({
   subject: string
   body: string
   cta: CtaDraft | null
-  chips: readonly { token: string; field: string }[]
+  chips: readonly { token: string; field: string; label?: string }[]
   subjectRef: RefObject<(HTMLInputElement & HTMLTextAreaElement) | null>
   bodyRef: RefObject<(HTMLInputElement & HTMLTextAreaElement) | null>
   templateId: string
@@ -85,6 +87,8 @@ export default function AutomationActionSection({
   onTitleChange: (next: string) => void
   onActionParametersChange: (next: Record<string, string>) => void
 }) {
+  const t = useT()
+  const fallbackTitle = actionFallbackIn(t.locale)
   const templateParameter = action?.parameters.find((p) => p.key === 'templateId') ?? null
   const titleParameter = action?.parameters.find((p) => p.key === 'title') ?? null
   /**
@@ -106,7 +110,7 @@ export default function AutomationActionSection({
     <div className='grid gap-3'>
       {actions.length > 1 && (
         <Select
-          lbl='מה לעשות'
+          lbl={t('admin.automationSheet.action.pick')}
           options={actions.map((a) => ({ id: a.key, name: a.title }))}
           value={actionKey}
           onChange={(e) => onActionKeyChange(e.target.value)}
@@ -116,7 +120,7 @@ export default function AutomationActionSection({
 
       {genericParameters.length > 0 && (
         <section className='grid gap-3'>
-          <h3 className='text-sm font-semibold text-gray-800'>{action ? action.title : 'פעולה'}</h3>
+          <h3 className='text-sm font-semibold text-gray-800'>{action ? action.title : fallbackTitle}</h3>
           <RemoteParameters
             parameters={genericParameters}
             // Agency-owned data needs no connection to resolve against.
@@ -129,7 +133,7 @@ export default function AutomationActionSection({
 
       {contentless ? null : templateParameter ? (
         <AutomationTemplateSection
-          title={action ? action.title : 'פעולה'}
+          title={action ? action.title : fallbackTitle}
           parameter={templateParameter}
           capability={capability}
           templateId={templateId}
@@ -139,7 +143,7 @@ export default function AutomationActionSection({
         />
       ) : titleParameter ? (
         <AutomationTitleSection
-          title={action ? action.title : 'פעולה'}
+          title={action ? action.title : fallbackTitle}
           parameter={titleParameter}
           value={titleValue}
           inputRef={titleRef}
@@ -148,7 +152,7 @@ export default function AutomationActionSection({
         />
       ) : (
         <AutomationContentSection
-          title={action ? action.title : 'פעולה'}
+          title={action ? action.title : fallbackTitle}
           subject={subject}
           body={body}
           cta={cta}

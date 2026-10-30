@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import MeshuklalSchumPie from './MeshuklalSchumPie'
 import dynamic from 'next/dynamic'
 import { BRANCHES } from '@/types/lists'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dealBranchLabel, dealProductLabel } from '@/lib/deals/labels'
 const Filter = dynamic(() => import('@/components/filter'), { ssr: false })
 
 const BRANCH_COLORS = {
@@ -19,6 +21,12 @@ const BRANCH_COLORS = {
 
 export default function SumSalesPie({ pieData, goalsAndTotals, rawFilter, filterProps }) {
   const pieSize = 80
+  const t = useT()
+  const display = {
+    name: (name: string) => dealProductLabel(name, t.locale),
+    pie: () => t('performance.overview.pieDeals'),
+    total: t('performance.overview.total'),
+  }
 
   return (
     <>
@@ -41,8 +49,9 @@ export default function SumSalesPie({ pieData, goalsAndTotals, rawFilter, filter
             <MultiPie
               key={branch}
               className='w-fit'
-              lbl={branch}
+              lbl={dealBranchLabel(branch, t.locale)}
               data={[{ data: branchData, label: 'עסקאות' }]}
+              display={display}
               color={BRANCH_COLORS[branch] || 'blue'}
               hideTooltip={true}
               size={pieSize}

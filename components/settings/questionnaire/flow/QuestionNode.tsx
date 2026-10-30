@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { questionName } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
 import {
   addOption,
   conditionOf,
@@ -16,7 +15,11 @@ import {
   setAnswerKind,
   setPrompt,
 } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
-import { answerTypeOf, cardIssueText, consequenceText, type AnswerType } from '../builderCopy'
+import { answerTypeOf, type AnswerType } from '../builderCopy'
+import { answerTypesIn, consequenceTextIn } from '../copyIn'
+import { cardIssueTextIn, questionNameIn } from '../issueText'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 import FlowOptionRow from './FlowOptionRow'
 import FlowOtherToggle from './FlowOtherToggle'
 import FlowAllToggle from './FlowAllToggle'
@@ -28,8 +31,6 @@ import ArrowInsertButton from './ArrowInsertButton'
 
 export type QuestionNodeData = { questionKey: string; nodeId: string }
 
-const TYPE_LABELS: Record<AnswerType, string> = { single: 'בחירה של תשובה אחת', multi: 'בחירה של כמה תשובות', free: 'תשובה חופשית' }
-
 /**
  * A question as a piece of the conversation: what the customer is asked, the
  * answers they can pick, and (for an answer that leads somewhere else) where
@@ -39,6 +40,8 @@ const TYPE_LABELS: Record<AnswerType, string> = { single: 'בחירה של תש�
 export default function QuestionNode({ data, selected }: NodeProps & { data: QuestionNodeData }) {
   const { model, edit, confirm, announce, issuesFor, leave, select, reveal, routedOptions, focusRequest, focusDone, returnFocusTo, allowAllEnabled } =
     useFlowEditor()
+  const t = useT()
+  const dir = useRegionAttrs().dir ?? 'rtl'
   const promptRef = useRef<HTMLTextAreaElement>(null)
   // Just created ("+ הוספת שאלה" / "+ שאלת המשך"): the cursor goes straight to the question.
   // A new box stays invisible until React Flow has measured it, and focusing an
@@ -71,27 +74,27 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
   const condition = conditionOf(question)
   const source = condition ? model.questions.find((q) => keyOf(q) === condition.questionId) : undefined
   const onlyFor = source
-    ? condition!.anyOf.map((o) => optionsOf(source).find((x) => keyOf(x) === o)?.label || 'תשובה שנמחקה').join(' / ')
+    ? condition!.anyOf.map((o) => optionsOf(source).find((x) => keyOf(x) === o)?.label || t('admin.questionnaireCopy.conditions.deletedAnswer')).join(' / ')
     : null
-  const name = questionName(question)
+  const name = questionNameIn(question, t)
 
   const changeType = (next: AnswerType) => {
     const kind = next === 'single' ? 'single_choice' : next === 'multi' ? 'multi_choice' : 'text'
     const run = () => edit((m) => setAnswerKind(m, key, kind))
-    const consequence = next === 'free' ? consequenceText(dependentsOf(model, key)) : null
+    const consequence = next === 'free' ? consequenceTextIn(dependentsOf(model, key), t) : null
     if (!consequence) return run()
-    confirm({ msg: `לשנות לתשובה חופשית?\nהתשובות של השאלה יימחקו.\n${consequence}`, confirmLbl: 'שינוי לתשובה חופשית', destructive: true, run })
+    confirm({ msg: t('admin.questionnaireFlow.question.typeConfirm', { consequence }), confirmLbl: t('admin.questionnaire.card.toFree'), destructive: true, run })
   }
 
   const remove = () =>
     confirm({
-      msg: [`למחוק את השאלה "${name}"?`, consequenceText(dependentsOf(model, key)) ?? ''].filter(Boolean).join('\n'),
-      confirmLbl: 'מחיקת השאלה',
+      msg: [t('admin.questionnaire.card.removeMsg', { name }), consequenceTextIn(dependentsOf(model, key), t) ?? ''].filter(Boolean).join('\n'),
+      confirmLbl: t('admin.questionnaire.card.removeLbl'),
       destructive: true,
       run: () => {
         const next = focusAfterRemoval(model, key)
         edit((m) => removeQuestion(m, key))
-        announce(`השאלה "${name}" נמחקה`)
+        announce(t('admin.questionnaire.card.removed', { name }))
         select(null)
         returnFocusTo(next)
       },
@@ -108,7 +111,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
 
   return (
     <div
-      dir='rtl'
+      dir={dir}
       onFocusCapture={() => select(data.nodeId)}
       onBlurCapture={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && leave(key)}
       className={`grid w-[340px] gap-2.5 rounded-xl border bg-white p-3.5 shadow-sm ${
@@ -117,16 +120,16 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
     >
       <Handle type='target' position={Position.Top} id='in' isConnectable={false} className='!opacity-0' />
       <div className='flex items-center justify-between gap-2'>
-        <p className='text-xs font-semibold text-gray-500'>שאלה {index + 1}</p>
+        <p className='text-xs font-semibold text-gray-500'>{t('admin.questionnaire.card.title', { number: String(index + 1) })}</p>
         <div className='nodrag flex items-center'>
           {[
-            ['↑', 'הקדמת השאלה', -1],
-            ['↓', 'דחיית השאלה', 1],
+            ['↑', t('admin.questionnaireFlow.question.earlier', { name }), -1],
+            ['↓', t('admin.questionnaireFlow.question.later', { name }), 1],
           ].map(([sym, label, by]) => (
             <button
-              key={label as string}
+              key={sym as string}
               type='button'
-              aria-label={`${label} "${name}"`}
+              aria-label={label as string}
               onClick={() => edit((m) => moveQuestion(m, key, by as -1 | 1))}
               disabled={(by === -1 && index === 0) || (by === 1 && index === model.questions.length - 1)}
               className='flex size-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 disabled:opacity-30'
@@ -134,7 +137,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
               {sym}
             </button>
           ))}
-          <button type='button' aria-label={`מחיקת השאלה "${name}"`} onClick={remove} className='flex size-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100'>
+          <button type='button' aria-label={t('admin.questionnaire.card.remove', { name })} onClick={remove} className='flex size-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100'>
             ×
           </button>
         </div>
@@ -142,33 +145,34 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
 
       {onlyFor && (
         <p className='rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-700'>
-          נשאלת רק מי שבחר: <span className='font-medium'>{onlyFor}</span>
+          {t('admin.questionnaireFlow.question.onlyFor')}<span className='font-medium'>{onlyFor}</span>
         </p>
       )}
 
       <label className='sr-only' htmlFor={`${key}-prompt`}>
-        מה נשאל את הלקוח
+        {t('admin.questionnaireFlow.question.prompt')}
       </label>
       <textarea
         ref={promptRef}
         id={`${key}-prompt`}
         value={question.prompt}
         rows={Math.min(6, Math.max(2, question.prompt.split('\n').length))}
-        placeholder='מה נשאל את הלקוח?'
+        placeholder={t('admin.questionnaireFlow.question.promptPlaceholder')}
         aria-invalid={own.some((i) => i.field === 'prompt')}
+        {...customerTextAttrs(t.locale)}
         onChange={(e) => edit((m) => setPrompt(m, key, e.target.value))}
         className='nodrag nowheel resize-none rounded-md border border-transparent bg-gray-50 px-2.5 py-2 text-sm font-medium leading-relaxed hover:border-gray-200 focus:border-gray-200 focus:bg-white focus:outline-2 focus:outline-primary aria-invalid:border-red-400'
       />
 
       <select
-        aria-label='סוג התשובה'
+        aria-label={t('admin.questionnaire.card.type')}
         value={type}
         onChange={(e) => changeType(e.target.value as AnswerType)}
         className='nodrag h-8 rounded-md border border-gray-200 bg-white pe-7 ps-2 text-xs text-gray-700'
       >
-        {(Object.keys(TYPE_LABELS) as AnswerType[]).map((t) => (
-          <option key={t} value={t}>
-            {TYPE_LABELS[t]}
+        {answerTypesIn(t).map((a) => (
+          <option key={a.value} value={a.value}>
+            {a.label}
           </option>
         ))}
       </select>
@@ -177,7 +181,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
         <FlowTextAnswer questionKey={key} />
       ) : (
         <div className='grid gap-2'>
-          <ol className='grid gap-2' aria-label='התשובות ללקוח'>
+          <ol className='grid gap-2' aria-label={t('admin.questionnaireFlow.question.answers')}>
             {options.map((o, i) => (
               <FlowOptionRow
                 key={o.ref ?? o.id}
@@ -192,7 +196,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
           <div className='nodrag flex flex-wrap items-center justify-between gap-2'>
             {options.length < 10 && (
               <button type='button' onClick={() => edit((m) => addOption(m, key))} className='text-xs font-medium text-primary hover:underline'>
-                + הוספת תשובה
+                {t('admin.questionnaireFlow.question.addAnswer')}
               </button>
             )}
             <FlowOtherToggle questionKey={key} optionCount={options.length} />
@@ -202,7 +206,10 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
           </div>
           {other?.followUp && (
             <p className='rounded-md bg-gray-50 px-2 py-1.5 text-xs text-gray-700'>
-              מי שבוחר "{other.option.label}" יישאל: "{other.followUp.prompt.trim() || 'שאלת המשך'}"{' '}
+              {t('admin.questionnaireFlow.question.followUpLine', {
+                option: other.option.label,
+                prompt: other.followUp.prompt.trim() || t('admin.questionnaire.options.followUp'),
+              })}{' '}
               <button
                 type='button'
                 onClick={() => {
@@ -212,7 +219,7 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
                 }}
                 className='nodrag font-medium text-ink underline underline-offset-2'
               >
-                עריכה
+                {t('admin.questionnaireFlow.edit')}
               </button>
             </p>
           )}
@@ -222,11 +229,11 @@ export default function QuestionNode({ data, selected }: NodeProps & { data: Que
       {own.length > 0 && (
         <ul className='grid gap-0.5 rounded-md bg-red-50 px-2 py-1.5 text-xs text-red-700'>
           {own.map((i, n) => (
-            <li key={n}>{cardIssueText(i)}</li>
+            <li key={n}>{cardIssueTextIn(i, model, t)}</li>
           ))}
         </ul>
       )}
-      {issues.some((i) => i.optionId && i.code === 'missing_text') && <p className='text-xs text-red-700'>כתבו שם לכל תשובה.</p>}
+      {issues.some((i) => i.optionId && i.code === 'missing_text') && <p className='text-xs text-red-700'>{t('admin.questionnaireFlow.question.answersMissing')}</p>}
       <Handle type='source' position={Position.Bottom} id='next' isConnectable={false} className='!opacity-0' />
       <ArrowInsertButton nodeId={data.nodeId} />
     </div>

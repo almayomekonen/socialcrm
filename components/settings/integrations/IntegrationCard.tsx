@@ -7,6 +7,16 @@ import { Btn } from '@/lib/btns/Btn'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { toast } from '@/lib/toast'
 import type { IntegrationDescriptor } from './catalog'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
+
+const HEBREW = translatorFor('he')
+
+/** Catalog wording of a descriptor's copy, by its id (the descriptor keeps the Hebrew source; brand names stay as they are). */
+const COPY: Record<string, { description: MessageKey; connectLabel: MessageKey; disconnectedToast: MessageKey }> = {
+  'google-drive': { description: 'settings.integrations.drive.description', connectLabel: 'settings.integrations.drive.connect', disconnectedToast: 'settings.integrations.drive.disconnected' },
+}
 
 type Status =
   | { state: 'loading' }
@@ -14,7 +24,20 @@ type Status =
   | { state: 'connected'; email: string | null }
 
 
-export default function IntegrationCard({ integration }: { integration: IntegrationDescriptor }) {
+export default function IntegrationCard({
+  integration,
+  translated = false,
+}: {
+  integration: IntegrationDescriptor
+  /** Follow the interface language (the desktop settings page). Default Hebrew: the phone screen is not translated yet. */
+  translated?: boolean
+}) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
+  const copy = t.locale === 'he' ? undefined : COPY[integration.id]
+  const description = copy ? t(copy.description) : integration.description
+  const connectLabel = copy ? t(copy.connectLabel) : integration.connectLabel
+  const disconnectedToast = copy ? t(copy.disconnectedToast) : integration.disconnectedToast
   const [status, setStatus] = useState<Status>({ state: 'loading' })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
@@ -41,11 +64,11 @@ export default function IntegrationCard({ integration }: { integration: Integrat
     try {
       const res = await fetch(integration.disconnectPath, { method: 'POST' })
       if (!res.ok) throw new Error(`status_${res.status}`)
-      toast('success', integration.disconnectedToast)
+      toast('success', disconnectedToast)
       setConfirmOpen(false)
       setStatus({ state: 'disconnected' })
     } catch {
-      toast('error', 'הניתוק נכשל. נסה שוב.')
+      toast('error', t('settings.integrations.card.disconnectFailed'))
     } finally {
       setDisconnecting(false)
     }
@@ -68,20 +91,20 @@ export default function IntegrationCard({ integration }: { integration: Integrat
         )}
         {/* h3: the page owns h1, and "כלים מחוברים" owns the h2 above this card. */}
         <h3 className='text-lg font-bold text-dark'>{integration.name}</h3>
-        {connected && <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label='מחובר' />}
+        {connected && <Icon name='check' type='reg' className='size-4 bg-green-600' aria-label={t('settings.integrations.card.connected')} />}
       </div>
 
-      <p className='text-sm text-gray-600 leading-relaxed'>{integration.description}</p>
+      <p className='text-sm text-gray-600 leading-relaxed'>{description}</p>
 
       {status.state === 'loading' && (
-        <div className='mt-auto h-9 flex items-center text-sm text-gray-400'>טוען…</div>
+        <div className='mt-auto h-9 flex items-center text-sm text-gray-400'>{t('settings.integrations.card.loading')}</div>
       )}
 
       {status.state === 'disconnected' && (
         <div className='mt-auto flex items-center justify-between gap-3'>
-          <span className='text-sm text-gray-400'>לא מחובר</span>
+          <span className='text-sm text-gray-400'>{t('settings.integrations.card.notConnected')}</span>
           <Btn
-            lbl={integration.connectLabel}
+            lbl={connectLabel}
             onClick={() => {
               const returnTo = encodeURIComponent(window.location.pathname + window.location.search)
               window.location.href = `${integration.connectPath}?returnTo=${returnTo}`
@@ -95,13 +118,13 @@ export default function IntegrationCard({ integration }: { integration: Integrat
           <span className='min-w-0 truncate text-sm text-gray-600'>
             {status.email ? (
               <>
-                מחובר · <span className='font-medium text-gray-800'>{status.email}</span>
+                {t('settings.integrations.card.connectedAs')} <span className='font-medium text-gray-800'>{status.email}</span>
               </>
             ) : (
-              'מחובר'
+              t('settings.integrations.card.connected')
             )}
           </span>
-          <Btn lbl='נתק חשבון' variant='outline' onClick={() => setConfirmOpen(true)} disabled={disconnecting} />
+          <Btn lbl={t('settings.integrations.card.disconnect')} variant='outline' onClick={() => setConfirmOpen(true)} disabled={disconnecting} />
         </div>
       )}
 
@@ -109,9 +132,10 @@ export default function IntegrationCard({ integration }: { integration: Integrat
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleDisconnect}
-        msg={`הקבצים הקיימים יישארו ב-CRM, אך ${integration.name} לא יהיה זמין עד לחיבור מחדש.`}
-        confirmLbl='נתק חשבון'
+        msg={t('settings.integrations.drive.disconnectConfirm', { name: integration.name })}
+        confirmLbl={t('settings.integrations.card.disconnect')}
         destructive
+        translated={translated}
       />
     </div>
   )

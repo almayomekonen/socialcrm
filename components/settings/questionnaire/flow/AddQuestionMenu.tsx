@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import type { NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import QuestionKindMenu from './QuestionKindMenu'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * "+ הוספת שאלה לפני הסיום" (or, on an empty questionnaire, "הוספת השאלה
@@ -17,7 +18,7 @@ import QuestionKindMenu from './QuestionKindMenu'
 export default function AddQuestionMenu({
   onAdd,
   disabledReason,
-  label = 'הוספת שאלה לפני הסיום',
+  label,
   opens = 'below',
 }: {
   onAdd: (kind: NewQuestionKind) => void
@@ -25,15 +26,19 @@ export default function AddQuestionMenu({
   label?: string
   opens?: 'below' | 'above'
 }) {
+  const t = useT()
+  const dir = useRegionAttrs().dir ?? 'rtl'
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  // Centred above: the half-width shift points toward the inline start, which is the right in RTL.
+  const centre = dir === 'rtl' ? 'translate-x-1/2' : '-translate-x-1/2'
 
   return (
-    <div ref={ref} className='relative' dir='rtl'>
+    <div ref={ref} className='relative' dir={dir}>
       <Btn
         type='button'
         icon='plus'
-        lbl={label}
+        lbl={label ?? t('admin.questionnaireFlow.addBeforeEnd')}
         aria-expanded={open}
         aria-haspopup='menu'
         aria-disabled={disabledReason ? true : undefined}
@@ -42,7 +47,7 @@ export default function AddQuestionMenu({
       {disabledReason && <span className='sr-only'>{disabledReason}</span>}
       {open && (
         <QuestionKindMenu
-          className={`absolute ${opens === 'above' ? 'bottom-12 start-1/2 translate-x-1/2' : 'start-0 top-12'}`}
+          className={`absolute ${opens === 'above' ? `bottom-12 start-1/2 ${centre}` : 'start-0 top-12'}`}
           isInside={(t) => !!ref.current?.contains(t)}
           onPick={(kind) => {
             setOpen(false)

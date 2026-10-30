@@ -5,8 +5,14 @@ import { getUser } from '@/db/auth'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
 import React from 'react'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
 
-export const metadata: Metadata = { title: 'קבצים' }
+/** Tab title in the interface language — Hebrew ('קבצים') outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('tasks.files.title') }
+}
 
 export default async function FilesPage() {
   /**
@@ -19,13 +25,15 @@ export default async function FilesPage() {
   const user = await getUser()
   if (await isMobileWorkspaceRequest(user?.agencyId)) return <MobileDesktopOnly section='files' />
 
+  // Resolved once by the same request-memoised call the (app) layout makes.
+  const { locale } = await getUiLocaleState(user)
   const files = await getFiles({ creatorName: true, clientName: true, taskTitle: true })
   let clients = files.map((file) => ({ id: file.clientId, name: file.clientName })).filter((c) => c.id && c.name) // remove null/undefined/empty
 
   clients = [...new Map(clients.map((c) => [c.id, c])).values()]
 
   return (
-    <div className='flex flex-col min-h-0 h-full'>
+    <div className='flex flex-col min-h-0 h-full' {...regionAttrs(locale)}>
       <FilesTable data={files} tasks={[]} clients={clients} fillHeight key={Math.random()} />
     </div>
   )

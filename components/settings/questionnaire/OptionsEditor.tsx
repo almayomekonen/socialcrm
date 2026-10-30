@@ -20,7 +20,9 @@ import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresp
 import OptionRow from './OptionRow'
 import LimitedButton, { useLimitedAction } from './LimitedButton'
 import { focusCard } from './focusCard'
-import { QUESTIONS_FULL, consequenceText, otherBlockedReason, type ConfirmRequest } from './builderCopy'
+import type { ConfirmRequest } from './builderCopy'
+import { consequenceTextIn, otherBlockedReasonIn, questionsFullIn } from './copyIn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 const MAX_OPTIONS = 10
 
@@ -49,6 +51,7 @@ export default function OptionsEditor({
   /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
   allowAllEnabled?: boolean
 }) {
+  const t = useT()
   const qKey = keyOf(question)
   const options = optionsOf(question)
   const other = otherOf(model, qKey)
@@ -57,8 +60,8 @@ export default function OptionsEditor({
   const followUpNumber = other?.followUp ? model.questions.indexOf(other.followUp) + 1 : null
   // "אחר" comes with a follow-up question, so at 12 questions it cannot be turned on (editorBase.ts MAX_QUESTIONS).
   const questionsAreFull = questionsFull(model)
-  const otherBlocked = otherBlockedReason({ hasOther: other !== null, optionsFull: full, questionsFull: questionsAreFull })
-  const addOtherFollowUp = useLimitedAction(questionsAreFull ? QUESTIONS_FULL : null, () => edit((m) => enableOther(m, qKey)))
+  const otherBlocked = otherBlockedReasonIn({ hasOther: other !== null, optionsFull: full, questionsFull: questionsAreFull }, t)
+  const addOtherFollowUp = useLimitedAction(questionsAreFull ? questionsFullIn(t) : null, () => edit((m) => enableOther(m, qKey)))
 
   /** Remove an option (or "אחר" with its follow-up), saying first what else it changes. */
   const remove = (optionKey: string, label: string) => {
@@ -66,12 +69,12 @@ export default function OptionsEditor({
     const run = () => edit((m) => (isOther ? disableOther(m, qKey) : removeOption(m, qKey, optionKey)))
     const deps = dependentsOf(model, qKey, [optionKey])
     const followUpKey = isOther && other?.followUp ? keyOf(other.followUp) : null
-    const consequence = consequenceText({ ...deps, questions: deps.questions.filter((k) => k !== followUpKey) })
+    const consequence = consequenceTextIn({ ...deps, questions: deps.questions.filter((k) => k !== followUpKey) }, t)
     if (!consequence && !followUpKey) return run()
-    const name = label.trim() || 'האפשרות'
+    const name = label.trim() || t('admin.questionnaire.options.unnamed')
     confirm({
-      msg: [`להסיר את "${name}"?`, followUpKey ? 'גם שאלת ההמשך שלה תימחק.' : '', consequence ?? ''].filter(Boolean).join('\n'),
-      confirmLbl: `הסרת "${name}"`,
+      msg: [t('admin.questionnaire.options.removeMsg', { name }), followUpKey ? t('admin.questionnaire.options.followUpGone') : '', consequence ?? ''].filter(Boolean).join('\n'),
+      confirmLbl: t('admin.questionnaire.options.removeLbl', { name }),
       destructive: true,
       run,
     })
@@ -82,11 +85,11 @@ export default function OptionsEditor({
       <div className='grid gap-2'>
         <div aria-hidden='true' className='grid grid-cols-[1.5rem_minmax(0,1fr)_4.5rem_2.5rem] gap-x-2 text-xs text-gray-500'>
           <span />
-          <span>אפשרות</span>
-          <span className='text-center'>אייקון</span>
+          <span>{t('admin.questionnaire.options.column')}</span>
+          <span className='text-center'>{t('admin.questionnaire.options.icon')}</span>
           <span />
         </div>
-        <ol className='grid gap-2.5' aria-label='האפשרויות ללקוח'>
+        <ol className='grid gap-2.5' aria-label={t('admin.questionnaire.options.list')}>
           {options.map((o, i) => (
             <OptionRow
               key={reactKey(o)}
@@ -94,7 +97,8 @@ export default function OptionsEditor({
               number={i + 1}
               issues={optionIssues(keyOf(o))}
               singleChoice={question.answer.kind === 'single_choice'}
-              removeBlockedReason={options.length > 2 ? null : 'בשאלת בחירה צריכות להיות לפחות שתי אפשרויות.'}
+              model={model}
+              removeBlockedReason={options.length > 2 ? null : t('admin.questionnaire.options.minTwo')}
               onChange={(patch) => edit((m) => updateOption(m, qKey, keyOf(o), patch))}
               onRemove={() => remove(keyOf(o), o.label)}
             />
@@ -107,13 +111,13 @@ export default function OptionsEditor({
           size='small'
           variant='outline'
           icon='plus'
-          lbl='הוספת אפשרות'
-          blockedReason={full ? 'אפשר עד 10 אפשרויות בשאלה.' : null}
+          lbl={t('admin.questionnaire.options.add')}
+          blockedReason={full ? t('admin.questionnaire.options.maxTen') : null}
           onClick={() => edit((m) => addOption(m, qKey))}
         />
         <div className='grid gap-1'>
           <Switch
-            lbl='אפשר ללקוח לבחור "אחר"'
+            lbl={t('admin.questionnaire.options.allowOther')}
             checked={other !== null}
             disabled={otherBlocked !== null}
             aria-describedby={otherBlocked ? `${qKey}-other-full` : undefined}
@@ -128,7 +132,7 @@ export default function OptionsEditor({
           )}
           {allowAllEnabled && question.answer.kind === 'multi_choice' && (
             <Switch
-              lbl={'לקוח יכול לענות "הכל"'}
+              lbl={t('admin.questionnaire.options.all')}
               checked={question.answer.allowAll === true}
               onChange={(e) => edit((m) => setAllowAll(m, qKey, e.target.checked))}
             />
@@ -140,24 +144,27 @@ export default function OptionsEditor({
         <p className='rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700'>
           {other.followUp ? (
             <>
-              כשלקוח בוחר "{other.option.label}", נשאל אותו גם: "{other.followUp.prompt.trim() || 'שאלת המשך'}"{' '}
+              {t('admin.questionnaire.options.otherAsked', {
+                option: other.option.label,
+                prompt: other.followUp.prompt.trim() || t('admin.questionnaire.options.followUp'),
+              })}{' '}
               <button
                 type='button'
                 onClick={() => focusCard(keyOf(other.followUp as BuilderQuestion))}
                 className='font-medium text-ink underline underline-offset-2'
               >
-                עריכת שאלת ההמשך (שאלה {followUpNumber})
+                {t('admin.questionnaire.options.editFollowUp', { number: String(followUpNumber) })}
               </button>
             </>
           ) : (
             <>
-              כשלקוח בוחר "{other.option.label}", כדאי לשאול אותו לפרטים.{' '}
+              {t('admin.questionnaire.options.otherSuggest', { option: other.option.label })}{' '}
               <button
                 type='button'
                 {...addOtherFollowUp.buttonProps}
                 className={`font-medium text-ink underline underline-offset-2 ${addOtherFollowUp.blocked ? 'cursor-not-allowed opacity-50' : ''}`}
               >
-                הוספת שאלת המשך
+                {t('admin.questionnaire.options.addFollowUp')}
               </button>{' '}
               {addOtherFollowUp.reason}
             </>

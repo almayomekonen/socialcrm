@@ -1,6 +1,8 @@
 import { integrationOverview } from '@/lib/automations/connectors/overview'
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import ConnectionsSettings from '@/components/settings/connections/ConnectionsSettings'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The website / form connectors, as one section of Settings → אינטגרציות.
@@ -32,15 +34,16 @@ export function isWebsiteSectionVisible(user: Viewer): boolean {
   return user.role === 'ADMIN' && isAutomationsAgencyAllowlisted(user.agencyId)
 }
 
-export default async function WebsiteConnection({ user }: { user: Viewer }) {
+/** `locale`: the interface language (Phase E5b); Hebrew by default. */
+export default async function WebsiteConnection({ user, locale = 'he' }: { user: Viewer; locale?: UiLocale }) {
   if (!isWebsiteSectionVisible(user)) return null
 
   const views = await integrationOverview(user.agencyId)
 
   return (
     <>
-      <p className='mb-4 text-sm text-gray-600 leading-relaxed'>
-        חברו את הטפסים באתר שלכם כדי שכל פנייה תיכנס כליד. אחרי החיבור אפשר לבנות על זה אוטומציות.
+      <p className='mb-4 text-sm text-gray-600 leading-relaxed' {...regionAttrs(locale)}>
+        {translatorFor(locale)('admin.connections.intro')}
       </p>
       <ConnectionsSettings views={views} />
     </>

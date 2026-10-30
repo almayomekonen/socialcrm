@@ -7,6 +7,9 @@ import {
   isAutomationsPilotDashboardEnabled,
 } from '@/lib/automations/flags'
 import PilotDashboard from '@/components/settings/automations/PilotDashboard'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * INTERNAL pilot dashboard (ADR-014 §Monitoring). Not linked from the
@@ -18,15 +21,19 @@ import PilotDashboard from '@/components/settings/automations/PilotDashboard'
  * why there is no cross-tenant view.
  */
 
-export const metadata: Metadata = { title: 'מדדי פיילוט' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await requireAgencyUser())
+  return { title: t('admin.automations.pilot.title') }
+}
 
 export default async function AutomationsPilotPage() {
   const user = await requireAgencyUser()
+  const { locale } = await getUiLocaleState(user)
 
   if (!isAutomationsPilotDashboardEnabled() || !isAutomationsAgencyAllowlisted(user.agencyId)) {
-    return <div className='max-w-3xl'>הדף אינו זמין.</div>
+    return <div className='max-w-3xl' {...regionAttrs(locale)}>{translatorFor(locale)('admin.automations.pilot.notAvailable')}</div>
   }
 
   const metrics = await getPilotMetrics(user.agencyId, 30)
-  return <PilotDashboard metrics={metrics} mode={getAutomationsSendMode()} />
+  return <PilotDashboard metrics={metrics} mode={getAutomationsSendMode()} locale={locale} />
 }

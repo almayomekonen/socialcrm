@@ -19,7 +19,7 @@ vi.mock('next/navigation', async () => {
     },
   }
 })
-vi.mock('@/actions/auth', () => ({ logout: async () => {} }))
+vi.mock('@/actions/auth', async () => ({ logout: async () => {}, isUserExists: (await import('./adminMocks')).authModule().isUserExists }))
 vi.mock('@/actions/uiLocale', () => ({ setMyUiLocale: vi.fn(), setAgencyDefaultUiLocale: vi.fn() }))
 vi.mock('@/modules/inbox/awareness/AwarenessContext', () => ({
   useAwarenessCount: () => null,
@@ -28,7 +28,7 @@ vi.mock('@/modules/inbox/awareness/AwarenessContext', () => ({
 }))
 vi.mock('@/components/notifications/NotificationBell', () => ({ default: () => null }))
 vi.mock('@/components/education/HelpTrigger', () => ({ default: () => null }))
-vi.mock('@/db/auth', async () => ({ getUser: async () => (await import('./surfaces')).FIXTURE_USER }))
+vi.mock('@/db/auth', async () => (await import('./leakGateAdminMocks')).authModule())
 vi.mock('@/db/uiLocale', () => ({ getUiLocalePrefs: async () => ({ userLocale: prefs.userLocale, agencyLocale: null }) }))
 vi.mock('@/lib/device', async () => {
   const f = await import('./dashboardFixtures')
@@ -36,33 +36,12 @@ vi.mock('@/lib/device', async () => {
   const mc = (await import('./messengerCommentsMocks')).deviceModule()
   return { isMobileRequest: async () => f.dashboardEnv.mobile, isMobileWorkspaceRequest: mc.isMobileWorkspaceRequest, getInAppBrowser: async () => null }
 })
-vi.mock('@/lib/access/productAccess', async () => {
-  const { detailEnv } = await import('./leadDetailEnv')
-  return { getAgencyProductAccess: async () => ({ hasAccess: detailEnv.hasAccess }) }
-})
+vi.mock('@/lib/access/productAccess', async () => (await import('./leakGateMocks')).productAccessModule())
 // /dashboard reads (I/O only; every producer and component runs for real).
-vi.mock('@/db/filter', async () => ({ getPerms: async () => (await import('./leadsEnv')).LEADS_PAGE_PERMS }))
-vi.mock('@/db/clients', async () => {
-  const { leadsEnv, CLIENT_LISTS } = await import('./leadsEnv')
-  return {
-    hasAnyLeads: async () => leadsEnv.hasLeads,
-    getLeadLists: async () => CLIENT_LISTS,
-    getLeadsTable: async () => leadsEnv.rows,
-    getGlobalLatestUpdatedAt: async () => '2026-10-28T09:00:00.000Z',
-    getLeadColumnAvailability: async () => ({ idNum: true, secPhone: true, birthDate: true, gender: true }),
-    // Lead detail (layout + summary).
-    getFullLead: async () => {
-      const { detailEnv } = await import('./leadDetailEnv')
-      return detailEnv.header || detailEnv.lead ? { ...(detailEnv.header ?? {}), ...(detailEnv.lead ?? {}) } : null
-    },
-    getFamMembers: async () => {
-      const { detailEnv } = await import('./leadDetailEnv')
-      return { famMembers: detailEnv.family, familyId: detailEnv.family.length ? 1 : null }
-    },
-    // Lead tabs (the add-task form on the global page only).
-    getLeadsByRep: async () => [],
-  }
-})
+// `gavePermUsers`: the global /tasks page (Phase E1) also lists the reps who gave permission.
+// `getPermsAndFilter`: /deals and /sum_sales (Phase E2).
+vi.mock('@/db/filter', async () => ({ getPerms: async () => ({ ...(await import('./leadsEnv')).LEADS_PAGE_PERMS, gavePermUsers: [] }), getPermsAndFilter: (await import('./dealsMocks')).filterDbModule().getPermsAndFilter }))
+vi.mock('@/db/clients', async () => (await import('./leakGateMocks')).clientsDbModule())
 vi.mock('@/db/worklist', async () => {
   const f = await import('./dashboardFixtures')
   return {
@@ -82,51 +61,18 @@ vi.mock('@/db/meetings', async () => ({ getTodaysMeetings: async () => (await im
 vi.mock('@/db/today/facts', async () => ({ getBriefCandidateFacts: async () => (await import('./dashboardFixtures')).FACTS }))
 vi.mock('@/db/today/handled', () => ({ getTouchedTodayIds: async () => [7, 8] }))
 vi.mock('@/db/today/freshness', () => ({ getInboundSyncFreshness: async () => ({ dataFresh: true }) }))
-vi.mock('@/db/facebook', async () => {
-  const { leadsEnv } = await import('./leadsEnv')
-  return {
-    getFacebookConnectionState: async () => leadsEnv.meta,
-    // Pure (the Messenger / Comments pages read their Pages' grants with it).
-    parseGrantedScopes: (await vi.importActual<typeof import('@/db/facebook')>('@/db/facebook')).parseGrantedScopes,
-  }
-})
+vi.mock('@/db/facebook', async () => (await import('./leakGateMocks')).facebookDbModule())
 // /leads and /clients reads (I/O only; the page, banners, table and producers run for real).
-vi.mock('@/db/usersNTeams', async () => ({
-  getDefaultSettings: async () => ({}),
-  getUsers: async () => (await import('./leadsEnv')).USERS,
-  getUserNameById: async () => (await import('./leadDetailEnv')).detailEnv.handlerName,
-}))
-vi.mock('@/lib/quota', async () => {
-  const { leadsEnv } = await import('./leadsEnv')
-  return { getQuotaStatus: async () => ({ overQuotaCount: leadsEnv.overQuota }) }
-})
-vi.mock('@/db/automations/connectionDelivery', async () => {
-  const { leadsEnv } = await import('./leadsEnv')
-  return { deliveryFacts: async () => leadsEnv.intakeFacts }
-})
-vi.mock('@/actions/clients', () => ({
-  fetchLeadsSince: async () => [],
-  searchContacts: async () => [],
-  searchLeads: async () => [],
-  updateLead: async () => ({ ok: true }),
-  deleteLead: async () => ({ ok: true }),
-  deleteManyLeads: async () => ({ deletedCount: 0, blockedCount: 0, blockedLeads: [] }),
-  assignLeadsToRep: async () => ({ assignedCount: 0, skippedCount: 0 }),
-  transferLeadToRep: async () => ({ ok: true }),
-  getLeadByIdNum: async () => null,
-  upsertLead: async () => ({ ok: true }),
-  addLeads: async () => ({ inserted: 0 }),
-  importLeadsFromCsv: async () => ({ inserted: 0 }),
-  uploadLeadData: async () => ({}),
-  upsertLeadList: async () => ({}),
-  deleteLeadList: async () => ({}),
-}))
+vi.mock('@/db/usersNTeams', async () => (await import('./leakGateAdminMocks')).usersNTeamsDbModule())
+vi.mock('@/lib/quota', async () => (await import('./leakGateMocks')).quotaModule())
+vi.mock('@/db/automations/connectionDelivery', async () => (await import('./leakGateAutomationsMocks')).connectionDeliveryDbModule())
+vi.mock('@/actions/clients', async () => (await import('./leakGateMocks')).clientsActionsModule())
 vi.mock('@/actions/global', () => ({ saveTblPref: async () => ({ ok: true }) }))
 vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: async () => [] }))
 vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEvent: async () => {} }))
-// The pipeline tour is education content (out of Phase C scope, still Hebrew).
+// AutoTour only starts a Driver.js tour (it renders nothing); the tours are scanned in educationLocales.test.tsx.
 vi.mock('@/components/education/AutoTour', () => ({ default: () => null }))
-vi.mock('@/db/whatsapp', () => ({ getWhatsappConnectionState: async () => ({ connected: true }) }))
+vi.mock('@/db/whatsapp', async () => (await import('./leakGateMocks')).whatsappDbModule())
 vi.mock('@/db/reports/dashboardStats', async () => ({ getDashboardStats: async () => (await import('./dashboardFixtures')).dashboardEnv.stats }))
 vi.mock('@/lib/today/telemetry', () => ({ logBriefServed: () => {}, logBriefFailure: () => {} }))
 vi.mock('@/lib/today/rollout', async () => {
@@ -143,22 +89,8 @@ vi.mock('@/modules/leads/mobile/LeadImportMobile', () => ({ default: () => null 
 vi.mock('@/modules/leads/mobile/LeadsAddSheet', () => ({ default: () => null }))
 
 // /clients/[clientId] layout + summary reads (I/O only; the layout, page, cards and producers run for real).
-vi.mock('@/lib/requireUser', async () => ({
-  ...(await vi.importActual<typeof import('@/lib/requireUser')>('@/lib/requireUser')),
-  requireAgencyUser: async () => (await import('./surfaces')).FIXTURE_USER,
-}))
-vi.mock('@/db/tasks', async () => {
-  const { detailEnv } = await import('./leadDetailEnv')
-  const { tabsEnv } = await import('./leadTabsEnv')
-  return {
-    get5TasksByClientId: async () => detailEnv.tasks,
-    // Lead tabs.
-    getTasksTbl: async () => tabsEnv.tasks,
-    getTaskTmplts: async () => tabsEnv.taskTmplts,
-    getTaskById: async () => (tabsEnv.taskDetail ? structuredClone(tabsEnv.taskDetail) : undefined),
-    getTasksByClientId: async () => [{ id: 2, title: 'שיחת המשך' }],
-  }
-})
+vi.mock('@/lib/requireUser', async () => (await import('./leakGateQuestionnaireMocks')).requireUserModule()) // FIXTURE_USER; the Builder's access check (E5c)
+vi.mock('@/db/tasks', async () => (await import('./leakGateAdminMocks')).tasksDbModule())
 vi.mock('@/modules/inbox/queries', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
   return {
@@ -175,23 +107,11 @@ vi.mock('@/db/inboxMessages', async () => {
 })
 vi.mock('@/db/leadFormAnswers', async () => ({ formAnswersForLead: async () => (await import('./leadDetailEnv')).detailEnv.formAnswers }))
 vi.mock('@/db/adsCrmOutcomes', async () => ({ getLeadAdAttribution: async () => (await import('./leadDetailEnv')).detailEnv.attribution }))
-vi.mock('@/db/adsSnapshots', async () => ({ readCreativeForAd: async () => (await import('./leadDetailEnv')).detailEnv.creative }))
-vi.mock('@/lib/facebook/permissions', async () => {
-  const { detailEnv } = await import('./leadDetailEnv')
-  const { messengerEnv, commentsEnv } = await import('./messengerCommentsEnv')
-  return {
-    ...(await vi.importActual<typeof import('@/lib/facebook/permissions')>('@/lib/facebook/permissions')),
-    isFacebookAdsReportingEnabledForAgency: () => detailEnv.adsReporting,
-    // Messenger is on by default (the inbox fixtures); the Messenger/Comments surfaces vary both.
-    isFacebookMessengerEnabledForAgency: () => messengerEnv.enabled,
-    isFacebookCommentRepliesEnabledForAgency: () => commentsEnv.repliesEnabled,
-  }
-})
-vi.mock('@/lib/whatsapp/templates/flag', async () => {
-  const { detailEnv } = await import('./leadDetailEnv')
-  return { isTemplatesEnabledForAgency: () => detailEnv.templatesEnabled }
-})
-vi.mock('@/db/whatsappTemplates', async () => ({ listTemplates: async () => (await import('./leadDetailEnv')).detailEnv.templates }))
+// `readSnapshot` / `writeSnapshot`: the ads report's (empty) snapshot cache (Phase E2).
+vi.mock('@/db/adsSnapshots', async () => ({ readCreativeForAd: async () => (await import('./leadDetailEnv')).detailEnv.creative, readSnapshot: async () => null, writeSnapshot: async () => {} }))
+vi.mock('@/lib/facebook/permissions', async () => (await import('./leakGateMocks')).facebookPermissionsModule())
+vi.mock('@/lib/whatsapp/templates/flag', async () => (await import('./leakGateMocks')).templatesFlagModule())
+vi.mock('@/db/whatsappTemplates', async () => (await import('./leakGateMocks')).whatsappTemplatesModule())
 vi.mock('@/lib/inbox/whatsappOutboundTarget', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
   return { resolveWhatsappOutboundTarget: async () => (detailEnv.reachable ? { ok: true } : { ok: false }) }
@@ -202,14 +122,20 @@ vi.mock('@/actions/leadFollowUp', () => ({ setLeadFollowUp: async () => ({}), cl
 vi.mock('@/actions/whatsapp/templates/sendTemplateToLead', () => ({ sendTemplateToLead: async () => ({ ok: true }) }))
 // Out of this phase: the Copilot lead context, the deal form (Phase E), the mobile lead detail (Phase F).
 vi.mock('@/components/copilot/CopilotLeadContext', () => ({ default: () => null }))
-vi.mock('@/components/sales/saleForm/SaleForm', () => ({ default: () => null }))
 vi.mock('@/modules/leads/mobile/LeadDetailMobile', () => ({ default: () => null }))
 
 // /clients/[clientId]/{tasks,files,billing} reads (I/O only; the pages, tables, Drive section and list run for real).
 vi.mock('next/dynamic', async () => ({ default: (await import('./leadTabsHarness')).nextDynamicMock }))
-vi.mock('@/db/files', async () => ({ getFilesByClientId: async () => (await import('./leadTabsEnv')).tabsEnv.files }))
-vi.mock('@/actions/tasks', () => ({ addTask: async () => 1, addTaskFromTmplt: async () => 1, updateFullTask: async () => {}, updateFullTaskTmplt: async () => {}, deleteTask: async () => {} }))
-vi.mock('@/actions/files', () => ({ deleteFile: async () => {}, addFilesToTask: async () => {}, addFiles: async () => [], getPresigned: async () => [] }))
+vi.mock('@/db/files', async () => ({
+  getFilesByClientId: async () => (await import('./leadTabsEnv')).tabsEnv.files,
+  // Global /files (Phase E1).
+  getFiles: async () => (await import('./globalTasksFilesEnv')).globalEnv.files,
+}))
+// /calendar reads and actions (Phase E1; I/O only — the page, view and producers run for real).
+vi.mock('@/db/googleCalendarConnections', async () => (await import('./leakGateMocks')).calendarConnModule())
+vi.mock('@/actions/calendar', async () => (await import('./calendarEnv')).calendarActionsModule())
+vi.mock('@/actions/tasks', () => ({ addTask: async () => 1, addTaskFromTmplt: async () => 1, updateFullTask: async () => {}, updateFullTaskTmplt: async () => {}, deleteTask: async () => {}, addTaskTmplt: async () => 1, deleteTaskTmplt: async () => {} }))
+vi.mock('@/actions/files', () => ({ deleteFile: async () => {}, addFilesToTask: async () => {}, addFiles: async () => [], getPresigned: async () => [], getUserImgs: async () => [] }))
 vi.mock('@/actions/leadDriveFiles', async () => ({
   listLeadDriveAttachments: async () => (await import('./leadTabsEnv')).tabsEnv.attachments,
   attachDriveFile: async () => ({ ok: true }),
@@ -220,14 +146,23 @@ vi.mock('@/actions/leadDriveFilesSearch', async () => ({
   searchDriveForLead: async () => [],
 }))
 vi.mock('@/lib/integrations/google/picker/useDrivePicker', () => ({ useDrivePicker: () => ({ status: 'idle', openPicker: () => {} }) }))
-vi.mock('@/config/db', async () => {
-  const { tabsEnv } = await import('./leadTabsEnv')
-  // `select` is the Messenger / Comments pages' facebook_pages read (their fixtures).
-  const mc = (await import('./messengerCommentsMocks')).dbModule().db()
-  const q = { where: () => q, whereIn: () => q, first: async () => (tabsEnv.leadFound ? { id: 41 } : undefined), select: mc.select }
-  return { db: () => q }
-})
-vi.mock('@/db/billing/invoices', async () => ({ listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices }))
+vi.mock('@/config/db', async () => (await import('./leakGateAdminMocks')).configDbModule())
+vi.mock('@/db/billing/invoices', async () => ({
+  ...(await import('./billingMocks')).invoicesDbModule(), // the invoice screens (Phase E3)
+  listInvoicesForLead: async () => (await import('./leadTabsEnv')).tabsEnv.invoices,
+}))
+// The invoice editors, the issued view and the lead picker (Phase E3; I/O only).
+vi.mock('@/db/billing/profiles', async () => (await import('./billingMocks')).profilesDbModule())
+vi.mock('@/db/billing/documents', async () => (await import('./billingMocks')).documentsDbModule())
+vi.mock('@/db/billing/events', async () => (await import('./billingMocks')).eventsDbModule())
+vi.mock('@/db/billing/taxRates', async () => (await import('./billingMocks')).taxRatesDbModule())
+vi.mock('@/actions/billing/drafts', async () => (await import('./billingMocks')).draftsActionsModule())
+vi.mock('@/actions/billing/issue', async () => (await import('./billingMocks')).issueActionsModule())
+vi.mock('@/actions/billing/issuer', async () => (await import('./billingMocks')).issuerActionsModule())
+vi.mock('@/actions/billing/render', async () => (await import('./billingMocks')).renderActionsModule())
+vi.mock('@/actions/billing/duplicate', async () => (await import('./billingMocks')).duplicateActionsModule())
+vi.mock('@/actions/billing/send', async () => (await import('./billingMocks')).sendActionsModule())
+vi.mock('@/actions/billing/documentStatus', async () => (await import('./billingMocks')).documentStatusModule())
 
 // /inbox reads and actions (I/O only; the page, list, thread, composer, ownership line and producers run for real).
 vi.mock('next/cache', async () => (await import('./inboxMocks')).cacheModule())
@@ -240,7 +175,7 @@ vi.mock('@/lib/inbox/whatsappComposerContext', async () => {
 })
 vi.mock('@/db/conversationAiState', async () => (await import('./inboxMocks')).aiStateModule())
 vi.mock('@/db/conversationIntelligence', async () => (await import('./inboxMocks')).conversationIntelligenceModule())
-vi.mock('@/db/autoResponseSettings', async () => (await import('./inboxMocks')).autoResponseSettingsModule())
+vi.mock('@/db/autoResponseSettings', async () => (await import('./leakGateAdminMocks')).autoResponseDbModule())
 vi.mock('@/db/questionnaireSessions', async () => (await import('./inboxMocks')).questionnaireSessionsModule())
 vi.mock('@/lib/inbox/autoresponse/reliability/entitlement', async () => (await import('./inboxMocks')).replyEntitlementModule())
 vi.mock('@/actions/inbox/agentOwnership', async () => (await import('./inboxMocks')).ownershipActionsModule())
@@ -267,6 +202,81 @@ vi.mock('@/modules/facebookComments/actions', async () => (await import('./messe
 vi.mock('@/modules/facebookComments/replyActions', async () => (await import('./messengerCommentsMocks')).replyActionsModule())
 vi.mock('@/modules/facebookComments/listActions', async () => (await import('./messengerCommentsMocks')).listActionsModule())
 
+// /deals, /sum_sales, /promotion reads and actions (Phase E2; I/O only — pages, tables, charts and producers run for real).
+vi.mock('@/lib/filter/resolveActiveFilter', async () => (await import('./dealsMocks')).resolveActiveFilterModule())
+vi.mock('@/db/salesTbl', async () => (await import('./dealsMocks')).salesTblDbModule())
+vi.mock('@/db/sumSales', async () => (await import('./dealsMocks')).sumSalesDbModule())
+vi.mock('@/db/sum_pie', async () => (await import('./dealsMocks')).sumPieModule())
+vi.mock('@/db/promos', async () => (await import('./leakGateAdminMocks')).promosDbModule())
+vi.mock('@/actions/salesTbl', async () => (await import('./dealsMocks')).salesTblActionsModule())
+vi.mock('@/actions/dealImport', async () => (await import('./dealsMocks')).dealImportModule())
+vi.mock('@/actions/saleForm', async () => (await import('./dealsMocks')).saleFormActionsModule())
+vi.mock('@/actions/filter', async () => (await import('./dealsMocks')).filterActionsModule())
+vi.mock('@/modules/adsReporting/actions', async () => (await import('./dealsMocks')).adsActionsModule())
+vi.mock('@/db/facebookAds', async () => (await import('./dealsMocks')).adsDbModule())
+vi.mock('@/lib/facebook/ads/cached', async () => (await import('./dealsMocks')).adsCachedModule())
+vi.mock('@/lib/facebook/ads/insights', async () => (await import('./dealsMocks')).adsInsightsModule())
+vi.mock('@/lib/facebook/ads/report', async () => (await import('./dealsMocks')).adsReportModule())
+vi.mock('@/lib/facebook/ads/breakdown', async () => (await import('./dealsMocks')).adsBreakdownModule())
+vi.mock('@/lib/facebook/ads/intelligence', async () => (await import('./dealsMocks')).adsIntelligenceModule())
+
+// The user settings pages (Phase E4; I/O only — pages, forms, connectors, dialogs and producers run for real).
+vi.mock('next/headers', async () => (await import('./settingsMocks')).headersModule())
+vi.mock('next/script', async () => (await import('./settingsMocks')).nextScriptModule())
+vi.mock('@/db/loginActivity', async () => (await import('./settingsMocks')).loginActivityModule())
+vi.mock('@/actions/usersNteams', async () => (await import('./leakGateAdminMocks')).usersNteamsActionsModule())
+vi.mock('@/actions/linkFacebookAccount', async () => (await import('./settingsMocks')).linkFacebookModule())
+vi.mock('@/lib/auth/facebookUserAuthFlags', async () => (await import('./settingsMocks')).facebookUserAuthFlagsModule())
+vi.mock('@/lib/flags/ownerWhatsappReminderFlags', async () => (await import('./settingsMocks')).remindersFlagsModule())
+vi.mock('@/db/ownerWhatsappRecipients', async () => (await import('./settingsMocks')).ownerRecipientsModule())
+vi.mock('@/actions/whatsappReminders', async () => (await import('./settingsMocks')).remindersActionsModule())
+vi.mock('@/db/billing/issuer', async () => (await import('./settingsMocks')).issuerDbModule())
+vi.mock('@/lib/quota/planUsage', async () => (await import('./settingsMocks')).planUsageModule())
+vi.mock('@/lib/quota/subscription', async () => (await import('./settingsMocks')).subscriptionModule())
+vi.mock('@/lib/payments/cardTrial/recoverCardSetup', async () => (await import('./settingsMocks')).recoverCardModule())
+vi.mock('@/lib/payments/cardTrial/cardTrialView', async () => (await import('./settingsMocks')).cardTrialViewModule())
+vi.mock('@/db/trial', async () => (await import('./settingsMocks')).trialDbModule())
+vi.mock('@/lib/payments/cardTrial/availability', async () => (await import('./settingsMocks')).availabilityModule())
+vi.mock('@/actions/subscription', async () => (await import('./settingsMocks')).subscriptionActionsModule())
+vi.mock('@/actions/paymentMethod', async () => (await import('./settingsMocks')).paymentMethodActionsModule())
+vi.mock('@/actions/trial', async () => (await import('./settingsMocks')).trialActionsModule())
+vi.mock('@/lib/facebook/pendingPages', async () => (await import('./settingsMocks')).pendingPagesModule())
+vi.mock('@/lib/facebook/health', async () => (await import('./settingsMocks')).facebookHealthModule())
+vi.mock('@/lib/facebook/pageToken', async () => (await import('./settingsMocks')).pageTokenModule())
+vi.mock('@/lib/whatsapp/registration', async () => (await import('./settingsMocks')).registrationModule())
+vi.mock('@/lib/whatsapp/operationalStatus', async () => (await import('./settingsMocks')).operationalStatusModule())
+vi.mock('@/components/settings/messenger/messengerSectionData', async () => (await import('./settingsMocks')).messengerSectionModule())
+vi.mock('@/lib/flags/mcpFlags', async () => (await import('./settingsMocks')).mcpFlagsModule())
+vi.mock('@/lib/oauth/server/connections', async () => (await import('./settingsMocks')).aiConnectionsModule())
+vi.mock('@/lib/oauth/server/config', async () => (await import('./settingsMocks')).oauthConfigModule())
+vi.mock('@/modules/inbox/client/useAdaptivePoll', async () => (await import('./settingsMocks')).adaptivePollModule())
+
+// The admin settings pages (Phase E5; I/O only — pages, tables, forms, dialogs and producers run for real).
+vi.mock('@/db/invitations', async () => (await import('./adminMocks')).invitationsDbModule())
+vi.mock('@/actions/invitations', async () => (await import('./adminMocks')).invitationsActionsModule())
+vi.mock('@/actions/promos', async () => (await import('./adminMocks')).promosActionsModule())
+vi.mock('@/db/quotes/templateWrites', async () => (await import('./adminMocks')).quoteWritesDbModule())
+vi.mock('@/actions/quotes/templates', async () => (await import('./adminMocks')).quoteActionsModule())
+vi.mock('@/lib/flags/questionnaireBuilderFlags', async () => (await import('./leakGateQuestionnaireMocks')).builderFlagsModule())
+vi.mock('@/actions/autoResponse/updateSettings', async () => (await import('./adminMocks')).updateAutoResponseModule())
+vi.mock('@/actions/autoResponse/previewAgent', async () => (await import('./adminMocks')).previewAgentModule())
+vi.mock('@/modules/settings/mobile/AutoResponseMobile', async () => (await import('./adminMocks')).autoResponseMobileModule())
+// The automations screens (Phase E5b; I/O only — pages, panels, cards, the template and integration overviews run for real).
+vi.mock('@/lib/automations/flags', async () => (await import('./leakGateAutomationsMocks')).flagsModule())
+vi.mock('@/db/automations/definitions', async () => (await import('./automationsMocks')).definitionsDbModule())
+vi.mock('@/db/automations/activity', async () => (await import('./automationsMocks')).activityDbModule())
+vi.mock('@/db/automations/leadFacts', async () => (await import('./automationsMocks')).leadFactsDbModule())
+vi.mock('@/db/automations/templateInstalls', async () => (await import('./automationsMocks')).templateInstallsDbModule())
+vi.mock('@/db/automations/pilotMetrics', async () => (await import('./automationsMocks')).pilotMetricsDbModule())
+vi.mock('@/db/automations/connectionUsage', async () => (await import('./automationsMocks')).connectionUsageDbModule())
+vi.mock('@/db/automations/sourceLabels', async () => (await import('./automationsMocks')).sourceLabelsDbModule())
+vi.mock('@/lib/automations/connectors/registry', async () => (await import('./automationsMocks')).connectorsRegistryModule())
+// The questionnaire builder (Phase E5c; I/O only — the page, editor, preview renderer and publish check run for real).
+vi.mock('@/lib/flags/whatsappQuestionnaireFlags', async () => (await import('./leakGateQuestionnaireMocks')).naturalAnswersFlagsModule())
+vi.mock('@/lib/inbox/autoresponse/questionnaire/builder/service', async () => (await import('./leakGateQuestionnaireMocks')).serviceModule())
+vi.mock('@/actions/questionnaire/builderDraft', async () => (await import('./questionnaireMocks')).draftActionsModule())
+vi.mock('@/actions/questionnaire/builderPublish', async () => (await import('./questionnaireMocks')).publishActionsModule())
+
 const { SURFACES } = await import('./surfaces')
 
 const saved = { ...process.env }
@@ -285,6 +295,11 @@ afterEach(async () => {
   ;(await import('./leadTabsEnv')).resetTabsEnv()
   ;(await import('./inboxEnv')).resetInboxEnv()
   ;(await import('./messengerCommentsEnv')).resetMessengerCommentsEnv()
+  ;(await import('./globalTasksFilesEnv')).resetGlobalEnv()
+  ;(await import('./calendarEnv')).resetCalEnv()
+  ;(await import('./dealsEnv')).resetDealsEnv(), (await import('./adsEnv')).resetAdsEnv()
+  ;(await import('./billingEnv')).resetBillEnv()
+  ;(await import('./settingsEnv')).resetSetEnv(), (await import('./adminEnv')).resetAdminEnv(), (await import('./automationsEnv')).resetAutomationsEnv(), (await import('./questionnaireEnv')).resetQuestionnaireEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {

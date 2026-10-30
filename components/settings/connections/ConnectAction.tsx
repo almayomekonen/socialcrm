@@ -7,7 +7,8 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { proToast, toast } from '@/lib/toast'
 import { provisionApiKeyConnection } from '@/actions/automations/connections'
 import type { AuthStrategy } from '@/lib/automations/catalog/vocabularies'
-import { STRATEGY, errorMessage } from './copy'
+import { errorMessageIn, strategyIn } from './copy'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
 /**
@@ -37,7 +38,8 @@ type Props = {
 }
 
 export default function ConnectAction({ integrationKey, integrationTitle, auth, connected, onDone }: Props) {
-  const strategy = STRATEGY[auth]
+  const t = useT()
+  const strategy = strategyIn(auth, t.locale)
   const [open, setOpen] = useState(false)
 
   if (!strategy.needsConnection) return null
@@ -79,10 +81,11 @@ function ApiKeyDialog({
 }) {
   /** Connection credentials are Pro: provisioning mints a live API key. */
   const expired = useAccessDenied()
+  const t = useT()
   const promptConnection = () =>
     proToast({
-      title: 'ניהול חיבורים זמין עם Pro',
-      body: 'חידוש המנוי יחזיר את ניהול החיבורים.',
+      title: t('admin.connections.pro.title'),
+      body: t('admin.connections.pro.body'),
       source: 'connection_manage',
     })
   const [siteUrl, setSiteUrl] = useState('')
@@ -96,31 +99,31 @@ function ApiKeyDialog({
     start(async () => {
       if (expired) return promptConnection()
       const res = await provisionApiKeyConnection({ integrationKey, siteUrl, displayName })
-      if (res.ok === false) return setError(errorMessage(res.reason))
+      if (res.ok === false) return setError(errorMessageIn(res.reason, t.locale))
       setIssued({ webhookUrl: res.webhookUrl, secret: res.secret })
-      toast('success', 'החיבור נוצר')
+      toast('success', t('admin.connections.connect.created'))
       onDone()
     })
   }
 
   return (
-    <ModalPop open onClose={onClose} pos='middle' label={`חיבור ${integrationTitle}`} className='w-[460px] max-w-[92vw]'>
+    <ModalPop open onClose={onClose} pos='middle' label={t('admin.connections.connect.title', { name: integrationTitle })} className='w-[460px] max-w-[92vw]' translated>
       {/* The house dialog shape (SendInvoiceModal, MeetingFormDialog, …):
           width on ModalPop, centred, `grid gap-4 pt-2` inside. The `pt-2` is
           what gives the close button its breathing room. */}
       <div className='grid gap-4 pt-2'>
-        <h2 className='text-lg font-semibold text-dark'>חיבור {integrationTitle}</h2>
+        <h2 className='text-lg font-semibold text-dark'>{t('admin.connections.connect.title', { name: integrationTitle })}</h2>
         {!issued && (
           <>
-            <p className='text-sm text-gray-600 leading-relaxed'>{STRATEGY.api_key.how}</p>
+            <p className='text-sm text-gray-600 leading-relaxed'>{strategyIn('api_key', t.locale).how}</p>
             <Input
-              lbl='כתובת האתר או המערכת'
+              lbl={t('admin.connections.connect.siteUrl')}
               value={siteUrl}
               dir='ltr'
               placeholder='https://example.com'
               onChange={(e) => setSiteUrl(e.target.value)}
             />
-            <Input lbl='שם לתצוגה (לא חובה)' value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <Input lbl={t('admin.connections.connect.displayName')} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
             {error && (
               <p className='text-sm text-red-600' role='alert'>
                 {error}
@@ -129,7 +132,7 @@ function ApiKeyDialog({
             {/* Action sits at the end of the row, not stretched across it. */}
             <div className='flex justify-end mt-2'>
               <Btn
-                lbl={pending ? 'יוצר…' : 'יצירת חיבור'}
+                lbl={pending ? t('admin.connections.connect.creating') : t('admin.connections.connect.create')}
                 icon={pending ? 'spinner' : 'plug'}
                 iconClassName={pending ? 'animate-spin' : undefined}
                 disabled={pending || !siteUrl.trim()}
@@ -142,12 +145,12 @@ function ApiKeyDialog({
         {issued && (
           <>
             <p className='text-sm text-gray-600 leading-relaxed'>
-              הזינו את שני הפרטים האלה במערכת שלכם. הקוד הסודי מוצג פעם אחת בלבד — שמרו אותו עכשיו.
+              {t('admin.connections.connect.issued')}
             </p>
-            <CopyRow label='כתובת לשליחה' value={issued.webhookUrl} />
-            <CopyRow label='קוד סודי' value={issued.secret} />
+            <CopyRow label={t('admin.connections.connect.webhookUrl')} value={issued.webhookUrl} />
+            <CopyRow label={t('admin.connections.connect.secret')} value={issued.secret} />
             <div className='flex justify-end mt-2'>
-              <Btn lbl='סיימתי' onClick={onClose} />
+              <Btn lbl={t('admin.connections.connect.done')} onClick={onClose} />
             </div>
           </>
         )}
@@ -157,6 +160,7 @@ function ApiKeyDialog({
 }
 
 function CopyRow({ label, value }: { label: string; value: string }) {
+  const t = useT()
   return (
     <div className='grid gap-1.5 min-w-0'>
       <span className='text-sm text-gray-500'>{label}</span>
@@ -173,11 +177,11 @@ function CopyRow({ label, value }: { label: string; value: string }) {
         <Btn
           variant='outline'
           size='small'
-          lbl='העתקה'
+          lbl={t('admin.connections.connect.copy')}
           icon='copy'
           onClick={() => {
             navigator.clipboard?.writeText(value)
-            toast('success', 'הועתק')
+            toast('success', t('admin.connections.connect.copied'))
           }}
         />
       </div>

@@ -7,6 +7,9 @@ import { setPosAndPop } from '@/lib/funcs'
 import { addFavDeals, removeFavDeal } from '@/actions/salesTbl'
 import { toast } from '@/lib/toast'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 export const getActions = () => ({
   מחיקה: {
@@ -49,8 +52,9 @@ export function SelectSalesGrpActions({ user, isFav = null }) {
 }
 
 export function DotsMenu({ id, onClick }) {
+  const t = useT()
   return (
-    <Btn variant='outline' size='icon' icon='ellipsis-vertical' type='button' aria-label='פעולות' aria-haspopup='menu' onClick={(e) => setPosAndPop(e, id, onClick)} />
+    <Btn variant='outline' size='icon' icon='ellipsis-vertical' type='button' aria-label={t('deals.table.actions')} aria-haspopup='menu' onClick={(e) => setPosAndPop(e, id, onClick)} />
   )
 }
 
@@ -76,12 +80,12 @@ export function ActionsMenu({ id, children }) {
 // ------------------------------
 
 // `onDel` (sale delete) is owned by `SalesTable` via `ConfirmPop`.
-function addOrRemoveFav(sale, isFav) {
+function addOrRemoveFav(sale, isFav, t: Translator = translatorFor('he')) {
   if (isFav) {
     removeFavDeal(sale.id)
-    toast('success', 'העסקה הוסרה ממועדפים')
+    toast('success', t('deals.table.toast.favoriteRemoved'))
   } else {
     addFavDeals([sale.id])
-    toast('success', 'העסקה נוספה למועדפים')
+    toast('success', t('deals.table.toast.favoriteAdded'))
   }
 }

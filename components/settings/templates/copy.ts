@@ -1,5 +1,8 @@
 import type { TemplateCategory } from '@/lib/automations/templates/types'
 import { TEMPLATE_CATEGORIES } from '@/lib/automations/templates/types'
+import type { UiLocale } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Marketplace copy, keyed by the closed category vocabulary. `Record<K, …>`
@@ -41,3 +44,28 @@ export const ERRORS: Record<string, string> = {
 }
 
 export const errorMessage = (reason: string) => ERRORS[reason] ?? 'הפעולה נכשלה. נסו שוב.'
+
+const ERROR_KEYS: Record<string, MessageKey> = {
+  forbidden: 'admin.automationTemplates.error.forbidden',
+  template_unknown: 'admin.automationTemplates.error.template_unknown',
+  template_invalid: 'admin.automationTemplates.error.template_invalid',
+  variable_required: 'admin.automationTemplates.error.variable_required',
+  template_required: 'admin.automationTemplates.error.template_required',
+  name_required: 'admin.automationTemplates.error.name_required',
+  name_too_long: 'admin.automationTemplates.error.name_too_long',
+  name_taken: 'admin.automationTemplates.error.name_taken',
+  title_too_long: 'admin.automationTemplates.error.title_too_long',
+  validity_invalid: 'admin.automationTemplates.error.validity_invalid',
+  items_required: 'admin.automationTemplates.error.items_required',
+  too_many_items: 'admin.automationTemplates.error.too_many_items',
+  item_title_required: 'admin.automationTemplates.error.item_title_required',
+  item_title_too_long: 'admin.automationTemplates.error.item_title_too_long',
+  item_quantity_invalid: 'admin.automationTemplates.error.item_quantity_invalid',
+  item_price_invalid: 'admin.automationTemplates.error.item_price_invalid',
+  item_discount_invalid: 'admin.automationTemplates.error.item_discount_invalid',
+  invalid_input: 'admin.automationTemplates.error.invalid_input',
+}
+
+/** The same refusal by CODE in the interface language (Hebrew: `errorMessage` itself). */
+export const errorMessageIn = (reason: string, locale: UiLocale = 'he') =>
+  locale === 'he' ? errorMessage(reason) : translatorFor(locale)(ERROR_KEYS[reason] ?? 'admin.automationTemplates.error.unknown')

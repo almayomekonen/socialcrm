@@ -5,8 +5,14 @@ import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpir
 import { isAutomationsAgencyAllowlisted } from '@/lib/automations/flags'
 import { templateOverview } from '@/lib/automations/templates/overview'
 import TemplatesSettings from '@/components/settings/templates/TemplatesSettings'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'תבניות אוטומציה' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await requireAgencyUser())
+  return { title: t('admin.automationTemplates.title') }
+}
 
 /**
  * Settings → תבניות אוטומציה.
@@ -17,8 +23,10 @@ export const metadata: Metadata = { title: 'תבניות אוטומציה' }
  */
 export default async function AutomationTemplatesPage() {
   const user = await requireAgencyUser()
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) {
-    return <div className='max-w-3xl'>הדף אינו זמין בחשבון הזה.</div>
+    return <div className='max-w-3xl' {...regionAttrs(locale)}>{t('admin.automations.notAvailable')}</div>
   }
 
   /*
@@ -32,16 +40,14 @@ export default async function AutomationTemplatesPage() {
   const views = await templateOverview(user.agencyId)
 
   return (
-    <div>
+    <div {...regionAttrs(locale)}>
       {proLocked && (
         <div className='mb-6 max-w-2xl'>
-          <SubscriptionExpiredState mode='inline' source='automation_templates_settings' feature='חידוש המנוי מחזיר את התקנת האוטומציות' />
+          <SubscriptionExpiredState mode='inline' source='automation_templates_settings' feature={t('admin.automationTemplates.expiredFeature')} translated />
         </div>
       )}
-      <h1 className='title'>תבניות אוטומציה</h1>
-      <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
-        אוטומציות מוכנות לשימוש. ההתקנה יוצרת אותן כטיוטות אצלכם — משם הן שלכם לחלוטין, לעריכה ולהפעלה.
-      </p>
+      <h1 className='title'>{t('admin.automationTemplates.title')}</h1>
+      <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>{t('admin.automationTemplates.intro')}</p>
       <TemplatesSettings views={views} />
     </div>
   )

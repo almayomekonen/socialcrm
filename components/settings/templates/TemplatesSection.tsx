@@ -6,6 +6,8 @@ import { StatusBadge } from '@/lib/StatusBadge'
 import { listTemplates, countByStatus } from '@/db/whatsappTemplates'
 import TemplateListSkeleton from './TemplateListSkeleton'
 import TemplatesWorkspace from '@/modules/templates/client/templatesStore'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Ready-made messages section body (RSC). Connection-gated per UX spec §1:
@@ -27,7 +29,14 @@ const NOT_READY: Notice = {
   explanation: 'לאחר שהחיבור יאומת, אפשר יהיה ליצור הודעות WhatsApp מוכנות.',
 }
 
-type Props = { agencyId: number; connected: boolean; messagingReady: boolean }
+type Props = { agencyId: number; connected: boolean; messagingReady: boolean; locale?: UiLocale }
+
+/** The two notices in `locale` (Hebrew: the constants above, unchanged). */
+function notice(base: Notice, keys: { title: 'settings.templates.notConnected.title' | 'settings.templates.notReady.title'; explanation: 'settings.templates.notConnected.explanation' | 'settings.templates.notReady.explanation' }, locale: UiLocale): Notice {
+  if (locale === 'he') return base
+  const t = translatorFor(locale)
+  return { ...base, title: t(keys.title), explanation: t(keys.explanation) }
+}
 
 /** Loads and renders the list; wrapped in Suspense above for the skeleton. Exported for tests. */
 export async function TemplatesBody({ agencyId }: { agencyId: number }) {
@@ -35,23 +44,24 @@ export async function TemplatesBody({ agencyId }: { agencyId: number }) {
   return <TemplatesWorkspace initial={templates} />
 }
 
-export default function TemplatesSection({ agencyId, connected, messagingReady }: Props) {
+export default function TemplatesSection({ agencyId, connected, messagingReady, locale = 'he' }: Props) {
+  const t = translatorFor(locale)
   if (!connected) {
     return (
       <div className='grid gap-3'>
-        <ConnectionNotice notice={NOT_CONNECTED} />
+        <ConnectionNotice notice={notice(NOT_CONNECTED, { title: 'settings.templates.notConnected.title', explanation: 'settings.templates.notConnected.explanation' }, locale)} />
         <Link
           href='/settings/integrations?section=whatsapp'
           className='text-sm font-medium text-primary hover:underline'
         >
-          למעבר לחיבור וואטסאפ
+          {t('settings.templates.goConnect')}
         </Link>
       </div>
     )
   }
 
   if (!messagingReady) {
-    return <ConnectionNotice notice={NOT_READY} />
+    return <ConnectionNotice notice={notice(NOT_READY, { title: 'settings.templates.notReady.title', explanation: 'settings.templates.notReady.explanation' }, locale)} />
   }
 
   return (
@@ -66,7 +76,8 @@ export default function TemplatesSection({ agencyId, connected, messagingReady }
  * Renders nothing until there is something worth advertising — and never a red
  * "rejected" count on the closed header (care-charter Law 13).
  */
-export async function TemplatesHeaderBadge({ agencyId, connected }: { agencyId: number; connected: boolean }) {
+export async function TemplatesHeaderBadge({ agencyId, connected, locale = 'he' }: { agencyId: number; connected: boolean; locale?: UiLocale }) {
+  const t = translatorFor(locale)
   if (!connected) return null
   const counts = await countByStatus(agencyId)
   const approved = counts.approved ?? 0
@@ -74,8 +85,8 @@ export async function TemplatesHeaderBadge({ agencyId, connected }: { agencyId: 
   if (approved === 0 && pending === 0) return null
   return (
     <span className='flex items-center gap-1'>
-      {approved > 0 && <StatusBadge role='success' size='xs' label={`${approved} מוכנות`} />}
-      {pending > 0 && <StatusBadge role='warning' size='xs' label={`${pending} בבדיקה`} />}
+      {approved > 0 && <StatusBadge role='success' size='xs' label={t('settings.templates.badge.approved', { count: approved })} />}
+      {pending > 0 && <StatusBadge role='warning' size='xs' label={t('settings.templates.badge.pending', { count: pending })} />}
     </span>
   )
 }

@@ -6,6 +6,8 @@ import { toast } from '@/lib/toast'
 import { markMeetingCompleted, markMeetingNoShow, type MarkOutcomeError } from '@/actions/calendar'
 import { updateLead } from '@/actions/clients'
 import type { SuggestedLeadStatus } from '@/lib/calendar/outcomeStatusSuggestion'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 // Hook that owns the outcome-marking lifecycle: action calls, busy state,
 // router.refresh, toast feedback. Stage 3 adds a "pending nudge" stage:
@@ -20,13 +22,14 @@ import type { SuggestedLeadStatus } from '@/lib/calendar/outcomeStatusSuggestion
 
 type Busy = 'completed' | 'no_show' | 'nudge' | null
 
-const ERROR_COPY: Record<MarkOutcomeError, string> = {
-  invalid_input: 'קלט לא תקין',
-  not_found: 'הפגישה לא נמצאה',
-  not_owner: 'אינך מורשה לעדכן פגישה זו',
-  already_cancelled: 'הפגישה כבר בוטלה',
-  already_completed: 'הפגישה כבר סומנה כהושלמה',
-  already_no_show: 'הפגישה כבר סומנה כלא הגיע',
+/** Refusals by reason CODE, in the interface language (Hebrew outside a provider). */
+const ERROR_KEY: Record<MarkOutcomeError, MessageKey> = {
+  invalid_input: 'calendar.outcome.error.invalid_input',
+  not_found: 'calendar.outcome.error.not_found',
+  not_owner: 'calendar.outcome.error.not_owner',
+  already_cancelled: 'calendar.outcome.error.already_cancelled',
+  already_completed: 'calendar.outcome.error.already_completed',
+  already_no_show: 'calendar.outcome.error.already_no_show',
 }
 
 type PendingNudge = {
@@ -43,6 +46,7 @@ type RunOpts = {
 
 export function useMeetingOutcomeActions(opts: RunOpts = {}) {
   const router = useRouter()
+  const t = useT()
   const [busy, setBusy] = useState<Busy>(null)
   const [pendingNudge, setPendingNudge] = useState<PendingNudge | null>(null)
   const [, startTransition] = useTransition()
@@ -53,7 +57,7 @@ export function useMeetingOutcomeActions(opts: RunOpts = {}) {
     try {
       const result = await markMeetingCompleted({ meetingId })
       if (result.ok === true) {
-        toast('success', 'סומן כהושלמה')
+        toast('success', t('calendar.outcome.completed'))
         startTransition(() => router.refresh())
         if (result.suggestedLeadStatus && result.leadId) {
           // Hold the dialog open so the rep can act on the nudge.
@@ -66,10 +70,10 @@ export function useMeetingOutcomeActions(opts: RunOpts = {}) {
         opts.onSettled?.()
         return
       }
-      toast('error', ERROR_COPY[result.reason] ?? 'עדכון הפגישה נכשל')
+      toast('error', t(ERROR_KEY[result.reason] ?? 'calendar.outcome.failed'))
     } catch (err) {
       console.warn('[calendar.outcome.completed] unexpected error', err)
-      toast('error', 'אירעה שגיאה. נסה שוב.')
+      toast('error', t('calendar.outcome.unexpected'))
     } finally {
       setBusy(null)
     }
@@ -81,7 +85,7 @@ export function useMeetingOutcomeActions(opts: RunOpts = {}) {
     try {
       const result = await markMeetingNoShow({ meetingId })
       if (result.ok === true) {
-        toast('success', 'סומן כלא הגיע')
+        toast('success', t('calendar.outcome.noShow'))
         startTransition(() => router.refresh())
         // no_show never returns a suggestion, but defensively respect the
         // shape — if a future change starts emitting one, the same flow runs.
@@ -95,10 +99,10 @@ export function useMeetingOutcomeActions(opts: RunOpts = {}) {
         opts.onSettled?.()
         return
       }
-      toast('error', ERROR_COPY[result.reason] ?? 'עדכון הפגישה נכשל')
+      toast('error', t(ERROR_KEY[result.reason] ?? 'calendar.outcome.failed'))
     } catch (err) {
       console.warn('[calendar.outcome.no_show] unexpected error', err)
-      toast('error', 'אירעה שגיאה. נסה שוב.')
+      toast('error', t('calendar.outcome.unexpected'))
     } finally {
       setBusy(null)
     }
@@ -109,14 +113,14 @@ export function useMeetingOutcomeActions(opts: RunOpts = {}) {
     setBusy('nudge')
     try {
       await updateLead({ id: pendingNudge.leadId, status: pendingNudge.suggested })
-      toast('success', 'סטטוס הליד עודכן')
+      toast('success', t('calendar.outcome.leadUpdated'))
       startTransition(() => router.refresh())
 
       setPendingNudge(null)
       opts.onSettled?.()
     } catch (err) {
       console.warn('[calendar.outcome.nudge] updateLead failed', err)
-      toast('error', 'עדכון הליד נכשל')
+      toast('error', t('calendar.outcome.leadUpdateFailed'))
     } finally {
       setBusy(null)
     }

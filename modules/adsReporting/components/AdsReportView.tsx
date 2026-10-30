@@ -1,11 +1,14 @@
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { formatAdsPeriod } from '@/lib/facebook/ads/format'
 import { attributionLabel } from '@/lib/facebook/ads/results'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { noticeReasonsLabel } from '@/lib/inbox/whatsappComposerDecision'
 import type { AdsReport } from '@/lib/facebook/ads/report'
 import type { AdsBreakdown } from '@/lib/facebook/ads/breakdown'
 import type { AdsResult } from '@/lib/facebook/ads/insights'
 import { CLEAR_ADSET, CLEAR_DRILLDOWN } from '@/lib/facebook/ads/selection'
-import { ADS_NOTICES, FAILURE_NOTICE } from '@/modules/adsReporting/notices'
+import { FAILURE_NOTICE, adsNotice } from '@/modules/adsReporting/notices'
 import AdsSummaryCards from './AdsSummaryCards'
 import AdsResultsTable from './AdsResultsTable'
 import AdsDailyTrend from './AdsDailyTrend'
@@ -24,15 +27,19 @@ export default function AdsReportView({
   breakdown,
   account,
   intel = null,
+  locale = 'he',
 }: {
   report: AdsReport & { totals: NonNullable<AdsReport['totals']> }
   breakdown: AdsResult<AdsBreakdown> | null
   account: { name: string; currency: string | null; timezone: string | null }
   /** Meta ↔ SocialCRM sections; absent → the report renders exactly as before. */
   intel?: AdsIntelligenceData | null
+  /** The page's interface language (server-resolved); Hebrew by default. Meta's numbers and names are shown as returned. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const { totals, previous, campaigns } = report
-  const attribution = attributionLabel(totals.attribution)
+  const attribution = attributionLabel(totals.attribution, locale)
   // Per-box comparison only when the previous period had delivery; otherwise the context line says why.
   const comparedTotals = previous && typeof previous === 'object' && previous.totals ? previous.totals : undefined
   const showLeads = (totals.leads ?? 0) > 0 || campaigns.some((c) => c.result.kind === 'leads')
@@ -42,100 +49,104 @@ export default function AdsReportView({
       <dl className='flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600'>
         {report.period && (
           <div className='flex gap-1'>
-            <dt>תקופה:</dt>
+            <dt>{t('performance.ads.context.period')}</dt>
             <dd dir='ltr'>{formatAdsPeriod(report.period)}</dd>
           </div>
         )}
         <div className='flex gap-1'>
-          <dt>אזור זמן של החשבון:</dt>
+          <dt>{t('performance.ads.context.timezone')}</dt>
           <dd dir='ltr'>{account.timezone ?? '—'}</dd>
         </div>
         <div className='flex gap-1'>
-          <dt>מטבע:</dt>
+          <dt>{t('performance.ads.context.currency')}</dt>
           <dd dir='ltr'>{account.currency ?? '—'}</dd>
         </div>
         <div className='flex gap-1'>
-          <dt>ייחוס המרות:</dt>
-          <dd>{attribution ?? 'לא דווח על ידי Meta'}</dd>
+          <dt>{t('performance.ads.context.attribution')}</dt>
+          <dd>{attribution ?? t('performance.ads.context.attributionUnknown')}</dd>
         </div>
         <div className='flex gap-1'>
-          <dt>השוואה:</dt>
+          <dt>{t('performance.ads.context.compare')}</dt>
           <dd>
             {previous === 'unavailable' ? (
-              'ההשוואה לתקופה הקודמת לא נטענה'
+              t('performance.ads.context.compareUnavailable')
             ) : previous === 'partial' ? (
-              'לא מוצגת — התקופה כוללת את היום, שעדיין לא הסתיים'
+              t('performance.ads.context.comparePartial')
             ) : previous ? (
               <>
                 <span dir='ltr'>{formatAdsPeriod(previous.period)}</span>
-                {previous.totals ? '' : ' — לא הייתה פעילות בתקופה הזו'}
+                {previous.totals ? '' : t('performance.ads.context.compareNoActivity')}
               </>
             ) : (
-              'לא זמינה'
+              t('performance.ads.context.compareNone')
             )}
           </dd>
         </div>
       </dl>
 
       {report.reducedFields && (
-        <p className='text-sm text-gray-600'>Meta לא החזירה חלק מהמדדים המורחבים לחשבון הזה, ולכן מוצגים המדדים הבסיסיים. מדדים חסרים מסומנים ב-—.</p>
+        <p className='text-sm text-gray-600'>{t('performance.ads.context.reducedFields')}</p>
       )}
 
-      <AdsSummaryCards totals={totals} previous={comparedTotals} campaigns={campaigns} currency={account.currency} />
+      <AdsSummaryCards totals={totals} previous={comparedTotals} campaigns={campaigns} currency={account.currency} locale={locale} />
 
-      {intel && <AdsIntelligence data={intel} campaigns={campaigns} breakdown={breakdown} currency={account.currency} />}
+      {intel && <AdsIntelligence data={intel} campaigns={campaigns} breakdown={breakdown} currency={account.currency} locale={locale} />}
 
-      <AdsDailyTrend daily={report.daily} currency={account.currency} showLeads={showLeads} />
+      <AdsDailyTrend daily={report.daily} currency={account.currency} showLeads={showLeads} locale={locale} />
 
       {breakdown === null ? (
         <AdsResultsTable
-          title='ביצועים לפי קמפיין'
-          nameHeader='קמפיין'
+          title={t('performance.ads.table.campaigns')}
+          nameHeader={t('performance.ads.table.campaign')}
           rows={campaigns}
           currency={account.currency}
           statusesAvailable={report.statusesAvailable}
-          emptyText='לא נמצאו קמפיינים עם פעילות בטווח הזה.'
-          drill={{ label: 'קבוצות מודעות', to: (row) => ({ campaign: row.id }) }}
+          emptyText={t('performance.ads.table.noCampaigns')}
+          drill={{ label: t('performance.ads.table.adsetsLink'), to: (row) => ({ campaign: row.id }) }}
+          locale={locale}
         />
       ) : 'reason' in breakdown ? (
         <div className='grid max-w-2xl gap-2'>
-          <ConnectionNotice notice={ADS_NOTICES[FAILURE_NOTICE[breakdown.reason]]} />
+          <ConnectionNotice
+            notice={adsNotice(FAILURE_NOTICE[breakdown.reason], locale)}
+            {...(locale === 'he' ? {} : { reasonsLabel: noticeReasonsLabel(locale) })}
+          />
           <div className='flex flex-wrap gap-3'>
             <AdsRetryButton />
-            <AdsDrillLink to={CLEAR_DRILLDOWN}>חזרה לכל הקמפיינים</AdsDrillLink>
+            <AdsDrillLink to={CLEAR_DRILLDOWN}>{t('performance.ads.table.backToCampaigns')}</AdsDrillLink>
           </div>
         </div>
       ) : (
         <div className='grid gap-3'>
-          <nav aria-label='מיקום בדוח' className='flex flex-wrap items-center gap-2 text-sm text-gray-600'>
-            <AdsDrillLink to={CLEAR_DRILLDOWN}>כל הקמפיינים</AdsDrillLink>
+          <nav aria-label={t('performance.ads.table.breadcrumb')} className='flex flex-wrap items-center gap-2 text-sm text-gray-600'>
+            <AdsDrillLink to={CLEAR_DRILLDOWN}>{t('performance.ads.table.allCampaigns')}</AdsDrillLink>
             <span aria-hidden='true'>›</span>
             {breakdown.value.adset ? (
               <>
-                <AdsDrillLink to={CLEAR_ADSET}>{breakdown.value.campaign.name ?? 'הקמפיין'}</AdsDrillLink>
+                <AdsDrillLink to={CLEAR_ADSET}>{breakdown.value.campaign.name ?? t('performance.ads.table.theCampaign')}</AdsDrillLink>
                 <span aria-hidden='true'>›</span>
-                <span className='font-medium text-gray-900'>{breakdown.value.adset.name ?? 'קבוצת המודעות'}</span>
+                <span className='font-medium text-gray-900'>{breakdown.value.adset.name ?? t('performance.ads.table.theAdset')}</span>
               </>
             ) : (
-              <span className='font-medium text-gray-900'>{breakdown.value.campaign.name ?? 'הקמפיין'}</span>
+              <span className='font-medium text-gray-900'>{breakdown.value.campaign.name ?? t('performance.ads.table.theCampaign')}</span>
             )}
           </nav>
           <AdsResultsTable
-            title={breakdown.value.level === 'adset' ? 'קבוצות מודעות בקמפיין' : 'מודעות בקבוצת המודעות'}
-            nameHeader={breakdown.value.level === 'adset' ? 'קבוצת מודעות' : 'מודעה'}
+            title={breakdown.value.level === 'adset' ? t('performance.ads.table.adsets') : t('performance.ads.table.adsOfAdset')}
+            nameHeader={breakdown.value.level === 'adset' ? t('performance.ads.table.adset') : t('performance.ads.table.ad')}
             rows={breakdown.value.rows}
             currency={account.currency}
             statusesAvailable={breakdown.value.statusesAvailable}
-            emptyText='לא נמצאה פעילות ברמה הזו בטווח התאריכים שנבחר.'
-            drill={breakdown.value.level === 'adset' ? { label: 'מודעות', to: (row) => ({ adset: row.id }) } : undefined}
+            emptyText={t('performance.ads.table.noLevel')}
+            drill={breakdown.value.level === 'adset' ? { label: t('performance.ads.table.adsLink'), to: (row) => ({ adset: row.id }) } : undefined}
+            locale={locale}
           />
         </div>
       )}
 
       <p className='text-xs text-gray-500'>
-        הנתונים נמשכים ישירות מ-Meta. לידים ורכישות הם המרות ש-Meta מייחסת למודעות לפי הגדרות הייחוס שלה — לא לידים או מכירות
-        שאומתו ב-SocialCRM. קליקים על קישור נספרים לפי חלון של יום אחד מקליק. נתונים מהיממה האחרונה עשויים להשתנות.
-        {intel && ' המספרים תחת "ב-SocialCRM" הם לידים שנקלטו כאן עם מזהה הקמפיין או המודעה מ-Meta, לפי היום שבו Meta יצרה אותם.'}
+        {t('performance.ads.context.footnote')}
+        {intel && t('performance.ads.context.footnoteCrm')}
       </p>
     </div>
   )

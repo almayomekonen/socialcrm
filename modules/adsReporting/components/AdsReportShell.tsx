@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { adsSelectionHref, adsSelectionKey, nextAdsSelection, type AdsSelectionQuery } from '@/lib/facebook/ads/selection'
 
 /**
@@ -49,6 +50,7 @@ export default function AdsReportShell({
   controls: ReactNode
   children: ReactNode
 }) {
+  const t = useT()
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
@@ -119,11 +121,11 @@ export default function AdsReportShell({
           {updating ? (
             <span className='flex flex-wrap items-center gap-2 rounded-md bg-softy px-3 py-1.5 text-solid'>
               <Icon name='spinner' className='size-4 animate-spin bg-solid' />
-              <span className='font-medium'>מעדכן נתונים…</span>
-              <span className='text-gray-600'>עד שהעדכון יסתיים מוצגת הבחירה הקודמת: {renderedLabel}</span>
+              <span className='font-medium'>{t('performance.ads.shell.updating')}</span>
+              <span className='text-gray-600'>{t('performance.ads.shell.previous', { label: renderedLabel })}</span>
             </span>
           ) : (
-            <span className='text-gray-600'>הבחירה: {renderedLabel}</span>
+            <span className='text-gray-600'>{t('performance.ads.shell.current', { label: renderedLabel })}</span>
           )}
         </div>
         <div aria-busy={updating} className={`transition-opacity duration-150 ${updating ? 'opacity-50' : ''}`} data-testid='ads-report-body'>

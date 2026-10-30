@@ -12,6 +12,16 @@ import InvoiceNewEditor from '@/components/billing/InvoiceNewEditor'
 import type { DocumentKind } from '@/db/billing/invoices'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import MobileDesktopOnly from '@/components/mobile/MobileDesktopOnly'
+import type { Metadata } from 'next'
+import { getUser } from '@/db/auth'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { translatorFor } from '@/lib/i18n/translators'
+
+/** Tab title in the interface language — Hebrew ('נתוני ליד', the lead layout's title) outside the UI_LOCALE_* rollout. */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('leadDetail.page.title'), description: t('leadDetail.page.description') }
+}
 
 export const maxDuration = 60
 
@@ -41,7 +51,10 @@ export default async function NewInvoicePage({
    * Existing invoices remain readable on the billing tab this does not touch.
    */
   if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) {
-    return <SubscriptionExpiredState mode='page' source='invoice_new' feature='חידוש המנוי מחזיר את יצירת החשבוניות.' />
+    // Resolved by the same request-memoised call the (app) layout makes; the editor reads it from the provider.
+    const { locale } = await getUiLocaleState(user)
+    const t = translatorFor(locale)
+    return <SubscriptionExpiredState mode='page' source='invoice_new' feature={t('billing.editor.newExpired')} translated />
   }
 
   /**

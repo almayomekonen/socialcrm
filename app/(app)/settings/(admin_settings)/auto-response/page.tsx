@@ -9,8 +9,14 @@ import AutoResponseSettingsForm from '@/components/settings/autoResponse/AutoRes
 import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
 import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'מענה אוטומטי' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await requireAgencyUser())
+  return { title: t('admin.autoResponse.title') }
+}
 
 export default async function AutoResponseSettingsPage() {
   const user = await requireAgencyUser()
@@ -38,6 +44,7 @@ export default async function AutoResponseSettingsPage() {
    * instead of turning into a wall.
    */
   const proLocked = !(await getAgencyProductAccess(user.agencyId)).hasAccess
+  const { locale } = await getUiLocaleState(user)
 
   const [master, channel, agency] = await Promise.all([
     getMasterEnabled(user.agencyId),
@@ -48,11 +55,12 @@ export default async function AutoResponseSettingsPage() {
   return (
     <>
       {proLocked && (
-        <div className='mb-6 max-w-2xl'>
+        <div className='mb-6 max-w-2xl' {...regionAttrs(locale)}>
           <SubscriptionExpiredState
             mode='inline'
             source='auto_response_settings'
-            feature='חידוש המנוי מחזיר את המענה האוטומטי'
+            feature={translatorFor(locale)('admin.autoResponse.expiredFeature')}
+            translated
           />
         </div>
       )}

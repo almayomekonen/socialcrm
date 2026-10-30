@@ -18,7 +18,8 @@ import { checkQuestionnaireDraft, discardQuestionnaireDraft, openQuestionnaireDr
 import { publishQuestionnaireDraft } from '@/actions/questionnaire/builderPublish'
 import type { BuilderIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/checks'
 import type { DraftState } from '@/lib/inbox/autoresponse/questionnaire/builder/draftState'
-import { PUBLISH_COPY } from '@/components/settings/questionnaire/builderCopy'
+import { releaseToastIn } from '@/components/settings/questionnaire/copyIn'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { toast } from '@/lib/toast'
 
 type Draft = {
@@ -33,14 +34,15 @@ export type ReleaseState =
   | { kind: 'checking' }
   | { kind: 'confirm'; nextRevision: number }
   | { kind: 'publishing' }
-  | { kind: 'blocked'; message: string; issues: BuilderIssue[] }
+  /** `reason`: the refusal's code, worded where it is shown (copyIn `publishFailureIn`). */
+  | { kind: 'blocked'; reason: string; issues: BuilderIssue[] }
 
 export function useQuestionnaireRelease(draft: Draft, initialLive: number | null) {
+  const t = useT()
   const [state, setState] = useState<ReleaseState>({ kind: 'idle' })
   const [liveRevision, setLiveRevision] = useState<number | null>(initialLive)
 
-  const block = (reason: string, issues: BuilderIssue[] = []) =>
-    setState({ kind: 'blocked', message: PUBLISH_COPY[reason] ?? 'הפרסום לא הצליח. נסו שוב.', issues })
+  const block = (reason: string, issues: BuilderIssue[] = []) => setState({ kind: 'blocked', reason, issues })
 
   async function requestPublish() {
     setState({ kind: 'checking' })
@@ -59,7 +61,7 @@ export function useQuestionnaireRelease(draft: Draft, initialLive: number | null
     const res = await publishQuestionnaireDraft({ draftId: meta.draftId, expectedVersion: meta.version })
     if (res.ok === false) return block(res.reason, 'issues' in res ? res.issues : [])
     setLiveRevision(res.revision)
-    toast('success', `גרסה ${res.revision} פורסמה`)
+    toast('success', releaseToastIn('published', res.revision, t))
     const reopened = await openQuestionnaireDraft()
     if (reopened.ok === true) draft.adopt(reopened)
     setState({ kind: 'idle' })
@@ -81,7 +83,7 @@ export function useQuestionnaireRelease(draft: Draft, initialLive: number | null
       return false
     }
     draft.adopt(opened)
-    toast('success', `נוצרה טיוטה מגרסה ${revision}`)
+    toast('success', releaseToastIn('restored', revision, t))
     return true
   }
 

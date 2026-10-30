@@ -4,6 +4,7 @@ import { Btn } from '@/lib/btns/Btn'
 import { Select } from '@/lib/form'
 import { isSelectable } from '@/lib/automations/requirements'
 import RemoteParameters from './RemoteParameters'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { Connection, EventDefinition, ParameterDefinition, Requirement, SubjectDefinition } from '@/lib/automations/catalog/types'
 import type { EvaluatedEvent } from '@/lib/automations/requirements'
 
@@ -44,17 +45,18 @@ export default function AutomationTriggerSection({
   onConnectionChange: (next: string | null) => void
   onParametersChange: (next: Record<string, string>) => void
 }) {
+  const t = useT()
   return (
     <section className='grid gap-3'>
-      <h3 className='text-sm font-semibold text-gray-800'>כש</h3>
+      <h3 className='text-sm font-semibold text-gray-800'>{t('admin.automationSheet.trigger.heading')}</h3>
       <Select
-        lbl='מתי זה צריך לקרות'
+        lbl={t('admin.automationSheet.trigger.event')}
         options={grouped.map((g) => ({
           head: g.subject.title,
           grp: g.items.map((e) => ({
             id: e.event.key,
             // A locked event stays VISIBLE and says why (§4 Q5).
-            name: isSelectable(e.availability) ? e.event.title : `${e.event.title} — דורש חיבור`,
+            name: isSelectable(e.availability) ? e.event.title : t('admin.automationSheet.trigger.needsConnection', { event: e.event.title }),
           })),
         }))}
         value={eventKey}
@@ -64,14 +66,14 @@ export default function AutomationTriggerSection({
 
       {locked && (
         <div className='border border-amber-200 rounded-md bg-amber-50 p-3 grid gap-2' role='alert'>
-          <p className='text-sm text-amber-800'>האירוע הזה עדיין לא זמין בחשבון שלכם.</p>
+          <p className='text-sm text-amber-800'>{t('admin.automationSheet.trigger.locked')}</p>
           {locked.cta && <Btn variant='outline' size='small' lbl={locked.cta.label} href={locked.cta.href} />}
         </div>
       )}
 
       {eligibleConnections.length > 1 && (
         <Select
-          lbl='חיבור'
+          lbl={t('admin.automationSheet.trigger.connection')}
           options={eligibleConnections.map((c) => ({ id: c.id, name: c.displayName }))}
           value={boundConnectionId ?? ''}
           onChange={(e) => onConnectionChange(e.target.value || null)}
@@ -81,7 +83,7 @@ export default function AutomationTriggerSection({
       {/* Exactly one — chosen for them, but never silently: the automation
           stops working if this connection is revoked, so it is named. */}
       {eligibleConnections.length === 1 && (
-        <p className='text-sm text-gray-500 ms-1'>חיבור: {eligibleConnections[0].displayName}</p>
+        <p className='text-sm text-gray-500 ms-1'>{t('admin.automationSheet.trigger.connectionNamed', { name: eligibleConnections[0].displayName })}</p>
       )}
 
       {/* Event parameters — rendered generically from catalog metadata. */}

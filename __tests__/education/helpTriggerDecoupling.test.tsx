@@ -197,9 +197,14 @@ describe('nothing outside the education system moved', () => {
   it('the menu itself was not redesigned', () => {
     const menu = read('components/education/HelpMenu.tsx')
     expect(menu).toContain('ModalPop')
-    expect(menu).toContain('הראה לי איך המערכת עובדת')
-    expect(menu).toContain('מדריכים')
-    expect(menu).toContain('יש לי בעיה')
+    // The labels come from the catalog (Phase E6); in Hebrew they are the same words.
+    const copy = read('lib/i18n/messages/he/education/chrome.ts')
+    expect(menu).toContain("t('education.help.overview')")
+    expect(menu).toContain("t('education.help.guides')")
+    expect(menu).toContain("t('education.help.problem')")
+    expect(copy).toContain("overview: 'הראה לי איך המערכת עובדת'")
+    expect(copy).toContain("guides: 'מדריכים'")
+    expect(copy).toContain("problem: 'יש לי בעיה'")
   })
 
   it('the trigger reuses the existing icon, with no new visual system', () => {

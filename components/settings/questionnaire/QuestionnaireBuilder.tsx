@@ -9,7 +9,9 @@ import { deriveEditorView } from '@/lib/inbox/autoresponse/questionnaire/builder
 import { keyOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { DraftState } from '@/lib/inbox/autoresponse/questionnaire/builder/draftState'
 import BuilderHeader, { type LiveRouting } from './BuilderHeader'
-import { isAnswering, publishConfirmText, type ConfirmRequest } from './builderCopy'
+import { isAnswering, type ConfirmRequest } from './builderCopy'
+import { publishConfirmTextIn } from './copyIn'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 import BuilderAlerts from './BuilderAlerts'
 import { focusCard } from './focusCard'
 import ConversationWorkspace from './ConversationWorkspace'
@@ -19,8 +21,12 @@ import RevisionHistory from './RevisionHistory'
 // The canvas library loads only when the Flow view is opened.
 const FlowWorkspace = dynamic(() => import('./flow/FlowWorkspace'), {
   ssr: false,
-  loading: () => <p className='text-sm text-gray-500'>טוען את מפת השאלון…</p>,
+  loading: () => <MapLoading />,
 })
+
+function MapLoading() {
+  return <p className='text-sm text-gray-500'>{useT()('admin.questionnaire.loadingMap')}</p>
+}
 
 /**
  * The Questionnaire Builder: the conversation on the right, what WhatsApp will
@@ -43,6 +49,8 @@ export default function QuestionnaireBuilder({
   /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
   allowAllEnabled?: boolean
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const draft = useQuestionnaireDraft(initialDraft)
   const release = useQuestionnaireRelease(draft, initialLive)
   const [panel, setPanel] = useState<'preview' | 'test'>('preview')
@@ -81,8 +89,8 @@ export default function QuestionnaireBuilder({
 
   const restore = (revision: number) =>
     setConfirmRequest({
-      msg: `ליצור טיוטה מגרסה ${revision}?\nהטיוטה הנוכחית תוחלף, ושינויים בה שלא פורסמו יימחקו. הגרסה תפורסם רק כשתלחצו על פרסום.`,
-      confirmLbl: `יצירת טיוטה מגרסה ${revision}`,
+      msg: t('admin.questionnaire.restore.msg', { revision: String(revision) }),
+      confirmLbl: t('admin.questionnaire.restore.confirm', { revision: String(revision) }),
       run: () => {
         setHistoryOpen(false)
         setPanel('preview')
@@ -93,7 +101,7 @@ export default function QuestionnaireBuilder({
 
   const rs = release.state
   return (
-    <div className='grid gap-6'>
+    <div className='grid gap-6' {...region}>
       <BuilderHeader
         liveRevision={release.liveRevision}
         routing={routing}
@@ -119,19 +127,19 @@ export default function QuestionnaireBuilder({
         onDismiss={release.dismiss}
       />
 
-      {draft.phase === 'opening' && <p className='text-sm text-gray-500'>פותח את השאלון…</p>}
+      {draft.phase === 'opening' && <p className='text-sm text-gray-500'>{t('admin.questionnaire.opening')}</p>}
 
       {model && view && (
         <>
           <p className='rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 desktop:hidden'>
-            עריכת השאלון זמינה במסך רחב, במחשב. כאן אפשר לבדוק את השאלון ולראות את מצבו.
+            {t('admin.questionnaire.deskOnly')}
           </p>
           {flowEnabled && (
-            <div role='tablist' aria-label='תצוגת העריכה' className='hidden w-fit rounded-lg border border-gray-200 bg-white p-1 desktop:flex'>
+            <div role='tablist' aria-label={t('admin.questionnaire.views.label')} className='hidden w-fit rounded-lg border border-gray-200 bg-white p-1 desktop:flex'>
               {(
                 [
-                  ['flow', 'תרשים'],
-                  ['conversation', 'רשימה'],
+                  ['flow', t('admin.questionnaire.views.flow')],
+                  ['conversation', t('admin.questionnaire.views.list')],
                 ] as const
               ).map(([value, label]) => (
                 <button
@@ -199,8 +207,9 @@ export default function QuestionnaireBuilder({
         open={rs.kind === 'confirm' || rs.kind === 'publishing'}
         onClose={release.dismiss}
         onConfirm={release.confirmPublish}
-        msg={rs.kind === 'confirm' ? publishConfirmText(rs.nextRevision, routing) : 'מפרסם…'}
-        confirmLbl={rs.kind === 'confirm' ? `פרסום גרסה ${rs.nextRevision}` : 'מפרסם…'}
+        msg={rs.kind === 'confirm' ? publishConfirmTextIn(rs.nextRevision, routing, t) : t('admin.questionnaire.publishing')}
+        confirmLbl={rs.kind === 'confirm' ? t('admin.questionnaire.publishLbl', { revision: String(rs.nextRevision) }) : t('admin.questionnaire.publishing')}
+        translated
       />
       <ConfirmPop
         open={confirmRequest !== null}
@@ -212,6 +221,7 @@ export default function QuestionnaireBuilder({
         msg={confirmRequest?.msg ?? ''}
         confirmLbl={confirmRequest?.confirmLbl}
         destructive={confirmRequest?.destructive}
+        translated
       />
     </div>
   )

@@ -10,6 +10,9 @@ import { parseUserAgent } from '@/lib/parseUserAgent'
 import { canUseFacebookUserAuth } from '@/lib/auth/facebookUserAuthFlags'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import LoginActivityMobile from '@/components/settings/mobile/LoginActivityMobile'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs, untranslatedAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 export default async function page() {
   const user = await getUser()
@@ -49,25 +52,28 @@ export default async function page() {
   //   - ניהול מכשירים פעילים / ביטול סשן: needs a sessions table + JWT revocation.
   // When implementing, add new <AccordionItem> entries below "פעילות התחברות אחרונה".
 
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   const bodyClass = 'p-6'
   return (
-    <div>
-      <h1 className='title'>אבטחה</h1>
-      <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>הגדרות האבטחה של החשבון שלך</p>
+    <div {...regionAttrs(locale)}>
+      <h1 className='title'>{t('settings.account.title.security')}</h1>
+      <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>{t('settings.account.security.intro')}</p>
       <div className='accordion mb-6 max-w-2xl'>
         {facebookAppId && (
-          <AccordionItem bodyClass={bodyClass} title='חשבונות מחוברים'>
+          <AccordionItem bodyClass={bodyClass} title={t('settings.account.security.accounts')}>
             <ConnectFacebookAccount facebookAppId={facebookAppId} linked={!!facebookRow?.facebookSub} />
           </AccordionItem>
         )}
-        <AccordionItem bodyClass={bodyClass} title='פרק הזמן לניתוק מהמערכת'>
+        <AccordionItem bodyClass={bodyClass} title={t('settings.account.security.logout')}>
           <LogoutMinutesForm user={res} />
         </AccordionItem>
-        <AccordionItem bodyClass={bodyClass} title='פעילות התחברות אחרונה'>
+        <AccordionItem bodyClass={bodyClass} title={t('settings.account.security.activity')}>
           {ipData.length === 0 ? (
-            <p className='text-sm text-gray-500'>עדיין לא נרשמה פעילות התחברות</p>
+            <p className='text-sm text-gray-500'>{t('settings.account.security.noActivity')}</p>
           ) : mobile ? (
-            <LoginActivityMobile rows={ipData} />
+            // The phone's activity list is not translated yet (Phase F): a Hebrew region outside Hebrew.
+            locale === 'he' ? <LoginActivityMobile rows={ipData} /> : <div {...untranslatedAttrs(locale)}><LoginActivityMobile rows={ipData} /></div>
           ) : (
             <IpsTable data={ipData} />
           )}

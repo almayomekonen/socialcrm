@@ -3,7 +3,6 @@
 import { useId, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { Select } from '@/lib/form'
-import { questionName } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
 import {
   conditionOf,
   dependentsOf,
@@ -17,7 +16,11 @@ import {
 } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
-import { ANSWER_TYPES, answerTypeOf, cardIssueText, consequenceText, type AnswerType, type ConfirmRequest } from './builderCopy'
+import { answerTypeOf, type AnswerType, type ConfirmRequest } from './builderCopy'
+import { answerTypesIn, consequenceTextIn } from './copyIn'
+import { cardIssueTextIn, questionNameIn } from './issueText'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { cardDomId } from './focusCard'
 import OptionsEditor from './OptionsEditor'
 import QuestionWhen from './QuestionWhen'
@@ -66,9 +69,11 @@ export default function QuestionCard({
   allowAllEnabled?: boolean
 }) {
   const id = useId()
+  const t = useT()
   const key = keyOf(question)
   const count = model.questions.length
-  const name = questionName(question)
+  const name = questionNameIn(question, t)
+  const types = answerTypesIn(t)
   const type = answerTypeOf(question.answer.kind)
   const ownIssues = issues.filter((i) => !i.optionId)
   const promptIssue = ownIssues.some((i) => i.field === 'prompt')
@@ -79,30 +84,30 @@ export default function QuestionCard({
 
   const move = (by: -1 | 1) => {
     edit((m) => moveQuestion(m, key, by))
-    announce(`השאלה "${name}" הועברה למקום ${index + 1 + by}`)
+    announce(t('admin.questionnaire.card.moved', { name, position: String(index + 1 + by) }))
   }
 
   const changeType = (next: AnswerType) => {
     const run = () => edit((m) => setAnswerKind(m, key, KIND_FOR[next]))
-    const consequence = next === 'free' ? consequenceText(dependentsOf(model, key)) : null
+    const consequence = next === 'free' ? consequenceTextIn(dependentsOf(model, key), t) : null
     if (!consequence) return run()
     confirm({
-      msg: `לשנות את השאלה "${name}" לתשובה חופשית?\nהאפשרויות שלה יימחקו.\n${consequence}`,
-      confirmLbl: 'שינוי לתשובה חופשית',
+      msg: t('admin.questionnaire.card.typeConfirm', { name, consequence }),
+      confirmLbl: t('admin.questionnaire.card.toFree'),
       destructive: true,
       run,
     })
   }
 
   const remove = () => {
-    const consequence = consequenceText(dependentsOf(model, key))
+    const consequence = consequenceTextIn(dependentsOf(model, key), t)
     confirm({
-      msg: [`למחוק את השאלה "${name}"?`, consequence ?? ''].filter(Boolean).join('\n'),
-      confirmLbl: 'מחיקת השאלה',
+      msg: [t('admin.questionnaire.card.removeMsg', { name }), consequence ?? ''].filter(Boolean).join('\n'),
+      confirmLbl: t('admin.questionnaire.card.removeLbl'),
       destructive: true,
       run: () => {
         edit((m) => removeQuestion(m, key))
-        announce(`השאלה "${name}" נמחקה`)
+        announce(t('admin.questionnaire.card.removed', { name }))
       },
     })
   }
@@ -110,12 +115,12 @@ export default function QuestionCard({
   const typeSelect = (
     <div>
       <Select
-        lbl='סוג התשובה'
+        lbl={t('admin.questionnaire.card.type')}
         value={type}
         onChange={(e) => changeType(e.target.value as AnswerType)}
-        options={ANSWER_TYPES.map((t) => ({ id: t.value, name: t.label }))}
+        options={types.map((a) => ({ id: a.value, name: a.label }))}
       />
-      <p className='mt-1 text-xs text-gray-500'>{ANSWER_TYPES.find((t) => t.value === type)?.hint}</p>
+      <p className='mt-1 text-xs text-gray-500'>{types.find((a) => a.value === type)?.hint}</p>
     </div>
   )
 
@@ -133,7 +138,7 @@ export default function QuestionCard({
     >
       <header className='flex flex-wrap items-center justify-between gap-2'>
         <h3 id={`${id}-title`} className='text-base font-semibold text-ink'>
-          שאלה {index + 1}
+          {t('admin.questionnaire.card.title', { number: String(index + 1) })}
           <span className='font-normal text-gray-600'> · {name}</span>
         </h3>
         <div className='flex items-center gap-1'>
@@ -142,7 +147,7 @@ export default function QuestionCard({
             size='small'
             variant='ghost'
             icon='arrow-up'
-            aria-label={`העברת השאלה "${name}" למעלה`}
+            aria-label={t('admin.questionnaire.card.moveUp', { name })}
             onClick={() => move(-1)}
             disabled={index === 0}
           />
@@ -151,11 +156,11 @@ export default function QuestionCard({
             size='small'
             variant='ghost'
             icon='arrow-down'
-            aria-label={`העברת השאלה "${name}" למטה`}
+            aria-label={t('admin.questionnaire.card.moveDown', { name })}
             onClick={() => move(1)}
             disabled={index === count - 1}
           />
-          <Btn type='button' size='small' variant='ghost' icon='trash' aria-label={`מחיקת השאלה "${name}"`} onClick={remove} />
+          <Btn type='button' size='small' variant='ghost' icon='trash' aria-label={t('admin.questionnaire.card.remove', { name })} onClick={remove} />
         </div>
       </header>
 
@@ -163,32 +168,34 @@ export default function QuestionCard({
 
       <section className='grid gap-2' aria-labelledby={`${id}-see`}>
         <h4 id={`${id}-see`} className='text-sm font-semibold text-gray-700'>
-          מה הלקוח יראה
+          {t('admin.questionnaire.card.see')}
         </h4>
         <label htmlFor={`${id}-prompt`} className='sr-only'>
-          נוסח השאלה
+          {t('admin.questionnaire.card.prompt')}
         </label>
         <textarea
           id={`${id}-prompt`}
           rows={Math.min(8, Math.max(2, question.prompt.split('\n').length + 1))}
           maxLength={900}
           value={question.prompt}
-          placeholder='למשל: איזה שירות מעניין אתכם?'
+          placeholder={t('admin.questionnaire.card.promptPlaceholder')}
           onChange={(e) => edit((m) => setPrompt(m, key, e.target.value))}
           aria-invalid={promptIssue}
+          {...customerTextAttrs(t.locale)}
           className='rounded-md border border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed focus:outline-2 focus:outline-primary aria-invalid:border-red-500'
         />
         <div className='flex flex-wrap items-center gap-2'>
           <label htmlFor={`${id}-label`} className='text-xs text-gray-600'>
-            שם קצר לסיכום שהנציג מקבל
+            {t('admin.questionnaire.card.label')}
           </label>
           <input
             id={`${id}-label`}
             value={question.label}
             maxLength={40}
-            placeholder='למשל: סוג השירות'
+            placeholder={t('admin.questionnaire.card.labelPlaceholder')}
             onChange={(e) => edit((m) => updateQuestion(m, key, { label: e.target.value }))}
             aria-invalid={labelIssue}
+            {...customerTextAttrs(t.locale)}
             className='h-8 min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-2 focus:outline-primary aria-invalid:border-red-500 sm:max-w-64'
           />
         </div>
@@ -196,7 +203,7 @@ export default function QuestionCard({
 
       <section className='grid gap-3' aria-labelledby={`${id}-answer`}>
         <h4 id={`${id}-answer`} className='text-sm font-semibold text-gray-700'>
-          איך הלקוח יכול לענות
+          {t('admin.questionnaire.card.answer')}
         </h4>
         {type === 'free' ? (
           <TextAnswerSettings question={question} edit={edit} leading={typeSelect} />
@@ -218,11 +225,11 @@ export default function QuestionCard({
       {!conditional && when}
 
       {ownIssues.length > 0 && (
-        <ul className='grid gap-1 rounded-md bg-red-50 px-3 py-2' aria-label={`דברים לתקן בשאלה "${name}"`}>
+        <ul className='grid gap-1 rounded-md bg-red-50 px-3 py-2' aria-label={t('admin.questionnaire.card.fix', { name })}>
           {ownIssues.map((i, n) => (
             <li key={n} className={i.severity === 'warning' ? 'text-sm text-amber-800' : 'text-sm text-red-700'}>
-              {i.severity === 'warning' ? 'המלצה: ' : ''}
-              {cardIssueText(i)}
+              {i.severity === 'warning' ? t('admin.questionnaire.card.recommendation') : ''}
+              {cardIssueTextIn(i, model, t)}
             </li>
           ))}
         </ul>

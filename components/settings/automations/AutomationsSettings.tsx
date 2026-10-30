@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { toast, proToast } from '@/lib/toast'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 import type { RequirementContext } from '@/lib/automations/requirements'
 import type { Connection } from '@/lib/automations/catalog/types'
 import type { IdentityProblem } from '@/lib/automations/identity'
@@ -61,6 +62,8 @@ export default function AutomationsSettings({
   observationMode,
 }: Props) {
   const router = useRouter()
+  const t = useT()
+  const region = useRegionAttrs()
   /** Entitlement from the shared context — the same answer the server gives. */
   const expired = useAccessDenied()
   const [sheet, setSheet] = useState<SheetDraft | null>(null)
@@ -93,8 +96,8 @@ export default function AutomationsSettings({
    */
   const proPrompt = () =>
     proToast({
-      title: 'הפעלת האוטומציות זמינה עם Pro',
-      body: 'חידוש המנוי יחזיר את הפעלת האוטומציות.',
+      title: t('admin.automations.pro.title'),
+      body: t('admin.automations.pro.body'),
       source: 'automations_action',
     })
 
@@ -115,12 +118,12 @@ export default function AutomationsSettings({
         // Backstop for a stale context: never let a refusal reach the error
         // boundary. A genuine fault still reads as one.
         setBusyId(null)
-        return expired ? proPrompt() : toast('error', 'הפעולה נכשלה. נסו שוב.')
+        return expired ? proPrompt() : toast('error', t('admin.automations.toast.failed'))
       }
       setBusyId(null)
-      if (!res.ok) return toast('error', 'הפעולה נכשלה. נסו שוב.')
+      if (!res.ok) return toast('error', t('admin.automations.toast.failed'))
       if (undoId !== undefined && (undoFrom === 'active' || undoFrom === 'paused')) {
-        toast('success', `${success} · ביטול`, 5000, () => {
+        toast('success', t('admin.automations.toast.undo', { message: success }), 5000, () => {
           startTransition(async () => {
             await setAutomationStatus(undoId, undoFrom)
             router.refresh()
@@ -140,9 +143,9 @@ export default function AutomationsSettings({
     try {
       res = await listActivityForAutomationAction(card.id)
     } catch {
-      return toast('error', 'לא ניתן לטעון את יומן הפעילות')
+      return toast('error', t('admin.automations.toast.logFailed'))
     }
-    if (res.ok === false) return toast('error', 'לא ניתן לטעון את יומן הפעילות')
+    if (res.ok === false) return toast('error', t('admin.automations.toast.logFailed'))
     setLog({ name: card.name, rows: res.rows })
   }
 
@@ -165,7 +168,7 @@ export default function AutomationsSettings({
      * stack — only the library's grid reflows, which is the container's
      * business (see AutomationTemplatesSection).
      */
-    <div className='@container/page flex min-h-full flex-1 flex-col-reverse bg-bg desktop:-me-8 desktop:flex-row'>
+    <div className='@container/page flex min-h-full flex-1 flex-col-reverse bg-bg desktop:-me-8 desktop:flex-row' {...region}>
       <AutomationTemplatesSection
         views={templates}
         query={query}
@@ -188,12 +191,12 @@ export default function AutomationsSettings({
           run(
             a.id,
             () => setAutomationStatus(a.id, a.status === 'active' ? 'paused' : 'active'),
-            a.status === 'active' ? 'האוטומציה הושהתה' : 'האוטומציה פעילה',
+            a.status === 'active' ? t('admin.automations.toast.paused') : t('admin.automations.toast.activated'),
             a.id,
             a.status,
           )
         }
-        onDuplicate={(a) => run(a.id, () => duplicateAutomation(a.id), 'נוצר עותק כטיוטה')}
+        onDuplicate={(a) => run(a.id, () => duplicateAutomation(a.id), t('admin.automations.toast.duplicated'))}
         onDelete={(a) => setConfirmDelete(a)}
         onActivity={(a) => openLog(a)}
       />
@@ -220,11 +223,12 @@ export default function AutomationsSettings({
         onConfirm={async () => {
           const target = confirmDelete
           setConfirmDelete(null)
-          if (target) run(target.id, () => setAutomationStatus(target.id, 'deleted'), 'האוטומציה נמחקה')
+          if (target) run(target.id, () => setAutomationStatus(target.id, 'deleted'), t('admin.automations.toast.deleted'))
         }}
-        msg={`האוטומציה "${confirmDelete?.name ?? ''}" תימחק ותפסיק לפעול. ההיסטוריה תישמר.`}
-        confirmLbl='מחק'
+        msg={t('admin.automations.deleteConfirm', { name: confirmDelete?.name ?? '' })}
+        confirmLbl={t('admin.automations.deleteLbl')}
         destructive
+        translated
       />
     </div>
   )

@@ -7,6 +7,7 @@ import type { BillInvoiceRow } from '@/db/billing/invoices'
 import { consumeJustIssuedFlag } from '@/lib/billing/justIssuedFlag'
 import SendInvoiceModal from './SendInvoiceModal'
 import { useInvoicePdfStatus } from './InvoicePdfLive'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Post-issue send prompt. Replaces the prior ?send=1 URL-driven auto-open.
@@ -30,6 +31,7 @@ export default function PostIssueSendBanner({
   invoice: BillInvoiceRow
   fallbackEmail?: string | null
 }) {
+  const t = useT()
   const [visible, setVisible] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const { status } = useInvoicePdfStatus()
@@ -41,16 +43,16 @@ export default function PostIssueSendBanner({
 
   if (!visible) return null
 
-  const kindNoun = invoice.kind === 'invoice_receipt' ? 'חשבונית/קבלה' : 'חשבונית'
+  const isReceipt = invoice.kind === 'invoice_receipt'
   const isRendering = status !== 'ready' && status !== 'failed'
-  const readyHeadline = invoice.kind === 'invoice_receipt' ? 'חשבונית/קבלה מוכנה' : 'החשבונית מוכנה'
-  const renderingHeadline = invoice.kind === 'invoice_receipt' ? 'מפיק את החשבונית/קבלה…' : 'מפיק את החשבונית…'
-  const headline = status === 'failed' ? 'הפקת ה-PDF נכשלה' : isRendering ? renderingHeadline : readyHeadline
+  const readyHeadline = isReceipt ? t('billing.issued.banner.ready.invoice_receipt') : t('billing.issued.banner.ready.invoice')
+  const renderingHeadline = isReceipt ? t('billing.issued.banner.rendering.invoice_receipt') : t('billing.issued.banner.rendering.invoice')
+  const headline = status === 'failed' ? t('billing.issued.banner.failed') : isRendering ? renderingHeadline : readyHeadline
   const subline = status === 'failed'
-    ? 'אפשר לנסות להפיק שוב מתפריט הפעולות.'
+    ? t('billing.issued.banner.failedHint')
     : isRendering
-      ? 'ברגע שהמסמך יהיה מוכן אפשר יהיה לשלוח אותו.'
-      : 'לשלוח ללקוח עכשיו?'
+      ? t('billing.issued.banner.renderingHint')
+      : t('billing.issued.banner.readyHint')
 
   const accent = status === 'failed'
     ? { border: 'border-gray-200', bg: 'bg-gray-50', iconBg: 'bg-gray-600', text: 'text-gray-900', textSoft: 'text-gray-600' }
@@ -79,15 +81,15 @@ export default function PostIssueSendBanner({
         <div className='flex items-center gap-2 shrink-0'>
           <Btn
             icon='paper-plane'
-            lbl={`שלח ${kindNoun}`}
+            lbl={isReceipt ? t('billing.issued.banner.send.invoice_receipt') : t('billing.issued.banner.send.invoice')}
             onClick={() => setModalOpen(true)}
             disabled={isRendering || status === 'failed'}
-            title={isRendering ? 'המסמך עדיין מופק…' : status === 'failed' ? 'יש לנסות להפיק את ה-PDF מחדש' : undefined}
+            title={isRendering ? t('billing.issued.pendingTitle') : status === 'failed' ? t('billing.issued.failedTitle') : undefined}
             data-testid='post-issue-send-banner-send'
           />
           <Btn
             variant='outline'
-            lbl='מאוחר יותר'
+            lbl={t('billing.issued.banner.later')}
             onClick={() => setVisible(false)}
             data-testid='post-issue-send-banner-later'
           />

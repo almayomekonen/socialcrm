@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import type { BillInvoiceRow } from '@/db/billing/invoices'
 import SendInvoiceModal from './SendInvoiceModal'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Thin trigger that opens the SendInvoiceModal. Two visual variants:
@@ -31,6 +32,7 @@ export default function SendInvoiceBtn({
   disabled?: boolean
   disabledReason?: string
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
 
   if (invoice.docState === 'draft') return null
@@ -50,12 +52,12 @@ export default function SendInvoiceBtn({
           title={disabled ? disabledReason : undefined}
           className='inline-flex items-center gap-2 h-10 px-4 rounded-md bg-white text-dark hover:bg-white/90 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white'
         >
-          <span>שלח חשבונית</span>
+          <span>{t('billing.send.submit')}</span>
         </button>
       ) : (
         <Btn
           icon='paper-plane'
-          lbl='שלח חשבונית'
+          lbl={t('billing.send.submit')}
           onClick={onClick}
           disabled={disabled}
           title={disabled ? disabledReason : undefined}

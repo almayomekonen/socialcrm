@@ -12,12 +12,26 @@
  *   endonym        a language's own name (עברית), shown in its own script
  *                  in every interface language by design
  *   external       text supplied by a third party (Meta ad names, etc.)
+ *   recorded-terms a consent / terms sentence recorded with its version when
+ *                  the user agrees (Phase E4: the WhatsApp-reminders consent,
+ *                  the card-storage and subscription consents) — shown exactly
+ *                  as recorded, inside a declared Hebrew region
+ *   ai-config      the AI agent's own configuration / AI output, left
+ *                  untranslated by owner order (no AI localization; Phase
+ *                  E5: the Smart Agent description fields, the agent test
+ *                  chat) — shown verbatim inside a declared Hebrew region
+ *   verbatim-content content the business keeps or copies EXACTLY as written,
+ *                  so translating it would change what is stored or pasted
+ *                  (Phase E5b: the automations an automation template creates —
+ *                  their names and subjects / task titles, a variable TOKEN such
+ *                  as {{שם הליד}} quoted in help text or a quote heading, the
+ *                  website set-up code snippet) — shown as written
  *
  * No DOM marker is involved, so no component changes and nothing a component
  * does can opt itself out.
  */
 
-export type AllowReason = 'customer-data' | 'endonym' | 'external'
+export type AllowReason = 'customer-data' | 'endonym' | 'external' | 'recorded-terms' | 'ai-config' | 'verbatim-content'
 export type Allowance = { text: string; reason: AllowReason }
 export type Leak = { where: string; text: string }
 

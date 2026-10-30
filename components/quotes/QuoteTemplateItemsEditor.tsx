@@ -5,6 +5,7 @@ import { Checkbox, Input } from '@/lib/form'
 import { formatCurrency } from '@/lib/funcs'
 import { computeQuoteTotals } from '@/lib/quotes/totals'
 import { MAX_ITEMS, MAX_ITEM_TITLE_LENGTH, type QuoteTemplateItemDraft } from '@/lib/quotes/templateValidation'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The lines a template holds — the price list itself.
@@ -38,6 +39,7 @@ export default function QuoteTemplateItemsEditor({
   items: QuoteTemplateItemDraft[]
   onChange: (next: QuoteTemplateItemDraft[]) => void
 }) {
+  const t = useT()
   const totals = computeQuoteTotals(
     items.map((i) => ({
       quantity: i.quantity,
@@ -67,10 +69,10 @@ export default function QuoteTemplateItemsEditor({
 
   return (
     <section className='grid gap-3'>
-      <h3 className='text-sm font-semibold text-gray-800'>שורות ההצעה</h3>
+      <h3 className='text-sm font-semibold text-gray-800'>{t('admin.quotes.items.title')}</h3>
 
       {items.length === 0 && (
-        <p className='text-sm text-gray-500 ms-1'>עדיין אין שורות. הוסיפו לפחות שורה אחת כדי שאפשר יהיה להשתמש בתבנית.</p>
+        <p className='text-sm text-gray-500 ms-1'>{t('admin.quotes.items.none')}</p>
       )}
 
       <ol className='grid gap-3'>
@@ -84,7 +86,7 @@ export default function QuoteTemplateItemsEditor({
                   size='icon'
                   icon='arrow-up'
                   lbl=''
-                  aria-label={`הזז שורה ${index + 1} למעלה`}
+                  aria-label={t('admin.quotes.items.up', { n: String(index + 1) })}
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                 />
@@ -93,7 +95,7 @@ export default function QuoteTemplateItemsEditor({
                   size='icon'
                   icon='arrow-down'
                   lbl=''
-                  aria-label={`הזז שורה ${index + 1} למטה`}
+                  aria-label={t('admin.quotes.items.down', { n: String(index + 1) })}
                   disabled={index === items.length - 1}
                   onClick={() => move(index, 1)}
                 />
@@ -102,21 +104,21 @@ export default function QuoteTemplateItemsEditor({
                   size='icon'
                   icon='trash'
                   lbl=''
-                  aria-label={`מחק שורה ${index + 1}`}
+                  aria-label={t('admin.quotes.items.remove', { n: String(index + 1) })}
                   onClick={() => remove(index)}
                 />
               </div>
             </div>
 
             <Input
-              lbl='תיאור השורה'
+              lbl={t('admin.quotes.items.lineTitle')}
               value={item.title}
               maxLength={MAX_ITEM_TITLE_LENGTH}
               onChange={(e) => patch(index, { title: e.target.value })}
             />
             <Input
               as='textarea'
-              lbl='פירוט (אופציונלי)'
+              lbl={t('admin.quotes.items.detail')}
               required={false}
               rows={2}
               value={item.description}
@@ -125,7 +127,7 @@ export default function QuoteTemplateItemsEditor({
 
             <div className='grid grid-cols-3 gap-2'>
               <Input
-                lbl='כמות'
+                lbl={t('admin.quotes.items.quantity')}
                 type='number'
                 min={0}
                 step='any'
@@ -133,7 +135,7 @@ export default function QuoteTemplateItemsEditor({
                 onChange={(e) => patch(index, { quantity: numOrZero(e.target.value) })}
               />
               <Input
-                lbl='מחיר ליחידה'
+                lbl={t('admin.quotes.items.unitPrice')}
                 type='number'
                 min={0}
                 step='any'
@@ -141,7 +143,7 @@ export default function QuoteTemplateItemsEditor({
                 onChange={(e) => patch(index, { unitPrice: numOrZero(e.target.value) })}
               />
               <Input
-                lbl='הנחה'
+                lbl={t('admin.quotes.items.discount')}
                 type='number'
                 min={0}
                 step='any'
@@ -153,7 +155,7 @@ export default function QuoteTemplateItemsEditor({
 
             <div className='flex items-center justify-between gap-3'>
               <Checkbox
-                lbl='שורה אופציונלית — הלקוח יכול לוותר עליה'
+                lbl={t('admin.quotes.items.optional')}
                 checked={item.isOptional}
                 onChange={(e) => patch(index, { isOptional: e.target.checked })}
               />
@@ -170,19 +172,17 @@ export default function QuoteTemplateItemsEditor({
           variant='outline'
           size='small'
           icon='plus'
-          lbl='הוספת שורה'
+          lbl={t('admin.quotes.items.add')}
           disabled={items.length >= MAX_ITEMS}
           onClick={add}
         />
       </div>
 
       <div className='border-t border-gray-100 pt-3 flex items-baseline justify-between gap-3'>
-        <span className='text-sm font-semibold text-gray-800'>סה״כ לפני מע״מ</span>
+        <span className='text-sm font-semibold text-gray-800'>{t('admin.quotes.items.total')}</span>
         <span className='text-base font-semibold tabular-nums'>{formatCurrency(totals.subtotalAmount)}</span>
       </div>
-      <p className='text-sm text-gray-500 ms-1'>
-        מע״מ נקבע בעת יצירת ההצעה לפי הגדרות העסק, ולא נשמר בתבנית. שורות אופציונליות אינן נכללות בסכום.
-      </p>
+      <p className='text-sm text-gray-500 ms-1'>{t('admin.quotes.items.vatNote')}</p>
     </section>
   )
 }

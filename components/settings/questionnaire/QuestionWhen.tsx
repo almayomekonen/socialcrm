@@ -1,6 +1,7 @@
 'use client'
 
-import { describeCondition } from '@/lib/inbox/autoresponse/questionnaire/builder/conditionText'
+import { describeConditionIn } from './issueText'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { conditionOf, conditionSources, keyOf, setShownWhen } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import ConditionEditor from './ConditionEditor'
@@ -32,6 +33,7 @@ export default function QuestionWhen({
   editing: boolean
   setEditing: (editing: boolean) => void
 }) {
+  const t = useT()
   const key = keyOf(question)
   const condition = conditionOf(question)
   const sources = conditionSources(model, key)
@@ -49,8 +51,8 @@ export default function QuestionWhen({
           condition={condition}
           onChange={(c) => edit((m) => setShownWhen(m, key, c))}
           allowAlways
-          legend='מתי השאלה תופיע'
-          sentencePrefix='השאלה תופיע כאשר:'
+          legend={t('admin.questionnaire.when.legend')}
+          sentencePrefix={t('admin.questionnaire.when.prefix')}
         />
         <div>
           <button
@@ -58,7 +60,7 @@ export default function QuestionWhen({
             onClick={() => setEditing(false)}
             className='text-sm font-medium text-ink underline underline-offset-2'
           >
-            סיום
+            {t('admin.questionnaire.when.done')}
           </button>
         </div>
       </div>
@@ -69,10 +71,10 @@ export default function QuestionWhen({
     return (
       <p className='flex flex-wrap items-baseline gap-x-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800'>
         <span>
-          <span className='font-medium'>השאלה תופיע כאשר:</span> {describeCondition(model, condition)}
+          <span className='font-medium'>{t('admin.questionnaire.when.prefix')}</span> {describeConditionIn(model, condition, t)}
         </span>
         <button type='button' onClick={() => setEditing(true)} className='text-xs text-gray-600 underline underline-offset-2'>
-          שינוי
+          {t('admin.questionnaire.when.change')}
         </button>
       </p>
     )
@@ -80,7 +82,7 @@ export default function QuestionWhen({
 
   return (
     <p className='text-xs text-gray-600'>
-      מופיעה תמיד.{' '}
+      {t('admin.questionnaire.when.always')}{' '}
       <button
         type='button'
         onClick={() => {
@@ -90,7 +92,7 @@ export default function QuestionWhen({
         }}
         className='underline underline-offset-2'
       >
-        להציג רק לפי תשובה קודמת
+        {t('admin.questionnaire.when.byAnswer')}
       </button>
     </p>
   )

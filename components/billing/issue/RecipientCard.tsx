@@ -5,6 +5,7 @@ import LeadPicker from '@/components/billing/lead-picker/LeadPicker'
 import type { RecentLead } from '@/components/billing/lead-picker/types'
 import type { BillBillingProfileRow } from '@/db/billing/profiles'
 import { cardCls, sectionHeaderCls, eyebrowCls } from './styles'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Recipient card — picker + profile strip.
@@ -31,10 +32,11 @@ export default function RecipientCard({
   onPickLead: (leadId: number) => void
   onCreateNewLead: () => void
 }) {
+  const t = useT()
   return (
     <section className={cardCls}>
       <div className={sectionHeaderCls}>
-        <h2 className={eyebrowCls}>לכבוד</h2>
+        <h2 className={eyebrowCls}>{t('billing.editor.recipient.heading')}</h2>
       </div>
       <div className='px-6 py-6 grid gap-5'>
         <div className='flex gap-2 items-stretch max-w-2xl'>
@@ -47,7 +49,7 @@ export default function RecipientCard({
               onCreateNew={onCreateNewLead}
             />
           </div>
-          <Btn icon='plus' lbl='יצירת לקוח/ה' onClick={onCreateNewLead} />
+          <Btn icon='plus' lbl={t('billing.editor.recipient.createLead')} onClick={onCreateNewLead} />
         </div>
         {profile ? <ProfileStrip profile={profile} /> : <ProfileFallback leadName={leadName} />}
       </div>
@@ -56,12 +58,13 @@ export default function RecipientCard({
 }
 
 function ProfileStrip({ profile }: { profile: BillBillingProfileRow }) {
+  const t = useT()
   const address = [profile.address, profile.city, profile.zip].filter(Boolean).join(', ')
   return (
     <>
       <p className='text-lg font-semibold text-gray-900'>{profile.legalName?.trim() || '—'}</p>
       <div className='mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-base text-gray-600'>
-        {profile.taxId?.trim() && <span>ע.מ / ח.פ: {profile.taxId}</span>}
+        {profile.taxId?.trim() && <span>{t('billing.editor.recipient.taxId', { taxId: profile.taxId })}</span>}
         {address && (
           <>
             <span className='text-gray-300'>·</span>
@@ -90,10 +93,11 @@ function ProfileStrip({ profile }: { profile: BillBillingProfileRow }) {
 }
 
 function ProfileFallback({ leadName }: { leadName: string }) {
+  const t = useT()
   return (
     <p className='text-base text-gray-600'>
-      פרטי החיוב יוגדרו בעת השמירה, על בסיס שם הליד:{' '}
-      <span className='font-medium text-gray-800'>{leadName || 'ללא שם'}</span>
+      {t('billing.editor.recipient.fallback')}{' '}
+      <span className='font-medium text-gray-800'>{leadName || t('billing.editor.recipient.noName')}</span>
     </p>
   )
 }

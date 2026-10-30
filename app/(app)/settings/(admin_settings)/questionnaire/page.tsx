@@ -10,8 +10,14 @@ import { authorizeBuilder } from '@/lib/inbox/autoresponse/questionnaire/builder
 import { getBuilderState } from '@/lib/inbox/autoresponse/questionnaire/builder/service'
 import QuestionnaireBuilder from '@/components/settings/questionnaire/QuestionnaireBuilder'
 import QuestionnaireMobile from '@/components/settings/questionnaire/QuestionnaireMobile'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'שאלון וואטסאפ' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await requireAgencyUser())
+  return { title: t('admin.questionnaire.title') }
+}
 
 /**
  * The Questionnaire Builder.
@@ -31,6 +37,7 @@ export default async function QuestionnaireBuilderPage() {
   // Outside the rollout the page does not exist, whatever the subscription says.
   const user = await requireAgencyUser()
   if (!isAdmin(user.role) || !canUseQuestionnaireBuilder(user.agencyId)) notFound()
+  const { locale } = await getUiLocaleState(user)
 
   let ctx: Awaited<ReturnType<typeof authorizeBuilder>>
   try {
@@ -39,8 +46,8 @@ export default async function QuestionnaireBuilderPage() {
     // An expired subscription: say so, the way מענה אוטומטי does, never a crash.
     if (!(error instanceof ProductAccessError)) throw error
     return (
-      <div className='max-w-2xl'>
-        <SubscriptionExpiredState mode='inline' source='questionnaire_builder' feature='חידוש המנוי מחזיר את עריכת השאלון' />
+      <div className='max-w-2xl' {...regionAttrs(locale)}>
+        <SubscriptionExpiredState mode='inline' source='questionnaire_builder' feature={translatorFor(locale)('admin.questionnaire.expiredFeature')} translated />
       </div>
     )
   }

@@ -15,20 +15,28 @@ import { listAllConnections, resolveCapabilities } from '@/lib/automations/conne
 import { templateOverview } from '@/lib/automations/templates/overview'
 import { isConnectionProblem } from '@/lib/automations/connectors/resolve'
 import AutomationsSettings from '@/components/settings/automations/AutomationsSettings'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import type { AutomationCardData } from '@/components/settings/automations/AutomationCard'
 import type { SheetDraft } from '@/components/settings/automations/AutomationSheet'
 
-export const metadata: Metadata = { title: 'אוטומציות' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await requireAgencyUser())
+  return { title: t('admin.automations.title') }
+}
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 export default async function AutomationsSettingsPage() {
   const user = await requireAgencyUser()
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
 
   // Flag-gated like the ai-inspector entry: a non-allowlisted agency sees
   // neither the nav item nor this page.
   if (!isAutomationsAgencyAllowlisted(user.agencyId)) {
-    return <div className='max-w-3xl'>הדף אינו זמין בחשבון הזה.</div>
+    return <div className='max-w-3xl' {...regionAttrs(locale)}>{t('admin.automations.notAvailable')}</div>
   }
 
 
@@ -150,8 +158,8 @@ export default async function AutomationsSettingsPage() {
   return (
     <>
       {proLocked && (
-        <div className='mb-6 max-w-2xl'>
-          <SubscriptionExpiredState mode='inline' source='automations_settings' feature='חידוש המנוי מחזיר את הפעלת האוטומציות' />
+        <div className='mb-6 max-w-2xl' {...regionAttrs(locale)}>
+          <SubscriptionExpiredState mode='inline' source='automations_settings' feature={t('admin.automations.expiredFeature')} translated />
         </div>
       )}
       <AutomationsSettings

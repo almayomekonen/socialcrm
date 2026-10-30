@@ -87,6 +87,16 @@
   color: #9ca3af;
 }
 
+/* An English tour (the popover declares dir="ltr" outside Hebrew/Arabic): left-to-right, × on the end side. */
+.edu-popover[dir='ltr'] {
+  direction: ltr;
+}
+
+.edu-popover[dir='ltr'] .driver-popover-close-btn {
+  left: auto;
+  right: 0;
+}
+
 .edu-popover .driver-popover-close-btn:hover {
   color: #4b5563;
 }

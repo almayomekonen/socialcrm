@@ -3,8 +3,9 @@
 import { Btn } from '@/lib/btns/Btn'
 import { Input, Select } from '@/lib/form'
 import type { EventDefinition } from '@/lib/automations/catalog/types'
+import { operatorLabelIn } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
 import {
-  OPERATOR_LABELS,
   conditionableFields,
   findField,
   operatorNeedsValue,
@@ -30,6 +31,7 @@ export default function ConditionsEditor({
   conditions: Condition[]
   onChange: (next: Condition[]) => void
 }) {
+  const t = useT()
   const fields = event ? conditionableFields(event) : []
   if (!event || fields.length === 0) return null
 
@@ -45,12 +47,12 @@ export default function ConditionsEditor({
   return (
     <section className='grid gap-3'>
       <div className='flex items-center justify-between'>
-        <h3 className='text-sm font-semibold text-gray-800'>רק אם</h3>
-        <Btn variant='ghost' size='small' lbl='הוספת תנאי' icon='plus' onClick={add} />
+        <h3 className='text-sm font-semibold text-gray-800'>{t('admin.automationSheet.conditions.heading')}</h3>
+        <Btn variant='ghost' size='small' lbl={t('admin.automationSheet.conditions.add')} icon='plus' onClick={add} />
       </div>
 
       {conditions.length === 0 && (
-        <p className='text-sm text-gray-500 ms-1'>אפשר להשאיר ריק — האוטומציה תפעל בכל פעם שהאירוע קורה.</p>
+        <p className='text-sm text-gray-500 ms-1'>{t('admin.automationSheet.conditions.empty')}</p>
       )}
 
       {conditions.map((condition, i) => {
@@ -60,7 +62,7 @@ export default function ConditionsEditor({
         return (
           <div key={i} className='grid grid-cols-[1fr_auto_1fr_auto] items-end gap-2 mobile:grid-cols-1'>
             <Select
-              lbl={i === 0 ? 'שדה' : undefined}
+              lbl={i === 0 ? t('admin.automationSheet.conditions.field') : undefined}
               options={fields.map((f) => ({ id: f.key, name: f.label }))}
               value={condition.field}
               onChange={(e) => {
@@ -73,22 +75,22 @@ export default function ConditionsEditor({
               }}
             />
             <Select
-              lbl={i === 0 ? 'השוואה' : undefined}
-              options={operators.map((o) => ({ id: o, name: OPERATOR_LABELS[o] }))}
+              lbl={i === 0 ? t('admin.automationSheet.conditions.operator') : undefined}
+              options={operators.map((o) => ({ id: o, name: operatorLabelIn(o, t.locale) }))}
               value={condition.operator}
               onChange={(e) => update(i, { operator: e.target.value as Condition['operator'] })}
             />
             {needsValue ? (
               field?.options ? (
                 <Select
-                  lbl={i === 0 ? 'ערך' : undefined}
+                  lbl={i === 0 ? t('admin.automationSheet.conditions.value') : undefined}
                   options={field.options.map((o) => ({ id: o.value, name: o.label }))}
                   value={condition.value}
                   onChange={(e) => update(i, { value: e.target.value })}
                 />
               ) : (
                 <Input
-                  lbl={i === 0 ? 'ערך' : undefined}
+                  lbl={i === 0 ? t('admin.automationSheet.conditions.value') : undefined}
                   value={condition.value}
                   onChange={(e) => update(i, { value: e.target.value })}
                 />
@@ -99,7 +101,7 @@ export default function ConditionsEditor({
             <Btn
               variant='ghost'
               size='small'
-              lbl='הסרה'
+              lbl={t('admin.automationSheet.conditions.remove')}
               icon='xmark'
               onClick={() => onChange(conditions.filter((_, idx) => idx !== i))}
             />
@@ -108,7 +110,7 @@ export default function ConditionsEditor({
       })}
 
       {conditions.some((c) => findField(event, c.field)?.freshness === 'live') && (
-        <p className='text-sm text-gray-500 ms-1'>חלק מהתנאים נבדקים ברגע השליחה, לא ברגע האירוע.</p>
+        <p className='text-sm text-gray-500 ms-1'>{t('admin.automationSheet.conditions.live')}</p>
       )}
     </section>
   )

@@ -13,8 +13,10 @@ import Fieldset from '@/lib/Fieldset'
 import { MultiSelectSearch } from '@/lib/form/MultiSelectSearch'
 import SelectStartEndDate from '../filter/SelectStartEndDate'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
+  const t = useT()
   const goalKeys = Object.keys(promo?.goals?.target || {})
   const firstGoalKey = goalKeys[0]
   const condGoalsKeys = goalKeys.splice(1) as any[]
@@ -32,7 +34,7 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
 
   async function onSubmit(e) {
     const data = getPromoFormData(e)
-    if (!data?.grpIds?.length && !data?.userIds?.length) return setErrMsg('יש לבחור צוותים או נציגים')
+    if (!data?.grpIds?.length && !data?.userIds?.length) return setErrMsg(t('admin.promos.form.noTargets'))
 
     data.files = JSON.parse(data.files)
     data.img = JSON.parse(data.img)
@@ -43,27 +45,27 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
 
   return (
     <div>
-      <h2 className='title mb-6'>{promo?.id ? 'עריכת קמפיין' : 'הוספת קמפיין'}</h2>
+      <h2 className='title mb-6'>{promo?.id ? t('admin.promos.edit') : t('admin.promos.form.add')}</h2>
       <form onSubmit={onSubmit} className='grid grid-cols-2 items-end gap-6'>
-        <Input name='title' lbl='שם הקמפיין' defaultValue={promo?.title} />
+        <Input name='title' lbl={t('admin.promos.form.name')} defaultValue={promo?.title} />
         <SelectStartEndDate data={promo} startName='start' endName='end' />
 
         <span className='col-span-2 flex'>
           <Checkbox
-            lbl='קמפיין למנהל'
+            lbl={t('admin.promos.form.forManager')}
             defaultChecked={promo?.isPromoGrp}
             onChange={() => setIsPromoGrp(!isPromoGrp)}
             name='isPromoGrp'
           />
         </span>
 
-        <MultiSelectSearch options={teams} name='grpIds' placeholder='חיפוש צוותים' lbl='צוותים' selected={promo?.grpIds} />
+        <MultiSelectSearch options={teams} name='grpIds' placeholder={t('admin.promos.form.searchTeams')} lbl={t('admin.promos.form.teams')} selected={promo?.grpIds} />
         {!isPromoGrp && (
-          <MultiSelectSearch options={users} name='userIds' placeholder='חיפוש נציגים' lbl='נציגים' selected={promo?.userIds} />
+          <MultiSelectSearch options={users} name='userIds' placeholder={t('admin.promos.form.searchReps')} lbl={t('admin.promos.form.reps')} selected={promo?.userIds} />
         )}
 
         <span className='col-span-2'>
-          <Input as='textarea' name='desc' lbl='תיאור הקמפיין' defaultValue={promo?.desc} />
+          <Input as='textarea' name='desc' lbl={t('admin.promos.form.desc')} defaultValue={promo?.desc} />
         </span>
 
         {/* ענפים */}
@@ -71,7 +73,7 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
           <SelectBranch index='0' goalLength={goalLength} setGoalLength={setGoalLength} promo={promo} />
         </span>
         <Btn
-          lbl='הוספת תנאים'
+          lbl={t('admin.promos.form.addConds')}
           icon='plus'
           variant='soft'
           onClick={() => setConds([...conds, { id: Math.random() }])}
@@ -79,14 +81,14 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
         />
         <span className='col-span-2 grid gap-4'>
           {conds.map((cond, i) => (
-            <Fieldset legend={`תנאי ${i + 1}`} key={cond.id} className='flex gap-4 items-end border rounded-md p-4'>
+            <Fieldset legend={t('admin.promos.form.cond', { n: String(i + 1) })} key={cond.id} className='flex gap-4 items-end border rounded-md p-4'>
               <SelectCondBranch index={i + 1} goalLength={goalLength} condGoalsKey={condGoalsKeys[i]} promo={promo} />
               <Btn
                 icon='trash'
                 type='button'
                 variant='destructive'
                 size='icon'
-                aria-label={`הסרת תנאי ${i + 1}`}
+                aria-label={t('admin.promos.form.removeCond', { n: String(i + 1) })}
                 onClick={() => {
                   setConds(conds.filter((_, index) => index !== i))
                 }}
@@ -101,11 +103,12 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
           folder={'display'}
           type='image'
           single={true}
-          title='העלאת תמונת מבצע'
+          title={t('admin.promos.form.uploadImg')}
+          translated
         />
-        <FileUploader name='files' initialFiles={promo?.files} title='העלאת תקנון' />
+        <FileUploader name='files' initialFiles={promo?.files} title={t('admin.promos.form.uploadRules')} translated />
 
-        <SubmitButton lbl='שמור קמפיין' icon='floppy-disk' className='col-span-2 mt-4' />
+        <SubmitButton lbl={t('admin.promos.form.save')} icon='floppy-disk' className='col-span-2 mt-4' />
       </form>
       <ConfirmPop
         open={!!errMsg}
@@ -113,12 +116,14 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
         onClose={() => setErrMsg(null)}
         onConfirm={() => setErrMsg(null)}
         msg={errMsg ?? ''}
+        translated
       />
     </div>
   )
 }
 
 function SelectBranch({ goalLength, setGoalLength, promo, index }) {
+  const tr = useT()
   const t = Array(goalLength).fill(0)
   const curGoal = Object.keys(promo?.goals?.target || {})[0]
 
@@ -143,9 +148,9 @@ function SelectBranch({ goalLength, setGoalLength, promo, index }) {
 
       <div className='grid grid-cols-2 gap-4 mt-4'>
         {t.map((_, i) => (
-          <Fieldset legend={`יעד ופרס ${i + 1}`} key={i} className='flex flex-nowrap'>
-            <Input name='targets[]' lbl={`יעד ${i + 1}`} type='number' defaultValue={promo?.goals?.target?.[curGoal]?.[i]} />
-            <Input name='prize[]' lbl={`פרס יעד ${i + 1}`} type='text' defaultValue={promo?.goals?.prize[i]} />
+          <Fieldset legend={tr('admin.promos.form.goalPrize', { n: String(i + 1) })} key={i} className='flex flex-nowrap'>
+            <Input name='targets[]' lbl={tr('admin.promos.form.goal', { n: String(i + 1) })} type='number' defaultValue={promo?.goals?.target?.[curGoal]?.[i]} />
+            <Input name='prize[]' lbl={tr('admin.promos.form.prize', { n: String(i + 1) })} type='text' defaultValue={promo?.goals?.prize[i]} />
           </Fieldset>
         ))}
       </div>
@@ -154,6 +159,7 @@ function SelectBranch({ goalLength, setGoalLength, promo, index }) {
 }
 
 function SelectCondBranch({ goalLength, condGoalsKey, promo, index }) {
+  const tr = useT()
   const t = Array(goalLength).fill(0)
 
   return (
@@ -166,7 +172,7 @@ function SelectCondBranch({ goalLength, condGoalsKey, promo, index }) {
         {t.map((_, i) => (
           <Input
             name='targets[]'
-            lbl={`יעד ${i + 1}`}
+            lbl={tr('admin.promos.form.goal', { n: String(i + 1) })}
             type='number'
             key={i}
             defaultValue={promo?.goals?.target?.[condGoalsKey]?.[i]}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { api } from '@/lib/funcs'
 import { duplicateInvoiceAction } from '@/actions/billing/duplicate'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Clones an issued invoice into a fresh draft and navigates into the new
@@ -25,6 +26,7 @@ export default function DuplicateInvoiceBtn({
   leadId: number
   variant?: 'hero' | 'default'
 }) {
+  const t = useT()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
 
@@ -34,8 +36,8 @@ export default function DuplicateInvoiceBtn({
     const result = await api(
       duplicateInvoiceAction,
       [{ invoiceId, leadId }],
-      'נוצרה טיוטה חדשה',
-      'שכפול החשבונית נכשל',
+      t('billing.issued.toast.duplicated'),
+      t('billing.issued.toast.duplicateFailed'),
       { silentSuccess: true },
     )
     setBusy(false)
@@ -52,10 +54,10 @@ export default function DuplicateInvoiceBtn({
         disabled={busy}
         className='inline-flex items-center gap-2 h-10 px-4 rounded-md border border-white/20 bg-white/5 hover:bg-white/10 text-white font-semibold transition-colors disabled:opacity-60'
       >
-        <span>צור חשבונית חדשה מבוססת על זו</span>
+        <span>{t('billing.issued.duplicateHero')}</span>
       </button>
     )
   }
 
-  return <Btn variant='outline' icon='copy' lbl='שכפל לטיוטה חדשה' onClick={onClick} disabled={busy} />
+  return <Btn variant='outline' icon='copy' lbl={t('billing.issued.duplicate')} onClick={onClick} disabled={busy} />
 }

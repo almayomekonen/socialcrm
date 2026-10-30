@@ -2,6 +2,10 @@
 
 import { useState } from 'react'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+
+const HEBREW = translatorFor('he')
 
 /** Recognisable by callers that want to render the locked state instead of a toast. */
 export const ENTITLEMENT_ERROR = 'ENTITLEMENT_EXPIRED'
@@ -23,8 +27,15 @@ export const ENTITLEMENT_ERROR = 'ENTITLEMENT_EXPIRED'
  * A failure while access is denied is attributed to the subscription; any other
  * failure keeps the existing generic message, so a genuine bug is still reported
  * as a bug and still offers a retry.
+ *
+ * `translated` (Phase E6): the caller's screen follows the interface language,
+ * so the generic line does too. Off by default — a Hebrew screen keeps Hebrew.
+ * Only the shown sentence changes; `error` is still the entitlement CODE when
+ * access is denied.
  */
-export function useAction() {
+export function useAction({ translated = false }: { translated?: boolean } = {}) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const accessDenied = useAccessDenied()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +47,7 @@ export function useAction() {
     try {
       await fn()
     } catch {
-      setError(accessDenied ? ENTITLEMENT_ERROR : 'משהו השתבש, נסה שוב')
+      setError(accessDenied ? ENTITLEMENT_ERROR : t('common.actionFailed'))
     } finally {
       setLoading(false)
     }

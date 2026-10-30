@@ -28,14 +28,16 @@ const box = readFileSync(`${process.cwd()}/components/settings/payment/PlanStatu
 
 describe('billing page actions derive from verified card state', () => {
   it('passes the VERIFIED CARD state into the box, not the plan', () => {
-    expect(page).toContain('<PlanStatusBox trialActive={trialActive} canAddFirstCard={!cardView.cardBilled} />')
+    expect(page).toContain('<PlanStatusBox trialActive={trialActive} canAddFirstCard={!cardView.cardBilled} locale={locale} />')
   })
 
   it('the CTA exists once, behind that flag', () => {
     expect(box).toContain('{canAddFirstCard && (')
-    expect(boxCode.split('הוספת אמצעי תשלום').length - 1).toBe(1)
+    // The label is `settings.payment.plan.addMethod` since Phase E4 ('הוספת אמצעי תשלום').
+    expect(boxCode.split("t('settings.payment.plan.addMethod')").length - 1).toBe(1)
     // It must not have been left behind in the page as well.
     expect(pageCode).not.toContain('הוספת אמצעי תשלום')
+    expect(pageCode).not.toContain('settings.payment.plan.addMethod')
   })
 
   it('the anchor and its target are gated by the same fact, so no empty anchor', () => {
@@ -44,8 +46,8 @@ describe('billing page actions derive from verified card state', () => {
   })
 
   it('still shows the plan line for both trial and free', () => {
-    expect(box).toContain("{trialActive ? 'מסלול נוכחי: Pro' : 'תוכנית: Free'}")
-    expect(box).toContain("{trialActive ? 'סטטוס: פעיל' : 'סטטוס: לא פעיל'}")
+    expect(box).toContain("{trialActive ? t('settings.payment.plan.current') : t('settings.payment.plan.free')}")
+    expect(box).toContain("{trialActive ? t('settings.payment.plan.statusActive') : t('settings.payment.plan.statusInactive')}")
   })
 
   it('keeps the card summary as the single card-management surface', () => {

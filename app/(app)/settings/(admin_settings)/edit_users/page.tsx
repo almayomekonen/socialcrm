@@ -8,6 +8,9 @@ import { isAgentOrMngr } from '@/types/roles'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import UsersListMobile from '@/components/settings/mobile/UsersListMobile'
 import { formatDate } from '@/lib/dates'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 export default async function EditAgentsPage() {
   const viewer = await getUser()
@@ -50,12 +53,14 @@ export default async function EditAgentsPage() {
 
   const teams = await getTeams()
   const agnts = users.filter((user) => isAgentOrMngr(user.role))
+  const { locale } = await getUiLocaleState(viewer)
+  const t = translatorFor(locale)
 
   return (
-    <div className='mb-8'>
-      <h1 className='title mb-8'>עריכת משתמשים</h1>
+    <div className='mb-8' {...regionAttrs(locale)}>
+      <h1 className='title mb-8'>{t('admin.users.title')}</h1>
       <UsersTable users={users} agnts={agnts} teams={teams} tblPref={null} key={Math.random()} />
-      <h1 className='title my-6'>הזמנות</h1>
+      <h1 className='title my-6'>{t('admin.users.invitationsTitle')}</h1>
 
       <InvitationsTable data={invitations} tblPref={null} key={Math.random()} />
     </div>

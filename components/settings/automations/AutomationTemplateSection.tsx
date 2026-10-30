@@ -8,6 +8,8 @@ import type { TemplateSlot } from '@/lib/automations/whatsapp/templateParams'
 import type { ParameterDefinition } from '@/lib/automations/catalog/types'
 import type { ConnectionOption } from '@/lib/automations/catalog/types'
 import { listOptionsForCapabilityAction } from '@/actions/automations/connections'
+import { fieldLabelIn } from '@/lib/automations/catalogI18n'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * What the customer configures for a WhatsApp automation: WHICH approved message,
@@ -25,7 +27,7 @@ import { listOptionsForCapabilityAction } from '@/actions/automations/connection
  *     know — so the customer says, and until they do the automation cannot save.
  */
 
-/** The subject fields a slot may be filled from, with the labels the customer knows. */
+/** The subject fields a slot may be filled from, with the labels the customer knows (worded by field key: `fieldLabelIn`). */
 const FIELD_OPTIONS = [
   { id: 'leadFirstName', name: 'שם הליד' },
   { id: 'businessName', name: 'שם העסק' },
@@ -58,9 +60,11 @@ export default function AutomationTemplateSection({
   onTemplateChange: (next: string) => void
   onBindingsChange: (next: Record<string, string>) => void
 }) {
+  const t = useT()
+  const fieldOptions = FIELD_OPTIONS.map((o) => ({ id: o.id, name: fieldLabelIn(o.id, o.name, t.locale) }))
   const [templates, setTemplates] = useState<ConnectionOption[]>([])
   const [slots, setSlots] = useState<TemplateSlot[] | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  const [problem, setProblem] = useState<'load' | 'notApproved' | null>(null)
 
   // The approved ready-made messages, from the connector's generic option
   // provider — the same path the form picker uses, addressed by capability.
@@ -89,14 +93,14 @@ export default function AutomationTemplateSection({
       if (cancelled) return
       if (res.ok === false) {
         setSlots(null)
-        setProblem('לא ניתן לטעון את ההודעה שנבחרה.')
+        setProblem('load')
         return
       }
       setSlots(res.slots)
       // A template can lose its approval at Meta after it was chosen. Saying so
       // here is the difference between a visible problem and an automation that
       // silently never fires.
-      setProblem(res.approved ? null : 'ההודעה הזו אינה מאושרת כרגע ולא ניתן לשלוח אותה.')
+      setProblem(res.approved ? null : 'notApproved')
     })()
     return () => {
       cancelled = true
@@ -110,12 +114,12 @@ export default function AutomationTemplateSection({
     <section className='grid gap-3'>
       <h3 className='text-sm font-semibold text-gray-800'>{title}</h3>
 
-      {!capability && <p className='text-sm text-gray-500 ms-1'>הפעולה הזו אינה זמינה כרגע.</p>}
+      {!capability && <p className='text-sm text-gray-500 ms-1'>{t('admin.automationSheet.message.unavailable')}</p>}
 
       {capability && (
         <>
           <Select
-            lbl={parameter?.label ?? 'ההודעה המוכנה'}
+            lbl={parameter?.label ?? t('admin.automationSheet.message.fallbackLabel')}
             options={templates.map((t) => ({ id: t.id, name: t.label }))}
             value={templateId}
             onChange={(e) => {
@@ -126,7 +130,7 @@ export default function AutomationTemplateSection({
               onBindingsChange({})
             }}
             required
-            placeholder={templates.length === 0 ? 'אין הודעות מאושרות' : undefined}
+            placeholder={templates.length === 0 ? t('admin.automationSheet.message.noApproved') : undefined}
           />
 
           {parameter?.help && <p className='text-sm text-gray-500 ms-1'>{parameter.help}</p>}
@@ -134,12 +138,12 @@ export default function AutomationTemplateSection({
           {templates.length === 0 && (
             <div className='border border-amber-200 rounded-md bg-amber-50 p-3 grid gap-2' role='alert'>
               <p className='text-sm text-amber-800'>
-                כדי לשלוח הודעת וואטסאפ באוטומציה צריך הודעה מוכנה שאושרה. אפשר ליצור אותה בהודעות המוכנות.
+                {t('admin.automationSheet.message.needApproved')}
               </p>
               <Btn
                 variant='outline'
                 size='small'
-                lbl='מעבר להודעות המוכנות'
+                lbl={t('admin.automationSheet.message.goToReady')}
                 href='/settings/integrations?section=templates'
               />
             </div>
@@ -147,21 +151,21 @@ export default function AutomationTemplateSection({
 
           {problem && (
             <p className='text-sm text-amber-700 ms-1' role='alert'>
-              {problem}
+              {problem === 'load' ? t('admin.automationSheet.message.loadFailed') : t('admin.automationSheet.message.notApproved')}
             </p>
           )}
 
           {needsMapping.length > 0 && (
             <div className='grid gap-3 rounded-md border border-gray-200 p-3'>
               <div className='grid gap-1'>
-                <h4 className='text-sm font-semibold text-gray-800'>מה ימלא את הפרטים בהודעה</h4>
-                <p className='text-sm text-gray-500'>ההודעה הזו סונכרנה מוואטסאפ. צריך להגיד מה נכנס בכל מקום.</p>
+                <h4 className='text-sm font-semibold text-gray-800'>{t('admin.automationSheet.message.mapHeading')}</h4>
+                <p className='text-sm text-gray-500'>{t('admin.automationSheet.message.mapBody')}</p>
               </div>
               {needsMapping.map((slot) => (
                 <Select
                   key={slot.position}
-                  lbl={`מקום ${slot.position}`}
-                  options={FIELD_OPTIONS}
+                  lbl={t('admin.automationSheet.message.slot', { position: String(slot.position) })}
+                  options={fieldOptions}
                   value={bindings[String(slot.position)] ?? ''}
                   onChange={(e) => onBindingsChange({ ...bindings, [String(slot.position)]: e.target.value })}
                   required
@@ -174,7 +178,9 @@ export default function AutomationTemplateSection({
             // Stated rather than silent: the customer should know the blanks are
             // handled, not wonder whether they were missed.
             <p className='text-sm text-gray-500 ms-1'>
-              הפרטים בהודעה יתמלאו אוטומטית: {slots.map((s) => s.label).join(', ')}
+              {t('admin.automationSheet.message.autoFilled', {
+                fields: slots.map((s) => (s.field ? fieldLabelIn(s.field, s.label, t.locale) : s.label)).join(', '),
+              })}
             </p>
           )}
         </>

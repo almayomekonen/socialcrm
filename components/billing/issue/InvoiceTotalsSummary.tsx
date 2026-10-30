@@ -1,4 +1,5 @@
 import { formatCurrency } from '@/lib/funcs'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { cardCls, sectionHeaderCls, eyebrowCls } from './styles'
 
 /**
@@ -15,20 +16,21 @@ export default function InvoiceTotalsSummary({
   tax: number
   total: number
 }) {
+  const t = useT()
   return (
     <section className={'md:col-span-1 self-start ' + cardCls}>
       <div className={sectionHeaderCls}>
-        <h2 className={eyebrowCls}>סיכום</h2>
+        <h2 className={eyebrowCls}>{t('billing.editor.totals.heading')}</h2>
       </div>
       <div className='px-6 py-6'>
         <dl className='grid grid-cols-2 gap-y-3 text-base'>
-          <dt className='text-gray-500'>סכום ביניים</dt>
+          <dt className='text-gray-500'>{t('billing.editor.totals.subtotal')}</dt>
           <dd className='tabular-nums text-end text-gray-900 font-medium'>{formatCurrency(subtotal)}</dd>
-          <dt className='text-gray-500'>מע"מ</dt>
+          <dt className='text-gray-500'>{t('billing.editor.totals.tax')}</dt>
           <dd className='tabular-nums text-end text-gray-900 font-medium'>{formatCurrency(tax)}</dd>
         </dl>
         <div className='mt-5 pt-5 border-t border-gray-200 flex items-baseline justify-between gap-3'>
-          <span className='text-base font-semibold text-gray-700'>סה"כ לתשלום</span>
+          <span className='text-base font-semibold text-gray-700'>{t('billing.editor.totals.total')}</span>
           <span className='text-3xl font-bold tabular-nums text-dark'>{formatCurrency(total)}</span>
         </div>
       </div>

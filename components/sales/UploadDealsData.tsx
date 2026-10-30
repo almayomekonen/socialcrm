@@ -8,6 +8,7 @@ import ConfirmPop from '@/lib/modals/ConfirmPop'
 import QuotaPaywallModal, { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 import { proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import { useT, useRegionAttrs } from '@/lib/i18n/I18nProvider'
 
 type Done = Exclude<DealImportResult, { error: 'quota_exceeded' }>
 
@@ -18,6 +19,8 @@ type Done = Exclude<DealImportResult, { error: 'quota_exceeded' }>
  * also save it to S3 as a document, which an import must not do).
  */
 export default function UploadDealsData() {
+  const t = useT()
+  const region = useRegionAttrs()
   const expired = useAccessDenied()
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState<{ data: DealImportRow[]; wrong: RejectedDealRow[] } | null>(null)
@@ -43,7 +46,7 @@ export default function UploadDealsData() {
     e.target.value = ''
     if (!file) return
     if (expired) {
-      return proToast({ title: 'ייבוא עסקאות זמין עם Pro', body: 'חידוש המנוי יחזיר את ייבוא העסקאות מקובץ.', source: 'deal_import' })
+      return proToast({ title: t('deals.importer.proTitle'), body: t('deals.importer.proBody'), source: 'deal_import' })
     }
     setBusy(true)
     setResult(null)
@@ -55,7 +58,7 @@ export default function UploadDealsData() {
       }
       setPending({ data, wrong: wrongData })
     } catch {
-      setErrMsg('לא הצלחנו לקרוא את הקובץ. ודא שזה קובץ Excel תקין ונסה שוב.')
+      setErrMsg(t('deals.importer.unreadable'))
     } finally {
       setBusy(false)
     }
@@ -72,7 +75,7 @@ export default function UploadDealsData() {
       setResult({ ...res, parseRejected: target.wrong })
       if (res.imported > 0 || res.createdLeads > 0) changed.current = true
     } catch {
-      setErrMsg('ייבוא העסקאות נכשל. לא נשמרו עסקאות — נסה שוב.')
+      setErrMsg(t('deals.importer.failed'))
     } finally {
       setBusy(false)
     }
@@ -80,44 +83,48 @@ export default function UploadDealsData() {
 
   const rejected = result ? [...result.parseRejected, ...result.rejected].sort((a, b) => a.row - b.row) : []
   const confirmMsg = pending
-    ? `נמצאו ${pending.data.length} עסקאות תקינות${pending.wrong.length ? ` ו-${pending.wrong.length} שורות לא תקינות שלא ייובאו` : ''}. לייבא את העסקאות?`
+    ? pending.wrong.length
+      ? t('deals.importer.confirmWithWrong', { count: String(pending.data.length), wrong: String(pending.wrong.length) })
+      : t('deals.importer.confirm', { count: String(pending.data.length) })
     : ''
+  // Counts as their digits (no grouping), exactly as Hebrew printed them.
+  const n = (count: number) => ({ count: String(count) })
 
   return (
-    <div className='p-4 w-[min(32rem,80vw)]' dir='rtl'>
+    <div className='p-4 w-[min(32rem,80vw)]' dir='rtl' {...region}>
       <div className='mb-4 font-semibold'>
-        <p>קובץ Excel (xlsx, xls)</p>
+        <p>{t('deals.importer.fileTitle')}</p>
         <p className='text-sm font-normal text-gray-500'>
-          שורה ראשונה: סכום, טלפון או מייל — ואפשר גם שם, סטטוס, תאריך עסקה, שם עסקה, הערות.
+          {t('deals.importer.fileHint')}
         </p>
       </div>
 
       <label className={`btn cursor-pointer w-fit ${busy ? 'opacity-50' : ''}`}>
         <Icon name='file-excel' className='size-4' />
-        <p>{busy ? 'מעבד...' : 'בחירת קובץ Excel'}</p>
-        <input type='file' accept='.xlsx,.xls' aria-label='בחירת קובץ עסקאות' onChange={onFile} className='hidden' disabled={busy} />
+        <p>{busy ? t('deals.importer.processing') : t('deals.importer.choose')}</p>
+        <input type='file' accept='.xlsx,.xls' aria-label={t('deals.importer.chooseLabel')} onChange={onFile} className='hidden' disabled={busy} />
       </label>
 
       {result && (
         <div className='mt-4 space-y-3 text-sm'>
           <div className={`p-4 rounded-lg border ${result.imported ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
             <p className={`font-semibold ${result.imported ? 'text-green-800' : 'text-amber-700'}`}>
-              {result.imported ? `יובאו בהצלחה ${result.imported} עסקאות` : 'לא יובאו עסקאות'}
+              {result.imported ? t('deals.importer.imported', n(result.imported)) : t('deals.importer.none')}
             </p>
             <div className='mt-1 space-y-0.5 text-gray-600'>
-              {result.createdLeads > 0 && <p>נוצרו {result.createdLeads} לידים חדשים</p>}
-              {result.duplicates > 0 && <p className='text-blue-600'>דולגו {result.duplicates} עסקאות שכבר קיימות</p>}
-              {rejected.length > 0 && <p className='text-red-600'>שורות שלא יובאו: {rejected.length}</p>}
+              {result.createdLeads > 0 && <p>{t('deals.importer.createdLeads', n(result.createdLeads))}</p>}
+              {result.duplicates > 0 && <p className='text-blue-600'>{t('deals.importer.duplicates', n(result.duplicates))}</p>}
+              {rejected.length > 0 && <p className='text-red-600'>{t('deals.importer.rejectedCount', n(rejected.length))}</p>}
             </div>
           </div>
 
           {rejected.length > 0 && (
             <div>
-              <h2 className='underline mb-1 text-red-800 font-semibold'>שורות שלא יובאו</h2>
+              <h2 className='underline mb-1 text-red-800 font-semibold'>{t('deals.importer.rejectedTitle')}</h2>
               <ul className='max-h-48 overflow-y-auto space-y-0.5'>
                 {rejected.map((r, i) => (
                   <li key={i}>
-                    שורה {r.row}: {r.reason}
+                    {t('deals.importer.rejectedRow', { row: String(r.row), reason: r.reason })}
                     {r.label ? ` (${r.label})` : ''}
                   </li>
                 ))}
@@ -127,8 +134,8 @@ export default function UploadDealsData() {
         </div>
       )}
 
-      <ConfirmPop open={!!pending} onClose={() => setPending(null)} onConfirm={onConfirm} msg={confirmMsg} confirmLbl='ייבוא עסקאות' />
-      <ConfirmPop open={!!errMsg} hideCancel onClose={() => setErrMsg(null)} onConfirm={() => setErrMsg(null)} msg={errMsg ?? ''} />
+      <ConfirmPop open={!!pending} onClose={() => setPending(null)} onConfirm={onConfirm} msg={confirmMsg} confirmLbl={t('deals.importer.confirmButton')} translated />
+      <ConfirmPop open={!!errMsg} hideCancel onClose={() => setErrMsg(null)} onConfirm={() => setErrMsg(null)} msg={errMsg ?? ''} translated />
       <QuotaPaywallModal state={paywall} onClose={() => setPaywall(null)} />
     </div>
   )

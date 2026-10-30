@@ -1,3 +1,7 @@
+'use client'
+
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+
 /**
  * First-load shape of ביצועי מודעות: title, the two selectors, the status line,
  * the summary boxes and the campaign table — so the page does not jump when
@@ -11,10 +15,13 @@
 const block = 'rounded bg-gray-100 motion-safe:animate-pulse'
 
 export default function AdsReportSkeleton() {
+  const t = useT()
+  // Hebrew keeps the explicit `dir='rtl'`; another language declares itself.
+  const region = useRegionAttrs()
   return (
-    <div className='grid gap-4 py-6' dir='rtl' aria-busy='true' data-testid='ads-report-skeleton'>
+    <div className='grid gap-4 py-6' dir='rtl' {...region} aria-busy='true' data-testid='ads-report-skeleton'>
       <span className='sr-only' role='status'>
-        טוען…
+        {t('performance.ads.loading')}
       </span>
       <div aria-hidden='true' className='grid gap-4'>
         <div className={`h-7 w-40 ${block}`} />

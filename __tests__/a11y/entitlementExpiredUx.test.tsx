@@ -49,6 +49,20 @@ vi.mock('next/navigation', () => ({
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8')
 
+/** The settings copy moved into the catalog in Phase E4 (the components reference its keys). */
+const PAYMENT_COPY = 'lib/i18n/messages/he/settings/payment.ts'
+const INTEGRATIONS_COPY = 'lib/i18n/messages/he/settings/integrations.ts'
+
+/** ManagePlanModal and the two views it renders (split in Phase E4). */
+const readManagePlan = () => ['components/settings/payment/ManagePlanModal.tsx', 'components/settings/payment/ManagePlanBodies.tsx'].map(read).join('\n')
+
+/** CalendarView and the hooks that hold its grid gestures and details-dialog actions (split in Phase E1). */
+const CALENDAR_VIEW_FILES = [
+  'components/calendar/CalendarView.tsx',
+  'components/calendar/hooks/useMeetingReschedule.ts',
+  'components/calendar/hooks/useMeetingSyncActions.ts',
+]
+
 const EXPIRED = { hasAccess: false, status: 'TRIAL_EXPIRED', expiresAt: '2026-08-20T20:03:27.824Z' }
 const ACTIVE = { hasAccess: true, status: 'PAID', expiresAt: '2026-12-01T00:00:00.000Z' }
 
@@ -155,7 +169,8 @@ describe('the two surfaces that used to lie', () => {
     const card = read('components/settings/payment/ProPlanCard.tsx')
     expect(card).toContain('hasAccess')
     expect(card).toContain('const expired = !hasAccess')
-    expect(card).toContain('המנוי הסתיים')
+    expect(card).toContain("t('settings.payment.plan.badge.expired')")
+    expect(read(PAYMENT_COPY)).toContain("expired: 'המנוי הסתיים'")
     // "מנוי פעיל" must now be unreachable while expired.
     expect(card).toContain('if (expired)')
 
@@ -284,7 +299,9 @@ describe('shared action runner distinguishes entitlement from a real bug', () =>
   it('returns the entitlement sentinel only when access is denied', () => {
     const src = read('lib/useAction.ts')
     expect(src).toContain('ENTITLEMENT_ERROR')
-    expect(src).toContain("accessDenied ? ENTITLEMENT_ERROR : 'משהו השתבש, נסה שוב'")
+    // The generic line is the catalog's (Phase E6); in Hebrew it is still the same sentence.
+    expect(src).toContain("accessDenied ? ENTITLEMENT_ERROR : t('common.actionFailed')")
+    expect(read('lib/i18n/messages/he/common.ts')).toContain("actionFailed: 'משהו השתבש, נסה שוב'")
   })
 
   it('conversation actions render the locked state instead of the retry line', () => {
@@ -296,8 +313,9 @@ describe('shared action runner distinguishes entitlement from a real bug', () =>
 
 describe('manage-plan offers renewal, not cancellation, to an expired customer', () => {
   it('renew is primary and cancel is withheld', () => {
-    const src = read('components/settings/payment/ManagePlanModal.tsx')
-    expect(src).toContain('חידוש מנוי')
+    const src = readManagePlan()
+    expect(src).toContain("t('settings.payment.manage.renew')")
+    expect(read(PAYMENT_COPY)).toContain("renew: 'חידוש מנוי'")
     expect(src).toContain("upgradeHref('manage_plan_modal')")
     // Cancel paths are all suppressed while expired.
     expect(src).toContain("{!expired && manageable && status === 'active'")
@@ -311,7 +329,8 @@ describe('integrations separates connection health from entitlement', () => {
     expect(page).toContain('getAgencyProductAccess')
     expect(page).toContain('SubscriptionExpiredState')
     // The connectors themselves are untouched — their claim is true.
-    expect(read('components/settings/WhatsappConnect.tsx')).toContain('החיבור תקין')
+    expect(read('components/settings/WhatsappConnect.tsx')).toContain("t('settings.integrations.whatsapp.healthy')")
+    expect(read(INTEGRATIONS_COPY)).toContain("healthy: 'החיבור תקין — לידים מגיעים אוטומטית'")
   })
 })
 
@@ -385,15 +404,17 @@ describe('narrow audit: the five remaining surfaces', () => {
 
 describe('production audit follow-ups', () => {
   it('manage-plan reports EXPIRED status, not "פעיל", and no future billing date', () => {
-    const src = read('components/settings/payment/ManagePlanModal.tsx')
+    const src = readManagePlan()
     // "החיוב הבא" is reachable ONLY from a genuinely renewing subscription —
     // the single rule that also covers the non-Pro case, which used to fall
     // through the ternary chain to 'פעיל'.
     expect(src).toContain("const renewing = !expired && status === 'active'")
-    expect(src).toContain("const dateLabel = renewing ? 'החיוב הבא'")
-    expect(src).toContain("expired\n    ? 'המנוי הסתיים'")
+    expect(src).toContain("const dateLabel = renewing ? t('settings.payment.manage.nextCharge')")
+    expect(src).toContain("expired\n    ? t('settings.payment.manage.statusExpired')")
+    expect(read(PAYMENT_COPY)).toContain("nextCharge: 'החיוב הבא'")
+    expect(read(PAYMENT_COPY)).toContain("statusExpired: 'המנוי הסתיים'")
     // The date must never be labelled as an upcoming charge while expired.
-    expect(src).not.toMatch(/const dateLabel = cancelling \? 'גישה ל־Pro עד' : 'החיוב הבא'/)
+    expect(src).not.toMatch(/const dateLabel = cancelling \? /)
     // Entitlement, never the plan name.
     expect(src).toContain('useAccessDenied()')
     expect(src).not.toMatch(/plan\s*===\s*'pro'/)
@@ -892,7 +913,7 @@ describe('billing never promises a charge that is not coming', () => {
      * `expired` still comes from hasAccess rather than agencies.plan.
      */
     expect(src).toContain(
-      "<PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />",
+      "<PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} locale={locale} />",
     )
     expect(src).toContain('const expired = !hasAccess')
     expect(src).toContain("const granted = subscription.source === 'grant'")
@@ -1055,7 +1076,8 @@ describe('lead Drive keeps the files and withholds the mutations', () => {
 })
 
 describe('the calendar stays readable and stops offering doomed mutations', () => {
-  const view = () => read('components/calendar/CalendarView.tsx')
+  // The view and the two hooks its handlers moved into (architecture-rules §1, Phase E1 split).
+  const view = () => CALENDAR_VIEW_FILES.map(read).join('\n')
 
   /**
    * Superseded by the calendar read/write decision: the affordances stay live
@@ -1065,7 +1087,7 @@ describe('the calendar stays readable and stops offering doomed mutations', () =
    */
   it('keeps create, drag and resize live, and answers them with the Pro prompt', () => {
     const src = view()
-    expect(src).toContain("<Btn lbl='פגישה חדשה' onClick={() => openNewMeeting()} />")
+    expect(src).toContain("<Btn lbl={t('calendar.page.newMeeting')} onClick={() => openNewMeeting()} />")
     expect(src).toContain('selectable={true}')
     expect(src).toContain('editable={true}')
     expect(src).toContain('if (expired) return promptCreate()')
@@ -1097,11 +1119,13 @@ describe('the calendar stays readable and stops offering doomed mutations', () =
     expect(dlg).toContain("const canRetry = meeting.syncStatus === 'failed'")
     expect(dlg).toContain("const isScheduled = meeting.status === 'scheduled'")
     expect(dlg).toContain('onClick={expired ? promptEdit : onEdit}')
-    expect(dlg).toContain('{formatDateTime(meeting.startAt)}')
+    expect(dlg).toContain('{formatLeadDateTime(locale, meeting.startAt)}')
   })
 
   it('leaves the genuine calendar error copy alone', () => {
-    expect(read('components/calendar/hooks/useMeetingOutcomeActions.ts')).toContain('אירעה שגיאה. נסה שוב.')
+    // The line is a catalog key since Phase E1; its Hebrew is unchanged.
+    expect(read('components/calendar/hooks/useMeetingOutcomeActions.ts')).toContain("toast('error', t('calendar.outcome.unexpected'))")
+    expect(read('lib/i18n/messages/he/calendar/details.ts')).toContain("unexpected: 'אירעה שגיאה. נסה שוב.'")
   })
 })
 
@@ -1162,15 +1186,18 @@ describe('invoice mutations are withheld while the records stay readable', () =>
     const src = read('components/billing/IssueInvoiceBtn.tsx')
     expect(src).toContain('const expired = useAccessDenied()')
     expect(src).toContain("source='invoice_issue'")
-    expect(src).toContain('issueErrorMessage(reason)')
+    // Worded in the interface language since Phase E3 (Hebrew unchanged); same call site.
+    expect(src).toContain('issueErrorMessage(reason, t.locale)')
   })
 
   it('sending is gated inside the modal, so both triggers are covered', () => {
     const src = read('components/billing/SendInvoiceModal.tsx')
     expect(src).toContain('const expired = useAccessDenied()')
     expect(src).toContain("source='invoice_send'")
-    // The real failure copy is untouched.
-    expect(src).toContain('שליחת החשבונית נכשלה')
+    // The real failure copy is untouched — in the catalog since Phase E3, used for the thrown send.
+    expect(read('lib/i18n/messages/he/billing/send.ts')).toContain("failed: 'שליחת החשבונית נכשלה'")
+    expect(src).toContain("failed: 'billing.send.error.failed'")
+    expect(src).toContain("toast('error', t(SEND_ERROR_KEYS.failed))")
   })
 
   it('the new-invoice route locks, because creating is all it does', () => {

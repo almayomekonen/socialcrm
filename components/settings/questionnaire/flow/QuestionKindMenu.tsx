@@ -2,12 +2,13 @@
 
 import { useEffect, useRef } from 'react'
 import type { NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
-const KINDS: Array<{ kind: NewQuestionKind; label: string; hint: string }> = [
-  { kind: 'single_choice', label: 'בחירה של תשובה אחת', hint: 'הלקוח בוחר אחת מהרשימה' },
-  { kind: 'multi_choice', label: 'בחירה של כמה תשובות', hint: 'הלקוח יכול לבחור כמה' },
-  { kind: 'text', label: 'תשובה חופשית', hint: 'הלקוח כותב במילים שלו' },
-]
+const KINDS = [
+  { kind: 'single_choice', label: 'admin.questionnaireFlow.kinds.single.label', hint: 'admin.questionnaireFlow.kinds.single.hint' },
+  { kind: 'multi_choice', label: 'admin.questionnaireFlow.kinds.multi.label', hint: 'admin.questionnaireFlow.kinds.multi.hint' },
+  { kind: 'text', label: 'admin.questionnaireFlow.kinds.text.label', hint: 'admin.questionnaireFlow.kinds.text.hint' },
+] as const satisfies ReadonlyArray<{ kind: NewQuestionKind; label: string; hint: string }>
 
 /**
  * "איך הלקוח יענה?" — the one menu every way of adding a question opens
@@ -31,6 +32,8 @@ export default function QuestionKindMenu({
   className?: string
   style?: React.CSSProperties
 }) {
+  const t = useT()
+  const dir = useRegionAttrs().dir ?? 'rtl'
   const ref = useRef<HTMLDivElement>(null)
   const latest = useRef({ onClose, isInside })
   latest.current = { onClose, isInside }
@@ -57,12 +60,12 @@ export default function QuestionKindMenu({
     <div
       ref={ref}
       role='menu'
-      aria-label='איך הלקוח יענה?'
-      dir='rtl'
+      aria-label={t('admin.questionnaireFlow.kinds.title')}
+      dir={dir}
       style={style}
       className={`z-10 grid w-64 gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg ${className}`}
     >
-      <p className='px-2 pb-1 text-xs text-gray-500'>איך הלקוח יענה?</p>
+      <p className='px-2 pb-1 text-xs text-gray-500'>{t('admin.questionnaireFlow.kinds.title')}</p>
       {KINDS.map((k) => (
         <button
           key={k.kind}
@@ -71,8 +74,8 @@ export default function QuestionKindMenu({
           onClick={() => onPick(k.kind)}
           className='grid rounded-md px-2 py-1.5 text-start hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-primary'
         >
-          <span className='text-sm font-medium text-ink'>{k.label}</span>
-          <span className='text-xs text-gray-500'>{k.hint}</span>
+          <span className='text-sm font-medium text-ink'>{t(k.label)}</span>
+          <span className='text-xs text-gray-500'>{t(k.hint)}</span>
         </button>
       ))}
     </div>

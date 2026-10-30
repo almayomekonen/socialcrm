@@ -5,10 +5,11 @@ import GeneralTable from '@/components/sumSales/GeneralTable'
 import { getTablePref } from '@/db/salesTbl'
 import { getSumBranchesByTeams } from '@/db/sumSales'
 import { isMngr, Roles } from '@/types/roles'
+import { getServerT } from '@/lib/i18n/server'
 
 export default async function TeamsPage({ searchParams }) {
   const user = await getUser()
-  if (!isMngr(user.role)) return <h1 className='title'>אין לך הרשאות לצפייה בסיכום צוותים</h1>
+  if (!isMngr(user.role)) return <h1 className='title'>{(await getServerT(user))('performance.page.teamsDenied')}</h1>
 
   // TODO: remove this - is just for enabling the filters
   user.role = Roles.GM

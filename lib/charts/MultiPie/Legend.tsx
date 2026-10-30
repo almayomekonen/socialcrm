@@ -10,9 +10,25 @@ type LegendProps = {
   onHover: (data: any, e?: any) => void
   hideConfigs: Record<string, HideConfig>
   numPies: number
+  /** Display text for a slice name / pie label (identity by default). */
+  nameLabel?: (name: string) => string
+  pieLabel?: (label: string) => string
 }
 
-export const Legend = ({ isCombined, combinedData, pies, split, onClick, onHover, hideConfigs, numPies }: LegendProps) => {
+const same = (s: string) => s
+
+export const Legend = ({
+  isCombined,
+  combinedData,
+  pies,
+  split,
+  onClick,
+  onHover,
+  hideConfigs,
+  numPies,
+  nameLabel = same,
+  pieLabel = same,
+}: LegendProps) => {
   const trunc = (s: string) => (s.length > 17 ? s.substring(0, 17) + '..' : s)
 
   const ItemRow = ({ name, color, children, onEnter, isClickable }: any) => (
@@ -23,7 +39,7 @@ export const Legend = ({ isCombined, combinedData, pies, split, onClick, onHover
         onClick={() => isClickable && onClick[name]?.()}
       >
         <span className='size-3 rounded-full shrink-0' style={{ backgroundColor: color }} />
-        <div className='font-bold whitespace-nowrap'>{trunc(name)}</div>
+        <div className='font-bold whitespace-nowrap'>{trunc(nameLabel(name))}</div>
       </div>
       <div className='flex flex-nowrap gap-8'>{children}</div>
     </div>
@@ -38,7 +54,7 @@ export const Legend = ({ isCombined, combinedData, pies, split, onClick, onHover
             <div className='flex gap-8'>
               {pies.map((p) => (
                 <div key={p.label} className='w-34 font-bold'>
-                  {p.label}
+                  {pieLabel(p.label)}
                 </div>
               ))}
             </div>
@@ -82,7 +98,7 @@ export const Legend = ({ isCombined, combinedData, pies, split, onClick, onHover
                 onClick={() => onClick[item.name]?.()}
               >
                 <span className='size-3 rounded-full' style={{ backgroundColor: item.color }} />
-                <span className='font-bold'>{trunc(item.name)}</span>
+                <span className='font-bold'>{trunc(nameLabel(item.name))}</span>
               </div>
               <div
                 className='hover:bg-gray-50 p-1 rounded text-right'

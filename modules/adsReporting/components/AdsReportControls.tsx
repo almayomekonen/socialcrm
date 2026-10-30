@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { FormField } from '@/lib/form'
 import { Btn } from '@/lib/btns/Btn'
-import { ADS_RANGE_LABEL, ADS_RANGE_PRESETS } from '@/lib/facebook/ads/dateRange'
+import { ADS_RANGE_PRESETS, adsPresetLabel } from '@/lib/facebook/ads/dateRange'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useAdsSelection } from './AdsReportShell'
 
 const selectCls =
@@ -27,6 +28,7 @@ export default function AdsReportControls({
   /** YYYY-MM-DD from the server — the component never reads the clock. */
   today: string
 }) {
+  const t = useT()
   const { current, select } = useAdsSelection()
   const currentRange = current.range ?? 'last_30d'
   const [preset, setPreset] = useState<string>(currentRange)
@@ -47,7 +49,7 @@ export default function AdsReportControls({
   return (
     <div className='flex flex-wrap items-end gap-3'>
       <div className='w-64 max-w-full'>
-        <FormField lbl='חשבון מודעות' htmlFor='ads-account'>
+        <FormField lbl={t('performance.ads.controls.account')} htmlFor='ads-account'>
           <select
             id='ads-account'
             className={selectCls}
@@ -63,7 +65,7 @@ export default function AdsReportControls({
         </FormField>
       </div>
       <div className='w-48 max-w-full'>
-        <FormField lbl='טווח תאריכים' htmlFor='ads-range'>
+        <FormField lbl={t('performance.ads.controls.range')} htmlFor='ads-range'>
           <select
             id='ads-range'
             className={selectCls}
@@ -75,27 +77,27 @@ export default function AdsReportControls({
           >
             {ADS_RANGE_PRESETS.map((p) => (
               <option key={p} value={p}>
-                {ADS_RANGE_LABEL[p]}
+                {adsPresetLabel(p, t.locale)}
               </option>
             ))}
-            <option value='custom'>{ADS_RANGE_LABEL.custom}</option>
+            <option value='custom'>{adsPresetLabel('custom', t.locale)}</option>
           </select>
         </FormField>
       </div>
       {preset === 'custom' && (
         <>
-          <FormField lbl='מתאריך' htmlFor='ads-since'>
+          <FormField lbl={t('performance.ads.controls.since')} htmlFor='ads-since'>
             <input id='ads-since' type='date' className={selectCls} max={today} value={since} onChange={(e) => setSince(e.target.value)} />
           </FormField>
-          <FormField lbl='עד תאריך' htmlFor='ads-until'>
+          <FormField lbl={t('performance.ads.controls.until')} htmlFor='ads-until'>
             <input id='ads-until' type='date' className={selectCls} max={today} value={until} onChange={(e) => setUntil(e.target.value)} />
           </FormField>
           <Btn
-            lbl='הצג ביצועים'
+            lbl={t('performance.ads.controls.show')}
             size='medium'
             className='w-fit'
             disabled={!customValid}
-            title={customValid ? undefined : 'בחר תאריך התחלה ותאריך סיום'}
+            title={customValid ? undefined : t('performance.ads.controls.needDates')}
             onClick={() => select({ range: 'custom', since, until })}
           />
         </>

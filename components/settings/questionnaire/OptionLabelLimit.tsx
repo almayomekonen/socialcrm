@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { OPTION_LABEL_MAX, WHATSAPP_LIST_ROW_TITLE_MAX, fitsWhatsappList } from '@/lib/inbox/autoresponse/questionnaire/limits'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * An answer's length, said out loud instead of enforced in silence. Shared by
@@ -40,21 +41,22 @@ export default function OptionLabelLimit({
   refused: boolean
   singleChoice: boolean
 }) {
+  const t = useT()
   return (
     <div className='grid gap-0.5'>
       <p id={`${id}-count`} className='text-xs text-gray-500'>
-        <span className='sr-only'>אורך התשובה: </span>
+        <span className='sr-only'>{t('admin.questionnaire.option.lengthSr')}</span>
         <span dir='ltr'>
           {label.length}/{OPTION_LABEL_MAX}
         </span>{' '}
-        תווים
+        {t('admin.questionnaire.option.chars')}
       </p>
       <p id={`${id}-refused`} role='status' className='text-xs text-red-600'>
-        {refused ? `אפשר עד ${OPTION_LABEL_MAX} תווים בתשובה, ולכן הטקסט האחרון לא נוסף. כדי לשנות, קצרו את התשובה.` : ''}
+        {refused ? t('admin.questionnaire.option.refused', { max: String(OPTION_LABEL_MAX) }) : ''}
       </p>
       {singleChoice && !fitsWhatsappList(label) && (
         <p id={`${id}-menu`} className='text-xs text-gray-600'>
-          תשובה ארוכה מ־{WHATSAPP_LIST_ROW_TITLE_MAX} תווים: בוואטסאפ השאלה תישלח כרשימה ממוספרת שהלקוח עונה עליה במספר, ולא ככפתורי בחירה.
+          {t('admin.questionnaire.option.menu', { max: String(WHATSAPP_LIST_ROW_TITLE_MAX) })}
         </p>
       )}
     </div>

@@ -6,6 +6,7 @@ import { useRouter, unstable_rethrow } from 'next/navigation'
 import { linkFacebookAccount } from '@/actions/linkFacebookAccount'
 import { Btn } from '@/lib/btns/Btn'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type FacebookUserLoginSdk = {
   init: (params: { appId: string; cookie?: boolean; xfbml?: boolean; version: string }) => void
@@ -27,6 +28,7 @@ export default function ConnectFacebookAccount({
   facebookAppId: string
   linked: boolean
 }) {
+  const t = useT()
   const router = useRouter()
   const mounted = useRef(true)
   const fbReady = useRef(false)
@@ -71,14 +73,14 @@ export default function ConnectFacebookAccount({
     } catch (error) {
       unstable_rethrow(error)
       console.error('[AUTH] route=facebook_link client_error', error)
-      if (mounted.current) toast('error', 'ההתחברות נכשלה, נסה שוב')
+      if (mounted.current) toast('error', t('settings.account.security.facebook.failed'))
     }
   }
 
   function onFacebookClick() {
     const fb = facebookUserLoginSdk()
     if (!fbReady.current || !fb) {
-      toast('error', 'ההתחברות נכשלה, נסה שוב')
+      toast('error', t('settings.account.security.facebook.failed'))
       return
     }
 
@@ -93,14 +95,14 @@ export default function ConnectFacebookAccount({
   return (
     <div>
       <p className='text-sm text-gray-600 leading-relaxed'>
-        חברו את חשבון Facebook לחשבון הקיים. לאחר החיבור אפשר להתחבר עם Facebook.
+        {t('settings.account.security.facebook.intro')}
       </p>
       {linked ? (
-        <p className='mt-4 text-sm text-gray-600'>חשבון Facebook מחובר</p>
+        <p className='mt-4 text-sm text-gray-600'>{t('settings.account.security.facebook.linked')}</p>
       ) : (
         <>
           <Script src='https://connect.facebook.net/he_IL/sdk.js' onLoad={initFacebook} strategy='lazyOnload' />
-          <Btn type='button' lbl='חיבור Facebook' className='w-full mt-4' onClick={onFacebookClick} />
+          <Btn type='button' lbl={t('settings.account.security.facebook.connect')} className='w-full mt-4' onClick={onFacebookClick} />
         </>
       )}
     </div>

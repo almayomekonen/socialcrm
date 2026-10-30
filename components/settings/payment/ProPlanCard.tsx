@@ -4,7 +4,10 @@ import type { SubscriptionView } from '@/lib/quota/subscription'
 import ManagePlanLauncher, { type SubscriptionClientView } from './ManagePlanLauncher'
 import PaymentMethodRow from './PaymentMethodRow'
 import PlanIncludesDisclosure from './PlanIncludesDisclosure'
-import { daysUntil, formatRenewalDate, relativeDaysLabel } from './subscriptionDates'
+import { daysUntil, formatRenewalDate, relativeDaysLabelFor } from './subscriptionDates'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+
 
 /**
  * The billing centre's subscription card. Server Component.
@@ -35,6 +38,7 @@ import { daysUntil, formatRenewalDate, relativeDaysLabel } from './subscriptionD
 export default function ProPlanCard({
   subscription,
   hasAccess = true,
+  locale = 'he',
 }: {
   subscription: SubscriptionView
   /**
@@ -45,7 +49,10 @@ export default function ProPlanCard({
    * refused. The one screen that must tell the truth was the one that didn't.
    */
   hasAccess?: boolean
+  /** Interface language (default Hebrew); amounts stay as they are. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const expired = !hasAccess
   const cancelling = !expired && subscription.status === 'cancelling'
   const annual = subscription.billingPeriod === 'annual'
@@ -53,9 +60,9 @@ export default function ProPlanCard({
      Naming a price here would invent a charge that will never be made. */
   const granted = subscription.source === 'grant'
 
-  const dateLabel = expired ? 'המנוי הסתיים ב' : cancelling ? 'גישה ל־Pro עד' : 'החידוש הבא'
-  const periodLabel = annual ? 'שנתית' : 'חודשית'
-  const priceLabel = annual ? `₪${PRICING.annual} לשנה` : `₪${PRICING.monthly} לחודש`
+  const dateLabel = expired ? t('settings.payment.plan.endedOn') : cancelling ? t('settings.payment.plan.accessUntil') : t('settings.payment.plan.nextRenewal')
+  const periodLabel = annual ? t('settings.payment.plan.annual') : t('settings.payment.plan.monthly')
+  const priceLabel = annual ? t('settings.payment.plan.pricePerYear', { amount: `₪${PRICING.annual}` }) : t('settings.payment.plan.pricePerMonth', { amount: `₪${PRICING.monthly}` })
 
 
   const clientView: SubscriptionClientView = {
@@ -71,26 +78,26 @@ export default function ProPlanCard({
       <div className='flex items-start justify-between gap-8 p-6 mobile:flex-col mobile:gap-6'>
         <div className='flex flex-col gap-3'>
           <div className='flex items-center gap-3'>
-            <p className='text-lg font-semibold'>מסלול נוכחי: Pro</p>
-            <StatusBadge cancelling={cancelling} expired={expired} />
+            <p className='text-lg font-semibold'>{t('settings.payment.plan.current')}</p>
+            <StatusBadge cancelling={cancelling} expired={expired} locale={locale} />
           </div>
 
           <div className='flex flex-col gap-2'>
             <p className='text-sm text-gray-500'>
-              {granted ? 'גישה מלאה ל־Pro · ללא חיוב ובלי תאריך סיום' : `תקופת חיוב: ${periodLabel} · ${priceLabel}`}
+              {granted ? t('settings.payment.plan.grant') : t('settings.payment.plan.period', { period: periodLabel, price: priceLabel })}
             </p>
 
             {subscription.expiresAt && (
               <div className='flex items-center gap-2 text-sm text-gray-700'>
                 <Icon name='calendar' type='reg' className='size-4 shrink-0 bg-gray-400' />
                 <span>
-                  {dateLabel}: {formatRenewalDate(subscription.expiresAt)}
-                  <span className='text-gray-500'> · {relativeDaysLabel(daysUntil(subscription.expiresAt))}</span>
+                  {dateLabel}: {formatRenewalDate(subscription.expiresAt, {}, locale)}
+                  <span className='text-gray-500'> · {relativeDaysLabelFor(daysUntil(subscription.expiresAt), locale)}</span>
                 </span>
               </div>
             )}
 
-            <PlanIncludesDisclosure />
+            <PlanIncludesDisclosure locale={locale} />
           </div>
         </div>
 
@@ -104,18 +111,19 @@ export default function ProPlanCard({
         )}
       </div>
 
-      <PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} />
+      <PaymentMethodRow state={granted ? 'granted' : expired ? 'expired' : cancelling ? 'cancelling' : 'renewing'} locale={locale} />
     </div>
   )
 }
 
 /** Status carries a text label, never colour alone. */
-function StatusBadge({ cancelling, expired = false }: { cancelling: boolean; expired?: boolean }) {
+function StatusBadge({ cancelling, expired = false, locale }: { cancelling: boolean; expired?: boolean; locale: UiLocale }) {
+  const t = translatorFor(locale)
   if (expired) {
     return (
       <span className='inline-flex items-center gap-2 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700'>
         <span aria-hidden='true' className='size-1.5 rounded-full bg-red-600' />
-        המנוי הסתיים
+        {t('settings.payment.plan.badge.expired')}
       </span>
     )
   }
@@ -128,14 +136,14 @@ function StatusBadge({ cancelling, expired = false }: { cancelling: boolean; exp
     return (
       <span className='inline-flex items-center gap-2 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800'>
         <span aria-hidden='true' className='size-1.5 rounded-full bg-amber-500' />
-        בקשת הביטול נקלטה
+        {t('settings.payment.plan.badge.cancelling')}
       </span>
     )
   }
   return (
     <span className='inline-flex items-center gap-2 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700'>
       <span aria-hidden='true' className='size-1.5 rounded-full bg-green-600' />
-      מנוי פעיל
+      {t('settings.payment.plan.badge.active')}
     </span>
   )
 }

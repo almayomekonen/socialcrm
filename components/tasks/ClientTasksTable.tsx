@@ -71,7 +71,7 @@ export default function ClientTasksTable({ props }: SaleTableProps) {
     state,
     setState,
     funcs: {
-      isDatePassed: (_, obj) => dueDateCell(obj, locale),
+      isDatePassed: (_, obj) => taskDueDateCell(obj, locale),
       formatTitle,
       formatDate: (value) => (value ? formatLeadDate(locale, value) : ''),
       formatTaskStatus: (value) => taskStatusLabel(value, locale),
@@ -135,12 +135,12 @@ function taskColumnLabel(key: string, locale: UiLocale): string | null {
   return k ? translatorFor(locale)(k) : null
 }
 
-/** Shared with the global /tasks table, which is not translated yet (Hebrew dates). */
-export function isDatePassed(_, obj) {
-  return dueDateCell(obj, 'he')
-}
-
-function dueDateCell(obj, locale: UiLocale) {
+/**
+ * Due-date cell, shared with the global /tasks table. The overdue flag is
+ * still derived on the client (`setHours`) — pre-existing architecture-rules
+ * §11 issue, unchanged here. Hebrew keeps the legacy `formatDate`.
+ */
+export function taskDueDateCell(obj, locale: UiLocale) {
   const today = new Date().setHours(0, 0, 0, 0)
   const dueDate = new Date(obj.dueDate).setHours(0, 0, 0, 0)
   const isOver = dueDate < today && !obj.completed

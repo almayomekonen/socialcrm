@@ -71,6 +71,9 @@ const CANCELLING_ROW: SubscriptionClientView = {
  * The exact wording that asserted a provider outcome. Any surface reintroducing
  * one of these is claiming something the system still cannot observe.
  */
+/** The billing copy these surfaces render, moved into the catalog in Phase E4 (the components now reference its keys). */
+const PAYMENT_COPY = 'lib/i18n/messages/he/settings/payment.ts'
+
 const PROVIDER_CLAIMS = ['המנוי בוטל', 'לא יתחדש', 'לא ייגבה חיוב נוסף']
 
 function renderCancelling() {
@@ -91,7 +94,9 @@ describe('no surface reports the cancellation as completed', () => {
   })
 
   it('the plan card badge records the request instead of asserting "בוטל"', () => {
-    const card = readRendered('components/settings/payment/ProPlanCard.tsx')
+    expect(readRendered('components/settings/payment/ProPlanCard.tsx')).toContain("t('settings.payment.plan.badge.cancelling')")
+    expect(readRendered('components/settings/payment/ProPlanCard.tsx')).toContain("t('settings.payment.plan.badge.expired')")
+    const card = readRendered('components/settings/payment/ProPlanCard.tsx') + readRendered(PAYMENT_COPY)
     expect(card).toContain('בקשת הביטול נקלטה')
     // 'המנוי הסתיים' (the expired badge) is a different, verified fact and stays.
     expect(card).toContain('המנוי הסתיים')
@@ -106,7 +111,9 @@ describe('no surface reports the cancellation as completed', () => {
   })
 
   it('the confirm step describes recording a request, not stopping billing', () => {
-    const modal = readRendered('components/settings/payment/ManagePlanModal.tsx')
+    // The confirm view (split from ManagePlanModal in Phase E4) renders `manage.confirmBody` from the catalog.
+    expect(readRendered('components/settings/payment/ManagePlanBodies.tsx')).toContain("t('settings.payment.manage.confirmBody'")
+    const modal = readRendered('components/settings/payment/ManagePlanBodies.tsx') + readRendered(PAYMENT_COPY)
     expect(modal).toContain('בקשת הביטול תירשם')
     expect(modal).not.toContain('המנוי לא יתחדש')
   })
@@ -114,8 +121,10 @@ describe('no surface reports the cancellation as completed', () => {
   it('none of the three surfaces carries any provider claim', () => {
     const sources = [
       'components/settings/payment/ManagePlanModal.tsx',
+      'components/settings/payment/ManagePlanBodies.tsx',
       'components/settings/payment/ProPlanCard.tsx',
       'components/settings/payment/PaymentMethodRow.tsx',
+      PAYMENT_COPY,
     ]
     for (const file of sources) {
       const src = readRendered(file)
@@ -133,7 +142,9 @@ describe('the paid-access facts are untouched', () => {
   })
 
   it('keeps the renewing and expired copy verbatim', () => {
-    const row = read('components/settings/payment/PaymentMethodRow.tsx')
+    expect(read('components/settings/payment/PaymentMethodRow.tsx')).toContain("renewing: 'settings.payment.row.renewing'")
+    expect(read('components/settings/payment/PaymentMethodRow.tsx')).toContain("expired: 'settings.payment.row.expired'")
+    const row = read('components/settings/payment/PaymentMethodRow.tsx') + read(PAYMENT_COPY)
     expect(row).toContain('החיוב הבא ייגבה מהכרטיס ששימש לתשלום האחרון')
     expect(row).toContain('חידוש המנוי יחייב את הכרטיס ששימש לתשלום האחרון')
   })

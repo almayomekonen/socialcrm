@@ -7,6 +7,7 @@ import type { ConfirmRequest } from './builderCopy'
 import EditorColumn from './EditorColumn'
 import { addPhrasing } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import QuestionnaireSimulator from './QuestionnaireSimulator'
+import { useT } from '@/lib/i18n/I18nProvider'
 import WhatsAppPreview, { type PreviewFocus } from './WhatsAppPreview'
 
 type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
@@ -53,6 +54,7 @@ export default function ConversationWorkspace({
   /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
   allowAllEnabled?: boolean
 }) {
+  const t = useT()
   const [focus, setFocus] = useState<PreviewFocus>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   return (
@@ -75,6 +77,7 @@ export default function ConversationWorkspace({
           <QuestionnaireSimulator model={model} target={{ draftId }} prepare={flush} onClose={stopTesting} onNotReady={onNotReady}
               onTeach={(t) => edit((m) => addPhrasing(m, t.questionId, t.optionId, t.phrase))}
               autoFocus
+              translated
             />
         ) : (
           <div className='hidden desktop:block'>
@@ -84,7 +87,7 @@ export default function ConversationWorkspace({
               onClick={() => setPreviewOpen((o) => !o)}
               className='mb-3 text-sm font-medium text-ink underline underline-offset-2 min-[1200px]:hidden'
             >
-              {previewOpen ? 'הסתרת מה הלקוח יקבל' : 'מה הלקוח יקבל? הצגת ההודעות'}
+              {previewOpen ? t('admin.questionnaire.preview.hide') : t('admin.questionnaire.preview.show')}
             </button>
             <div className={previewOpen ? '' : 'hidden min-[1200px]:block'}>
               <WhatsAppPreview model={model} view={view} focus={focus} />

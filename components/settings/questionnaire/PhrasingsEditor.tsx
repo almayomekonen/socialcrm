@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * "איך עוד לקוחות עשויים לכתוב את זה?" — the words a customer may use instead
@@ -24,8 +25,11 @@ export default function PhrasingsEditor({
   summaryLabel?: string
 }) {
   const id = useId()
+  const t = useT()
   const [text, setText] = useState('')
-  const name = optionLabel.trim() || 'האפשרות'
+  const name = optionLabel.trim() || t('admin.questionnaire.phrasings.unnamed')
+  // The Hebrew sentence names an unnamed option (or one literally called so) "האפשרות הזו".
+  const unnamed = name === t('admin.questionnaire.phrasings.unnamed')
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   // After × the cursor stays here: on the phrase that took the removed one's
@@ -55,15 +59,15 @@ export default function PhrasingsEditor({
   return (
     <details className='group'>
       <summary className='cursor-pointer text-xs text-gray-600 underline-offset-2 hover:underline'>
-        {summaryLabel ?? 'איך עוד לקוחות עשויים לכתוב את זה?'}
+        {summaryLabel ?? t('admin.questionnaire.phrasings.summary')}
         {phrasings.length > 0 && <span className='text-gray-500'> ({phrasings.length})</span>}
       </summary>
       <div className='mt-2 grid gap-2 ps-1'>
         <p className='text-xs text-gray-500'>
-          ניסוחים שהמערכת תזהה כבחירה ב{name === 'האפשרות' ? 'אפשרות הזו' : `"${name}"`}, גם בלי מספר. הם לא נשלחים ללקוח.
+          {unnamed ? t('admin.questionnaire.phrasings.helpThis') : t('admin.questionnaire.phrasings.helpNamed', { name })}
         </p>
         {phrasings.length > 0 && (
-          <ul ref={listRef} className='flex flex-wrap gap-1.5' aria-label={`ניסוחים עבור ${name}`}>
+          <ul ref={listRef} className='flex flex-wrap gap-1.5' aria-label={t('admin.questionnaire.phrasings.list', { name })}>
             {phrasings.map((p, i) => (
               <li
                 key={p}
@@ -73,7 +77,7 @@ export default function PhrasingsEditor({
                 <button
                   type='button'
                   onClick={() => remove(i)}
-                  aria-label={`הסרת הניסוח ${p}`}
+                  aria-label={t('admin.questionnaire.phrasings.remove', { phrase: p })}
                   className='flex size-6 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-primary'
                 >
                   ×
@@ -84,7 +88,7 @@ export default function PhrasingsEditor({
         )}
         <div className='flex items-center gap-2'>
           <label htmlFor={`${id}-new`} className='sr-only'>
-            ניסוח נוסף עבור {name}
+            {t('admin.questionnaire.phrasings.newLabel', { name })}
           </label>
           <input
             ref={inputRef}
@@ -98,10 +102,10 @@ export default function PhrasingsEditor({
                 add()
               }
             }}
-            placeholder='למשל: אנחנו מתחתנים'
+            placeholder={t('admin.questionnaire.phrasings.newPlaceholder')}
             className='h-9 min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-2 focus:outline-primary'
           />
-          <Btn type='button' size='small' variant='outline' lbl='הוספת ניסוח' onClick={add} disabled={!text.trim()} />
+          <Btn type='button' size='small' variant='outline' lbl={t('admin.questionnaire.phrasings.add')} onClick={add} disabled={!text.trim()} />
         </div>
       </div>
     </details>

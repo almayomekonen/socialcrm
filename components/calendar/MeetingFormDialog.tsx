@@ -11,8 +11,9 @@ import { Btn } from '@/lib/btns/Btn'
 import Icon from '@/lib/Icon'
 import { FormField, Input } from '@/lib/form'
 import { toast } from '@/lib/toast'
-import { formatDateTime } from '@/lib/dates'
 import { createMeeting } from '@/actions/calendar'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { ERROR_KEYS, defaultEndDate, defaultStartDate, toLocalInput } from './meetingFormDefaults'
 import AttendeeChipsInput from './AttendeeChipsInput'
 import SyncStatusBadge from './SyncStatusBadge'
 
@@ -30,32 +31,6 @@ type Props = {
 const browserTimezone =
   typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC'
 
-function toLocalInput(d: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function defaultStartDate(): Date {
-  const t = new Date()
-  t.setMinutes(0, 0, 0)
-  t.setHours(t.getHours() + 1)
-  return t
-}
-
-function defaultEndDate(start: Date): Date {
-  const t = new Date(start)
-  t.setHours(t.getHours() + 1)
-  return t
-}
-
-const ERROR_LABELS: Record<string, string> = {
-  invalid_input: 'הקלט אינו תקין. בדוק את השדות.',
-  lead_not_found: 'הליד לא נמצא.',
-  not_found: 'הפגישה לא נמצאה.',
-  not_owner: 'אינך מורשה לפעולה זו.',
-  already_synced: 'הפגישה כבר סונכרנה.',
-}
-
 export default function MeetingFormDialog({
   open,
   onClose,
@@ -64,6 +39,7 @@ export default function MeetingFormDialog({
   defaultEnd,
 }: Props) {
   const router = useRouter()
+  const t = useT()
   const [busy, setBusy] = useState(false)
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [attendees, setAttendees] = useState<string[]>([])
@@ -110,7 +86,7 @@ export default function MeetingFormDialog({
       const lead = await getLeadById(pickedLeadId)
       if (cancelled || !lead) return
       const name = [lead.firstName, lead.lastName].filter(Boolean).join(' ').trim()
-      setPickedLeadName(name || `ליד #${pickedLeadId}`)
+      setPickedLeadName(name || t('calendar.form.leadFallback', { id: String(pickedLeadId) }))
     })()
     return () => {
       cancelled = true
@@ -127,22 +103,22 @@ export default function MeetingFormDialog({
     const startInput = String(data.get('startAt') ?? '')
     const endInput = String(data.get('endAt') ?? '')
 
-    if (!title) return setErrMsg('יש להזין כותרת לפגישה')
+    if (!title) return setErrMsg(t('calendar.form.invalid.noTitle'))
 
     const startAt = new Date(startInput)
     const endAt = new Date(endInput)
     if (!Number.isFinite(startAt.getTime()) || !Number.isFinite(endAt.getTime())) {
-      return setErrMsg('יש להזין תאריך ושעה תקינים')
+      return setErrMsg(t('calendar.form.invalid.badDate'))
     }
     if (endAt.getTime() <= startAt.getTime()) {
-      return setErrMsg('שעת הסיום חייבת להיות אחרי שעת ההתחלה')
+      return setErrMsg(t('calendar.form.invalid.endBeforeStart'))
     }
     // Block past-start creation. Today's calendar query shows past-today
     // meetings (see app/(app)/calendar/page.tsx), but knowingly creating a
     // meeting in the past is almost always a fumbled time entry. Mirrors
     // the drag-to-past guard in CalendarView.tsx.
     if (startAt.getTime() < Date.now()) {
-      return setErrMsg('לא ניתן ליצור פגישה בתאריך שעבר')
+      return setErrMsg(t('calendar.form.invalid.pastCreate'))
     }
 
     setBusy(true)
@@ -171,10 +147,10 @@ export default function MeetingFormDialog({
         return
       }
 
-      setErrMsg(ERROR_LABELS[result.reason] ?? 'יצירת הפגישה נכשלה')
+      setErrMsg(t(ERROR_KEYS[result.reason] ?? 'calendar.form.createError.generic'))
     } catch (err) {
       console.warn('[MeetingFormDialog] submit error', err)
-      setErrMsg('אירעה שגיאה. נסה שוב.')
+      setErrMsg(t('calendar.form.unexpected'))
     } finally {
       setBusy(false)
     }
@@ -189,17 +165,17 @@ export default function MeetingFormDialog({
   const end = defaultEnd ?? defaultEndDate(start)
 
   return (
-    <ModalPop open={open} onClose={handleClose} label='פגישה חדשה' pos='middle' className='w-[480px] max-w-[95vw]'>
+    <ModalPop open={open} onClose={handleClose} label={t('calendar.form.newTitle')} pos='middle' className='w-[480px] max-w-[95vw]' translated>
       {success ? (
         <SuccessView data={success} onClose={handleClose} />
       ) : (
         <form onSubmit={onSubmit} className='grid gap-4 pt-2'>
-          <h2 className='text-xl font-bold'>פגישה חדשה</h2>
+          <h2 className='text-xl font-bold'>{t('calendar.form.newTitle')}</h2>
 
           <Input
             name='title'
-            lbl='כותרת'
-            placeholder='לדוגמה: שיחת תיאום'
+            lbl={t('calendar.form.titleLabel')}
+            placeholder={t('calendar.form.titlePlaceholder')}
             autoFocus
             disabled={busy}
           />
@@ -208,23 +184,25 @@ export default function MeetingFormDialog({
             <Input
               name='startAt'
               type='datetime-local'
-              lbl='התחלה'
+              lbl={t('calendar.form.start')}
               defaultValue={toLocalInput(start)}
               disabled={busy}
             />
             <Input
               name='endAt'
               type='datetime-local'
-              lbl='סיום'
+              lbl={t('calendar.form.end')}
               defaultValue={toLocalInput(end)}
               disabled={busy}
             />
           </div>
 
-          <FormField lbl='ליד' info='הפגישה תקושר לליד הזה'>
+          <FormField lbl={t('calendar.form.lead')} info={t('calendar.form.leadInfo')}>
+            {/* The picker's panel is shared with billing and stays Hebrew; its
+                trigger shows our placeholder (Hebrew: the picker's own default). */}
             <LeadPicker
               currentLeadId={pickedLeadId ?? 0}
-              currentLeadName={pickedLeadName}
+              currentLeadName={pickedLeadName || t('calendar.form.leadPlaceholder')}
               recentLeads={recentLeads}
               onPick={(id) => setPickedLeadId(id)}
               onCreateNew={() => router.push('/clients?new=1')}
@@ -236,22 +214,22 @@ export default function MeetingFormDialog({
                reminder that never arrived. A meeting with no lead is a valid
                meeting — it just cannot carry automations. */
             <p className='text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 leading-relaxed'>
-              לא נבחר ליד — אוטומציות פגישה (כמו תזכורת לפני הפגישה) לא יפעלו עבור הפגישה הזו.
+              {t('calendar.form.noLead')}
             </p>
           )}
 
           <AttendeeChipsInput
             value={attendees}
             onChange={setAttendees}
-            lbl='משתתפים'
-            placeholder='הוסף אימייל ולחץ Enter'
+            lbl={t('calendar.form.attendees')}
+            placeholder={t('calendar.form.attendeesPlaceholder')}
             disabled={busy}
           />
 
           <p className='text-xs text-gray-500 leading-relaxed -mt-2'>
-            Google תשלח הזמנות וקישור Google Meet אוטומטית לכל המשתתפים.
+            {t('calendar.form.googleInvites')}
             <br />
-            אזור זמן: {browserTimezone}
+            {t('calendar.form.timezone', { zone: browserTimezone })}
           </p>
 
           {errMsg && (
@@ -261,8 +239,8 @@ export default function MeetingFormDialog({
           )}
 
           <div className='flex justify-end gap-2'>
-            <Btn lbl='ביטול' variant='outline' type='button' onClick={handleClose} disabled={busy} />
-            <Btn lbl={busy ? 'יוצר…' : 'צור פגישה'} type='submit' disabled={busy} />
+            <Btn lbl={t('calendar.form.cancel')} variant='outline' type='button' onClick={handleClose} disabled={busy} />
+            <Btn lbl={busy ? t('calendar.form.creating') : t('calendar.form.create')} type='submit' disabled={busy} />
           </div>
         </form>
       )}

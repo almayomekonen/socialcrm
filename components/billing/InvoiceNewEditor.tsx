@@ -4,38 +4,30 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/funcs'
 import { toast } from '@/lib/toast'
-import ConfirmPop from '@/lib/modals/ConfirmPop'
-import ModalPop from '@/lib/modals/ModalPop'
-import ClientFormPop from '@/components/clients/ClientFormPop'
 import type { BillBillingProfileRow } from '@/db/billing/profiles'
 import type { DocumentKind } from '@/db/billing/invoices'
 import type { PaymentMethod } from '@/lib/billing/payment/methods'
-import { computeLineTotals, computeInvoiceLegalTotals } from '@/lib/billing/totals'
-import { saveTransientDraftAction, type TransientLineInput } from '@/actions/billing/drafts'
+import { computeInvoiceLegalTotals } from '@/lib/billing/totals'
+import { issueReadiness } from '@/lib/billing/issueReadiness'
+import { ISSUE_BLOCKER_KEYS } from './issue/issueBlockerMessages'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import { saveTransientDraftAction } from '@/actions/billing/drafts'
+import { buildTransientPayload } from '@/lib/billing/transientPayload'
 import { saveAndIssueTransientAction } from '@/actions/billing/issue'
 import { issueErrorMessage } from '@/lib/billing/issueErrorMessages'
 import PaymentSection from './payment/PaymentSection'
 import { markInvoiceJustIssued } from '@/lib/billing/justIssuedFlag'
-import IssuerIdentityModal from '@/components/billing/issuer/IssuerIdentityModal'
-import IssuerSetupRequiredModal from '@/components/billing/issuer/IssuerSetupRequiredModal'
 import { useTransientDraftAutosave } from '@/hooks/useTransientDraftAutosave'
 import { useIssueFlow } from '@/hooks/useIssueFlow'
-import InvoiceLinesEditor, { type EditableLine, type LineFormPayload } from './InvoiceLinesEditor'
+import { useTransientLines } from '@/hooks/useTransientLines'
 import type { RecentLead } from './lead-picker/types'
 import InvoicePageHeader from './issue/InvoicePageHeader'
 import RecipientCard from './issue/RecipientCard'
 import InvoiceMetadataDetails from './issue/InvoiceMetadataDetails'
 import InvoiceTotalsSummary from './issue/InvoiceTotalsSummary'
 import InvoiceActionBar from './issue/InvoiceActionBar'
-import { cardCls, sectionHeaderCls, eyebrowCls } from './issue/styles'
-
-type TransientLine = EditableLine
-
-type TransientMeta = {
-  dueAt: string | null
-  customerFooter: string
-  internalNotes: string
-}
+import NewInvoiceLinesCard from './issue/NewInvoiceLinesCard'
+import NewInvoiceDialogs from './issue/NewInvoiceDialogs'
 
 export default function InvoiceNewEditor({
   userId,
@@ -56,10 +48,12 @@ export default function InvoiceNewEditor({
   recentLeads?: RecentLead[]
   initialKind?: DocumentKind
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const router = useRouter()
 
   // ── Local state ─────────────────────────────────────────────────
-  const [lines, setLines] = useState<TransientLine[]>([])
+  const { lines, setLines, onAddLine, onUpdateLine, onRemoveLine } = useTransientLines(defaultTaxRatePercent)
   const [dueAt, setDueAt] = useState('')
   const [customerFooter, setCustomerFooter] = useState('')
   const [internalNotes, setInternalNotes] = useState('')
@@ -113,83 +107,39 @@ export default function InvoiceNewEditor({
   // Default payment amount to the running total whenever it's still null.
   // Keeps the field editable but pre-filled the moment lines produce a total.
   const effectivePaymentAmount = paymentAmount ?? (totals.total > 0 ? totals.total : null)
-  const paymentComplete =
-    !isCombinedDoc ||
-    (paymentMethod !== '' &&
-      effectivePaymentAmount != null &&
-      effectivePaymentAmount > 0 &&
-      effectivePaymentAmount <= totals.total + 0.0001 &&
-      paymentDate.length > 0)
   const canSaveDraft = hasLines
-  const saveDisabledReason = !hasLines ? 'יש להוסיף לפחות פריט אחד לפני שמירה' : undefined
-  const canIssueNow = canIssue && hasLines && totals.total > 0 && paymentComplete
-  const issueDisabledReason = !canIssue
-    ? 'אין הרשאה להנפיק'
-    : !hasLines
-      ? 'יש להוסיף לפחות פריט אחד'
-      : totals.total <= 0
-        ? 'סכום החשבונית חייב להיות גדול מאפס'
-        : !paymentComplete
-          ? 'יש למלא את פרטי התשלום שהתקבל'
-          : undefined
-
-  // ── Line management ─────────────────────────────────────────────
-  function applyComputed(line: Omit<TransientLine, 'lineSubtotal' | 'lineTaxAmount' | 'lineTotal'>): TransientLine {
-    const computed = computeLineTotals(line.quantity, line.unitPrice, line.discount, defaultTaxRatePercent)
-    return { ...line, lineSubtotal: computed.subtotal, lineTaxAmount: computed.tax, lineTotal: computed.total }
-  }
-
-  function onAddLine(payload: LineFormPayload): void {
-    setLines((prev) => [
-      ...prev,
-      applyComputed({
-        id: -Date.now() - prev.length,
-        title: payload.title,
-        description: payload.description,
-        quantity: payload.quantity,
-        unitPrice: payload.unitPrice,
-        discount: payload.discount,
-      }),
-    ])
-  }
-
-  function onUpdateLine(lineId: number, payload: LineFormPayload): void {
-    setLines((prev) =>
-      prev.map((line) => (line.id === lineId ? applyComputed({ id: line.id, ...payload }) : line)),
-    )
-  }
-
-  function onRemoveLine(lineId: number): void {
-    setLines((prev) => prev.filter((line) => line.id !== lineId))
-  }
+  const saveDisabledReason = !hasLines ? t('billing.editor.blocker.noLinesToSave') : undefined
+  const { canIssueNow, blocker } = issueReadiness({
+    canIssue,
+    hasLines,
+    total: totals.total,
+    isCombinedDoc,
+    paymentMethod,
+    paymentAmount: effectivePaymentAmount,
+    paymentDate,
+  })
+  const issueDisabledReason = blocker ? t(ISSUE_BLOCKER_KEYS[blocker]) : undefined
 
   // ── Server-action wiring ────────────────────────────────────────
   function buildPayload() {
-    return {
+    return buildTransientPayload({
       leadId,
-      meta: { dueAt: dueAt || null, customerFooter, internalNotes },
-      lines: lines.map((line) => ({
-        title: line.title,
-        description: line.description,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice,
-        discount: line.discount,
-      })) as TransientLineInput[],
+      dueAt,
+      customerFooter,
+      internalNotes,
+      lines,
       kind,
-      payment: isCombinedDoc
-        ? {
-            method: (paymentMethod || null) as PaymentMethod | null,
-            amount: effectivePaymentAmount,
-            date: paymentDate || null,
-          }
-        : undefined,
-    }
+      isCombinedDoc,
+      paymentMethod,
+      paymentAmount: effectivePaymentAmount,
+      paymentDate,
+    })
   }
 
   async function onSaveDraft() {
     if (busy) return
     setBusy(true)
-    const result = await api(saveTransientDraftAction, [buildPayload()], 'הטיוטה נשמרה', 'שמירת הטיוטה נכשלה')
+    const result = await api(saveTransientDraftAction, [buildPayload()], t('billing.editor.toast.draftSaved'), t('billing.editor.toast.draftSaveFailed'))
     setBusy(false)
     if (result && 'success' in result && result.success) {
       clearStoredDraft()
@@ -203,8 +153,8 @@ export default function InvoiceNewEditor({
     const result = await api(
       saveAndIssueTransientAction,
       [buildPayload()],
-      'החשבונית הונפקה',
-      'הנפקת החשבונית נכשלה',
+      t('billing.editor.toast.issued'),
+      t('billing.editor.toast.issueFailed'),
       { silentSuccess: true },
     )
     setBusy(false)
@@ -223,12 +173,12 @@ export default function InvoiceNewEditor({
     // NOT navigate away — the prior "redirect to draft editor with no
     // message" behavior hid the failure entirely.
     const reason = 'reason' in result ? (result as { reason?: string }).reason : undefined
-    toast('error', issueErrorMessage(reason))
+    toast('error', issueErrorMessage(reason, t.locale))
   }
 
   // ── Render ──────────────────────────────────────────────────────
   return (
-    <div className='grid gap-6 pt-6 pb-28'>
+    <div className='grid gap-6 pt-6 pb-28' {...region}>
       <InvoicePageHeader leadName={leadName} kind={kind} />
 
       <RecipientCard
@@ -240,18 +190,7 @@ export default function InvoiceNewEditor({
         onCreateNewLead={() => setNewLeadOpen(true)}
       />
 
-      <section className={cardCls}>
-        <div className={sectionHeaderCls + ' flex items-baseline justify-between gap-3'}>
-          <h2 className={eyebrowCls}>פריטים</h2>
-          <p className='text-sm text-gray-400'>טאב למעבר בין שדות · Enter לשמירה</p>
-        </div>
-        <InvoiceLinesEditor lines={lines} onAdd={onAddLine} onUpdate={onUpdateLine} onRemove={onRemoveLine} />
-        {!hasLines && (
-          <p className='px-6 pb-5 -mt-1 text-sm text-gray-500'>
-            התחילו בהקלדת שם פריט בשורת ה"+ פריט חדש" למעלה
-          </p>
-        )}
-      </section>
+      <NewInvoiceLinesCard lines={lines} onAdd={onAddLine} onUpdate={onUpdateLine} onRemove={onRemoveLine} />
 
       {isCombinedDoc && (
         <PaymentSection
@@ -289,33 +228,18 @@ export default function InvoiceNewEditor({
         onIssueClick={issueFlow.startIssueFlow}
       />
 
-      <ConfirmPop
-        open={issueFlow.stage.kind === 'confirm'}
-        onClose={() => (busy ? null : issueFlow.close())}
-        onConfirm={onSaveAndIssue}
-        confirmLbl='הנפק חשבונית'
-        msg={'החשבונית תקבל מספר ותיסגר לעריכה.\nאם צריך לתקן משהו בהמשך, אפשר לבטל ולהנפיק חשבונית חדשה.'}
-      />
-
-      <ModalPop open={newLeadOpen} pos='middle' onClose={() => setNewLeadOpen(false)} label='ליד חדש'>
-        <ClientFormPop
-          onCreated={(newLeadId) => {
-            setNewLeadOpen(false)
-            router.push(`/clients/${newLeadId}/billing/new` as any)
-          }}
-          onClose={() => setNewLeadOpen(false)}
-        />
-      </ModalPop>
-
-      <IssuerIdentityModal
-        open={issueFlow.stage.kind === 'identity'}
-        initialValues={issueFlow.stage.kind === 'identity' ? issueFlow.stage.initialValues : {}}
-        onSavedAndContinue={issueFlow.onIdentitySaved}
-        onCancel={issueFlow.close}
-      />
-      <IssuerSetupRequiredModal
-        open={issueFlow.stage.kind === 'setup_required'}
-        onClose={issueFlow.close}
+      <NewInvoiceDialogs
+        stage={issueFlow.stage}
+        busy={busy}
+        newLeadOpen={newLeadOpen}
+        onCloseIssueFlow={issueFlow.close}
+        onConfirmIssue={onSaveAndIssue}
+        onIdentitySaved={issueFlow.onIdentitySaved}
+        onCloseNewLead={() => setNewLeadOpen(false)}
+        onLeadCreated={(newLeadId) => {
+          setNewLeadOpen(false)
+          router.push(`/clients/${newLeadId}/billing/new` as any)
+        }}
       />
     </div>
   )

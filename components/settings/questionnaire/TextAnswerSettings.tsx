@@ -4,7 +4,10 @@ import { useId, useState, type ReactNode } from 'react'
 import { Checkbox, Select } from '@/lib/form'
 import { keyOf, setNotSetAllowed, updateQuestion } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import type { BuilderQuestion, BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
-import { TEXT_CHECKS, textCheckOf, type TextCheck } from './builderCopy'
+import { textCheckOf, type TextCheck } from './builderCopy'
+import { textChecksIn } from './copyIn'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { customerTextAttrs } from '@/lib/i18n/config'
 import { applyTextCheck } from './answerCheck'
 
 type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
@@ -30,6 +33,8 @@ export default function TextAnswerSettings({
   leading: ReactNode
 }) {
   const id = useId()
+  const t = useT()
+  const checks = textChecksIn(t)
   const key = keyOf(question)
   const messages = question.messages ?? {}
   const looksLikeLocation = question.answer.kind === 'text' && /מיקום|מקום/.test(messages.notUnderstood ?? '')
@@ -56,18 +61,18 @@ export default function TextAnswerSettings({
         {leading}
         <div>
           <Select
-            lbl='בדיקת התשובה'
+            lbl={t('admin.questionnaire.text.check')}
             value={check}
             onChange={(e) => pick(e.target.value as TextCheck)}
-            options={TEXT_CHECKS.map((c) => ({ id: c.value, name: c.label }))}
+            options={checks.map((c) => ({ id: c.value, name: c.label }))}
           />
-          <p className='mt-1 text-xs text-gray-500'>{TEXT_CHECKS.find((c) => c.value === check)?.hint}</p>
+          <p className='mt-1 text-xs text-gray-500'>{checks.find((c) => c.value === check)?.hint}</p>
         </div>
       </div>
 
       {check !== 'none' && (
         <Checkbox
-          lbl='אפשר לענות "עדיין לא נקבע"'
+          lbl={t('admin.questionnaire.text.notSet')}
           checked={notSetAllowed}
           onChange={(e) => edit((m) => setNotSetAllowed(m, key, e.target.checked))}
         />
@@ -82,22 +87,22 @@ export default function TextAnswerSettings({
             onClick={() => setAdvancedOpen((o) => !o)}
             className='text-xs text-gray-600 underline underline-offset-2'
           >
-            {advancedOpen ? 'הסתרת ההודעות כשהתשובה לא ברורה' : 'מה נשלח כשהתשובה לא ברורה?'}
-            {!advancedOpen && custom && <span className='text-gray-500 no-underline'> (הוגדר נוסח משלכם)</span>}
+            {advancedOpen ? t('admin.questionnaire.text.hideMessages') : t('admin.questionnaire.text.showMessages')}
+            {!advancedOpen && custom && <span className='text-gray-500 no-underline'>{t('admin.questionnaire.text.custom')}</span>}
           </button>
           {advancedOpen && (
             <div id={`${id}-messages`} className='mt-2 grid gap-3'>
               <MessageField
                 id={`${id}-invalid`}
-                label='כשלא הבנו את התשובה'
-                hint='נשלח במקום ההודעה הכללית "לא הצלחנו לקרוא את התשובה".'
+                label={t('admin.questionnaire.text.invalidLabel')}
+                hint={t('admin.questionnaire.text.invalidHint')}
                 value={messages.notUnderstood ?? ''}
                 onChange={(v) => setMessage('notUnderstood', v)}
               />
               <MessageField
                 id={`${id}-reask`}
-                label='כשהלקוח שאל שאלה באמצע'
-                hint='השאלה נשאלת שוב בנוסח הזה, בלי ברכות שנאמרו כבר. ריק: נשאלת כמו שהיא.'
+                label={t('admin.questionnaire.text.reaskLabel')}
+                hint={t('admin.questionnaire.text.reaskHint')}
                 value={messages.askAgainAfterQuestion ?? ''}
                 onChange={(v) => setMessage('askAgainAfterQuestion', v)}
               />
@@ -122,6 +127,7 @@ function MessageField({
   value: string
   onChange: (v: string) => void
 }) {
+  const { locale } = useT()
   return (
     <div className='grid gap-1'>
       <label htmlFor={id} className='text-sm text-gray-700'>
@@ -134,6 +140,7 @@ function MessageField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-describedby={`${id}-hint`}
+        {...customerTextAttrs(locale)}
         className='rounded-md border border-gray-200 bg-white px-2.5 py-2 text-sm focus:outline-2 focus:outline-primary'
       />
       <p id={`${id}-hint`} className='text-xs text-gray-500'>

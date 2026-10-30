@@ -98,10 +98,10 @@ export default function FileUploader({
   }
   return (
     <div className={className}>
-      {files.length > 0 && <FileDisplay tooltipClass={tooltipClass} files={files} onRemove={onRemove} />}
+      {files.length > 0 && <FileDisplay tooltipClass={tooltipClass} files={files} onRemove={onRemove} unavailableLabel={t('leadTabs.files.uploader.unavailable')} />}
 
       <div className='grid gap-2'>
-        {type === 'image' && <Glry onSelect={onGlrySelect} />}
+        {type === 'image' && <Glry onSelect={onGlrySelect} label={t('leadTabs.files.uploader.gallery')} />}
 
         <label className={twMerge('btn', disabled && 'opacity-50')}>
           <Icon name={icon ? icon : type === 'image' ? 'image' : 'file-lines'} className='size-4' />

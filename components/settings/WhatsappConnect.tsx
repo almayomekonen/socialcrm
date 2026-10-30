@@ -2,17 +2,18 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
-import { FormField } from '@/lib/form'
 import { useAction } from '@/lib/useAction'
 import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
-import { whatsappHealthNotice, whatsappNotice } from '@/lib/connections/messages'
+import { whatsappHealthNoticeFor, whatsappNoticeFor } from '@/lib/connections/localizedNotices'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
 import { whatsappLaunchNoticeCode } from '@/lib/connections/connectFailure'
 import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
+import WhatsappPhonePicker, { type Phone } from '@/components/settings/WhatsappPhonePicker'
 
-type Phone = { id: string; displayPhone: string; verifiedName: string }
 type Connection = { phoneNumberId: string }
 
 type Props = {
@@ -36,7 +37,11 @@ type Props = {
   connectLabel?: string
   /** Server-detected Instagram/Facebook in-app browser (lib/device.ts). */
   inAppBrowser?: InAppBrowser
+  /** Follow the interface language (the desktop settings page). Default Hebrew: the phone sheet is not translated yet. */
+  translated?: boolean
 }
+
+const HEBREW = translatorFor('he')
 
 export default function WhatsappConnect({
   connection,
@@ -45,15 +50,19 @@ export default function WhatsappConnect({
   configId,
   graphVersion,
   status,
-  description = 'חבר את מספר הוואטסאפ העסקי שלך כדי לקבל לידים אוטומטית.',
-  connectLabel = 'חבר וואטסאפ עסקי',
+  description,
+  connectLabel,
   inAppBrowser,
+  translated = false,
 }: Props) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
+  const locale = t.locale
+  const reasonsLabel = t('settings.integrations.reasonsLabel')
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlError = searchParams.get('wa_error')
 
-  const [selectedPhoneId, setSelectedPhoneId] = useState('')
   // Meta's own words when its window showed an error; rendered by `meta_error`.
   const [metaMessage, setMetaMessage] = useState<string | null>(null)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
@@ -121,7 +130,7 @@ export default function WhatsappConnect({
     // "חלון ההתחברות לא נפתח", not silently look like a fresh reconnect prompt.
     // `whatsappNotice` returns null for cancelled/denied, so dismissing Meta's
     // popup correctly leaves the health notice in place.
-    const notice = whatsappNotice(error, metaMessage) ?? whatsappHealthNotice(status)
+    const notice = whatsappNoticeFor(error, metaMessage, locale) ?? whatsappHealthNoticeFor(status, locale)
     const canReconnect = status === 'unknown' || status === 'token' || status === 'webhook'
     // NO history control lives here, by design.
     //
@@ -140,15 +149,15 @@ export default function WhatsappConnect({
     return (
       <div className='grid gap-4' data-edu={canReconnect ? undefined : 'whatsapp-connect'}>
         {status === 'operational' && (
-          <p className='text-sm text-green-600'>החיבור תקין — לידים מגיעים אוטומטית</p>
+          <p className='text-sm text-green-600'>{t('settings.integrations.whatsapp.healthy')}</p>
         )}
-        {notice && <ConnectionNotice notice={notice} />}
+        {notice && <ConnectionNotice notice={notice} reasonsLabel={reasonsLabel} />}
 
         <div className='flex flex-wrap items-center gap-3'>
           {canReconnect && (
             <div data-edu='whatsapp-connect' className='w-fit'>
               <Btn
-                lbl={loading ? 'מתחבר...' : (notice?.action ?? 'לחבר מחדש ולאמת')}
+                lbl={loading ? t('settings.integrations.whatsapp.connecting') : (notice?.action ?? t('settings.integrations.whatsapp.reconnectVerify'))}
                 icon={loading ? 'spinner' : 'whatsapp'}
                 iconClassName={loading ? 'animate-spin' : undefined}
                 disabled={loading}
@@ -161,7 +170,7 @@ export default function WhatsappConnect({
             </div>
           )}
           <Btn
-            lbl={disconnecting ? 'מנתק...' : 'נתק וואטסאפ'}
+            lbl={disconnecting ? t('settings.integrations.whatsapp.disconnecting') : t('settings.integrations.whatsapp.disconnect')}
             icon={disconnecting ? 'spinner' : undefined}
             iconClassName={disconnecting ? 'animate-spin' : undefined}
             variant='outline'
@@ -176,7 +185,8 @@ export default function WhatsappConnect({
           destructive
           onClose={() => setConfirmDisconnect(false)}
           onConfirm={performDisconnect}
-          msg='לנתק את חיבור הוואטסאפ?'
+          msg={t('settings.integrations.whatsapp.disconnectConfirm')}
+          translated={translated}
         />
       </div>
     )
@@ -184,52 +194,19 @@ export default function WhatsappConnect({
 
   // State B: OAuth done, phone not yet selected
   if (pendingPhones) {
-    const selected = pendingPhones.find((p) => p.id === selectedPhoneId)
-    const notice = whatsappNotice(error)
-
-    return (
-      <div className='grid gap-4'>
-        {notice && <ConnectionNotice notice={notice} />}
-        <p className='text-sm text-gray-600'>בחר את מספר הטלפון שברצונך לחבר:</p>
-        <FormField lbl='מספר וואטסאפ עסקי'>
-          <select
-            className='h-10 w-full rounded-md border border-gray-200 bg-white px-3 focus:outline-2 focus:outline-offset-0 focus:outline-primary'
-            value={selectedPhoneId}
-            onChange={(e) => setSelectedPhoneId(e.target.value)}
-          >
-            <option value=''>בחר מספר...</option>
-            {pendingPhones.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.displayPhone} — {p.verifiedName}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        <div data-edu='whatsapp-connect' className='w-fit'>
-        <Btn
-          lbl={loading ? 'מחבר...' : (notice?.action ?? 'חבר וואטסאפ')}
-          icon={loading ? 'spinner' : 'comment-dots'}
-          iconClassName={loading ? 'animate-spin' : undefined}
-          size='medium'
-          disabled={!selectedPhoneId || loading}
-          className='w-fit'
-          onClick={() => selected && connectPhone(selected)}
-        />
-        </div>
-      </div>
-    )
+    return <WhatsappPhonePicker pendingPhones={pendingPhones} notice={whatsappNoticeFor(error, null, locale)} loading={loading} onConnect={connectPhone} translated={translated} />
   }
 
   // State A: Not connected
-  const notice = whatsappNotice(error ?? disconnectError ?? urlError, metaMessage)
+  const notice = whatsappNoticeFor(error ?? disconnectError ?? urlError, metaMessage, locale)
 
   return (
     <div className='grid gap-4'>
-      {notice && <ConnectionNotice notice={notice} />}
-      <p className='text-sm text-gray-500'>{description}</p>
+      {notice && <ConnectionNotice notice={notice} reasonsLabel={reasonsLabel} />}
+      <p className='text-sm text-gray-500'>{description ?? t('settings.integrations.whatsapp.intro')}</p>
       <div data-edu='whatsapp-connect' className='w-fit'>
       <Btn
-        lbl={loading ? 'מתחבר...' : (notice?.action ?? connectLabel)}
+        lbl={loading ? t('settings.integrations.whatsapp.connecting') : (notice?.action ?? connectLabel ?? t('settings.integrations.whatsapp.connect'))}
         icon={loading ? 'spinner' : 'whatsapp'}
         iconClassName={loading ? 'animate-spin' : undefined}
         disabled={loading}

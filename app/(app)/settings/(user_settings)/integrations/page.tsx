@@ -6,8 +6,15 @@ import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpir
 import LeadSourcesSection from '@/components/settings/integrations/LeadSourcesSection'
 import ConnectedToolsSection from '@/components/settings/integrations/ConnectedToolsSection'
 import IntegrationsMobile from '@/modules/settings/mobile/IntegrationsMobile'
+import { getUser } from '@/db/auth'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { regionAttrs } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'אינטגרציות' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('settings.account.title.integrations') }
+}
 
 /**
  * Settings → אינטגרציות — the single place every external system is connected.
@@ -54,37 +61,41 @@ export default async function IntegrationsSettingsPage({
    * two are not confused.
    */
   const productAccess = await getAgencyProductAccess(user.agencyId)
+  // Desktop only (the phone branch above is Phase F): resolved once, passed down.
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
 
   return (
-    <div>
+    <div {...regionAttrs(locale)}>
       {!productAccess.hasAccess && (
         <div className='mb-6 max-w-lg'>
           <SubscriptionExpiredState
             mode='inline'
             source='integrations_page'
-            feature='החיבורים נשארו פעילים. חידוש המנוי מחזיר את העיבוד האוטומטי'
+            feature={t('settings.integrations.expired')}
+            translated
           />
         </div>
       )}
-      <h1 className='title'>אינטגרציות</h1>
+      <h1 className='title'>{t('settings.account.title.integrations')}</h1>
       <p className='mt-2 mb-8 max-w-2xl text-sm text-gray-600 leading-relaxed'>
-        חברו כאן את המערכות שמהן מגיעים הלידים, ואת הכלים שעוזרים לטפל בהם. החיבור מתבצע פעם אחת.
+        {t('settings.integrations.intro')}
       </p>
 
       <section className='mb-10'>
-        <h2 className='text-xl font-bold text-dark'>מקורות לידים</h2>
-        <p className='mt-1 mb-4 max-w-2xl text-sm text-gray-600'>מכאן נכנסים לידים חדשים למערכת, אוטומטית.</p>
+        <h2 className='text-xl font-bold text-dark'>{t('settings.integrations.sources.title')}</h2>
+        <p className='mt-1 mb-4 max-w-2xl text-sm text-gray-600'>{t('settings.integrations.sources.intro')}</p>
         {/* max-w-lg is the width the Facebook/WhatsApp accordion shipped with
             on /settings/facebook. Kept as-is: the connect forms were laid out
             for it, and widening the accordion was never part of the fix. */}
         <div className='max-w-lg'>
-          <LeadSourcesSection user={user} activeSection={activeSection} />
+          <LeadSourcesSection user={user} activeSection={activeSection} locale={locale} />
         </div>
       </section>
 
       <section>
-        <h2 className='text-xl font-bold text-dark'>כלים מחוברים</h2>
-        <p className='mt-1 mb-4 max-w-2xl text-sm text-gray-600'>שירותים חיצוניים שמעשירים את הלידים הקיימים.</p>
+        <h2 className='text-xl font-bold text-dark'>{t('settings.integrations.tools.title')}</h2>
+        <p className='mt-1 mb-4 max-w-2xl text-sm text-gray-600'>{t('settings.integrations.tools.intro')}</p>
         <ConnectedToolsSection user={user} />
       </section>
     </div>

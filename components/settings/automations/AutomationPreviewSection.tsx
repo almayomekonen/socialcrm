@@ -5,6 +5,8 @@ import type { ActionDefinition } from '@/lib/automations/catalog/types'
 import AutomationEmailPreview from './AutomationEmailPreview'
 import AutomationMessagePreview from './AutomationMessagePreview'
 import type { CtaDraft } from './AutomationContentSection'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * "כך זה ייראה" — the preview section, driven by the ACTION's declared preview
@@ -46,6 +48,7 @@ export default function AutomationPreviewSection({
    * the gap that let a bad email signature ship. Both delivering shapes now render
    * through their executor.
    */
+  const t = useT()
   const vars = { leadFirstName: previewName, businessName: null, repName: null }
   /**
    * The record shape previews the TITLE the action authors, not the email
@@ -57,7 +60,7 @@ export default function AutomationPreviewSection({
 
   return (
     <section className='grid gap-2'>
-      <h3 className='text-sm font-semibold text-gray-800'>כך זה ייראה{previewName ? ` אצל ${previewName}` : ''}</h3>
+      <h3 className='text-sm font-semibold text-gray-800'>{previewName ? t('admin.automationSheet.preview.headingFor', { name: previewName }) : t('admin.automationSheet.preview.heading')}</h3>
       <div className='border rounded-md bg-gray-50 p-4 grid gap-2'>
         {action?.preview === 'email' && (
           <AutomationEmailPreview draft={{ subject, body, ctaLabel: cta?.label ?? null, ctaUrl: cta?.url ?? null }} />
@@ -65,8 +68,12 @@ export default function AutomationPreviewSection({
         {action?.preview === 'message' && (
           <AutomationMessagePreview templateId={templateId ?? ''} bindings={templateBindings ?? {}} />
         )}
-        {action?.preview === 'record' && <p className='text-sm text-gray-600'>{previewRecord || 'רשומה חדשה'}</p>}
-        {(!action || action.preview === 'none') && <p className='text-sm text-gray-600'>לא נשלחת הודעה ללקוח</p>}
+        {action?.preview === 'record' && (
+          <p className='text-sm text-gray-600' {...(previewRecord ? customerTextAttrs(t.locale) : {})}>
+            {previewRecord || t('admin.automationSheet.preview.newRecord')}
+          </p>
+        )}
+        {(!action || action.preview === 'none') && <p className='text-sm text-gray-600'>{t('admin.automationSheet.preview.none')}</p>}
       </div>
     </section>
   )
