@@ -182,7 +182,8 @@ describe('leads tour boundaries', () => {
     expect(css).toMatch(/\.edu-popover\s*\{[^}]*direction:\s*rtl/)
     const runTour = readFileSync('components/education/runTour.ts', 'utf8')
     expect(runTour).toContain("doneBtnText: 'הבנתי'")
-    expect(runTour).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
+    // The popover's dir is set by the shared decoration (tourPopover.ts).
+    expect(readFileSync('components/education/tourPopover.ts', 'utf8')).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
     for (const step of getTour('pipeline')!.steps) {
       expect(/[\u0590-\u05FF]/.test(step.title)).toBe(true)
       expect(/[\u0590-\u05FF]/.test(step.description)).toBe(true)

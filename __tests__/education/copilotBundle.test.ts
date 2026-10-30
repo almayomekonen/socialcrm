@@ -49,13 +49,19 @@ describe('education overlay and RTL skin', () => {
 
   it('configures a translucent ink overlay and Hebrew tour chrome', () => {
     const src = readFileSync('components/education/runTour.ts', 'utf8')
-    expect(src).toMatch(/overlayColor:\s*'#0a2540'/)
-    expect(src).toMatch(/overlayOpacity:\s*0\.45/)
+    // The overlay config every Driver.js run shares lives in tourPopover.ts (baseDriverConfig).
+    const shared = readFileSync('components/education/tourPopover.ts', 'utf8')
+    expect(shared).toMatch(/overlayColor:\s*'#0a2540'/)
+    expect(shared).toMatch(/overlayOpacity:\s*0\.45/)
+    expect(src.match(/\.\.\.baseDriverConfig\(reduceMotion\)/g)?.length).toBe(2)
     expect(src).toContain("nextBtnText: 'הבא'")
     expect(src).toContain("prevBtnText: 'חזרה'")
     expect(src).toContain("doneBtnText: 'הבנתי'")
     expect(src).toContain("progressText: '{{current}} מתוך {{total}}'")
-    expect(src).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
-    expect(src).toContain("skip.textContent = 'דלג'")
+    // The popover decoration (dir, role, the extra footer button) lives in tourPopover.ts.
+    const popover = readFileSync('components/education/tourPopover.ts', 'utf8')
+    expect(popover).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
+    expect(src).toContain("extra: { text: 'דלג', onClick: () => finish('dismissed') }")
+    expect(popover).toContain('extra.textContent = opts.extra.text')
   })
 })

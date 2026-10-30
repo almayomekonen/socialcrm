@@ -284,7 +284,8 @@ describe('overview chrome', () => {
     expect(css).toMatch(/\.driver-overlay\s*\{[^}]*background:\s*transparent/)
     expect(css).toMatch(/\.edu-popover\s*\{[^}]*direction:\s*rtl/)
     const runTour = readFileSync('components/education/runTour.ts', 'utf8')
-    expect(runTour).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
+    // The popover's dir is set by the shared decoration (tourPopover.ts).
+    expect(readFileSync('components/education/tourPopover.ts', 'utf8')).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
     expect(runTour).toContain("doneBtnText: 'הבנתי'")
     expect(runTour).toContain("nextBtnText: 'הבא'")
   })

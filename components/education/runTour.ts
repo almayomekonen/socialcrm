@@ -10,6 +10,7 @@ import {
   releaseTourLock,
 } from '@/lib/education'
 import type { TourDefinition, TourStatus } from '@/lib/education/types'
+import { baseDriverConfig, decorateTourPopover } from './tourPopover'
 
 export type TourOutcome = {
   status: TourStatus
@@ -72,17 +73,7 @@ export async function runTour(def: TourDefinition, hooks: Hooks = {}): Promise<T
 
   return new Promise((resolve) => {
     const instance = driverFn({
-      animate: !reduceMotion,
-      smoothScroll: !reduceMotion,
-      allowClose: true,
-      allowKeyboardControl: true,
-      allowScroll: true,
-      overlayColor: '#0a2540',
-      overlayOpacity: 0.45,
-      overlayClickBehavior: 'close',
-      stagePadding: 8,
-      stageRadius: 12,
-      popoverOffset: 12,
+      ...baseDriverConfig(reduceMotion),
       popoverClass: 'edu-popover',
       showProgress: true,
       progressText: '{{current}} מתוך {{total}}',
@@ -101,18 +92,11 @@ export async function runTour(def: TourDefinition, hooks: Hooks = {}): Promise<T
           popoverClass: 'edu-popover',
         },
       })),
-      onPopoverRender: (popover) => {
-        popover.wrapper.setAttribute('dir', 'rtl')
-        popover.wrapper.setAttribute('role', 'dialog')
-        popover.wrapper.setAttribute('aria-modal', 'true')
-        popover.wrapper.setAttribute('aria-label', popover.title.textContent || 'סיור מודרך')
-        const skip = document.createElement('button')
-        skip.type = 'button'
-        skip.className = 'edu-popover-skip'
-        skip.textContent = 'דלג'
-        skip.addEventListener('click', () => finish('dismissed'))
-        popover.footerButtons.appendChild(skip)
-      },
+      onPopoverRender: (popover) =>
+        decorateTourPopover(popover, {
+          label: popover.title.textContent || 'סיור מודרך',
+          extra: { text: 'דלג', onClick: () => finish('dismissed') },
+        }),
       onHighlightStarted: (_el, _step, { index }) => {
         lastStep = index ?? 0
         hooks.onStep?.(lastStep)
@@ -183,17 +167,7 @@ export async function runOverviewIntro(): Promise<OverviewIntroOutcome | null> {
 
   return new Promise((resolve) => {
     const instance = driverFn({
-      animate: !reduceMotion,
-      smoothScroll: !reduceMotion,
-      allowClose: true,
-      allowKeyboardControl: true,
-      allowScroll: true,
-      overlayColor: '#0a2540',
-      overlayOpacity: 0.45,
-      overlayClickBehavior: 'close',
-      stagePadding: 8,
-      stageRadius: 12,
-      popoverOffset: 12,
+      ...baseDriverConfig(reduceMotion),
       popoverClass: 'edu-popover edu-popover-intro',
       showProgress: false,
       showButtons: ['next'],
@@ -217,18 +191,11 @@ export async function runOverviewIntro(): Promise<OverviewIntroOutcome | null> {
           },
         },
       ],
-      onPopoverRender: (popover) => {
-        popover.wrapper.setAttribute('dir', 'rtl')
-        popover.wrapper.setAttribute('role', 'dialog')
-        popover.wrapper.setAttribute('aria-modal', 'true')
-        popover.wrapper.setAttribute('aria-label', steps[0].title)
-        const later = document.createElement('button')
-        later.type = 'button'
-        later.className = 'edu-popover-skip'
-        later.textContent = 'אולי אחר כך'
-        later.addEventListener('click', () => finish('declined'))
-        popover.footerButtons.appendChild(later)
-      },
+      onPopoverRender: (popover) =>
+        decorateTourPopover(popover, {
+          label: steps[0].title,
+          extra: { text: 'אולי אחר כך', onClick: () => finish('declined') },
+        }),
       onNextClick: () => finish('accepted'),
       onDoneClick: () => finish('accepted'),
       onCloseClick: () => finish('declined'),
