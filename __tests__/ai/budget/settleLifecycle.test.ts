@@ -18,7 +18,7 @@ vi.mock('next/server', () => ({
   },
 }))
 
-import { keepAliveUntilDone, settleShadowAfter } from '@/lib/ai/budget/shadow'
+import { keepAliveUntilDone, newCallId, settleShadowAfter, startShadow } from '@/lib/ai/budget/shadow'
 
 const handle = Promise.resolve({ callId: 'c-1' })
 const outcome = {
@@ -99,5 +99,25 @@ describe('settlement and the request lifecycle', () => {
     expect(store.settle).toHaveBeenCalledTimes(1)
     lifecycle.inScope = true
     expect(keepAliveUntilDone(Promise.resolve())).toBe('after')
+  })
+})
+
+describe('shadow mode off', () => {
+  it('no reservation, no settlement and no after() task is registered', async () => {
+    delete process.env.AI_BUDGET_SHADOW
+    store.reserve.mockReset()
+    const h = startShadow({
+      callId: newCallId(),
+      agencyId: 1,
+      feature: 'inbox.autoResponse',
+      provider: 'openai',
+      model: 'gpt-5.6-sol',
+      run: { kind: 'inbox.autoResponse', id: 'inv' },
+      estimate: () => ({ usd: 0.01, basis: 'partial', incomplete: true, note: null }),
+    })
+    await settleShadowAfter(h, outcome)
+    expect(store.reserve).not.toHaveBeenCalled()
+    expect(store.settle).not.toHaveBeenCalled()
+    expect(lifecycle.tasks).toHaveLength(0)
   })
 })

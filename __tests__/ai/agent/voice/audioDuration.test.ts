@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { probeAudioDurationMs } from '@/lib/agent/voice/audioDuration'
-import { mp4, oggOpus, webm } from './audioFixtures'
+import { mp4, oggOpus, spuriousOggS, webm } from './audioFixtures'
 
 /** The server-side duration probe: reads declared metadata, never trusts it as a bound, never throws. */
 
@@ -16,6 +16,16 @@ describe('declared durations are read from each container', () => {
 
   it('Ogg Opus from the last granule position, minus pre-skip', () => {
     expect(probeAudioDurationMs(oggOpus(45_000), 'ogg')).toBeCloseTo(45_000, 0)
+  })
+
+  it('Ogg: a stray "OggS" inside the last page\'s audio is not mistaken for a page (no false 10-hour duration)', () => {
+    const body = [1, 2, 3, ...spuriousOggS(), 4, 5, 6]
+    expect(probeAudioDurationMs(oggOpus(45_000, 4_096, body), 'ogg')).toBeCloseTo(45_000, 0)
+  })
+
+  it('Ogg: a final page that does not end at the end of the file is not trusted', () => {
+    const truncated = oggOpus(45_000, 4_096, new Array(40).fill(9)).subarray(0, 4_096 - 10)
+    expect(probeAudioDurationMs(truncated, 'ogg')).toBeNull()
   })
 })
 

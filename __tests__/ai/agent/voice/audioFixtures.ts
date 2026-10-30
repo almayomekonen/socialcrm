@@ -81,13 +81,26 @@ const oggPage = (granule: number, packet: number[]) => [
   ...packet,
 ]
 
-/** Ogg Opus whose last page's granule position declares `durationMs` (48 kHz, pre-skip 312). */
-export function oggOpus(durationMs: number, len = 4_096): Uint8Array<ArrayBuffer> {
+/**
+ * Ogg Opus whose last page's granule position declares `durationMs` (48 kHz,
+ * pre-skip 312). `lastBody` is that final page's audio data (≤ 255 bytes).
+ */
+export function oggOpus(durationMs: number, len = 4_096, lastBody: number[] = [0]): Uint8Array<ArrayBuffer> {
   const preSkip = 312
   const opusHead = [...ascii('OpusHead'), 1, 1, ...le16(preSkip), ...le32(48_000), 0, 0, 0]
   const first = oggPage(0, opusHead)
-  const last = oggPage(Math.round((durationMs / 1000) * 48_000) + preSkip, [0])
+  const last = oggPage(Math.round((durationMs / 1000) * 48_000) + preSkip, lastBody)
   const b = pad(first, len)
   b.set(last, len - last.length)
   return b
 }
+
+/** Bytes that LOOK like an Ogg page start inside audio data, claiming a 10-hour granule. */
+export const spuriousOggS = (): number[] => [
+  ...ascii('OggS'),
+  0,
+  0,
+  ...le32((10 * 3600 * 48_000) % 2 ** 32),
+  ...le32(Math.floor((10 * 3600 * 48_000) / 2 ** 32)),
+  ...new Array(16).fill(7),
+]

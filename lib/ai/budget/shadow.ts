@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { after } from 'next/server'
 import { db } from '@/config/db'
 import { reserveShadow, settleShadow } from '@/db/aiBudget'
 import { currentAiOperation } from '@/lib/ai/usage/context'
 import { PRICE_VERSION, priceUsage, type CostVerdict, type UsageTokens } from '@/lib/ai/usage/pricing'
 import { budgetPolicyFor, isAiBudgetShadowEnabled, type BudgetPolicy } from './policy'
 import { emitBudgetEvent, failureReason } from './events'
+import { keepAliveUntilDone } from '@/lib/ai/lifecycle'
+
+export { keepAliveUntilDone }
 import type { BudgetEstimate } from './estimate'
 
 /**
@@ -92,8 +94,11 @@ export async function contactKeyFor(
   return leadId != null ? hash(`lead:${agencyId}:${leadId}`) : null
 }
 
+/** The handle of a request shadow mode did not track (flag off): settling it is a no-op, with no lifecycle work. */
+const NO_SHADOW: ShadowHandle = Promise.resolve(null)
+
 export function startShadow(req: ShadowRequest): ShadowHandle {
-  if (!isAiBudgetShadowEnabled()) return Promise.resolve(null)
+  if (!isAiBudgetShadowEnabled()) return NO_SHADOW
   const op = currentAiOperation()
   const agencyId = req.agencyId ?? op?.agencyId ?? null
   const run = op?.id ? { kind: op.kind, id: op.id } : (req.run ?? null)
@@ -169,20 +174,6 @@ function actualOf(o: ShadowOutcome): CostVerdict {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
-/**
- * Hand `work` to the request lifecycle. 'after' = the platform keeps the
- * function alive until it settles; 'detached' = no request scope (scripts,
- * tests), so nothing extends the process — the expiry sweep is the recovery.
- */
-export function keepAliveUntilDone(work: Promise<unknown>): 'after' | 'detached' {
-  try {
-    after(work)
-    return 'after'
-  } catch {
-    return 'detached'
-  }
-}
-
 /** Settle with retries. Never throws; a final failure is left for the expiry sweep. */
 async function settleWithRetry(handle: ShadowHandle, o: ShadowOutcome): Promise<void> {
   const h = await handle
@@ -219,6 +210,7 @@ async function settleWithRetry(handle: ShadowHandle, o: ShadowOutcome): Promise<
 }
 
 export async function settleShadowAfter(handle: ShadowHandle, o: ShadowOutcome): Promise<void> {
+  if (handle === NO_SHADOW) return // shadow off: nothing to settle, no after() task
   const work = settleWithRetry(handle, o).catch(() => undefined)
   keepAliveUntilDone(work)
   let timer: ReturnType<typeof setTimeout> | undefined

@@ -156,6 +156,22 @@ function info(v: DataView, start: number, end: number): number | null {
 // ── Ogg (Opus): the last page's granule position at 48 kHz, minus pre-skip. ───
 const OGG_TAIL_BYTES = 65_536
 
+/**
+ * "OggS" at `o` starts the FINAL page only if it parses as a page header —
+ * stream structure version 0, no undefined header-type bits — and the page it
+ * describes ends exactly at the end of the file. A stray "OggS" inside audio
+ * data fails these checks and the scan moves on.
+ */
+function isFinalPage(bytes: Uint8Array, o: number): boolean {
+  if (bytes[o + 4] !== 0 || (bytes[o + 5] & 0xf8) !== 0) return false
+  const segments = bytes[o + 26]
+  const bodyStart = o + 27 + segments
+  if (bodyStart > bytes.length) return false
+  let body = 0
+  for (let i = 0; i < segments; i++) body += bytes[o + 27 + i]
+  return bodyStart + body === bytes.length
+}
+
 function ogg(v: DataView, bytes: Uint8Array): number | null {
   if (v.byteLength < 28) return null
   const segments = v.getUint8(26)
@@ -165,7 +181,7 @@ function ogg(v: DataView, bytes: Uint8Array): number | null {
   if (magic !== 'OpusHead') return null // Vorbis etc.: the sample rate would have to be parsed too
   const preSkip = v.getUint16(packet + 10, true)
   for (let o = v.byteLength - 27; o >= Math.max(0, v.byteLength - OGG_TAIL_BYTES); o--) {
-    if (bytes[o] === 0x4f && bytes[o + 1] === 0x67 && bytes[o + 2] === 0x67 && bytes[o + 3] === 0x53) {
+    if (bytes[o] === 0x4f && bytes[o + 1] === 0x67 && bytes[o + 2] === 0x67 && bytes[o + 3] === 0x53 && isFinalPage(bytes, o)) {
       // 64-bit little-endian granule position, read as two halves (no BigInt literal in this target).
       const lo = v.getUint32(o + 6, true)
       const hi = v.getInt32(o + 10, true)

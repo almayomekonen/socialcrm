@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { db } from '@/config/db'
 import { isAiUsageLedgerEnabled } from '@/lib/flags/aiUsageLedgerFlags'
+import { keepAliveUntilDone } from '@/lib/ai/lifecycle'
+import { emitUsageEvent, failureReason } from '@/lib/ai/budget/events'
 import { currentAiOperation } from './context'
 import { PRICE_VERSION, priceUsage, type CostVerdict, type UsageTokens } from './pricing'
 
@@ -13,8 +15,26 @@ import { PRICE_VERSION, priceUsage, type CostVerdict, type UsageTokens } from '.
  *   - stores identifiers and token counts only: no prompt, message, answer,
  *     phone number, error message or credential;
  *   - is idempotent per request (`callId` UNIQUE, ON CONFLICT DO NOTHING);
- *   - writes nothing unless AI_USAGE_LEDGER=1 (absence blocks).
+ *   - writes nothing unless AI_USAGE_LEDGER=1 (absence blocks);
+ *   - adds at most LEDGER_WAIT_MS to the AI request path (below).
+ *
+ * BOUNDED WAIT. The insert starts immediately and the caller waits for it at
+ * most LEDGER_WAIT_MS. If it is slower, the caller continues and the insert is
+ * handed to the request lifecycle (`after()`), with its own query timeout
+ * (LEDGER_QUERY_TIMEOUT_MS) — never an unbounded promise. A delayed write is
+ * reported (`ledger_write_delayed`), a failed one too (`ledger_write_failed`,
+ * with an error category, never its text), both on the `[ai-usage]` log line.
+ *
+ * REMAINING FAILURE MODE: a write still pending when the function is stopped
+ * (maxDuration, crash) is lost without a failure event; the delayed event
+ * already logged for it is the signal. There is no retry: a missing row is
+ * missing, never invented.
  */
+
+/** Longest the AI request path waits for the ledger insert. */
+export const LEDGER_WAIT_MS = 250
+/** Upper bound on the insert itself once it runs (the query is cancelled after). */
+export const LEDGER_QUERY_TIMEOUT_MS = 10_000
 
 export type ProviderCall = {
   callId?: string
@@ -179,14 +199,39 @@ function rowFor(call: ProviderCall) {
   }
 }
 
-/** Record one or more provider requests. Never throws. */
+/** Record one or more provider requests. Never throws; waits at most LEDGER_WAIT_MS. */
 export async function recordProviderCalls(calls: ProviderCall[]): Promise<void> {
   if (!calls.length || !isAiUsageLedgerEnabled()) return
-  try {
-    await db('ai_usage_events').insert(calls.map(rowFor)).onConflict('callId').ignore()
-  } catch (err) {
-    console.error('[ai-usage] ledger write failed', { name: errorCodeOf(err), calls: calls.length })
+  const ids = {
+    invocationId: calls[0].invocationId,
+    feature: calls[0].feature,
+    provider: calls[0].provider,
+    agencyId: calls[0].agencyId ?? currentAiOperation()?.agencyId ?? null,
+    rows: calls.length,
   }
+  let write: Promise<void>
+  try {
+    // Rows are built now, synchronously: they read the caller's operation context.
+    const rows = calls.map(rowFor)
+    write = Promise.resolve(
+      db('ai_usage_events').insert(rows).onConflict('callId').ignore().timeout(LEDGER_QUERY_TIMEOUT_MS, { cancel: true }),
+    ).then(
+      () => undefined,
+      (err) =>
+        emitUsageEvent('ledger_write_failed', { ...ids, stage: 'database', reason: failureReason(err, 'database'), error: err }),
+    )
+  } catch (err) {
+    emitUsageEvent('ledger_write_failed', { ...ids, stage: 'database', reason: failureReason(err, 'database'), error: err })
+    return
+  }
+  keepAliveUntilDone(write)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const done = await Promise.race([
+    write.then(() => true),
+    new Promise<boolean>((r) => (timer = setTimeout(() => r(false), LEDGER_WAIT_MS))),
+  ])
+  clearTimeout(timer)
+  if (!done) emitUsageEvent('ledger_write_delayed', { ...ids, waitedMs: LEDGER_WAIT_MS })
 }
 
 type SdkStep = {

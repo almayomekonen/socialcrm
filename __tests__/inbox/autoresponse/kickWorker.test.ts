@@ -22,7 +22,7 @@ describe('ireKickWaitMs', () => {
 describe('runAutoResponseKick', () => {
   it('delay=0 → existing worker with no sleep', async () => {
     const sleep = vi.fn(async () => undefined)
-    const run = vi.fn(async () => ({ claimed: 1, sent: 1, skipped: 0, failed: 0 }))
+    const run = vi.fn(async () => ({ claimed: 1, sent: 1, skipped: 0, failed: 0, leaseLost: 0 }))
     await expect(runAutoResponseKick({ delaySeconds: 0, limit: 5 }, { sleep, run })).resolves.toEqual({
       claimed: 1,
       sent: 1,
@@ -35,7 +35,7 @@ describe('runAutoResponseKick', () => {
 
   it('delay=5 → waits until due, then claims via the existing worker', async () => {
     const sleep = vi.fn(async () => undefined)
-    const run = vi.fn(async () => ({ claimed: 1, sent: 1, skipped: 0, failed: 0 }))
+    const run = vi.fn(async () => ({ claimed: 1, sent: 1, skipped: 0, failed: 0, leaseLost: 0 }))
     await runAutoResponseKick({ delaySeconds: 5, limit: 5 }, { sleep, run })
     expect(sleep).toHaveBeenCalledTimes(1)
     expect(sleep).toHaveBeenCalledWith(5_250)

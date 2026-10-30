@@ -5,9 +5,19 @@
  * database. NEVER written to the database: a reservation that failed because
  * the database failed must not have its only record in that database.
  *
+ *   [ai-budget]
  *   reservation_failed    no reservation exists for this provider request
  *   settlement_failed     a reservation was left `reserved` for the expiry sweep
  *   run_identity_missing  a request with no logical run (the run scope is skipped)
+ *   expiry_failed         one stale reservation could not be settled (it stays
+ *                         `reserved`; the next sweep retries it)
+ *   expiry_sweep_failed   the sweep itself failed (nothing was settled)
+ *   expiry_swept          a sweep settled stale reservations (counts only)
+ *
+ *   [ai-usage]
+ *   ledger_write_delayed  the ledger insert outlived the request's bounded wait;
+ *                         it continues under the request lifecycle
+ *   ledger_write_failed   the ledger insert failed: those rows are missing
  *
  * IDENTIFIERS AND CATEGORIES ONLY. No message text, prompt, phone number,
  * credential or raw error text — a Postgres message can echo the row's values.
@@ -15,7 +25,15 @@
  * vocabularies, and a category derived from them. Never throws.
  */
 
-export type BudgetEvent = 'reservation_failed' | 'settlement_failed' | 'run_identity_missing'
+export type BudgetEvent =
+  | 'reservation_failed'
+  | 'settlement_failed'
+  | 'run_identity_missing'
+  | 'expiry_failed'
+  | 'expiry_sweep_failed'
+  | 'expiry_swept'
+
+export type UsageEvent = 'ledger_write_delayed' | 'ledger_write_failed'
 
 export type FailureReason =
   | 'db_timeout'
@@ -38,6 +56,12 @@ export type BudgetEventFields = {
   reason?: FailureReason
   stage?: 'estimate' | 'database'
   attempts?: number
+  /** Counts and timings — never content. */
+  rows?: number
+  waitedMs?: number
+  stale?: number
+  settled?: number
+  failed?: number
   error?: unknown
 }
 
@@ -82,7 +106,18 @@ export function failureReason(err: unknown, stage: 'estimate' | 'database'): Fai
   return 'unknown'
 }
 
+const WARN = new Set<string>(['run_identity_missing', 'ledger_write_delayed'])
+const INFO = new Set<string>(['expiry_swept'])
+
 export function emitBudgetEvent(evt: BudgetEvent, f: BudgetEventFields): void {
+  emitOpsEvent('[ai-budget]', evt, f)
+}
+
+export function emitUsageEvent(evt: UsageEvent, f: BudgetEventFields): void {
+  emitOpsEvent('[ai-usage]', evt, f)
+}
+
+function emitOpsEvent(tag: '[ai-budget]' | '[ai-usage]', evt: BudgetEvent | UsageEvent, f: BudgetEventFields): void {
   try {
     const { error, ...ids } = f
     const line = JSON.stringify({
@@ -93,8 +128,9 @@ export function emitBudgetEvent(evt: BudgetEvent, f: BudgetEventFields): void {
       tenantKnown: f.agencyId != null,
       ...(error !== undefined ? { errorName: safeName(error), errorCode: safeCode(error) } : {}),
     })
-    if (evt === 'run_identity_missing') console.warn('[ai-budget]', line)
-    else console.error('[ai-budget]', line)
+    if (INFO.has(evt)) console.info(tag, line)
+    else if (WARN.has(evt)) console.warn(tag, line)
+    else console.error(tag, line)
   } catch {
     /* observability is best-effort */
   }

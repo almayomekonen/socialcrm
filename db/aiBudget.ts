@@ -3,6 +3,7 @@ import { db } from '@/config/db'
 import type { BudgetPolicy } from '@/lib/ai/budget/policy'
 import type { BudgetEstimate } from '@/lib/ai/budget/estimate'
 import { scopeRef, scopesFor } from '@/lib/ai/budget/scopes'
+import { emitBudgetEvent, failureReason } from '@/lib/ai/budget/events'
 
 /**
  * Durable AI budget reservations (ai_budget_reservations + ai_budget_counters).
@@ -24,9 +25,9 @@ import { scopeRef, scopesFor } from '@/lib/ai/budget/scopes'
  * Which counters a request touches (and why some are skipped) is pure logic
  * in `lib/ai/budget/scopes.ts`; this file holds only the three transactions.
  *
- * NOTE: ~275 lines, over the 250 soft limit, intentionally: the three
- * transactions (reserve, settle, expire-and-recover) share one locking
- * protocol over two tables and one settlement statement; splitting them
+ * NOTE: ~285 lines, over the 250 soft limit, intentionally: reserve, settle
+ * and expire-and-recover share one locking protocol (one reservation row, then
+ * its counters in sorted order) and one settlement statement; splitting them
  * would spread that protocol across files. The next addition belongs in a
  * sibling module, not here.
  */
@@ -215,8 +216,19 @@ type LedgerRow = {
 
 /**
  * Recovery for reservations nobody settled (a crash, a timeout, a database
- * outage longer than the settle retries). Idempotent and race-safe: rows are
- * locked SKIP LOCKED and every write is guarded on state = 'reserved'.
+ * outage longer than the settle retries).
+ *
+ * ONE TRANSACTION PER RESERVATION. Each one locks exactly what a settlement
+ * locks — its own reservation row, then its counters in sorted order — so it
+ * cannot form a lock cycle with a concurrent reservation or settlement (which
+ * take counters in the same order). A sweep that settled many rows in one
+ * transaction accumulated counter locks across rows in no global order and
+ * could deadlock (40P01) with live reservations.
+ *
+ * Idempotent and race-safe: the row is re-checked FOR UPDATE SKIP LOCKED (a
+ * concurrent settle or sweep owns it — skip) and every write is guarded on
+ * state = 'reserved'. A failing row rolls back alone, stays `reserved` for the
+ * next sweep, and is reported (`expiry_failed`); the other rows are unaffected.
  *
  *   - a usage-ledger row with the SAME callId (a router attempt, a
  *     transcription) is the very verdict the settlement would have written:
@@ -225,50 +237,45 @@ type LedgerRow = {
  *     rows are per step) it is `expired`: basis unknown, charged its estimate.
  */
 export async function expireStaleShadowReservations(now: Date, ttlMinutes: number, limit = 200): Promise<number> {
-  return db.transaction(async (trx) => {
-    const stale = (await trx(R)
-      .where({ state: 'reserved' })
-      .where('reservedAt', '<', new Date(now.getTime() - ttlMinutes * 60_000))
-      .orderBy('reservedAt')
-      .limit(limit)
-      .forUpdate()
-      .skipLocked()
-      .pluck('callId')) as string[]
-    if (!stale.length) return 0
-    const ledger = new Map(
-      (
-        (await trx('ai_usage_events')
-          .whereIn('callId', stale)
-          .select(
-            'callId',
-            'status',
-            'costUsd',
-            'costBasis',
-            'costNote',
-            'priceVersion',
-            'responseModel',
-            'stepIndex',
-          )) as LedgerRow[]
-      ).map((r) => [r.callId, r]),
-    )
-    let n = 0
-    for (const callId of stale) {
-      const row = ledger.get(callId)
-      const settled = row
-        ? await settleRow(trx, callId, recoveredState(row), {
-            actualUsd: row.costUsd == null ? null : Number(row.costUsd),
-            costBasis: row.costBasis,
-            costNote: ['recovered_from_ledger', row.costNote].filter(Boolean).join(','),
-            priceVersion: row.priceVersion,
-            responseModels: row.responseModel ? [row.responseModel] : null,
-            stepIndexFrom: row.stepIndex,
-            stepCount: 1,
-          })
-        : await settleRow(trx, callId, 'expired', { actualUsd: null, costBasis: 'unknown', costNote: 'expired_unsettled' })
-      if (settled) n++
+  const stale = (await db(R)
+    .where({ state: 'reserved' })
+    .where('reservedAt', '<', new Date(now.getTime() - ttlMinutes * 60_000))
+    .orderBy('reservedAt')
+    .limit(limit)
+    .pluck('callId')) as string[]
+  let settled = 0
+  let failed = 0
+  for (const callId of stale) {
+    try {
+      if (await db.transaction((trx) => expireOne(trx, callId))) settled++
+    } catch (err) {
+      failed++
+      emitBudgetEvent('expiry_failed', { callId, stage: 'database', reason: failureReason(err, 'database'), error: err })
     }
-    return n
-  })
+  }
+  if (stale.length) emitBudgetEvent('expiry_swept', { stale: stale.length, settled, failed })
+  return settled
+}
+
+async function expireOne(trx: Knex.Transaction, callId: string): Promise<boolean> {
+  const open = await trx(R).where({ callId, state: 'reserved' }).forUpdate().skipLocked().first('callId')
+  if (!open) return false // settled meanwhile, or another settle / sweep holds it
+  const row = (await trx('ai_usage_events')
+    .where({ callId })
+    .first('callId', 'status', 'costUsd', 'costBasis', 'costNote', 'priceVersion', 'responseModel', 'stepIndex')) as
+    | LedgerRow
+    | undefined
+  return row
+    ? settleRow(trx, callId, recoveredState(row), {
+        actualUsd: row.costUsd == null ? null : Number(row.costUsd),
+        costBasis: row.costBasis,
+        costNote: ['recovered_from_ledger', row.costNote].filter(Boolean).join(','),
+        priceVersion: row.priceVersion,
+        responseModels: row.responseModel ? [row.responseModel] : null,
+        stepIndexFrom: row.stepIndex,
+        stepCount: 1,
+      })
+    : settleRow(trx, callId, 'expired', { actualUsd: null, costBasis: 'unknown', costNote: 'expired_unsettled' })
 }
 
 function recoveredState(row: LedgerRow): 'reconciled' | 'unknown_cost' | 'failed' {
