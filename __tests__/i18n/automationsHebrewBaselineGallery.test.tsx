@@ -88,7 +88,8 @@ describe('Hebrew baseline — template gallery and website connectors', () => {
     await click(btn('התקנה', dlg()))
     await wait()
     await click(btn('התקנה', card('הצעת מחיר אוטומטית')))
-    await wait(50)
+    // The composer is loaded lazily (InlineCreator): wait for it, however busy the machine is.
+    for (let i = 0; i < 100 && !dlg().querySelector('select'); i++) await wait(20)
     out.composerExisting = dialog()
     await type(dlg().querySelector('select'), '__new__')
     out.composerNew = dialog()

@@ -1,10 +1,9 @@
 'use client'
 
-import { createPortal } from 'react-dom'
 import Icon from '@/lib/Icon'
 import { HoverTooltip } from '@/components/ui/HoverTooltip'
+import AutomationRowMenu from './AutomationRowMenu'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
-import { useFloatingMenu } from '@/lib/useFloatingMenu'
 import { automationSentence } from '@/lib/automations/sentence'
 import { getAction, getEvent } from '@/lib/automations/catalog/registry'
 import type { Condition } from '@/lib/automations/conditions'
@@ -95,7 +94,6 @@ export default function AutomationCard({
   onDelete,
   onActivity,
 }: Props) {
-  const menu = useFloatingMenu()
   const hasError = data.counts.failed > 0 || data.connectionProblem === true
   const isActive = data.status === 'active'
   /**
@@ -164,38 +162,14 @@ export default function AutomationCard({
         <span className='sr-only'>{sentence}</span>
       </button>
 
-      <div ref={menu.wrapRef} className='inline-flex flex-none'>
-        <button
-          type='button'
-          aria-label={`פעולות · ${data.name}`}
-          aria-haspopup='menu'
-          aria-expanded={menu.open}
-          disabled={busy}
-          onClick={menu.toggle}
-          className='flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity duration-150 hover:bg-[#eeeff2] focus-visible:opacity-100 group-hover/row:opacity-100 aria-expanded:opacity-100'
-        >
-          <Icon name='ellipsis' type='reg' className='size-4 bg-[#8b98a8]' />
-        </button>
-        {menu.open &&
-          menu.pos &&
-          typeof document !== 'undefined' &&
-          createPortal(
-            <div
-              ref={menu.menuRef}
-              role='menu'
-              style={{ position: 'fixed', top: menu.pos.top, left: menu.pos.left, zIndex: 100000 }}
-              className='flex w-40 flex-col gap-0.5 rounded-lg border border-border bg-white p-1.5 shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)]'
-            >
-              <MenuItem onClick={() => (menu.close(), onEdit())}>ערוך</MenuItem>
-              <MenuItem onClick={() => (menu.close(), onActivity())}>יומן פעילות</MenuItem>
-              <MenuItem onClick={() => (menu.close(), onDuplicate())}>שכפל</MenuItem>
-              <MenuItem destructive onClick={() => (menu.close(), onDelete())}>
-                מחק
-              </MenuItem>
-            </div>,
-            document.body,
-          )}
-      </div>
+      <AutomationRowMenu
+        name={data.name}
+        busy={busy}
+        onEdit={onEdit}
+        onActivity={onActivity}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+      />
 
       {configuredButPaused && (
         <HoverTooltip
@@ -233,28 +207,5 @@ export default function AutomationCard({
         />
       </button>
     </div>
-  )
-}
-
-function MenuItem({
-  onClick,
-  destructive,
-  children,
-}: {
-  onClick: () => void
-  destructive?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type='button'
-      role='menuitem'
-      onClick={onClick}
-      className={`rounded-md px-3 py-2 text-start text-[13px] hover:bg-[#f7f8fa] ${
-        destructive ? 'text-error' : 'text-ink'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { Input, Select } from '@/lib/form'
-import { formatCurrency } from '@/lib/funcs'
 import { computeQuoteTotals } from '@/lib/quotes/totals'
 import { MAX_ITEMS, MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS, validateQuoteTemplateDraft, type QuoteTemplateItemDraft } from '@/lib/quotes/templateValidation'
 import { getQuoteComposerDataAction, saveQuoteTemplateAction, type QuoteComposerData } from '@/actions/quotes/templates'
 import type { InlineCreatorProps } from '@/components/settings/templates/firstPartyCreators'
 import QuoteComposerRow from './QuoteComposerRow'
+import QuoteComposerTotals from './QuoteComposerTotals'
 import { proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 
@@ -37,9 +37,6 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
  */
 
 const NEW = '__new__'
-
-/** `formatCurrency` widens to `string | number` for NaN; the document wants text. */
-const money = (n: number): string => String(formatCurrency(n))
 
 const blankItem = (): QuoteTemplateItemDraft => ({
   title: '',
@@ -192,19 +189,7 @@ export default function QuoteComposer({ variable, value, onChange, onResolverCha
                 />
               </div>
 
-              <dl className='mt-3 border-t border-gray-100 pt-3 grid gap-1.5 text-sm'>
-                <Row label='סכום ביניים' value={money(totals.subtotalAmount)} />
-                {totals.discountAmount > 0 && (
-                  <Row label='הנחה' value={`־${money(totals.discountAmount)}`} />
-                )}
-                <Row label={`מע״מ ${data.taxRatePercent}%`} value={money(totals.taxAmount)} />
-                <div className='flex items-baseline justify-between gap-3 border-t border-gray-100 pt-2 mt-0.5'>
-                  <dt className='text-[15px] font-semibold text-gray-800'>סה״כ לתשלום</dt>
-                  <dd className='text-[17px] font-semibold text-gray-900 tabular-nums'>
-                    {money(totals.totalAmount)}
-                  </dd>
-                </div>
-              </dl>
+              <QuoteComposerTotals totals={totals} taxRatePercent={data.taxRatePercent} />
 
               <div className='mt-3 flex items-center gap-2 border-t border-gray-100 pt-3'>
                 <span className='text-sm text-gray-500'>תוקף ההצעה</span>
@@ -228,14 +213,5 @@ export default function QuoteComposer({ variable, value, onChange, onResolverCha
         </>
       )}
     </section>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className='flex items-baseline justify-between gap-3'>
-      <dt className='text-gray-500'>{label}</dt>
-      <dd className='text-gray-700 tabular-nums'>{value}</dd>
-    </div>
   )
 }

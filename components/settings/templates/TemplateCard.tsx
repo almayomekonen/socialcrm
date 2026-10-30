@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
@@ -10,6 +10,7 @@ import type { TemplateView } from '@/lib/automations/templates/overview'
 import TemplateArt from './TemplateArt'
 import TemplateInstallDialog from './TemplateInstallDialog'
 import { errorMessage } from './copy'
+import { useCardMenu } from './useCardMenu'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 
@@ -35,41 +36,7 @@ export default function TemplateCard({ view, onChanged }: { view: TemplateView; 
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [pending, start] = useTransition()
 
-  /*
-    Anchored to the card rather than to the viewport.
-
-    The shared floating-menu hook places against the viewport using the
-    Follow-Up menu's dimensions — 224px wide and a 248px height estimate — so a
-    one-item menu got flipped and clamped, and landed nowhere near the button
-    that opened it. A menu positioned inside the card cannot drift: it is laid
-    out against the trigger and travels with the card.
-  */
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    function onPointerDown(e: MouseEvent) {
-      const t = e.target as Node
-      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return
-      setMenuOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return
-      setMenuOpen(false)
-      // Escape hands the focus back, or the keyboard user is left nowhere.
-      triggerRef.current?.focus()
-    }
-    // Pressing another card's trigger is an outside press here, so opening one
-    // menu closes any other: only one is ever open.
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
+  const { menuOpen, setMenuOpen, menuRef, triggerRef } = useCardMenu()
 
   const { template, availability, installed, updateAvailable } = view
   const locked = availability.state === 'locked' ? availability.requirement : null
