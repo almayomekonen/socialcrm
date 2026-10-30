@@ -9,6 +9,7 @@ import { HEADER_EDU } from '@/lib/education/types'
 import { ProNameLine } from './ProNameLabel'
 import { getDisplayName } from '@/lib/users/displayName'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { useProToastLanguage } from '@/lib/toastChrome'
 import type { MessageKey } from '@/lib/i18n/translate'
 
 type WorkspaceIdentity = { primary: MessageKey; secondary?: MessageKey }
@@ -42,6 +43,8 @@ function resolveWorkspaceTitle(pathname: string | null): WorkspaceIdentity | nul
 }) {
   const pathname = usePathname()
   const t = useT()
+  // The Pro toast follows the interface language on the desktop shell (lib/toastChrome.ts).
+  useProToastLanguage(t)
   if (!user) return null
   const title = resolveWorkspaceTitle(pathname)
   return (

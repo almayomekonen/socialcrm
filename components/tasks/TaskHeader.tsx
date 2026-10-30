@@ -182,7 +182,7 @@ function TaskTitleFormPop({
   saving: boolean
 }) {
   const t = useT()
-  const { loading, error, setError, run } = useAction()
+  const { loading, error, setError, run } = useAction({ translated: true })
 
   async function handleSave() {
     const newTitle = (document.getElementById('taskTitle') as HTMLInputElement).value.trim()

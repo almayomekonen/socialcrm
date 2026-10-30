@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Icon from './Icon'
 import { upgradeHref } from './entitlement/upgradeHref'
+import { proToastChrome } from './toastChrome'
 
 /**
  * `pro` is a SUBSCRIPTION ACTION, not an application error.
@@ -96,6 +97,9 @@ export default function ToastMsg() {
     closeTimer = setTimeout(() => { popEl?.hidePopover(); closeTimer = null }, 7000)
   }
 
+  // The interface language's chrome (lib/toastChrome.ts); Hebrew when none is pushed.
+  const proLang = pop.pro ? proToastChrome() : null
+
   const body = (
     <div className='flex items-center gap-4 ps-6 pe-9 py-3 font-medium text-white'>
       {icons[pop.icon]}
@@ -110,7 +114,7 @@ export default function ToastMsg() {
       </div>
       <div className={pop.icon === 'pro' ? 'toast toast-pro' : 'toast'} popover='auto' id='popMsg'>
         {pop.icon === 'pro' && pop.pro ? (
-          <div dir='rtl' className='flex items-start gap-3 px-5 py-4' data-testid='pro-toast'>
+          <div dir={proLang?.attrs.dir ?? 'rtl'} lang={proLang?.attrs.lang} className='flex items-start gap-3 px-5 py-4' data-testid='pro-toast'>
             {icons.pro}
             <div className='min-w-0'>
               <h3 className='text-[15px] font-semibold leading-snug text-warning-text'>{pop.pro.title}</h3>
@@ -119,7 +123,7 @@ export default function ToastMsg() {
                 href={upgradeHref(pop.pro.source)}
                 className='mt-2 inline-block text-[13px] font-semibold text-warning-text underline underline-offset-2'
               >
-                {pop.pro.cta ?? 'חידוש מנוי'}
+                {pop.pro.cta ?? proLang?.cta ?? 'חידוש מנוי'}
               </a>
             </div>
           </div>

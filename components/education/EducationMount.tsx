@@ -4,6 +4,8 @@ import { Suspense, type ReactNode } from 'react'
 import { EducationProvider } from './EducationProvider'
 import ProductTourHost from './ProductTourHost'
 import type { Surface } from '@/lib/education'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { useTourLanguage } from './tourLanguage'
 
 export default function EducationMount({
   userId,
@@ -18,6 +20,8 @@ export default function EducationMount({
   toursEnabled: boolean
   children: ReactNode
 }) {
+  // The Driver.js popovers render outside React; they take the interface language from here.
+  useTourLanguage(useT())
   return (
     <EducationProvider userId={userId} surface={surface} copilotEnabled={copilotEnabled} toursEnabled={toursEnabled}>
       {children}

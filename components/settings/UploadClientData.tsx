@@ -126,7 +126,7 @@ export default function UploadClientData({
         <p className='text-sm font-normal text-gray-500'>{t('leads.upload.fileHint')}</p>
       </div>
 
-      <FileUploader title={t('leads.upload.excelButton')} getFiles={onChange} type='file' single />
+      <FileUploader title={t('leads.upload.excelButton')} getFiles={onChange} type='file' single translated />
 
       <div className='grid gap-8 grid-cols-2 mt-4'>
         {clients && (

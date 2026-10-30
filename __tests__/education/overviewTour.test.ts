@@ -212,7 +212,8 @@ describe('overview does not navigate and stays desktop-only', () => {
     expect(EDUCATION_ACTIONS.open_overview_tour.href).toBeNull()
 
     const help = readFileSync('components/education/HelpMenu.tsx', 'utf8')
-    const overviewHandler = help.split("lbl='הראה לי איך המערכת עובדת'")[1]?.split("lbl='סיור בלידים'")[0] ?? ''
+    // The button labels come from the catalog (Phase E6); in Hebrew they are the same words.
+    const overviewHandler = help.split("lbl={t('education.help.overview')}")[1]?.split("lbl={t('education.help.pipeline')}")[0] ?? ''
     expect(overviewHandler).toContain("startTour('overview'")
     expect(overviewHandler).not.toContain('router.push')
   })
@@ -286,7 +287,11 @@ describe('overview chrome', () => {
     const runTour = readFileSync('components/education/runTour.ts', 'utf8')
     // The popover's dir is set by the shared decoration (tourPopover.ts).
     expect(readFileSync('components/education/tourPopover.ts', 'utf8')).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
-    expect(runTour).toContain("doneBtnText: 'הבנתי'")
-    expect(runTour).toContain("nextBtnText: 'הבא'")
+    // The chrome words come from the catalog (Phase E6); in Hebrew they are the same words.
+    const chrome = readFileSync('lib/i18n/messages/he/education/chrome.ts', 'utf8')
+    expect(runTour).toContain('doneBtnText: chrome.doneBtnText')
+    expect(runTour).toContain('nextBtnText: chrome.nextBtnText')
+    expect(chrome).toContain("done: 'הבנתי'")
+    expect(chrome).toContain("next: 'הבא'")
   })
 })

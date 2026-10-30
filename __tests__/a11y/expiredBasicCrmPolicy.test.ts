@@ -876,7 +876,8 @@ describe('the Pro toast is a subscription action, not an error', () => {
     const src = toastSrc()
     expect(src).toContain('{pop.pro.title}')
     expect(src).toContain('{pop.pro.body}')
-    expect(src).toContain("{pop.pro.cta ?? 'חידוש מנוי'}")
+    // Outside Hebrew the default CTA is the interface language's (Phase E6, lib/toastChrome.ts).
+    expect(src).toContain("{pop.pro.cta ?? proLang?.cta ?? 'חידוש מנוי'}")
   })
 
   it('the CTA reuses the existing billing destination, with no second mechanism', () => {

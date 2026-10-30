@@ -27,5 +27,13 @@ export const common: Messages['common'] = {
     ban: "You don't have permission to do this",
     message: 'New message',
     pro: 'This action is available with Pro',
+    proCta: 'Renew subscription',
+  },
+  actionFailed: 'Something went wrong, please try again',
+  appError: {
+    title: 'Something went wrong',
+    body: 'The screen could not be loaded. You can try again, or go back to the leads list.',
+    retry: 'Try again',
+    back: 'Back to leads',
   },
 }

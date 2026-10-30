@@ -171,7 +171,8 @@ describe('leads tour boundaries', () => {
 
   it('does not route-change for Help on /leads', () => {
     const help = readFileSync('components/education/HelpMenu.tsx', 'utf8')
-    const handler = help.split("lbl='סיור בלידים'")[1]?.split("lbl='מדריכים'")[0] ?? ''
+    // The button labels come from the catalog (Phase E6); in Hebrew they are the same words.
+    const handler = help.split("lbl={t('education.help.pipeline')}")[1]?.split("lbl={t('education.help.guides')}")[0] ?? ''
     expect(handler).toContain("startTour('pipeline'")
     expect(handler).toContain("pathname.startsWith('/leads')")
   })
@@ -181,7 +182,9 @@ describe('leads tour boundaries', () => {
     expect(css).toMatch(/\.driver-overlay\s*\{[^}]*background:\s*transparent/)
     expect(css).toMatch(/\.edu-popover\s*\{[^}]*direction:\s*rtl/)
     const runTour = readFileSync('components/education/runTour.ts', 'utf8')
-    expect(runTour).toContain("doneBtnText: 'הבנתי'")
+    // The chrome words come from the catalog (Phase E6); in Hebrew they are the same words.
+    expect(runTour).toContain('doneBtnText: chrome.doneBtnText')
+    expect(readFileSync('lib/i18n/messages/he/education/chrome.ts', 'utf8')).toContain("done: 'הבנתי'")
     // The popover's dir is set by the shared decoration (tourPopover.ts).
     expect(readFileSync('components/education/tourPopover.ts', 'utf8')).toMatch(/setAttribute\('dir',\s*'rtl'\)/)
     for (const step of getTour('pipeline')!.steps) {

@@ -11,6 +11,8 @@ export const files = {
   sizeUpTo: 'עד {size}',
   upload: 'העלה קבצים',
   deleteColumn: 'מחיקה',
+  /** The row's icon-only delete button (Phase E6). Named outside Hebrew only: Hebrew markup is unchanged. */
+  deleteButton: 'מחיקת המסמך {name}',
   deleteConfirm: 'האם למחוק מסמך {name} ?',
   header: {
     type: 'סוג קובץ',
@@ -32,6 +34,9 @@ export const files = {
     removeConfirm: 'להסיר את הקובץ?',
     failed: 'העלאת הקבצים נכשלה: {reason}',
     expired: 'חידוש המנוי מחזיר את העלאת הקבצים',
+    /** `Glry`'s button and `FileDisplay`'s fallback for an entry without a file (Phase E6). */
+    gallery: 'בחירה מגלריה',
+    unavailable: 'לא ניתן להציג',
   },
 } as const
 

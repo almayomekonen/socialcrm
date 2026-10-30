@@ -9,6 +9,7 @@ export const files: L['files'] = {
   sizeUpTo: 'حتى {size}',
   upload: 'رفع الملفات',
   deleteColumn: 'حذف',
+  deleteButton: 'حذف المستند {name}',
   deleteConfirm: 'هل تريد حذف المستند {name}؟',
   header: {
     type: 'نوع الملف',
@@ -30,6 +31,8 @@ export const files: L['files'] = {
     removeConfirm: 'هل تريد إزالة الملف؟',
     failed: 'فشل رفع الملفات: {reason}',
     expired: 'تجديد الاشتراك يعيد إمكانية رفع الملفات',
+    gallery: 'الاختيار من المعرض',
+    unavailable: 'لا يمكن العرض',
   },
 }
 

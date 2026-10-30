@@ -44,7 +44,7 @@ export default function LeadlessConversationActions({
   const router = useRouter()
   /** Entitlement from the shared context — the same answer the server gives. */
   const expired = useAccessDenied()
-  const { loading, error, setError, run } = useAction()
+  const { loading, error, setError, run } = useAction({ translated })
   /** Errors are set as catalog keys and shown in the language above (`useAction`'s own generic line is its text). */
   const fail = (key: MessageKey) => setError(t(key))
   const [matches, setMatches] = useState<ConversationLeadMatch[] | null>(null)

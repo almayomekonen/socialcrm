@@ -58,7 +58,7 @@ export default async function UserPromo({ curUser, promo, locale = 'he' }: { cur
           {promo?.files?.length > 0 && (
             <div>
               <p className='text-sm text-gray-600 mt-2'>{t('performance.promotion.rules')}</p>
-              <FileDisplay tooltipClass='h-35' files={promo.files} className='mt-1' />
+              <FileDisplay tooltipClass='h-35' files={promo.files} className='mt-1' unavailableLabel={t('leadTabs.files.uploader.unavailable')} />
             </div>
           )}
           <div className='flex mt-4 gap-2'>

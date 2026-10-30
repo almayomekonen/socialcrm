@@ -32,7 +32,7 @@ interface Props {
 export default function AddTaskForm({ clientId, taskTmplts, clients, user, translated = false }: Props) {
   const ui = useT()
   const t = translated ? ui : HEBREW
-  const { loading, error, setError, run } = useAction()
+  const { loading, error, setError, run } = useAction({ translated })
   const router = useRouter()
 
   function getTitle() {

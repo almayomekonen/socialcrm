@@ -71,7 +71,13 @@ export default function ClientFilesTable({ clientId, data, tasks }) {
     return (
       <>
         <td className='sticky left-0 z-10 bg-white'>
-          <Btn variant='outline' icon='trash' onClick={() => onDel(file)} />
+          {/* Icon-only: named outside Hebrew (Phase E6); Hebrew markup is unchanged. */}
+          <Btn
+            variant='outline'
+            icon='trash'
+            onClick={() => onDel(file)}
+            {...(t.locale === 'he' ? {} : { 'aria-label': t('leadTabs.files.deleteButton', { name: String(file.name) }) })}
+          />
         </td>
       </>
     )

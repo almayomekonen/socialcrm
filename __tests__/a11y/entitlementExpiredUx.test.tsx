@@ -299,7 +299,9 @@ describe('shared action runner distinguishes entitlement from a real bug', () =>
   it('returns the entitlement sentinel only when access is denied', () => {
     const src = read('lib/useAction.ts')
     expect(src).toContain('ENTITLEMENT_ERROR')
-    expect(src).toContain("accessDenied ? ENTITLEMENT_ERROR : 'משהו השתבש, נסה שוב'")
+    // The generic line is the catalog's (Phase E6); in Hebrew it is still the same sentence.
+    expect(src).toContain("accessDenied ? ENTITLEMENT_ERROR : t('common.actionFailed')")
+    expect(read('lib/i18n/messages/he/common.ts')).toContain("actionFailed: 'משהו השתבש, נסה שוב'")
   })
 
   it('conversation actions render the locked state instead of the retry line', () => {

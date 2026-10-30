@@ -1,6 +1,8 @@
 'use client'
 
 import type { PopoverDOM } from 'driver.js'
+import { regionAttrs } from '@/lib/i18n/config'
+import type { Translator } from '@/lib/i18n/translate'
 
 /** The look and behaviour every SocialCRM Driver.js run shares (overlay, stage, keyboard, motion). */
 export function baseDriverConfig(reduceMotion: boolean) {
@@ -26,9 +28,20 @@ export function baseDriverConfig(reduceMotion: boolean) {
  */
 export function decorateTourPopover(
   popover: PopoverDOM,
-  opts: { label: string; extra: { text: string; onClick: () => void } },
+  opts: { label: string; extra: { text: string; onClick: () => void }; t?: Translator },
 ): void {
-  popover.wrapper.setAttribute('dir', 'rtl')
+  // The popover sits in <body>, outside every language island, so it declares
+  // its own language. Hebrew keeps exactly the attribute it always had.
+  const t = opts.t
+  if (t && t.locale !== 'he') {
+    const region = regionAttrs(t.locale)
+    popover.wrapper.setAttribute('lang', region.lang!)
+    popover.wrapper.setAttribute('dir', region.dir!)
+    // Driver.js names its × button "Close" in every language.
+    popover.closeButton.setAttribute('aria-label', t('common.dialog.close'))
+  } else {
+    popover.wrapper.setAttribute('dir', 'rtl')
+  }
   popover.wrapper.setAttribute('role', 'dialog')
   popover.wrapper.setAttribute('aria-modal', 'true')
   popover.wrapper.setAttribute('aria-label', opts.label)

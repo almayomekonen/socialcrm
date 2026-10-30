@@ -70,7 +70,7 @@ vi.mock('@/actions/clients', async () => (await import('./leakGateMocks')).clien
 vi.mock('@/actions/global', () => ({ saveTblPref: async () => ({ ok: true }) }))
 vi.mock('@/actions/leadDuplicates', () => ({ findDuplicateLeads: async () => [] }))
 vi.mock('@/actions/analytics/recordFirstLeadEvent', () => ({ recordFirstLeadEvent: async () => {} }))
-// The pipeline tour is education content (out of Phase C scope, still Hebrew).
+// AutoTour only starts a Driver.js tour (it renders nothing); the tours are scanned in educationLocales.test.tsx.
 vi.mock('@/components/education/AutoTour', () => ({ default: () => null }))
 vi.mock('@/db/whatsapp', async () => (await import('./leakGateMocks')).whatsappDbModule())
 vi.mock('@/db/reports/dashboardStats', async () => ({ getDashboardStats: async () => (await import('./dashboardFixtures')).dashboardEnv.stats }))
