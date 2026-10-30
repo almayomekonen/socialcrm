@@ -9,6 +9,9 @@ import {
   itemsForSection,
   type MoreItem,
 } from './moreDestinations'
+import { moreItemCopy, moreSectionLabel } from './shellCopy'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The "עוד" hub — the mobile settings map.
@@ -21,18 +24,25 @@ import {
  *
  * Server Component — a list of links needs no client runtime. Role gating comes
  * from `visibleMoreItems`, resolved by the route.
+ *
+ * LANGUAGE (i18n Phase F1): `locale` is the route's interface language; the
+ * root declares it and the rows mirror their chevron in LTR. The user's name
+ * and e-mail are data. Hebrew: the registry's own strings, no new attributes.
  */
 export default function MobileMoreView({
   name,
   email,
   items,
+  locale = 'he',
 }: {
   name: string
   email: string
   items: MoreItem[]
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
-    <div className='flex flex-col gap-5 px-4 pb-8 pt-4'>
+    <div className='flex flex-col gap-5 px-4 pb-8 pt-4' {...regionAttrs(locale)}>
       {MORE_SECTION_ORDER.map((section) => {
         const sectionItems = itemsForSection(items, section)
         if (sectionItems.length === 0) return null
@@ -42,19 +52,23 @@ export default function MobileMoreView({
               id={`more-${section}`}
               className='mb-1.5 px-1 text-sm font-semibold text-gray-500'
             >
-              {MORE_SECTION_LABELS[section]}
+              {moreSectionLabel(section, MORE_SECTION_LABELS[section], t)}
             </h2>
             <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
               <MobileList>
-                {sectionItems.map((item) => (
-                  <MobileListRow
-                    key={item.href}
-                    href={item.href as Route}
-                    title={item.title}
-                    subtitle={item.subtitle}
-                    leading={<Tile icon={item.icon} />}
-                  />
-                ))}
+                {sectionItems.map((item) => {
+                  const copy = moreItemCopy(item, t)
+                  return (
+                    <MobileListRow
+                      key={item.href}
+                      href={item.href as Route}
+                      title={copy.title}
+                      subtitle={copy.subtitle}
+                      leading={<Tile icon={item.icon} />}
+                      translated
+                    />
+                  )
+                })}
               </MobileList>
             </div>
           </section>
@@ -68,11 +82,11 @@ export default function MobileMoreView({
       */}
       <section aria-labelledby='more-desktop'>
         <h2 id='more-desktop' className='mb-1.5 px-1 text-sm font-semibold text-gray-500'>
-          במחשב
+          {t('mobileShell.more.desktop.title')}
         </h2>
         <div className='rounded-xl border border-gray-200 bg-white p-4'>
           <p className='text-sm leading-relaxed text-gray-600'>
-            חשבוניות, דוחות ואוטומציות זמינים בגרסת המחשב.
+            {t('mobileShell.more.desktop.body')}
           </p>
           <p className='mt-2 text-[13px] text-gray-400' dir='ltr'>
             {DESKTOP_URL_LABEL}
@@ -82,7 +96,7 @@ export default function MobileMoreView({
 
       <section aria-labelledby='more-session'>
         <h2 id='more-session' className='mb-1.5 px-1 text-sm font-semibold text-gray-500'>
-          {MORE_SECTION_LABELS.account}
+          {moreSectionLabel('account', MORE_SECTION_LABELS.account, t)}
         </h2>
         <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
           <MobileList>
@@ -92,7 +106,7 @@ export default function MobileMoreView({
               leading={<Tile icon='user' />}
               // No href: identity display, not a destination. Editing the
               // profile is the "פרופיל אישי" row above.
-              trailing={<span className='text-[12px] text-gray-400'>מחובר</span>}
+              trailing={<span className='text-[12px] text-gray-400'>{t('mobileShell.more.signedIn')}</span>}
             />
             {/* The SAME `logout` server action the desktop nav calls — not a
                 second sign-out path. In a <form action> it also works without
@@ -105,7 +119,7 @@ export default function MobileMoreView({
                 <span className='flex size-9 shrink-0 items-center justify-center rounded-lg bg-error-bg'>
                   <Icon name='arrow-right-from-bracket' type='sol' className='size-4 bg-error' />
                 </span>
-                <span className='text-[15px] font-semibold'>התנתקות</span>
+                <span className='text-[15px] font-semibold'>{t('shell.nav.logout')}</span>
               </button>
             </form>
           </MobileList>

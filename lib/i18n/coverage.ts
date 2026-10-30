@@ -43,6 +43,8 @@ const ALLOWED_SAME = new Set<string>([
   // Marketing acronyms used as product names in every language (deal product list).
   'deals.product.seo',
   'deals.product.ppc',
+  // A developer tool's product name, shown in Latin letters in Hebrew too (its phone handoff, Phase F1).
+  'mobileShell.desktopOnly.title.aiInspector',
 ])
 
 type Leaf = string | Record<string, string>

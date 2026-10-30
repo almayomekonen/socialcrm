@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 
 /**
  * The mobile list row — one tappable record in a scrolling list.
@@ -36,6 +38,7 @@ export default function MobileListRow({
   badges,
   unread = false,
   className = '',
+  translated = false,
 }: {
   href?: Route
   onClick?: () => void
@@ -52,7 +55,17 @@ export default function MobileListRow({
   badges?: ReactNode
   unread?: boolean
   className?: string
+  /**
+   * The row sits in a region that follows the interface language (i18n Phase
+   * F1, opt-in): in an LTR language forward travel is toward the RIGHT edge, so
+   * the default chevron is mirrored. Rows in Hebrew-declared regions pass
+   * nothing and keep the RTL chevron in every language; Hebrew markup is
+   * unchanged either way.
+   */
+  translated?: boolean
 }) {
+  const ui = useT()
+  const mirror = translated && dirFor(ui.locale) === 'ltr'
   const inner = (
     <>
       {leading && <div className='shrink-0'>{leading}</div>}
@@ -76,7 +89,7 @@ export default function MobileListRow({
           (href || onClick) && (
             /* Chevron points LEFT in RTL — forward travel is toward the left
                edge. Purely decorative: the row's own text is its name. */
-            <Icon name='angle-left' type='sol' className='size-4 bg-gray-300' />
+            <Icon name='angle-left' type='sol' className='size-4 bg-gray-300' flip={mirror} />
           )
         )}
       </div>

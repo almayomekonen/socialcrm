@@ -1,5 +1,9 @@
+'use client'
+
 import MobileSectionHandoff from './MobileSectionHandoff'
-import { DESKTOP_ONLY_SECTIONS, type DesktopOnlySection } from '@/lib/mobile/desktopOnlyRoutes'
+import type { DesktopOnlySection } from '@/lib/mobile/desktopOnlyRoutes'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { desktopOnlyCopy } from './shellCopy'
 
 /**
  * What a phone sees on a section that lives on the computer.
@@ -16,12 +20,18 @@ import { DESKTOP_ONLY_SECTIONS, type DesktopOnlySection } from '@/lib/mobile/des
  * building them. Nothing here is CSS-conditional; a desktop request never
  * reaches this component at all (architecture-rules.md §9).
  *
- * Server Component, and temporary by construction: a section deletes its entry
- * from `lib/mobile/desktopOnlyRoutes.ts` and its gate from its page the day it
- * gains a real phone screen.
+ * Temporary by construction: a section deletes its entry from
+ * `lib/mobile/desktopOnlyRoutes.ts` and its gate from its page the day it gains
+ * a real phone screen.
+ *
+ * A Client Component only so it reads the interface language from the (app)
+ * layout's provider (i18n Phase F1) — its twelve server call sites are
+ * unchanged, and the GATE stays on the server in each of them: they still
+ * return this before their queries run, and a desktop request never reaches
+ * it. It holds no data. Hebrew: the registry's own title and body.
  */
 export default function MobileDesktopOnly({ section }: { section: DesktopOnlySection }) {
-  const { icon, title, body } = DESKTOP_ONLY_SECTIONS[section]
+  const { icon, title, body } = desktopOnlyCopy(section, useT())
 
   /**
    * `desktopHandoff` rather than an in-app `action` link, deliberately. These

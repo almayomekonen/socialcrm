@@ -7,6 +7,8 @@ import Icon, { type IconNames } from '@/lib/Icon'
 import NavBadge from '@/lib/navs/NavBadge'
 import { useAwarenessCount } from '@/modules/inbox/awareness/AwarenessContext'
 import { useNotificationUnreadCount, useNotifications } from '@/modules/notifications/NotificationContext'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { badgedTabName, tabLabel } from './shellCopy'
 
 /**
  * The mobile bottom navigation — היום · לידים · שיחות · התראות · עוד.
@@ -31,6 +33,7 @@ import { useNotificationUnreadCount, useNotifications } from '@/modules/notifica
 export type MobileTab = {
   icon: IconNames
   href: Route
+  /** The Hebrew label (source). Other languages word it by href — `shellCopy.ts`. */
   title: string
   /** Unread count. Rendered as a badge and folded into the accessible name. */
   badge?: number
@@ -67,6 +70,7 @@ export default function MobileTabBar({
   conversationCount?: number
 }) {
   const pathname = usePathname()
+  const t = useT()
   const { enabled: notificationsEnabled } = useNotifications()
   const liveNotifications = useNotificationUnreadCount()
   const liveConversations = useAwarenessCount()
@@ -79,7 +83,7 @@ export default function MobileTabBar({
 
   return (
     <nav
-      aria-label='ניווט ראשי'
+      aria-label={t('shell.nav.label')}
       /* Safe-area padding, not margin: the bar's background must extend UNDER the
          home indicator, while its touch targets stay above it. */
       className='shrink-0 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom,0px)]'
@@ -88,6 +92,7 @@ export default function MobileTabBar({
         {tabs.map((tab) => {
           const active = isTabActive(pathname, tab.href)
           const hasBadge = tab.badge != null && tab.badge > 0
+          const label = tabLabel(tab, t)
           return (
             <li key={tab.href} className='flex-1'>
               <Link
@@ -100,7 +105,7 @@ export default function MobileTabBar({
                 aria-current={active ? 'page' : undefined}
                 /* The badge is aria-hidden (it is a visual echo), so the count
                    has to reach assistive tech through the link's name instead. */
-                aria-label={hasBadge ? `${tab.title}, ${tab.badge} חדשות` : undefined}
+                aria-label={hasBadge ? badgedTabName(label, tab.badge!, t) : undefined}
                 /* min-h-14 = 56px, comfortably past the 44px minimum even before
                    the label wraps. */
                 className={`flex min-h-14 flex-col items-center justify-center gap-1 px-0.5 py-2 transition-colors active:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
@@ -118,7 +123,7 @@ export default function MobileTabBar({
                 {/* Text label always present — icon-only tabs fail both the
                     "no ambiguous icons" rule and the accessible-name rule. */}
                 <span className={`max-w-full truncate text-[10.5px] leading-none ${active ? 'font-semibold' : 'font-medium'}`}>
-                  {tab.title}
+                  {label}
                 </span>
               </Link>
             </li>

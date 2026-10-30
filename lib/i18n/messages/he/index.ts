@@ -29,5 +29,6 @@ import { billing } from './billing'
 import { settings } from './settings'
 import { admin } from './admin'
 import { education } from './education'
+import { mobileShell } from './mobileShell'
 
-export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education } as const
+export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education, mobileShell } as const

@@ -18,6 +18,7 @@ import { billing } from './billing'
 import { settings } from './settings'
 import { admin } from './admin'
 import { education } from './education'
+import { mobileShell } from './mobileShell'
 
 /** Arabic (Modern Standard, Latin digits) — pilot draft; native review is recorded in lib/i18n/review.ts. */
-export const ar: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education }
+export const ar: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education, mobileShell }

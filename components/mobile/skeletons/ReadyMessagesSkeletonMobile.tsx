@@ -1,10 +1,10 @@
-import { Pulse, Status } from './Pulse'
+import { LoadingStatus, Pulse } from './Pulse'
 
 /** Mirrors ReadyMessagesWorkspace: back, title, CTA, grouped rows. */
 export default function ReadyMessagesSkeletonMobile() {
   return (
     <div className='px-4 pb-8 pt-4' aria-busy='true' data-testid='ready-messages-skeleton-mobile'>
-      <Status>טוען…</Status>
+      <LoadingStatus />
       <Pulse className='h-11 w-36 rounded' />
       <Pulse className='mt-3 h-7 w-44 rounded' />
       <Pulse className='mt-2 h-4 w-56 max-w-full rounded' />

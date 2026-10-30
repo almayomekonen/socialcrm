@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { copyToClipboard } from '@/lib/clipboard'
-import { DESKTOP_URL, MOBILE_HANDOFF_COPY as COPY } from '@/lib/activation/mobileHandoffCopy'
+import { DESKTOP_URL } from '@/lib/activation/mobileHandoffCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The desktop handoff action, inside the mobile workspace.
@@ -22,6 +23,11 @@ import { DESKTOP_URL, MOBILE_HANDOFF_COPY as COPY } from '@/lib/activation/mobil
  * would be a button with no behaviour behind it — a phone cannot open a window
  * on another machine. Getting the address onto the other device is the real
  * action, and it is the one the product already ships.
+ *
+ * LANGUAGE (i18n Phase F1): the three labels are `mobileShell.desktopOnly.copy.*`,
+ * whose Hebrew is `MOBILE_HANDOFF_COPY`'s, pinned equal by
+ * `mobileShellCopyPin.test.ts`. The activation screens (`ContinueOnDesktop`,
+ * outside the workspace, pre-trial) keep reading that module, unchanged.
  */
 
 const CONFIRM_MS = 2400
@@ -29,12 +35,13 @@ const CONFIRM_MS = 2400
 type Status = 'idle' | 'copied' | 'failed'
 
 export default function CopyDesktopLink() {
+  const t = useT()
   const [status, setStatus] = useState<Status>('idle')
 
   useEffect(() => {
     if (status === 'idle') return
-    const t = setTimeout(() => setStatus('idle'), CONFIRM_MS)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setStatus('idle'), CONFIRM_MS)
+    return () => clearTimeout(timer)
   }, [status])
 
   async function copy() {
@@ -46,7 +53,7 @@ export default function CopyDesktopLink() {
       <Btn
         variant='solid'
         size='large'
-        lbl={status === 'copied' ? COPY.copiedLabel : COPY.copyLabel}
+        lbl={status === 'copied' ? t('mobileShell.desktopOnly.copy.copied') : t('mobileShell.desktopOnly.copy.label')}
         icon={status === 'copied' ? 'check' : undefined}
         onClick={copy}
         className='w-full justify-center'
@@ -55,7 +62,11 @@ export default function CopyDesktopLink() {
       {/* Outcome is announced, not merely shown: a screen reader that has already
           moved past the button never hears its label change. */}
       <p role='status' aria-live='polite' className='min-h-[1rem] text-center text-[12px] text-gray-500'>
-        {status === 'copied' ? COPY.copiedLabel : status === 'failed' ? COPY.copyFailedLabel : ''}
+        {status === 'copied'
+          ? t('mobileShell.desktopOnly.copy.copied')
+          : status === 'failed'
+            ? t('mobileShell.desktopOnly.copy.failed')
+            : ''}
       </p>
     </div>
   )

@@ -1,10 +1,10 @@
-import { Pulse, Status } from './Pulse'
+import { LoadingStatus, Pulse } from './Pulse'
 
 /** Mirrors MobileMoreView: section label + grouped list rows. */
 export default function MoreSkeletonMobile() {
   return (
     <div className='flex flex-col gap-5 px-4 pb-8 pt-4' aria-busy='true' data-testid='more-skeleton-mobile'>
-      <Status>טוען…</Status>
+      <LoadingStatus />
       {[0, 1].map((s) => (
         <div key={s}>
           <Pulse className='mb-1.5 h-3.5 w-20 rounded' />

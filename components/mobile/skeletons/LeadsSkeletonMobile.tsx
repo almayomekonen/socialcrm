@@ -1,10 +1,10 @@
-import { Pulse, Status } from './Pulse'
+import { LoadingStatus, Pulse } from './Pulse'
 
 /** Mirrors LeadFilterBar + LeadCardMobile grouped list. */
 export default function LeadsSkeletonMobile() {
   return (
     <div className='flex min-h-full flex-col' aria-busy='true' data-testid='leads-skeleton-mobile'>
-      <Status>טוען…</Status>
+      <LoadingStatus />
       <div className='sticky top-0 z-20 border-b border-gray-200 bg-white px-3 pb-2 pt-2.5' aria-hidden>
         <Pulse className='h-11 w-full rounded-lg' />
         <div className='mt-2 flex items-center gap-2'>
