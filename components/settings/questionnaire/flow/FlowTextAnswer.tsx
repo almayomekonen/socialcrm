@@ -3,23 +3,25 @@
 import { keyOf, setNotSetAllowed } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
 import { applyTextCheck, currentTextCheck } from '../answerCheck'
 import { useFlowEditor } from './flowContext'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 const EXPECT = [
-  { value: 'any', label: 'כל תשובה' },
-  { value: 'date', label: 'תאריך' },
-  { value: 'location', label: 'מיקום / מקום' },
+  { value: 'any', label: 'admin.questionnaireFlow.expect.any' },
+  { value: 'date', label: 'admin.questionnaireFlow.expect.date' },
+  { value: 'location', label: 'admin.questionnaireFlow.expect.location' },
 ] as const
 
 /** "איזו תשובה אנחנו מצפים לקבל?" for a free-text question, and "not decided yet" where it applies. */
 export default function FlowTextAnswer({ questionKey: key }: { questionKey: string }) {
   const { model, edit } = useFlowEditor()
+  const t = useT()
   const question = model.questions.find((q) => keyOf(q) === key)
   if (!question) return null
   const expect = currentTextCheck(question)
   return (
     <div className='grid gap-1.5'>
       <label className='text-xs text-gray-600' htmlFor={`${key}-expect`}>
-        איזו תשובה אנחנו מצפים לקבל?
+        {t('admin.questionnaireFlow.expect.label')}
       </label>
       <select
         id={`${key}-expect`}
@@ -33,7 +35,7 @@ export default function FlowTextAnswer({ questionKey: key }: { questionKey: stri
       >
         {EXPECT.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {t(o.label)}
           </option>
         ))}
       </select>
@@ -45,7 +47,7 @@ export default function FlowTextAnswer({ questionKey: key }: { questionKey: stri
             checked={'notSetAllowed' in question.answer && question.answer.notSetAllowed}
             onChange={(e) => edit((m) => setNotSetAllowed(m, key, e.target.checked))}
           />
-          אפשר לענות "עדיין לא נקבע"
+          {t('admin.questionnaire.text.notSet')}
         </label>
       )}
     </div>

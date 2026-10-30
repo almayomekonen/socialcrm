@@ -18,6 +18,7 @@ import { BILLING_SURFACES } from './billingSurfaces'
 import { SETTINGS_SURFACES } from './settingsSurfaces'
 import { ADMIN_SURFACES } from './adminSurfaces'
 import { AUTOMATIONS_SURFACES } from './automationsSurfaces'
+import { QUESTIONNAIRE_SURFACES } from './questionnaireSurfaces'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -211,6 +212,7 @@ export const SURFACES: Surface[] = [
   ...SETTINGS_SURFACES,
   ...ADMIN_SURFACES,
   ...AUTOMATIONS_SURFACES,
+  ...QUESTIONNAIRE_SURFACES,
   ...(
     [
       ['desktop, Today brief v2 + analytics', { mobile: false, v2: true, stats: STATS }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],

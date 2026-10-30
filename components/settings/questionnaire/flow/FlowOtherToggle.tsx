@@ -2,7 +2,8 @@
 
 import { useId } from 'react'
 import { disableOther, enableOther, otherOf, questionsFull } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
-import { otherBlockedReason } from '../builderCopy'
+import { otherBlockedReasonIn } from '../copyIn'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useFlowEditor } from './flowContext'
 
 /**
@@ -14,8 +15,9 @@ import { useFlowEditor } from './flowContext'
 export default function FlowOtherToggle({ questionKey, optionCount }: { questionKey: string; optionCount: number }) {
   const { model, edit, confirm } = useFlowEditor()
   const id = useId()
+  const t = useT()
   const other = otherOf(model, questionKey)
-  const blocked = otherBlockedReason({ hasOther: other !== null, optionsFull: optionCount >= 10, questionsFull: questionsFull(model) })
+  const blocked = otherBlockedReasonIn({ hasOther: other !== null, optionsFull: optionCount >= 10, questionsFull: questionsFull(model) }, t)
 
   return (
     <div className='grid gap-0.5'>
@@ -31,15 +33,15 @@ export default function FlowOtherToggle({ questionKey, optionCount }: { question
               ? edit((m) => enableOther(m, questionKey))
               : other?.followUp
                 ? confirm({
-                    msg: `להסיר את "${other.option.label}"?\nגם שאלת ההמשך שלה תימחק.`,
-                    confirmLbl: `הסרת "${other.option.label}"`,
+                    msg: `${t('admin.questionnaire.options.removeMsg', { name: other.option.label })}\n${t('admin.questionnaire.options.followUpGone')}`,
+                    confirmLbl: t('admin.questionnaire.options.removeLbl', { name: other.option.label }),
                     destructive: true,
                     run: () => edit((m) => disableOther(m, questionKey)),
                   })
                 : edit((m) => disableOther(m, questionKey))
           }
         />
-        אפשר לבחור "אחר"
+        {t('admin.questionnaireFlow.otherToggle')}
       </label>
       {blocked && (
         <p id={`${id}-why`} className='text-xs text-gray-600'>

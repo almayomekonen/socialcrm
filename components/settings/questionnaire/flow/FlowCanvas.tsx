@@ -15,7 +15,9 @@ import {
 import '@xyflow/react/dist/style.css'
 import { buildFlow, ENDINGS, OPENING } from '@/lib/inbox/autoresponse/questionnaire/builder/flowGraph'
 import { addQuestion, insertQuestion, keyOf, newRef, optionsOf, questionsFull, reactKey, type NewQuestionKind } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
-import { QUESTIONS_FULL } from '../builderCopy'
+import { questionsFullIn } from '../copyIn'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
 import AddQuestionMenu from './AddQuestionMenu'
 import FlowEmptyState from './FlowEmptyState'
 import { useArrowInsert } from './useArrowInsert'
@@ -28,20 +30,20 @@ import { useCanvasViewport } from './useCanvasViewport'
 
 const nodeTypes = { opening: OpeningNode, question: QuestionNode, endings: EndingsNode }
 
-/** React Flow's screen-reader strings, in the product's language. */
-const HEBREW_ARIA = {
-  'node.a11yDescription.default': 'לחצו Enter כדי לבחור את התיבה. בתוך התיבה, Tab עובר בין השדות.',
-  'node.a11yDescription.keyboardDisabled': 'בתוך התיבה, Tab עובר בין השדות.',
+/** React Flow's screen-reader strings, in the interface language. */
+const ariaFor = (t: Translator) => ({
+  'node.a11yDescription.default': t('admin.questionnaireFlow.aria.nodeDefault'),
+  'node.a11yDescription.keyboardDisabled': t('admin.questionnaireFlow.aria.nodeKeyboardDisabled'),
   'node.a11yDescription.ariaLiveMessage': () => '',
-  'edge.a11yDescription.default': 'חץ בשיחה',
-  'controls.ariaLabel': 'שליטה בתצוגת התרשים',
-  'controls.zoomIn.ariaLabel': 'הגדלה',
-  'controls.zoomOut.ariaLabel': 'הקטנה',
-  'controls.fitView.ariaLabel': 'הצגת כל התרשים',
-  'controls.interactive.ariaLabel': 'נעילת התרשים',
-  'minimap.ariaLabel': 'מפה מוקטנת',
-  'handle.ariaLabel': 'נקודת חיבור',
-}
+  'edge.a11yDescription.default': t('admin.questionnaireFlow.aria.edge'),
+  'controls.ariaLabel': t('admin.questionnaireFlow.aria.controls'),
+  'controls.zoomIn.ariaLabel': t('admin.questionnaireFlow.aria.zoomIn'),
+  'controls.zoomOut.ariaLabel': t('admin.questionnaireFlow.aria.zoomOut'),
+  'controls.fitView.ariaLabel': t('admin.questionnaireFlow.aria.fitView'),
+  'controls.interactive.ariaLabel': t('admin.questionnaireFlow.aria.interactive'),
+  'minimap.ariaLabel': t('admin.questionnaireFlow.aria.minimap'),
+  'handle.ariaLabel': t('admin.questionnaireFlow.aria.handle'),
+})
 
 type Props = Omit<FlowEditor, 'reveal' | 'routedOptions' | 'focusRequest' | 'focusDone' | 'returnFocusTo' | 'insertAfter'> & { selectedKey: string | null }
 
@@ -61,6 +63,9 @@ export default function FlowCanvas(props: Props) {
 
 function Canvas({ selectedKey, ...editor }: Props) {
   const { model, edit, select, announce } = editor
+  const t = useT()
+  const dir = useRegionAttrs().dir ?? 'rtl'
+  const aria = useMemo(() => ariaFor(t), [t])
   const graph = useMemo(() => buildFlow(model), [model])
   // Boxes are identified by the render key, which survives a save giving a new
   // question its server id; the draft (and the map) speak in draft keys.
@@ -105,7 +110,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
     const ref = newRef()
     const at = { after: e.source === OPENING ? null : keyOfNode(e.source), before: e.target === ENDINGS ? null : keyOfNode(e.target) }
     edit((m) => insertQuestion(m, at, kind, ref))
-    announce('נוספה שאלה חדשה')
+    announce(t('admin.questionnaireFlow.added'))
     select(ref)
     reveal(ref)
   })
@@ -113,7 +118,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
   const insertAfter = (nodeId: string) => {
     const e = canInsert ? flowEdges.find((x) => x.source === nodeId && !x.option) : undefined
     if (!e) return null
-    const where = nodeId === OPENING ? 'אחרי הודעת הפתיחה' : `אחרי שאלה ${ids.indexOf(nodeId)}`
+    const where = nodeId === OPENING ? t('admin.questionnaireFlow.afterOpening') : t('admin.questionnaireFlow.afterQuestion', { number: String(ids.indexOf(nodeId)) })
     return { where, open: arrows.openEdge === e.id, onOpen: (button: HTMLButtonElement) => arrows.openFor(e.id, button) }
   }
   const edges: Edge[] = flowEdges.map((e) => ({
@@ -161,7 +166,7 @@ function Canvas({ selectedKey, ...editor }: Props) {
   const addAtEnd = (kind: NewQuestionKind) => {
     const ref = newRef()
     edit((m) => addQuestion(m, kind, ref))
-    announce('נוספה שאלה חדשה לפני הסיום')
+    announce(t('admin.questionnaireFlow.addedAtEnd'))
     select(ref)
     reveal(ref)
   }
@@ -190,14 +195,14 @@ function Canvas({ selectedKey, ...editor }: Props) {
           // The box wrappers are not Tab stops: each box's own "עריכה" button and
           // fields are, so keyboard users move between things that do something.
           nodesFocusable={false}
-          ariaLabelConfig={HEBREW_ARIA}
+          ariaLabelConfig={aria}
           edgesFocusable={false}
           deleteKeyCode={null}
           panOnScroll
           zoomOnScroll={false}
           minZoom={0.3}
           maxZoom={1.5}
-          aria-label='מפת השאלון'
+          aria-label={t('admin.questionnaireFlow.map')}
         >
           <Background gap={24} size={1} />
           <Controls showInteractive={false} position='bottom-right' />
@@ -207,8 +212,8 @@ function Canvas({ selectedKey, ...editor }: Props) {
             </Panel>
           ) : (
             <Panel position='top-right'>
-              <div dir='rtl' className='flex items-center gap-2'>
-                <AddQuestionMenu disabledReason={full ? QUESTIONS_FULL : null} onAdd={addAtEnd} />
+              <div dir={dir} className='flex items-center gap-2'>
+                <AddQuestionMenu disabledReason={full ? questionsFullIn(t) : null} onAdd={addAtEnd} />
               </div>
             </Panel>
           )}

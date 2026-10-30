@@ -7,6 +7,10 @@ import LimitedButton from './LimitedButton'
 import PhrasingsEditor from './PhrasingsEditor'
 import IconChooser from './IconChooser'
 import OptionLabelLimit, { optionLabelDescribedBy, useOptionLabelInput } from './OptionLabelLimit'
+import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
+import { issueTextIn } from './issueText'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * One answer option, on one line: its number as WhatsApp shows it, its name,
@@ -26,6 +30,7 @@ export default function OptionRow({
   removeBlockedReason,
   issues,
   singleChoice,
+  model,
 }: {
   option: BuilderOption
   number: number
@@ -34,9 +39,12 @@ export default function OptionRow({
   onRemove: () => void
   removeBlockedReason: string | null
   issues: EditorIssue[]
+  /** For wording the option's problems (issueText). */
+  model: BuilderQuestionnaire
 }) {
   const id = useId()
-  const name = option.label.trim() || `אפשרות ${number}`
+  const t = useT()
+  const name = option.label.trim() || t('admin.questionnaire.option.fallback', { number: String(number) })
   const errorId = `${id}-error`
   const missing = issues.some((i) => i.code === 'missing_text')
   const labelInput = useOptionLabelInput((label) => onChange({ label }))
@@ -49,20 +57,21 @@ export default function OptionRow({
       </span>
       <div className='grid gap-1'>
         <label htmlFor={`${id}-label`} className='sr-only'>
-          שם האפשרות {number}
+          {t('admin.questionnaire.option.name', { number: String(number) })}
         </label>
         <input
           id={`${id}-label`}
           value={option.label}
           onChange={(e) => labelInput.change(e.target.value)}
-          placeholder='למשל: חתונה'
+          placeholder={t('admin.questionnaire.option.placeholder')}
           aria-invalid={issues.length > 0}
+          {...customerTextAttrs(t.locale)}
           aria-describedby={describedBy}
           className='h-9 rounded-md border border-gray-200 bg-white px-2.5 text-sm focus:outline-2 focus:outline-primary aria-invalid:border-red-500'
         />
         {issues.length > 0 && (
           <p id={errorId} className='text-xs text-red-600'>
-            {missing ? 'כתבו שם לאפשרות.' : issues.map((i) => i.text).join(' ')}
+            {missing ? t('admin.questionnaire.option.missing') : issues.map((i) => issueTextIn(i, model, t)).join(' ')}
           </p>
         )}
         <OptionLabelLimit id={id} label={option.label} refused={labelInput.refused} singleChoice={singleChoice} />
@@ -79,7 +88,7 @@ export default function OptionRow({
         size='icon'
         variant='ghost'
         icon='trash'
-        aria-label={`מחיקת האפשרות ${name}`}
+        aria-label={t('admin.questionnaire.option.remove', { name })}
         blockedReason={removeBlockedReason}
         onClick={onRemove}
       />

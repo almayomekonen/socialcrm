@@ -5,6 +5,7 @@ import { useReactFlow } from '@xyflow/react'
 import { useKeepOpenBoxInView } from './keepOpenBoxInView'
 import type { Point, Size } from './flowLayout'
 import { ADD_QUESTION } from './removalFocus'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Where the map looks and where the cursor goes, for FlowCanvas (moved here
@@ -24,6 +25,8 @@ export function useCanvasViewport({
   selectedKey: string | null
 }) {
   const flow = useReactFlow()
+  // Each box's "עריכה" button is named "<edit> …" in the interface language (QuestionSummary, OpeningNode, EndingsNode).
+  const editPrefix = useT()('admin.questionnaireFlow.editPrefix')
   const [pendingReveal, setPendingReveal] = useState<string | null>(null)
   // A box just created opens with the cursor in its question text.
   const [focusRequest, setFocusRequest] = useState<string | null>(null)
@@ -69,7 +72,7 @@ export function useCanvasViewport({
         ? document.querySelector<HTMLElement>('.react-flow button[aria-haspopup="menu"]')
         : [...document.querySelectorAll<HTMLElement>('.react-flow__node')]
             .find((n) => n.getAttribute('data-id') === returnFocus)
-            ?.querySelector<HTMLElement>('button[aria-label^="עריכת"]')
+            ?.querySelector<HTMLElement>(`button[aria-label^="${editPrefix}"]`)
     const attempt = () => {
       const el = find()
       el?.focus({ preventScroll: true })
@@ -79,7 +82,7 @@ export function useCanvasViewport({
     }
     handle = requestAnimationFrame(attempt)
     return () => cancelAnimationFrame(handle)
-  }, [returnFocus])
+  }, [returnFocus, editPrefix])
 
   const reveal = useCallback((nodeId: string) => {
     setPendingReveal(nodeId)

@@ -37,6 +37,9 @@ const ALLOWED_SAME = new Set<string>([
   'admin.automationCatalog.sentence.withSubject',
   'admin.automationCatalog.sentence.condition',
   'admin.automationCatalog.sentence.conditionNoValue',
+  // The list separator inside the questionnaire's condition sentences (Phase E5c):
+  // a comma in Hebrew and English, the Arabic comma in Arabic.
+  'admin.questionnaireCopy.conditions.list',
   // Marketing acronyms used as product names in every language (deal product list).
   'deals.product.seo',
   'deals.product.ppc',

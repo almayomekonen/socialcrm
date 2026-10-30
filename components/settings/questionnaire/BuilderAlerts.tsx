@@ -1,11 +1,12 @@
 'use client'
 
 import { Btn } from '@/lib/btns/Btn'
-import { describeIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/issues'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import type { ConflictKind } from '@/hooks/useQuestionnaireDraft'
 import type { ReleaseState } from '@/hooks/useQuestionnaireRelease'
-import { CONFLICT_COPY, FAILURE_COPY } from './builderCopy'
+import { conflictIn, failureIn, publishFailureIn } from './copyIn'
+import { issueTextIn } from './issueText'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { focusCard } from './focusCard'
 
 /**
@@ -27,6 +28,7 @@ export default function BuilderAlerts({
   model: BuilderQuestionnaire | null
   onDismiss: () => void
 }) {
+  const t = useT()
   return (
     <>
       {conflict && (
@@ -34,25 +36,25 @@ export default function BuilderAlerts({
           role='alert'
           className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3'
         >
-          <p className='text-sm text-gray-900'>{CONFLICT_COPY[conflict]}</p>
-          <Btn type='button' variant='outline' lbl='טעינת הגרסה העדכנית' onClick={() => window.location.reload()} />
+          <p className='text-sm text-gray-900'>{conflictIn(conflict, t)}</p>
+          <Btn type='button' variant='outline' lbl={t('admin.questionnaire.alerts.reload')} onClick={() => window.location.reload()} />
         </div>
       )}
       {failure !== null && (
         <p role='alert' className='rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800'>
-          {FAILURE_COPY[failure] ?? 'לא הצלחנו לפתוח את השאלון. נסו לרענן את העמוד.'}
+          {failureIn(failure, t) ?? t('admin.questionnaire.alerts.openFailed')}
         </p>
       )}
       {release.kind === 'blocked' && (
         <div role='alert' className='grid gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3'>
-          <p className='text-sm font-medium text-red-900'>{release.message}</p>
+          <p className='text-sm font-medium text-red-900'>{publishFailureIn(release.reason, t)}</p>
           {model && release.issues.length > 0 && (
             <ul className='list-disc ps-5 text-sm text-red-800'>
               {release.issues
                 .filter((i) => i.severity === 'error')
                 .map((i, n) => (
                   <li key={n}>
-                    {describeIssue(i, model)}{' '}
+                    {issueTextIn(i, model, t)}{' '}
                     {(i.questionId || i.endingIndex !== undefined) && (
                       <button
                         type='button'
@@ -63,7 +65,7 @@ export default function BuilderAlerts({
                         }
                         className='font-medium underline underline-offset-2'
                       >
-                        {i.questionId ? 'מעבר לשאלה' : 'מעבר לסיום'}
+                        {i.questionId ? t('admin.questionnaire.alerts.toQuestion') : t('admin.questionnaire.alerts.toEnding')}
                       </button>
                     )}
                   </li>
@@ -71,7 +73,7 @@ export default function BuilderAlerts({
             </ul>
           )}
           <div>
-            <Btn type='button' size='small' variant='outline' lbl='הבנתי' onClick={onDismiss} />
+            <Btn type='button' size='small' variant='outline' lbl={t('admin.questionnaire.alerts.ok')} onClick={onDismiss} />
           </div>
         </div>
       )}

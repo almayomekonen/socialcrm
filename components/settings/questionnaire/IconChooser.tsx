@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import EmojiPicker from '@/components/ui/emoji-picker'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /** Icons businesses on WhatsApp actually use for menu answers; anything else via "עוד אייקונים". */
 const COMMON = ['💄', '💇', '✨', '💍', '🎉', '👶', '📸', '🎥', '🚁', '💼', '🏠', '📅', '📍', '✅', '❌', '🤷', '💬', '⭐']
@@ -24,6 +25,7 @@ export default function IconChooser({
   onChange: (icon: string | undefined) => void
 }) {
   const id = useId()
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [more, setMore] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
@@ -51,7 +53,7 @@ export default function IconChooser({
         aria-haspopup='dialog'
         aria-expanded={open}
         aria-controls={open ? `${id}-palette` : undefined}
-        aria-label={icon ? `אייקון לתשובה ${answerName}: ${icon}. שינוי` : `הוספת אייקון לתשובה ${answerName}`}
+        aria-label={icon ? t('admin.questionnaire.icon.change', { name: answerName, icon }) : t('admin.questionnaire.icon.add', { name: answerName })}
         onClick={() => setOpen((o) => !o)}
         className={
           icon
@@ -59,13 +61,13 @@ export default function IconChooser({
             : 'flex h-8 items-center rounded-md px-1.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-800 focus-visible:outline-2 focus-visible:outline-primary'
         }
       >
-        {icon ?? '+ אייקון'}
+        {icon ?? t('admin.questionnaire.icon.addVisible')}
       </button>
       {open && (
         <div
           id={`${id}-palette`}
           role='dialog'
-          aria-label={`אייקון לתשובה ${answerName}`}
+          aria-label={t('admin.questionnaire.icon.palette', { name: answerName })}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.stopPropagation()
@@ -75,13 +77,13 @@ export default function IconChooser({
           }}
           className='absolute end-0 top-9 z-20 grid w-56 gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-lg'
         >
-          <p className='text-xs text-gray-500'>האייקון מופיע אחרי התשובה בוואטסאפ. לא חובה.</p>
+          <p className='text-xs text-gray-500'>{t('admin.questionnaire.icon.help')}</p>
           <div className='grid grid-cols-6 gap-1'>
             {COMMON.map((e) => (
               <button
                 key={e}
                 type='button'
-                aria-label={`בחירת האייקון ${e}`}
+                aria-label={t('admin.questionnaire.icon.pick', { icon: e })}
                 aria-pressed={icon === e}
                 onClick={() => choose(e)}
                 className='flex size-8 items-center justify-center rounded text-base hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-primary aria-pressed:bg-indigo-50'
@@ -92,11 +94,11 @@ export default function IconChooser({
           </div>
           <div className='flex items-center justify-between gap-2 border-t border-gray-100 pt-2 text-xs'>
             <button type='button' onClick={() => choose(undefined)} className='text-gray-600 underline underline-offset-2'>
-              ללא אייקון
+              {t('admin.questionnaire.icon.none')}
             </button>
             <div className='relative'>
               <button type='button' onClick={() => setMore(true)} className='text-gray-600 underline underline-offset-2'>
-                עוד אייקונים…
+                {t('admin.questionnaire.icon.more')}
               </button>
               <EmojiPicker open={more} onClose={() => setMore(false)} onPick={(e) => choose(e)} triggerRef={trigger} />
             </div>

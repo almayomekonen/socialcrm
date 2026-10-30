@@ -8,6 +8,8 @@ import QuestionnaireSimulator from '../QuestionnaireSimulator'
 import WhatsAppPreview from '../WhatsAppPreview'
 import FlowCanvas from './FlowCanvas'
 import { addPhrasing, keyOf, reactKey } from '@/lib/inbox/autoresponse/questionnaire/builder/editorOps'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 
 type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
 export type FlowPanel = 'none' | 'preview' | 'test'
@@ -53,6 +55,9 @@ export default function FlowWorkspace({
   /** "לקוח יכול לענות 'הכל'", decided on the server (canUseQuestionnaireNaturalAnswers): shown only where it has an effect. */
   allowAllEnabled?: boolean
 }) {
+  const t = useT()
+  // The drawer opens over the END of the map: its left edge in a right-to-left interface, its right edge otherwise.
+  const edge = dirFor(t.locale) === 'rtl' ? 'desktop:left-0' : 'desktop:right-0'
   const [selected, setSelected] = useState<string | null>(null)
   const select = (nodeId: string | null) => {
     setSelected(nodeId)
@@ -104,16 +109,16 @@ export default function FlowWorkspace({
       {side && (
         <aside
           ref={drawer}
-          aria-label={panel === 'test' ? 'בדיקת השאלון' : 'איך זה ייראה ללקוח'}
+          aria-label={panel === 'test' ? t('admin.questionnaire.header.test') : t('admin.questionnaireFlow.drawer.preview')}
           onKeyDown={(e) => e.key === 'Escape' && closePanel()}
-          className='flex w-full flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 desktop:absolute desktop:inset-y-0 desktop:left-0 desktop:z-10 desktop:overflow-y-auto desktop:shadow-xl min-[1200px]:w-[400px] min-[1200px]:rounded-e-none'
+          className={`flex w-full flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 desktop:absolute desktop:inset-y-0 ${edge} desktop:z-10 desktop:overflow-y-auto desktop:shadow-xl min-[1200px]:w-[400px] min-[1200px]:rounded-e-none`}
         >
           <button
             type='button'
             onClick={closePanel}
             className='self-end text-sm text-gray-600 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-primary'
           >
-            סגירה<span className='hidden desktop:inline'> וחזרה לתרשים</span>
+            {t('admin.questionnaireFlow.drawer.close')}<span className='hidden desktop:inline'>{t('admin.questionnaireFlow.drawer.closeToMap')}</span>
           </button>
           {panel === 'test' && draftId !== null ? (
             <QuestionnaireSimulator
@@ -123,6 +128,7 @@ export default function FlowWorkspace({
               onNotReady={onNotReady}
               onTeach={(t) => edit((m) => addPhrasing(m, t.questionId, t.optionId, t.phrase))}
               autoFocus
+              translated
             />
           ) : (
             <WhatsAppPreview model={model} view={view} focus={selectedQuestion ? { kind: 'question', key: keyOf(selectedQuestion) } : null} />

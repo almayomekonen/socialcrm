@@ -33,7 +33,7 @@ type Props = {
   sent: boolean
   rows?: number
   error?: string
-  /** Follow the interface language (the auto-response fixed message). Default Hebrew: the questionnaire builder is not translated yet. */
+  /** Follow the interface language (the auto-response fixed message, the questionnaire builder). Default Hebrew: the Smart Agent's AI fields stay Hebrew (owner order). */
   translated?: boolean
 }
 

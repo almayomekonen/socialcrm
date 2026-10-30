@@ -1,6 +1,7 @@
 'use client'
 
 import { useFlowEditor } from './flowContext'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * "+ הוספת שאלה" on the continue arrow that leaves this box: drawn just under
@@ -11,12 +12,14 @@ import { useFlowEditor } from './flowContext'
  */
 export default function ArrowInsertButton({ nodeId }: { nodeId: string }) {
   const arrow = useFlowEditor().insertAfter(nodeId)
+  const t = useT()
+  const dir = useRegionAttrs().dir ?? 'rtl'
   if (!arrow) return null
   return (
     <button
       type='button'
-      dir='rtl'
-      aria-label={`הוספת שאלה ${arrow.where}`}
+      dir={dir}
+      aria-label={t('admin.questionnaireFlow.insert', { where: arrow.where })}
       aria-haspopup='menu'
       aria-expanded={arrow.open}
       onClick={(e) => {
@@ -32,7 +35,7 @@ export default function ArrowInsertButton({ nodeId }: { nodeId: string }) {
         +
       </span>
       <span aria-hidden='true' className='max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-24 group-focus-visible:max-w-24 group-aria-expanded:max-w-24'>
-        הוספת שאלה
+        {t('admin.questionnaireFlow.insertVisible')}
       </span>
     </button>
   )

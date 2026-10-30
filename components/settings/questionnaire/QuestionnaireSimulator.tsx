@@ -8,7 +8,15 @@ import type { SimulatedTurn } from '@/lib/inbox/autoresponse/questionnaire/build
 import { useRefocusAfterTurn } from '@/hooks/useRefocusAfterTurn'
 import SimulatorTurn from './SimulatorTurn'
 import type { PhraseSuggestion } from '@/lib/inbox/autoresponse/questionnaire/builder/phraseSuggestion'
-import { SIMULATE_COPY } from './builderCopy'
+import { simulateFailureIn } from './copyIn'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
+import { untranslatedAttrs } from '@/lib/i18n/config'
+
+const HEBREW = translatorFor('he')
+
+/** What stopped a turn, worded where it is shown: an unsaved draft, a refusal by code, or a failure. */
+type Problem = { kind: 'prepare' } | { kind: 'refused'; reason: string } | { kind: 'failed' }
 
 /**
  * "בדיקת השאלון": the owner writes like a customer and sees exactly what the
@@ -31,6 +39,7 @@ export default function QuestionnaireSimulator({
   autoFocus = false,
   onNotReady,
   onTeach,
+  translated = false,
 }: {
   model: BuilderQuestionnaire
   target: { draftId: number } | { revision: number }
@@ -43,14 +52,19 @@ export default function QuestionnaireSimulator({
   onNotReady?: () => void
   /** Editing a draft: offer to teach a phrase the test did not recognise (owner-only, outside the chat). */
   onTeach?: (s: PhraseSuggestion) => void
+  /** Follow the interface language (the desktop builder). Default Hebrew: the phone view (Phase F) is not translated yet. */
+  translated?: boolean
 }) {
+  const ui = useT()
+  const t = translated ? ui : HEBREW
   const id = useId()
   const [sent, setSent] = useState<string[]>([])
   const [turns, setTurns] = useState<SimulatedTurn[]>([])
-  const [status, setStatus] = useState<string | null>(null)
+  const [finished, setFinished] = useState(false)
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Problem | null>(null)
+  /** The answer a phrase was just taught to. */
   const [notice, setNotice] = useState<string | null>(null)
   const [summary, setSummary] = useState<{ title: string; fields: Array<{ label: string; value: string }> } | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -70,23 +84,23 @@ export default function QuestionnaireSimulator({
     setPending(true)
     try {
       if (prepare && !(await prepare())) {
-        setError('לא הצלחנו לשמור את השינויים האחרונים, ולכן הבדיקה לא רצה.')
+        setError({ kind: 'prepare' })
         return false
       }
       const res = await simulateQuestionnaireDraft({ ...target, turns: messages.map((m) => [m]) })
       if (res.ok === false) {
         if (res.reason === 'not_ready') onNotReady?.()
-        setError(SIMULATE_COPY[res.reason] ?? 'הבדיקה לא הצליחה. נסו שוב.')
+        setError({ kind: 'refused', reason: res.reason })
         return false
       }
       setSent(messages)
       setTurns(res.turns)
-      setStatus(res.status === 'completed' ? 'השאלון הסתיים. כך הנציג יקבל את הסיכום:' : null)
+      setFinished(res.status === 'completed')
       setSummary(res.status === 'completed' ? res.summary : null)
       completed.current = res.status === 'completed'
       return true
     } catch {
-      setError('הבדיקה לא הצליחה. נסו שוב.')
+      setError({ kind: 'failed' })
       return false
     } finally {
       setPending(false)
@@ -113,7 +127,7 @@ export default function QuestionnaireSimulator({
   async function teach(s: PhraseSuggestion) {
     if (!onTeach) return
     onTeach(s)
-    setNotice(`נוסף לניסוחים של "${s.optionLabel}". השיחה נבדקה שוב עם הניסוח החדש.`)
+    setNotice(s.optionLabel)
     await run(sent)
     // The note (and its button) is gone once the phrase is understood.
     refocus(completed.current)
@@ -122,7 +136,7 @@ export default function QuestionnaireSimulator({
   const restart = () => {
     setSent([])
     setTurns([])
-    setStatus(null)
+    setFinished(false)
     setSummary(null)
     setError(null)
     setNotice(null)
@@ -134,43 +148,42 @@ export default function QuestionnaireSimulator({
     <section ref={sectionRef} aria-labelledby={`${id}-title`} className='flex flex-col gap-3'>
       <div className='flex flex-wrap items-baseline justify-between gap-2'>
         <h2 id={`${id}-title`} className='text-base font-semibold text-ink'>
-          בדיקת השאלון
+          {t('admin.questionnaire.simulator.title')}
         </h2>
         <div className='flex items-center gap-3.5'>
           <button ref={restartRef} type='button' onClick={restart} className='text-sm text-gray-600 underline underline-offset-2'>
-            שיחה חדשה
+            {t('admin.questionnaire.simulator.restart')}
           </button>
           {onClose && (
             <button type='button' onClick={onClose} className='text-sm text-gray-600 underline underline-offset-2'>
-              חזרה לתצוגה המקדימה
+              {t('admin.questionnaire.simulator.back')}
             </button>
           )}
         </div>
       </div>
-      <p className='text-sm leading-relaxed text-gray-600'>
-        זו סימולציה. לא נשלחת הודעה בוואטסאפ, לא נוצר ליד, ואף אחד מהצוות לא מקבל התראה.
-      </p>
+      <p className='text-sm leading-relaxed text-gray-600'>{t('admin.questionnaire.simulator.disclaimer')}</p>
 
       <div
         role='log'
-        aria-label='שיחת הבדיקה'
+        aria-label={t('admin.questionnaire.simulator.log')}
         aria-live='polite'
         className='flex max-h-[calc(100vh-18rem)] min-h-64 flex-col gap-2.5 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-4'
       >
         {turns.length === 0 && (
-          <p className='m-auto max-w-xs text-center text-sm text-gray-500'>כתבו הודעה כמו שלקוח היה כותב, למשל "היי".</p>
+          <p className='m-auto max-w-xs text-center text-sm text-gray-500'>{t('admin.questionnaire.simulator.empty')}</p>
         )}
         {turns.map((turn, i) => (
-          <SimulatorTurn key={i} model={model} turn={turn} onTeach={onTeach ? (t) => void teach(t) : undefined} />
+          <SimulatorTurn key={i} model={model} turn={turn} onTeach={onTeach ? (s) => void teach(s) : undefined} t={t} />
         ))}
         {notice && (
           <p role='status' className='rounded-md bg-indigo-50 px-3 py-2 text-xs text-indigo-950'>
-            {notice}
+            {t('admin.questionnaire.simulator.taught', { option: notice })}
           </p>
         )}
-        {status && <p className='mt-2 text-center text-xs text-gray-600'>{status}</p>}
+        {finished && <p className='mt-2 text-center text-xs text-gray-600'>{t('admin.questionnaire.simulator.completed')}</p>}
         {summary && (
-          <div className='rounded-md border border-gray-200 bg-white p-3 text-sm'>
+          // The summary the rep receives, exactly as the runtime writes it.
+          <div className='rounded-md border border-gray-200 bg-white p-3 text-sm' {...untranslatedAttrs(t.locale)}>
             <p className='font-semibold'>{summary.title}</p>
             <dl className='mt-1 grid gap-0.5'>
               {summary.fields.map((f, n) => (
@@ -182,19 +195,21 @@ export default function QuestionnaireSimulator({
             </dl>
           </div>
         )}
-        {pending && <p className='self-end text-xs text-gray-500'>בודק…</p>}
+        {pending && <p className='self-end text-xs text-gray-500'>{t('admin.questionnaire.simulator.checking')}</p>}
         <div ref={endRef} />
       </div>
 
       {error && (
         <p role='alert' className='text-sm text-red-600'>
-          {error}
+          {error.kind === 'prepare'
+            ? t('admin.questionnaire.simulator.prepareFailed')
+            : ((error.kind === 'refused' && simulateFailureIn(error.reason, t)) || t('admin.questionnaire.simulator.failed'))}
         </p>
       )}
 
       <div className='flex flex-wrap items-center gap-2.5'>
         <label htmlFor={`${id}-input`} className='sr-only'>
-          הודעה כלקוח
+          {t('admin.questionnaire.simulator.input')}
         </label>
         <input
           id={`${id}-input`}
@@ -214,10 +229,10 @@ export default function QuestionnaireSimulator({
           // the box again after every reply.
           readOnly={pending}
           aria-busy={pending}
-          placeholder='כתבו כאן כמו לקוח…'
+          placeholder={t('admin.questionnaire.simulator.placeholder')}
           className='min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:outline-2 focus:outline-offset-0 focus:outline-primary'
         />
-        <Btn type='button' lbl={pending ? 'בודק…' : 'שליחה'} onClick={() => void send()} disabled={pending || !input.trim()} />
+        <Btn type='button' lbl={pending ? t('admin.questionnaire.simulator.checking') : t('admin.questionnaire.simulator.send')} onClick={() => void send()} disabled={pending || !input.trim()} />
       </div>
     </section>
   )

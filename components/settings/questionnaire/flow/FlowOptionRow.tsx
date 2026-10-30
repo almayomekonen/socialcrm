@@ -15,7 +15,9 @@ import {
 import type { BuilderOption } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
 import PhrasingsEditor from '../PhrasingsEditor'
 import IconChooser from '../IconChooser'
-import { QUESTIONS_FULL, consequenceText } from '../builderCopy'
+import { consequenceTextIn, questionsFullIn } from '../copyIn'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useLimitedAction } from '../LimitedButton'
 import OptionLabelLimit, { optionLabelDescribedBy, useOptionLabelInput } from '../OptionLabelLimit'
 import { useFlowEditor } from './flowContext'
@@ -42,11 +44,12 @@ export default function FlowOptionRow({
   invalid: boolean
 }) {
   const { model, edit, reveal, select, announce, confirm, routedOptions } = useFlowEditor()
+  const t = useT()
   const optionKey = keyOf(option)
   const inputId = `${reactKey(option)}-label`
   const singleChoice = model.questions.find((q) => keyOf(q) === questionKey)?.answer.kind === 'single_choice'
   const labelInput = useOptionLabelInput((label) => edit((m) => updateOption(m, questionKey, optionKey, { label })))
-  const name = option.label.trim() || `אפשרות ${number}`
+  const name = option.label.trim() || t('admin.questionnaire.option.fallback', { number: String(number) })
   const followUps = model.questions.filter((q) => {
     const c = conditionOf(q)
     return c?.questionId === questionKey && c.anyOf.length === 1 && c.anyOf[0] === optionKey
@@ -54,20 +57,25 @@ export default function FlowOptionRow({
 
   const remove = () => {
     const run = () => edit((m) => removeOption(m, questionKey, optionKey))
-    const consequence = consequenceText(dependentsOf(model, questionKey, [optionKey]))
+    const consequence = consequenceTextIn(dependentsOf(model, questionKey, [optionKey]), t)
     if (!consequence) return run()
-    confirm({ msg: `להסיר את "${name}"?\n${consequence}`, confirmLbl: `הסרת "${name}"`, destructive: true, run })
+    confirm({
+      msg: `${t('admin.questionnaire.options.removeMsg', { name })}\n${consequence}`,
+      confirmLbl: t('admin.questionnaire.options.removeLbl', { name }),
+      destructive: true,
+      run,
+    })
   }
 
   const addFollow = () => {
     const ref = newRef()
     edit((m) => addFollowUp(m, questionKey, optionKey, 'text', ref))
-    announce(`נוספה שאלת המשך למי שבוחר "${name}"`)
+    announce(t('admin.questionnaireFlow.option.followUpAdded', { name }))
     select(ref)
     reveal(ref)
   }
   // A follow-up is a question: at 12 the action says so instead of adding one (editorBase.ts MAX_QUESTIONS).
-  const follow = useLimitedAction(questionsFull(model) ? QUESTIONS_FULL : null, addFollow)
+  const follow = useLimitedAction(questionsFull(model) ? questionsFullIn(t) : null, addFollow)
 
   return (
     <li className='relative grid gap-1'>
@@ -76,13 +84,14 @@ export default function FlowOptionRow({
           {number}.
         </span>
         <label className='sr-only' htmlFor={inputId}>
-          תשובה {number}
+          {t('admin.questionnaireFlow.option.label', { number: String(number) })}
         </label>
         <input
           id={inputId}
           value={option.label}
-          placeholder='כתבו תשובה'
+          placeholder={t('admin.questionnaireFlow.option.placeholder')}
           aria-invalid={invalid}
+          {...customerTextAttrs(t.locale)}
           aria-describedby={optionLabelDescribedBy(inputId, option.label, singleChoice)}
           onChange={(e) => labelInput.change(e.target.value)}
           className='nodrag h-8 min-w-0 flex-1 rounded-md border border-transparent bg-gray-50 px-2 text-sm hover:border-gray-200 focus:border-gray-200 focus:bg-white focus:outline-2 focus:outline-primary aria-invalid:border-red-400'
@@ -95,7 +104,7 @@ export default function FlowOptionRow({
         {canRemove && (
           <button
             type='button'
-            aria-label={`מחיקת התשובה ${name}`}
+            aria-label={t('admin.questionnaireFlow.option.remove', { name })}
             onClick={remove}
             className='nodrag flex size-7 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-primary'
           >
@@ -116,7 +125,7 @@ export default function FlowOptionRow({
             }}
             className='nodrag text-xs font-medium text-ink underline underline-offset-2'
           >
-            ממשיך לשאלת המשך
+            {t('admin.questionnaireFlow.option.continues')}
           </button>
         ) : (
           <>
@@ -125,7 +134,7 @@ export default function FlowOptionRow({
               {...follow.buttonProps}
               className={`nodrag text-xs font-medium text-primary hover:underline ${follow.blocked ? 'cursor-not-allowed opacity-50' : ''}`}
             >
-              + שאלת המשך אם בוחרים בזה
+              {t('admin.questionnaireFlow.option.addFollowUp')}
             </button>
             {follow.reason}
           </>
@@ -135,7 +144,7 @@ export default function FlowOptionRow({
         <PhrasingsEditor
           phrasings={option.phrasings}
           optionLabel={option.label}
-          summaryLabel={option.phrasings.length ? 'ניסוחים של לקוחות' : '+ איך לקוחות יכולים לנסח את זה?'}
+          summaryLabel={option.phrasings.length ? t('admin.questionnaireFlow.option.phrasingsSome') : t('admin.questionnaireFlow.option.phrasingsNone')}
           onChange={(phrasings) => edit((m) => updateOption(m, questionKey, optionKey, { phrasings }))}
         />
       </div>

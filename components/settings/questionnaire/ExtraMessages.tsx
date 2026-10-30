@@ -4,6 +4,8 @@ import { useState } from 'react'
 import AutoResponseTextField from '@/components/settings/autoResponse/AutoResponseTextField'
 import type { EditorIssue } from '@/lib/inbox/autoresponse/questionnaire/builder/editorView'
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
+import { issueTextIn } from './issueText'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Edit = (change: (m: BuilderQuestionnaire) => BuilderQuestionnaire) => void
 
@@ -21,6 +23,7 @@ export default function ExtraMessages({
   edit: Edit
   issues: EditorIssue[]
 }) {
+  const t = useT()
   const handoffIssue = issues.find((i) => i.field === 'handoffMessage')
   const titleIssue = issues.find((i) => i.field === 'summaryTitle')
   const [open, setOpen] = useState(Boolean(handoffIssue || titleIssue))
@@ -35,33 +38,35 @@ export default function ExtraMessages({
         onClick={() => setOpen((o) => !o)}
         className='text-sm font-semibold text-gray-700 underline-offset-2 hover:underline'
       >
-        הודעות נוספות
+        {t('admin.questionnaire.extra.title')}
       </button>
       {expanded && (
         <div id='questionnaire-extra' className='mt-4 grid gap-5'>
           <AutoResponseTextField
             id='questionnaire-handoff'
-            label='כשהשיחה עוברת לנציג'
-            hint='למשל כשהלקוח כותב "נציג"'
+            label={t('admin.questionnaire.extra.handoff')}
+            hint={t('admin.questionnaire.extra.handoffHint')}
             value={model.handoffMessage}
             onChange={(v) => edit((m) => ({ ...m, handoffMessage: v }))}
             placeholder=''
             maxLength={900}
             sent
             rows={2}
-            error={handoffIssue?.text}
+            error={handoffIssue ? issueTextIn(handoffIssue, model, t) : undefined}
+            translated
           />
           <AutoResponseTextField
             id='questionnaire-summary-title'
-            label='כותרת הסיכום לנציג'
-            hint='מופיעה בראש הסיכום שנשמר בליד'
+            label={t('admin.questionnaire.extra.summary')}
+            hint={t('admin.questionnaire.extra.summaryHint')}
             value={model.summaryTitle}
             onChange={(v) => edit((m) => ({ ...m, summaryTitle: v }))}
             placeholder=''
             maxLength={80}
             sent={false}
             rows={1}
-            error={titleIssue?.text}
+            error={titleIssue ? issueTextIn(titleIssue, model, t) : undefined}
+            translated
           />
         </div>
       )}

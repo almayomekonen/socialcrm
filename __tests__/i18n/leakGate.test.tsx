@@ -89,10 +89,7 @@ vi.mock('@/modules/leads/mobile/LeadImportMobile', () => ({ default: () => null 
 vi.mock('@/modules/leads/mobile/LeadsAddSheet', () => ({ default: () => null }))
 
 // /clients/[clientId] layout + summary reads (I/O only; the layout, page, cards and producers run for real).
-vi.mock('@/lib/requireUser', async () => ({
-  ...(await vi.importActual<typeof import('@/lib/requireUser')>('@/lib/requireUser')),
-  requireAgencyUser: async () => (await import('./surfaces')).FIXTURE_USER,
-}))
+vi.mock('@/lib/requireUser', async () => (await import('./leakGateQuestionnaireMocks')).requireUserModule()) // FIXTURE_USER; the Builder's access check (E5c)
 vi.mock('@/db/tasks', async () => (await import('./leakGateAdminMocks')).tasksDbModule())
 vi.mock('@/modules/inbox/queries', async () => {
   const { detailEnv } = await import('./leadDetailEnv')
@@ -260,7 +257,7 @@ vi.mock('@/actions/invitations', async () => (await import('./adminMocks')).invi
 vi.mock('@/actions/promos', async () => (await import('./adminMocks')).promosActionsModule())
 vi.mock('@/db/quotes/templateWrites', async () => (await import('./adminMocks')).quoteWritesDbModule())
 vi.mock('@/actions/quotes/templates', async () => (await import('./adminMocks')).quoteActionsModule())
-vi.mock('@/lib/flags/questionnaireBuilderFlags', async () => (await import('./adminMocks')).builderFlagsModule())
+vi.mock('@/lib/flags/questionnaireBuilderFlags', async () => (await import('./leakGateQuestionnaireMocks')).builderFlagsModule())
 vi.mock('@/actions/autoResponse/updateSettings', async () => (await import('./adminMocks')).updateAutoResponseModule())
 vi.mock('@/actions/autoResponse/previewAgent', async () => (await import('./adminMocks')).previewAgentModule())
 vi.mock('@/modules/settings/mobile/AutoResponseMobile', async () => (await import('./adminMocks')).autoResponseMobileModule())
@@ -274,6 +271,11 @@ vi.mock('@/db/automations/pilotMetrics', async () => (await import('./automation
 vi.mock('@/db/automations/connectionUsage', async () => (await import('./automationsMocks')).connectionUsageDbModule())
 vi.mock('@/db/automations/sourceLabels', async () => (await import('./automationsMocks')).sourceLabelsDbModule())
 vi.mock('@/lib/automations/connectors/registry', async () => (await import('./automationsMocks')).connectorsRegistryModule())
+// The questionnaire builder (Phase E5c; I/O only — the page, editor, preview renderer and publish check run for real).
+vi.mock('@/lib/flags/whatsappQuestionnaireFlags', async () => (await import('./leakGateQuestionnaireMocks')).naturalAnswersFlagsModule())
+vi.mock('@/lib/inbox/autoresponse/questionnaire/builder/service', async () => (await import('./leakGateQuestionnaireMocks')).serviceModule())
+vi.mock('@/actions/questionnaire/builderDraft', async () => (await import('./questionnaireMocks')).draftActionsModule())
+vi.mock('@/actions/questionnaire/builderPublish', async () => (await import('./questionnaireMocks')).publishActionsModule())
 
 const { SURFACES } = await import('./surfaces')
 
@@ -297,7 +299,7 @@ afterEach(async () => {
   ;(await import('./calendarEnv')).resetCalEnv()
   ;(await import('./dealsEnv')).resetDealsEnv(), (await import('./adsEnv')).resetAdsEnv()
   ;(await import('./billingEnv')).resetBillEnv()
-  ;(await import('./settingsEnv')).resetSetEnv(), (await import('./adminEnv')).resetAdminEnv(), (await import('./automationsEnv')).resetAutomationsEnv()
+  ;(await import('./settingsEnv')).resetSetEnv(), (await import('./adminEnv')).resetAdminEnv(), (await import('./automationsEnv')).resetAutomationsEnv(), (await import('./questionnaireEnv')).resetQuestionnaireEnv()
 })
 
 describe('Hebrew-leak gate — completed screens render no untranslated Hebrew', () => {
