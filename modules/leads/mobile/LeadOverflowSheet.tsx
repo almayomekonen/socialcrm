@@ -11,12 +11,14 @@ import { blockReasonText } from '@/lib/leads/deleteResult'
 import { WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { contactLeadViaWhatsapp } from '@/modules/leads/contactLead'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
 
-function deleteError(res: DeleteLeadResult): string {
+function deleteError(res: DeleteLeadResult, t: Translator): string {
   if ('success' in res) return ''
-  if (res.reason === 'has_billing') return `לא ניתן למחוק: ${blockReasonText(res.block)}`
-  if (res.reason === 'no_permission') return 'אין לך הרשאה למחוק את הליד'
-  return 'הליד לא נמצא'
+  if (res.reason === 'has_billing') return t('leads.mobile.detail.cannotDelete', { reason: blockReasonText(res.block, t.locale) })
+  if (res.reason === 'no_permission') return t('leads.mobile.detail.noPermission')
+  return t('leads.mobile.detail.notFound')
 }
 
 /**
@@ -40,6 +42,7 @@ export default function LeadOverflowSheet({
   whatsappConnected?: boolean
 }) {
   const router = useRouter()
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -57,20 +60,20 @@ export default function LeadOverflowSheet({
         className='mb-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white text-[13px] font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
         <Icon name='ellipsis' type='sol' className='size-3.5 bg-gray-600' />
-        פעולות
+        {t('leads.mobile.sheet.actions')}
       </button>
 
-      <BottomSheet open={open} onClose={close} title='פעולות' titleId='lead-overflow'>
+      <BottomSheet open={open} onClose={close} title={t('leads.mobile.sheet.actions')} titleId='lead-overflow' translated>
         <div className='flex flex-col gap-2'>
           <SheetBtn
-            label='שינוי סטטוס'
+            label={t('leads.mobile.sheet.changeStatus')}
             onClick={() => {
               setOpen(false)
               onStatus()
             }}
           />
           <SheetBtn
-            label='הוספת מעקב'
+            label={t('leads.mobile.sheet.addFollowUp')}
             onClick={() => {
               setOpen(false)
               onFollowUp()
@@ -78,7 +81,7 @@ export default function LeadOverflowSheet({
           />
           {phone && (
             <SheetBtn
-              label='פתיחת שיחה'
+              label={t('leads.mobile.sheet.openChat')}
               onClick={() => {
                 setOpen(false)
                 recordLeadActionEvent('lead_action_taken', {
@@ -95,7 +98,7 @@ export default function LeadOverflowSheet({
             />
           )}
           <SheetBtn
-            label='מחיקת ליד'
+            label={t('leads.mobile.sheet.deleteLead')}
             danger
             onClick={() => {
               setOpen(false)
@@ -108,24 +111,25 @@ export default function LeadOverflowSheet({
       <ConfirmSheet
         open={confirm}
         destructive
-        title='מחיקת ליד'
-        msg={`האם למחוק את "${name}"?\nלא ניתן לשחזר את הליד לאחר המחיקה.`}
-        confirmLbl='מחק ליד'
-        cancelLbl='ביטול'
+        title={t('leads.mobile.confirm.titleOne')}
+        msg={t('leads.mobile.confirm.msgOne', { name })}
+        confirmLbl={t('leads.mobile.confirm.deleteOne')}
+        cancelLbl={t('common.dialog.cancel')}
+        translated
         onClose={() => setConfirm(false)}
         onConfirm={async () => {
           setBusy(true)
           try {
             const res = await deleteLead(leadId)
             if ('success' in res) {
-              toast('success', 'הליד נמחק')
+              toast('success', t('leads.dialog.deleted'))
               setConfirm(false)
               router.replace('/leads')
               return
             }
-            toast('error', deleteError(res))
+            toast('error', deleteError(res, t))
           } catch {
-            toast('error', 'לא הצלחנו למחוק את הליד')
+            toast('error', t('leads.mobile.detail.deleteFailed'))
           } finally {
             setBusy(false)
           }

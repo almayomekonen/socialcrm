@@ -1,6 +1,7 @@
 'use client'
 
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * "טען עוד" — one control, and it only exists while there IS a next batch:
@@ -9,6 +10,7 @@ import Icon from '@/lib/Icon'
  * no behaviour change).
  */
 export default function LeadListLoadMore({ loading, onLoad }: { loading: boolean; onLoad: () => void }) {
+  const t = useT()
   return (
     <div className='px-4 py-4'>
       <button
@@ -21,10 +23,10 @@ export default function LeadListLoadMore({ loading, onLoad }: { loading: boolean
         {loading ? (
           <>
             <Icon name='spinner' type='sol' aria-hidden className='size-4 animate-spin bg-gray-500' />
-            טוען…
+            {t('leads.empty.loading')}
           </>
         ) : (
-          'טען עוד'
+          t('leads.mobile.list.loadMore')
         )}
       </button>
     </div>

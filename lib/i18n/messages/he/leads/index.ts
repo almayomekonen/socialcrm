@@ -10,6 +10,7 @@ import { empty, page } from './empty'
 import { firstRun } from './firstRun'
 import { banners, intake, quota } from './banners'
 import { form, duplicate, assign, transfer, list, upload } from './forms'
+import { mobile } from './mobile'
 
 export const leads = {
   ...base,
@@ -34,4 +35,5 @@ export const leads = {
   transfer,
   list,
   upload,
+  mobile,
 } as const

@@ -2,9 +2,10 @@
 
 import MobileSelectionHeader from '@/components/mobile/MobileSelectionHeader'
 import MobileStickyActions from '@/components/mobile/MobileStickyActions'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 export function LeadSelectionHeader({ count, busy, onCancel }: { count: number; busy: boolean; onCancel: () => void }) {
-  return <MobileSelectionHeader testId='leads-selection-bar' count={count} busy={busy} onCancel={onCancel} />
+  return <MobileSelectionHeader testId='leads-selection-bar' count={count} busy={busy} onCancel={onCancel} translated />
 }
 
 export function LeadSelectionActions({
@@ -22,6 +23,7 @@ export function LeadSelectionActions({
   onActions: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   return (
     <MobileStickyActions aboveTabBar>
       <div className='flex w-full flex-col gap-2'>
@@ -32,7 +34,7 @@ export function LeadSelectionActions({
             onClick={onActions}
             className='press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            פעולות
+            {t('leads.mobile.selection.actions')}
           </button>
         )}
         <button
@@ -41,7 +43,7 @@ export function LeadSelectionActions({
           onClick={onDelete}
           className='press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
-          מחק
+          {t('leads.mobile.selection.delete')}
         </button>
         <button
           type='button'
@@ -49,7 +51,7 @@ export function LeadSelectionActions({
           onClick={onCancel}
           className='press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
-          ביטול
+          {t('common.dialog.cancel')}
         </button>
       </div>
     </MobileStickyActions>

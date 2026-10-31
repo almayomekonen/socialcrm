@@ -7,7 +7,8 @@ import type { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
 import BottomSheet from '@/components/mobile/BottomSheet'
 import QuotaPaywallMobile from './QuotaPaywallMobile'
 import PasteLeadsPanel from '@/components/clients/PasteLeadsPanel'
-import { FIRST_RUN_COPY as C } from '@/lib/activation/firstRunCopy'
+import { firstRunCopy } from '@/lib/activation/firstRunCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { CsvSummary, ExcelPreviewMobile, type CsvResult, type ExcelPreview } from './LeadImportResults'
 
 const ACCEPT = '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
@@ -38,6 +39,8 @@ export default function LeadImportMobile({
   onImported?: (inserted: number, firstId?: number, skipped?: number) => void
 }) {
   const router = useRouter()
+  const t = useT()
+  const C = firstRunCopy(t.locale)
   const [tab, setTab] = useState<'file' | 'paste'>('file')
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -62,7 +65,7 @@ export default function LeadImportMobile({
 
     const kind = fileKind(file)
     if (!kind) {
-      setErrMsg('יש לבחור קובץ Excel או CSV')
+      setErrMsg(t('leads.mobile.import.wrongType'))
       e.target.value = ''
       return
     }
@@ -88,7 +91,7 @@ export default function LeadImportMobile({
       }
       setExcel({ valid: data ?? [], invalid: wrongData ?? [] })
     } catch {
-      setErrMsg('לא הצלחנו לקרוא את הקובץ')
+      setErrMsg(t('leads.mobile.import.unreadable'))
     } finally {
       setBusy(false)
       e.target.value = ''
@@ -111,7 +114,7 @@ export default function LeadImportMobile({
       if (onImported) onImported(inserted, (res as any)?.firstId, excel.invalid.length)
       else router.refresh()
     } catch {
-      setErrMsg('לא הצלחנו לייבא את הלידים')
+      setErrMsg(t('leads.mobile.import.failed'))
     } finally {
       setBusy(false)
     }
@@ -125,23 +128,24 @@ export default function LeadImportMobile({
           reset()
           onClose()
         }}
-        title='ייבוא לידים'
+        title={t('leads.mobile.sheet.importLeads')}
         titleId='lead-import-mobile-title'
         dismissOnScrim={false}
+        translated
       >
-        <div role='tablist' aria-label='דרך הייבוא' className='mb-3 flex gap-1 rounded-lg bg-gray-100 p-1'>
-          {(['file', 'paste'] as const).map((t) => (
+        <div role='tablist' aria-label={t('leads.upload.method')} className='mb-3 flex gap-1 rounded-lg bg-gray-100 p-1'>
+          {(['file', 'paste'] as const).map((tabName) => (
             <button
-              key={t}
+              key={tabName}
               type='button'
               role='tab'
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
+              aria-selected={tab === tabName}
+              onClick={() => setTab(tabName)}
               className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                tab === t ? 'bg-white text-ink shadow-sm' : 'text-gray-500'
+                tab === tabName ? 'bg-white text-ink shadow-sm' : 'text-gray-500'
               }`}
             >
-              {t === 'file' ? C.paste.tabFile : C.paste.tabPaste}
+              {tabName === 'file' ? C.paste.tabFile : C.paste.tabPaste}
             </button>
           ))}
         </div>
@@ -158,7 +162,7 @@ export default function LeadImportMobile({
         ) : (
         <>
         <p className='text-sm leading-relaxed text-gray-600'>
-          שורה ראשונה: שם פרטי, טלפון. אפשר גם שם משפחה, מייל, תעודת זהות.
+          {t('leads.mobile.import.hint')}
         </p>
 
         <input
@@ -166,7 +170,7 @@ export default function LeadImportMobile({
           type='file'
           accept={ACCEPT}
           className='sr-only'
-          aria-label='בחירת קובץ לידים'
+          aria-label={t('leads.mobile.import.fileLabel')}
           disabled={busy}
           onChange={onPick}
         />
@@ -176,7 +180,7 @@ export default function LeadImportMobile({
           className='press mt-4 flex min-h-12 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           onClick={() => inputRef.current?.click()}
         >
-          {busy ? 'מעבד...' : 'בחירת קובץ'}
+          {busy ? t('leads.upload.processing') : t('leads.mobile.import.pick')}
         </button>
 
         {errMsg && (

@@ -1,6 +1,7 @@
 'use client'
 
 import ConfirmSheet from '@/components/mobile/ConfirmSheet'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { ActionContext } from '@/components/mobile/selectionState'
 import LeadStatusSheet from './LeadStatusSheet'
 import LeadFollowUpSheet from './LeadFollowUpSheet'
@@ -36,11 +37,12 @@ export default function LeadListSheets({
   onOpenConversation: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const close = () => setAction(null)
   const deleteMsg =
     count === 1
-      ? `האם למחוק את "${actionLead?.name ?? 'הליד'}"?\nלא ניתן לשחזר את הליד לאחר המחיקה.`
-      : `האם למחוק ${count} לידים?\nלא ניתן לשחזר את הלידים לאחר המחיקה.`
+      ? t('leads.mobile.confirm.msgOne', { name: actionLead?.name ?? t('leads.mobile.confirm.fallbackName') })
+      : t('leads.mobile.confirm.msgMany', { count: String(count) })
 
   return (
     <>
@@ -84,7 +86,7 @@ export default function LeadListSheets({
             setItems((prev) =>
               patchLead(prev, actionLeadId, {
                 nextFollowUpAt,
-                followUp: followUpBadge(nextFollowUpAt, nowMs, dayStartMs),
+                followUp: followUpBadge(nextFollowUpAt, nowMs, dayStartMs, t.locale),
               }),
             )
           }}
@@ -94,10 +96,11 @@ export default function LeadListSheets({
       <ConfirmSheet
         open={action?.type === 'confirm-delete'}
         destructive
-        title={count === 1 ? 'מחיקת ליד' : 'מחיקת לידים'}
+        title={count === 1 ? t('leads.mobile.confirm.titleOne') : t('leads.mobile.confirm.titleMany')}
         msg={deleteMsg}
-        confirmLbl={count === 1 ? 'מחק ליד' : 'מחק לידים'}
-        cancelLbl='ביטול'
+        confirmLbl={count === 1 ? t('leads.mobile.confirm.deleteOne') : t('leads.mobile.confirm.deleteMany')}
+        cancelLbl={t('common.dialog.cancel')}
+        translated
         onClose={close}
         onConfirm={onDelete}
       />

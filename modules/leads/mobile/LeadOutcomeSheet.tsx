@@ -7,7 +7,9 @@ import { toast } from '@/lib/toast'
 import { logLeadOutcome } from '@/actions/leadOutcome'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import type { LeadOutcome } from '@/lib/leads/outcomeRules'
-import { formatDate } from '@/lib/dates'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey, Translator } from '@/lib/i18n/translate'
 
 /**
  * Outcome sheet — `logLeadOutcome`, the same four dispositions the desktop
@@ -15,28 +17,28 @@ import { formatDate } from '@/lib/dates'
  * defaults; this file only presents the choice.
  */
 
-const OUTCOMES: { outcome: LeadOutcome; lbl: string }[] = [
-  { outcome: 'call_no_answer', lbl: 'לא ענה' },
-  { outcome: 'call_reached', lbl: 'דיברנו' },
-  { outcome: 'call_interested', lbl: 'מעוניין' },
-  { outcome: 'call_not_interested', lbl: 'לא מעוניין' },
+const OUTCOMES: { outcome: LeadOutcome; lbl: MessageKey }[] = [
+  { outcome: 'call_no_answer', lbl: 'leads.outcome.noAnswer' },
+  { outcome: 'call_reached', lbl: 'leads.outcome.reached' },
+  { outcome: 'call_interested', lbl: 'leads.outcome.interested' },
+  { outcome: 'call_not_interested', lbl: 'leads.outcome.notInterested' },
 ]
 
 function isErr(res: unknown): res is { err: true; msg: string } {
   return !!res && typeof res === 'object' && 'err' in res && (res as { err?: unknown }).err === true
 }
 
-function outcomeToast(outcome: LeadOutcome, lead: { nextFollowUpAt?: string | Date | null }): string {
-  const date = lead.nextFollowUpAt ? formatDate(lead.nextFollowUpAt) : null
+function outcomeToast(outcome: LeadOutcome, lead: { nextFollowUpAt?: string | Date | null }, t: Translator): string {
+  const date = lead.nextFollowUpAt ? formatLeadDate(t.locale, lead.nextFollowUpAt) : null
   switch (outcome) {
     case 'call_no_answer':
-      return date ? `לא הצלחת להשיג את הליד. נזכיר לך לנסות שוב ב-${date}.` : 'לא הצלחת להשיג את הליד. קבענו תזכורת לנסות שוב.'
+      return date ? t('leads.outcome.toast.noAnswerOn', { date }) : t('leads.outcome.toast.noAnswer')
     case 'call_reached':
-      return date ? `השיחה נשמרה. הליד יחזור לרשימת המעקב ב-${date}.` : 'השיחה נשמרה.'
+      return date ? t('leads.outcome.toast.reachedOn', { date }) : t('leads.outcome.toast.reached')
     case 'call_interested':
-      return date ? `הליד סומן כמתעניין. נחזיר אותו למעקב ב-${date} כדי להתקדם לסגירה.` : 'הליד סומן כמתעניין.'
+      return date ? t('leads.outcome.toast.interestedOn', { date }) : t('leads.outcome.toast.interested')
     case 'call_not_interested':
-      return 'הליד סומן כלא רלוונטי והוסר מרשימת המעקב.'
+      return t('leads.outcome.toast.notInterested')
   }
 }
 
@@ -50,6 +52,7 @@ export default function LeadOutcomeSheet({
   leadId: number
 }) {
   const router = useRouter()
+  const t = useT()
   const [pending, startTransition] = useTransition()
 
   const log = (o: (typeof OUTCOMES)[number]) => {
@@ -68,18 +71,18 @@ export default function LeadOutcomeSheet({
       try {
         res = await logLeadOutcome({ id: leadId, outcome: o.outcome })
       } catch {
-        return toast('error', 'לא הצלחנו לשמור את התוצאה')
+        return toast('error', t('leads.mobile.outcome.failed'))
       }
       if (isErr(res)) return toast('error', res.msg)
       recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'outcome', leadId }).catch(() => {})
-      toast('success', outcomeToast(o.outcome, res as { nextFollowUpAt?: string | Date | null }))
+      toast('success', outcomeToast(o.outcome, res as { nextFollowUpAt?: string | Date | null }, t))
       onClose()
       router.refresh()
     })
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title='תוצאת שיחה'>
+    <BottomSheet open={open} onClose={onClose} title={t('leads.outcome.title')} translated>
       <div className='flex flex-col gap-2'>
         {OUTCOMES.map((o) => (
           <button
@@ -89,7 +92,7 @@ export default function LeadOutcomeSheet({
             onClick={() => log(o)}
             className='flex min-h-12 items-center rounded-lg border border-gray-200 bg-white px-4 text-start text-[15px] font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50'
           >
-            {o.lbl}
+            {t(o.lbl)}
           </button>
         ))}
       </div>

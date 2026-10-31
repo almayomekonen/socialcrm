@@ -2,6 +2,7 @@
 
 import BottomSheet from '@/components/mobile/BottomSheet'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Populated-Leads chooser — add or import, never both sheets at once.
@@ -19,8 +20,9 @@ export default function LeadsAddSheet({
   onAdd: () => void
   onImport: () => void
 }) {
+  const t = useT()
   return (
-    <BottomSheet open={open} onClose={onClose} title='הוספת ליד' titleId='leads-add-sheet'>
+    <BottomSheet open={open} onClose={onClose} title={t('leads.add')} titleId='leads-add-sheet' translated>
       <div className='flex flex-col gap-2'>
         <button
           type='button'
@@ -28,7 +30,7 @@ export default function LeadsAddSheet({
           onClick={onAdd}
         >
           <Icon name='plus' type='sol' className='size-4 bg-white' />
-          הוסף ליד
+          {t('leads.empty.addLead')}
         </button>
         <button
           type='button'
@@ -36,14 +38,14 @@ export default function LeadsAddSheet({
           onClick={onImport}
         >
           <Icon name='file-excel' type='sol' className='size-4 bg-ink' />
-          ייבוא לידים
+          {t('leads.mobile.sheet.importLeads')}
         </button>
         <button
           type='button'
           className='press flex min-h-11 w-full items-center justify-center rounded-md font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           onClick={onClose}
         >
-          ביטול
+          {t('common.dialog.cancel')}
         </button>
       </div>
     </BottomSheet>

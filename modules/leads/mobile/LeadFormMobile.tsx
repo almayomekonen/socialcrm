@@ -16,6 +16,9 @@ import BottomSheet from '@/components/mobile/BottomSheet'
 import QuotaPaywallMobile from './QuotaPaywallMobile'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey, Translator } from '@/lib/i18n/translate'
+import { leadStatusFormLabel } from '@/lib/leads/statusStyles'
 
 const DUPLICATE_CHECK_DEBOUNCE_MS = 400
 const CONTACT_FIELDS = ['firstName', 'lastName', 'idNum', 'phone', 'secPhone', 'email'] as const
@@ -28,6 +31,29 @@ const STATUS_OPTIONS = [
   { name: 'נסגר', id: 'closed' },
   { name: 'לא רלוונטי', id: 'lost' },
 ]
+
+/**
+ * Display labels for the stored option VALUES (same mapping as the desktop
+ * `clientForm`). The form submits the stored value unchanged; Hebrew passes the
+ * exact option lists it always passed.
+ */
+const GENDER_KEY: Record<string, MessageKey> = { 'זכר': 'leads.form.genderOption.male', 'נקבה': 'leads.form.genderOption.female' }
+const SOURCE_KEY: Record<string, MessageKey> = {
+  'ידני': 'leads.form.sourceOption.manual',
+  'אתר': 'leads.form.sourceOption.website',
+  'המלצה': 'leads.form.sourceOption.referral',
+  'ייבוא': 'leads.form.sourceOption.import',
+  'אחר': 'leads.form.sourceOption.misc',
+}
+function formOptions(t: Translator) {
+  if (t.locale === 'he') return { gender: genderOpt, source: leadSourceCreateOpt, status: STATUS_OPTIONS }
+  const label = (values: string[], keys: Record<string, MessageKey>) => values.map((v) => ({ id: v, name: keys[v] ? t(keys[v]) : v }))
+  return {
+    gender: label(genderOpt, GENDER_KEY),
+    source: label(leadSourceCreateOpt, SOURCE_KEY),
+    status: STATUS_OPTIONS.map((o) => ({ id: o.id, name: leadStatusFormLabel(o.id, t.locale) as string })),
+  }
+}
 
 /**
  * Phone add-lead sheet. Same action, validation, duplicates, and quota as
@@ -43,6 +69,8 @@ export default function LeadFormMobile({
   onCreated?: (leadId: number) => void
 }) {
   const user = useUser()
+  const t = useT()
+  const opts = formOptions(t)
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [paywall, setPaywall] = useState<QuotaPaywallState | null>(null)
   const expired = useAccessDenied()
@@ -99,8 +127,8 @@ export default function LeadFormMobile({
 
     if (clientData.idNum) {
       const existingClient = await getLeadByIdNum(clientData.idNum)
-      if (existingClient) return setErrMsg(`תעודת זהות זו משוייכת לליד ${existingClient.name}`)
-      if (!isIdNumValid(clientData.idNum)) return setErrMsg('תעודת זהות לא תקינה')
+      if (existingClient) return setErrMsg(t('leads.form.idNumTaken', { name: existingClient.name }))
+      if (!isIdNumValid(clientData.idNum)) return setErrMsg(t('leads.form.idNumInvalid'))
     }
 
     setSaving(true)
@@ -126,7 +154,7 @@ export default function LeadFormMobile({
 
   return (
     <>
-      <BottomSheet open={open} onClose={onClose} title='הוסף ליד' titleId='lead-form-mobile-title' dismissOnScrim={false}>
+      <BottomSheet open={open} onClose={onClose} title={t('leads.empty.addLead')} titleId='lead-form-mobile-title' dismissOnScrim={false} translated>
         {!dupDismissed && duplicates.length > 0 && (
           <DuplicateLeadBanner matches={duplicates} onDismiss={() => setDupDismissed(true)} />
         )}
@@ -149,17 +177,17 @@ export default function LeadFormMobile({
           request is never sent, and no new entitlement mechanism is introduced.
         */}
         {expired ? (
-          <SubscriptionExpiredState mode='panel' source='create_lead' feature='חידוש המנוי מחזיר את הוספת הלידים.' />
+          <SubscriptionExpiredState mode='panel' source='create_lead' feature={t('leads.form.expired')} translated />
         ) : (
-        <form aria-label='הוסף ליד' className='flex flex-col gap-3' onSubmit={onSubmit}>
+        <form aria-label={t('leads.empty.addLead')} className='flex flex-col gap-3' onSubmit={onSubmit}>
           <input type='hidden' name='userId' value={user.id} />
           <input type='hidden' name='lead' value='true' />
 
-          <Input name='firstName' lbl='שם פרטי' className={FIELD} autoComplete='given-name' onBlur={onContactBlur} />
-          <Input name='lastName' lbl='שם משפחה' className={FIELD} autoComplete='family-name' onBlur={onContactBlur} />
+          <Input name='firstName' lbl={t('leads.form.firstName')} className={FIELD} autoComplete='given-name' onBlur={onContactBlur} />
+          <Input name='lastName' lbl={t('leads.form.lastName')} className={FIELD} autoComplete='family-name' onBlur={onContactBlur} />
           <Input
             name='phone'
-            lbl='טלפון נייד'
+            lbl={t('leads.form.phone')}
             type='tel'
             className={FIELD}
             required={false}
@@ -168,7 +196,7 @@ export default function LeadFormMobile({
           />
           <Input
             name='email'
-            lbl='מייל'
+            lbl={t('leads.form.email')}
             type='email'
             className={FIELD}
             required={false}
@@ -178,23 +206,23 @@ export default function LeadFormMobile({
 
           <details className='rounded-lg border border-gray-200'>
             <summary className='flex min-h-11 cursor-pointer list-none items-center px-3 text-sm font-medium text-gray-700 [&::-webkit-details-marker]:hidden'>
-              מידע נוסף
+              {t('leads.form.moreInfo')}
             </summary>
             <div className='flex flex-col gap-3 px-3 pb-3'>
-              <Select lbl='מין' name='gender' options={genderOpt} required={false} className={FIELD} />
-              <Input name='birthDate' lbl='תאריך לידה' type='date' className={FIELD} required={false} />
+              <Select lbl={t('leads.form.gender')} name='gender' options={opts.gender} required={false} className={FIELD} />
+              <Input name='birthDate' lbl={t('leads.form.birthDate')} type='date' className={FIELD} required={false} />
               <Select
                 name='leadSource'
-                lbl='מקור הליד'
-                options={leadSourceCreateOpt}
+                lbl={t('leads.form.leadSource')}
+                options={opts.source}
                 defaultValue='ידני'
                 required={false}
                 className={FIELD}
               />
               <Select
                 name='status'
-                lbl='סטטוס'
-                options={STATUS_OPTIONS}
+                lbl={t('leads.form.status')}
+                options={opts.status}
                 defaultValue='new'
                 required={false}
                 className={FIELD}
@@ -202,14 +230,14 @@ export default function LeadFormMobile({
               <Input
                 name='idNum'
                 type='number'
-                lbl="מס' תעודת זהות"
+                lbl={t('leads.form.idNum')}
                 className={FIELD}
                 required={false}
                 onBlur={onContactBlur}
               />
               <Input
                 name='secPhone'
-                lbl='טלפון נוסף'
+                lbl={t('leads.form.secPhone')}
                 type='tel'
                 className={FIELD}
                 required={false}
@@ -223,7 +251,7 @@ export default function LeadFormMobile({
             disabled={saving}
             className='press mt-1 flex min-h-12 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            {saving ? 'שומר...' : 'הוסף ליד'}
+            {saving ? t('leads.mobile.form.saving') : t('leads.empty.addLead')}
           </button>
         </form>
         )}

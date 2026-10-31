@@ -2,6 +2,7 @@
 
 import { useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { setAction, type SelectionState } from '@/components/mobile/selectionState'
 import { deleteManyLeads } from '@/actions/clients'
 import { deleteLeadsMessage } from '@/lib/leads/deleteResult'
@@ -28,6 +29,7 @@ export function useLeadListDelete({
   exit: () => void
   pendingRef: MutableRefObject<number>
 }) {
+  const t = useT()
   const [busy, setBusy] = useState(false)
 
   const runDelete = async () => {
@@ -44,9 +46,9 @@ export function useLeadListDelete({
       if (result.deletedCount === 0 && result.blockedCount === 0) {
         setItems((current) => restoreLeads(current, snapshot, ids))
         setSel({ ids, action: null })
-        toast('error', 'לא נמחקו לידים')
+        toast('error', t('leads.deleteResult.none'))
       } else {
-        const { icon, msg } = deleteLeadsMessage(result)
+        const { icon, msg } = deleteLeadsMessage(result, t.locale)
         toast(icon, msg)
         if (blocked.size > 0) {
           setItems((current) => restoreLeads(current, snapshot, blocked))
@@ -58,7 +60,7 @@ export function useLeadListDelete({
     } catch {
       setItems((current) => restoreLeads(current, snapshot, ids))
       setSel({ ids, action: null })
-      toast('error', 'לא הצלחנו למחוק את הלידים')
+      toast('error', t('leads.mobile.list.deleteFailed'))
     }
     pendingRef.current -= 1
     setBusy(false)

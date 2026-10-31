@@ -51,6 +51,8 @@ export default async function LeadsPage({ searchParams }) {
   if ((await isMobileRequest()) && canEnterMobileWorkspace(user.agencyId)) {
     const filters = parseLeadFilters(params)
     const page = Math.max(1, Number(params.page) || 1)
+    // The layout's request-memoised read: the phone list words its server-stamped badges in it.
+    const { locale: mobileLocale } = await getUiLocaleState(user)
     const [list, workspaceHasLeads] = await Promise.all([
       getMobileLeadList(user, filters, page),
       agencyHasAnyLeads(user),
@@ -89,6 +91,7 @@ export default async function LeadsPage({ searchParams }) {
         nowMs={Date.now()}
         metaConnected={metaConnected}
         whatsappConnected={whatsappConnected}
+        locale={mobileLocale}
       />
     )
   }

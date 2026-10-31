@@ -1,6 +1,7 @@
 'use client'
 
 import BottomSheet from '@/components/mobile/BottomSheet'
+import { useT } from '@/lib/i18n/I18nProvider'
 import type { LeadListCard } from './leadSelection'
 
 /**
@@ -26,15 +27,16 @@ export default function LeadListActionsSheet({
   onOpenConversation: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const canChat = Boolean(lead?.phone || lead?.waPhone)
 
   return (
-    <BottomSheet open={open && lead != null} onClose={onClose} title='פעולות לליד' titleId='lead-list-actions'>
+    <BottomSheet open={open && lead != null} onClose={onClose} title={t('leads.mobile.sheet.leadActions')} titleId='lead-list-actions' translated>
       <div className='flex flex-col gap-2'>
-        <SheetBtn label='שינוי סטטוס' onClick={onStatus} />
-        <SheetBtn label='הוספת מעקב' onClick={onFollowUp} />
-        {canChat && <SheetBtn label='פתיחת שיחה' onClick={onOpenConversation} />}
-        <SheetBtn label='מחיקת ליד' danger onClick={onDelete} />
+        <SheetBtn label={t('leads.mobile.sheet.changeStatus')} onClick={onStatus} />
+        <SheetBtn label={t('leads.mobile.sheet.addFollowUp')} onClick={onFollowUp} />
+        {canChat && <SheetBtn label={t('leads.mobile.sheet.openChat')} onClick={onOpenConversation} />}
+        <SheetBtn label={t('leads.mobile.sheet.deleteLead')} danger onClick={onDelete} />
       </div>
     </BottomSheet>
   )

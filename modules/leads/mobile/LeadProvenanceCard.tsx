@@ -5,6 +5,8 @@ import { INBOUND_LEAD_COPY } from '@/lib/leads/inboundLeadCopy'
 import type { MobileProvenanceModel, ProvenanceVisual } from './leadProvenanceModel'
 import type { FormAnswerRow } from '@/lib/leads/inboundLeadContextData'
 import LeadFormAnswersList from '@/components/clients/LeadFormAnswersList'
+import { dirFor, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Mobile-native provenance card. Same information as desktop inbound context,
@@ -27,17 +29,21 @@ const VISUAL: Record<ProvenanceVisual, { icon: IconNames; type: 'reg' | 'sol'; w
 export default function LeadProvenanceCard({
   model,
   formAnswers = [],
+  locale = 'he',
 }: {
   model: MobileProvenanceModel
   /** Lead Ads only: the customer's answers beyond name/phone/email. */
   formAnswers?: FormAnswerRow[]
+  /** Our copy's language (Hebrew by default); the customer's answers and message are shown as received. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   const visual = VISUAL[model.visual]
   const hasMeta = model.capturedLabels.length > 0 || !!model.capturedAt
 
   return (
     <section
-      dir='rtl'
+      dir={dirFor(locale)}
       data-testid='lead-provenance-mobile'
       data-source-visual={model.visual}
       className='mt-4 rounded-xl border border-gray-200 bg-white p-4'
@@ -78,19 +84,31 @@ export default function LeadProvenanceCard({
         <div className='mt-3 flex flex-col gap-1 text-sm leading-relaxed text-gray-500'>
           {model.capturedLabels.length > 0 ? (
             <p className='break-words'>
-              {INBOUND_LEAD_COPY.capturedFieldsPrefix}: {model.capturedLabels.join(' · ')}
+              {locale === 'he' ? (
+                <>
+                  {INBOUND_LEAD_COPY.capturedFieldsPrefix}: {model.capturedLabels.join(' · ')}
+                </>
+              ) : (
+                t('leadDetail.inbound.capturedFields', { fields: model.capturedLabels.join(' · ') })
+              )}
             </p>
           ) : null}
           {model.capturedAt ? (
             <p className='break-words'>
-              {INBOUND_LEAD_COPY.capturedAtPrefix}
-              {model.capturedAt}
+              {locale === 'he' ? (
+                <>
+                  {INBOUND_LEAD_COPY.capturedAtPrefix}
+                  {model.capturedAt}
+                </>
+              ) : (
+                t('leadDetail.inbound.capturedAt', { date: model.capturedAt })
+              )}
             </p>
           ) : null}
         </div>
       ) : null}
 
-      <LeadFormAnswersList rows={formAnswers} />
+      <LeadFormAnswersList rows={formAnswers} locale={locale} />
 
       {model.conversationId ? (
         <Link
@@ -98,7 +116,7 @@ export default function LeadProvenanceCard({
           className='mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800'
         >
           <Icon name='whatsapp' type='reg' aria-hidden className='size-4 bg-[#25D366]' />
-          {INBOUND_LEAD_COPY.openConversation}
+          {t('leadDetail.inbound.openConversation')}
         </Link>
       ) : null}
     </section>

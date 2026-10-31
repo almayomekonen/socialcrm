@@ -3,12 +3,13 @@ import { inboundChannelFromSource } from '@/lib/leads/leadSourceLabel'
 import type { MobileLeadDetail } from '@/modules/leads/queries'
 import LeadProvenanceCard from './LeadProvenanceCard'
 import { buildMobileProvenanceModel } from './leadProvenanceModel'
+import type { UiLocale } from '@/lib/i18n/config'
 
 /**
  * Server wrapper: same inbound reads desktop uses, then the mobile card.
  * Only mounted from `LeadDetailMobile` — never on the desktop summary.
  */
-export default async function LeadProvenance({ lead }: { lead: MobileLeadDetail }) {
+export default async function LeadProvenance({ lead, locale = 'he' }: { lead: MobileLeadDetail; locale?: UiLocale }) {
   const inbound = inboundChannelFromSource(lead.leadSource)
   let conversationId: number | null = null
   let preview: string | null = null
@@ -18,7 +19,7 @@ export default async function LeadProvenance({ lead }: { lead: MobileLeadDetail 
     preview = wa.preview
   }
   const formAnswers: FormAnswerRow[] =
-    inbound === 'facebook' || inbound === 'instagram' ? await loadLeadFormAnswers(lead.id) : []
+    inbound === 'facebook' || inbound === 'instagram' ? await loadLeadFormAnswers(lead.id, locale) : []
 
   const model = buildMobileProvenanceModel({
     leadSource: lead.leadSource,
@@ -31,7 +32,7 @@ export default async function LeadProvenance({ lead }: { lead: MobileLeadDetail 
     email: lead.email,
     conversationId,
     preview,
-  })
+  }, locale)
 
-  return <LeadProvenanceCard model={model} formAnswers={formAnswers} />
+  return <LeadProvenanceCard model={model} formAnswers={formAnswers} locale={locale} />
 }

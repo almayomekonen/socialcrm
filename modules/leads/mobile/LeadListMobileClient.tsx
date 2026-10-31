@@ -12,6 +12,7 @@ import {
   type ActionContext,
   type SelectionState,
 } from '@/components/mobile/selectionState'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { WHATSAPP_CONNECT_HREF } from '@/modules/inbox/client/openLeadWhatsapp'
 import { type LeadFilters } from '@/modules/leads/filters'
@@ -46,6 +47,8 @@ export default function LeadListMobileClient({
   whatsappConnected?: boolean
 }) {
   const router = useRouter()
+  const t = useT()
+  const region = useRegionAttrs()
   const pendingRef = useRef(0)
   const { items, setItems, itemsRef, more, loadingMore, loadMore } = useLeadListBatches({
     initialCards,
@@ -55,6 +58,7 @@ export default function LeadListMobileClient({
     nowMs,
     dayStartMs,
     pendingRef,
+    locale: t.locale,
   })
   const [sel, setSel] = useState<SelectionState>(emptySelection)
 
@@ -148,7 +152,7 @@ export default function LeadListMobileClient({
       2130px and scrolls. `min-h-full` is kept so a short/empty list still fills
       the screen.
     */
-    <div className='flex min-h-full shrink-0 flex-col'>
+    <div className='flex min-h-full shrink-0 flex-col' {...region}>
       {selecting ? (
         <LeadSelectionHeader count={count} busy={busy} onCancel={exit} />
       ) : (

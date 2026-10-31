@@ -41,7 +41,7 @@ export async function phoneShell(locale: UiLocale | null, node: ReactNode, ent: 
 const isAsync = (type: unknown) => typeof type === 'function' && type.constructor?.name === 'AsyncFunction'
 
 /** Awaits async server components; also expands the sync SERVER components in `expand` so their async children resolve. */
-async function resolveServer(node: ReactNode, expand: ReadonlySet<unknown>): Promise<ReactNode> {
+export async function resolveServer(node: ReactNode, expand: ReadonlySet<unknown>): Promise<ReactNode> {
   if (Array.isArray(node)) return Promise.all(node.map((n) => resolveServer(n, expand)))
   if (!isValidElement(node)) return node
   const el = node as ReactElement<Record<string, unknown>>

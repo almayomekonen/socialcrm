@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { toast } from '@/lib/toast'
 import { type LeadFilters } from '@/modules/leads/filters'
-import { relativeTimeHe } from '@/modules/inbox/mobile/relativeTime'
+import { relativeTime } from '@/modules/inbox/mobile/relativeTime'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import { loadMoreMobileLeads } from '@/actions/leads/loadMoreMobileLeads'
 import { followUpBadge } from './followUpBadge'
 import type { LeadListCard } from './leadSelection'
@@ -25,6 +27,7 @@ export function useLeadListBatches({
   nowMs,
   dayStartMs,
   pendingRef,
+  locale = 'he',
 }: {
   initialCards: LeadListCard[]
   filters: LeadFilters
@@ -34,6 +37,8 @@ export function useLeadListBatches({
   dayStartMs: number
   /** Optimistic mutations in flight: while > 0 a new server list does not replace the rows. */
   pendingRef: MutableRefObject<number>
+  /** The interface language of the appended rows' badges and toast (Hebrew by default). */
+  locale?: UiLocale
 }) {
   const [items, setItems] = useState(initialCards)
   const [batch, setBatch] = useState(page)
@@ -68,8 +73,8 @@ export function useLeadListBatches({
       // read — the same rule the first batch follows (architecture-rules.md §11).
       const cards = next.rows.map((lead) => ({
         ...lead,
-        followUp: followUpBadge(lead.nextFollowUpAt, nowMs, dayStartMs),
-        recency: relativeTimeHe(lead.lastActivityAt ?? lead.createdAt, nowMs),
+        followUp: followUpBadge(lead.nextFollowUpAt, nowMs, dayStartMs, locale),
+        recency: relativeTime(lead.lastActivityAt ?? lead.createdAt, nowMs, locale),
       }))
       // De-duplicate defensively: a lead created between batches could otherwise
       // appear twice and collide on its React key.
@@ -80,12 +85,12 @@ export function useLeadListBatches({
       setBatch(next.page)
       setMore(next.hasMore)
     } catch {
-      toast('error', 'לא הצלחנו לטעון עוד לידים')
+      toast('error', translatorFor(locale)('leads.mobile.list.loadMoreFailed'))
     } finally {
       loadingRef.current = false
       setLoadingMore(false)
     }
-  }, [batch, dayStartMs, filters, more, nowMs])
+  }, [batch, dayStartMs, filters, more, nowMs, locale])
 
   useEffect(() => {
     if (pendingRef.current > 0) return

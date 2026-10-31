@@ -38,8 +38,15 @@ export default async function page({ params, searchParams }) {
    * tasks/activity grid. Same `getFullLead` read underneath (`getMobileLeadDetail`).
    */
   if ((await isMobileRequest()) && canEnterMobileWorkspace(user?.agencyId)) {
+    // The layout's request-memoised read: the phone detail is worded in it.
+    const { locale: mobileLocale } = await getUiLocaleState(user)
     const lead = await getMobileLeadDetail(Number(clientId))
-    if (!lead) return <div className='px-4 py-14 text-center text-gray-500'>ליד זה לא נמצא</div>
+    if (!lead)
+      return (
+        <div className='px-4 py-14 text-center text-gray-500' {...regionAttrs(mobileLocale)}>
+          {translatorFor(mobileLocale)('leadDetail.page.notFound')}
+        </div>
+      )
     after(() =>
       track({
         agencyId: user.agencyId,
@@ -66,6 +73,7 @@ export default async function page({ params, searchParams }) {
         nowMs={Date.now()}
         firstLead={sp.firstLead === '1'}
         whatsappConnected={wa.connected}
+        locale={mobileLocale}
       />
     )
   }

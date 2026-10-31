@@ -84,9 +84,6 @@ vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({ recordLeadActionEv
 vi.mock('@/modules/leads/contactLead', () => ({ contactLeadViaWhatsapp: () => {} }))
 vi.mock('@/modules/inbox/client/openLeadWhatsapp', () => ({ openLeadWhatsappInInbox: async () => {}, WHATSAPP_CONNECT_HREF: '/settings/integrations' }))
 vi.mock('@/components/mobile/MobileHeaderAction', async () => ({ useSetMobileHeaderAction: () => () => {}, MobileHeaderActionContext: (await import('react')).createContext(() => {}) })) // + the phone shell's provider (F1)
-vi.mock('@/modules/leads/mobile/LeadFormMobile', () => ({ default: () => null }))
-vi.mock('@/modules/leads/mobile/LeadImportMobile', () => ({ default: () => null }))
-vi.mock('@/modules/leads/mobile/LeadsAddSheet', () => ({ default: () => null }))
 
 // /clients/[clientId] layout + summary reads (I/O only; the layout, page, cards and producers run for real).
 vi.mock('@/lib/requireUser', async () => (await import('./leakGateQuestionnaireMocks')).requireUserModule()) // FIXTURE_USER; the Builder's access check (E5c)
@@ -120,9 +117,8 @@ vi.mock('@/actions/ai/leadIntelligence', async () => ({ getLeadIntelligence: asy
 vi.mock('@/actions/ai/leadIntelligenceRefresh', () => ({ refreshLeadIntelligence: async () => ({ ok: true }) }))
 vi.mock('@/actions/leadFollowUp', () => ({ setLeadFollowUp: async () => ({}), clearLeadFollowUp: async () => ({}) }))
 vi.mock('@/actions/whatsapp/templates/sendTemplateToLead', () => ({ sendTemplateToLead: async () => ({ ok: true }) }))
-// Out of this phase: the Copilot lead context, the deal form (Phase E), the mobile lead detail (Phase F).
+// Out of this phase: the Copilot lead context, the deal form (Phase E). The phone lead detail runs for real (F2).
 vi.mock('@/components/copilot/CopilotLeadContext', () => ({ default: () => null }))
-vi.mock('@/modules/leads/mobile/LeadDetailMobile', () => ({ default: () => null }))
 
 // /clients/[clientId]/{tasks,files,billing} reads (I/O only; the pages, tables, Drive section and list run for real).
 vi.mock('next/dynamic', async () => ({ default: (await import('./leadTabsHarness')).nextDynamicMock }))

@@ -7,7 +7,8 @@ import BottomSheet from '@/components/mobile/BottomSheet'
 import { toast } from '@/lib/toast'
 import { updateLead } from '@/actions/clients'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { STATUS_STYLES, statusStyle } from '@/lib/leads/statusStyles'
+import { STATUS_STYLES, leadStatusLabel, statusStyle } from '@/lib/leads/statusStyles'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { LEAD_STATUSES } from '@/modules/leads/filters'
 
 /**
@@ -34,6 +35,7 @@ export default function LeadStatusSheet({
   onSaved?: (status: string) => void
 }) {
   const router = useRouter()
+  const t = useT()
   const [pending, startTransition] = useTransition()
 
   const pick = (status: string) => {
@@ -45,18 +47,18 @@ export default function LeadStatusSheet({
       try {
         await updateLead({ id: leadId, status })
         recordLeadActionEvent('lead_action_taken', { surface: 'mobile', action: 'status', leadId }).catch(() => {})
-        toast('success', 'סטטוס עודכן')
+        toast('success', t('leads.table.statusUpdated'))
         onSaved?.(status)
         onClose()
         if (refresh) router.refresh()
       } catch {
-        toast('error', 'לא הצלחנו לעדכן את הסטטוס')
+        toast('error', t('leads.mobile.status.failed'))
       }
     })
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title='סטטוס'>
+    <BottomSheet open={open} onClose={onClose} title={t('leads.table.header.status')} translated>
       <div className='flex flex-col gap-2'>
         {LEAD_STATUSES.map((s) => {
           const on = s === current
@@ -73,7 +75,7 @@ export default function LeadStatusSheet({
               }`}
             >
               <span className={`size-2.5 rounded-full ${style.dot}`} />
-              <span className='flex-1 text-[15px] font-medium text-ink'>{style.label}</span>
+              <span className='flex-1 text-[15px] font-medium text-ink'>{t.locale === 'he' ? style.label : leadStatusLabel(s, t.locale)}</span>
               {on && <Icon name='check' type='sol' className='size-4 bg-primary' />}
             </button>
           )

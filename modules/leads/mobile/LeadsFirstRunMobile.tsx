@@ -96,6 +96,7 @@ export default function LeadsFirstRunMobile({
                   setImportOpen(true)
                 }}
                 className='press'
+                translated
                 title={C.own.import.title}
                 subtitle={C.own.import.description}
                 leading={
@@ -115,6 +116,7 @@ export default function LeadsFirstRunMobile({
                   setFormOpen(true)
                 }}
                 className='press'
+                translated
                 title={C.own.add.title}
                 subtitle={C.own.add.description}
                 leading={
@@ -138,6 +140,7 @@ export default function LeadsFirstRunMobile({
                     href={C.connect.whatsapp.href as Route}
                     onClick={markConnectIntent}
                     className='press'
+                    translated
                     title={C.connect.whatsapp.title}
                     subtitle={C.connect.whatsapp.description}
                     leading={<WhatsappBadge size='sm' />}
@@ -148,6 +151,7 @@ export default function LeadsFirstRunMobile({
                     href={C.connect.meta.href as Route}
                     onClick={markConnectIntent}
                     className='press'
+                    translated
                     title={C.connect.meta.title}
                     subtitle={C.connect.meta.description}
                     leading={<MetaLeadAdsBadge size='sm' />}
