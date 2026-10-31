@@ -1,0 +1,58 @@
+{
+ "label": "web-after-financial",
+ "startedAt": "2026-10-31T22:25:58.041Z",
+ "results": [
+  {
+   "id": "F1",
+   "kind": "financial",
+   "question": "כמה העסק שלי עשה השנה?",
+   "ok": false,
+   "stopReason": "error",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "<no answer: the panel shows an error>",
+   "answer": null,
+   "costUsd": 0,
+   "ms": 66,
+   "checks": {
+    "fallback": true,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": [
+     "missing /ביצועים/"
+    ]
+   },
+   "pass": false
+  },
+  {
+   "id": "F2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": false,
+   "stopReason": "error",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "<no answer: the panel shows an error>",
+   "answer": null,
+   "costUsd": 0,
+   "ms": 6,
+   "checks": {
+    "fallback": true,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": [
+     "missing /ביצועים/"
+    ]
+   },
+   "pass": false
+  }
+ ]
+}

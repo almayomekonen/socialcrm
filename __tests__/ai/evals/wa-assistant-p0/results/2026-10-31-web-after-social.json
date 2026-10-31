@@ -1,0 +1,192 @@
+{
+ "label": "web-after-social",
+ "startedAt": "2026-10-31T22:24:01.999Z",
+ "results": [
+  {
+   "id": "S1",
+   "kind": "social",
+   "question": "hey",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "היי, אני השותף העסקי שלך ב‑SocialCRM. אפשר לשאול אותי למשל מה דורש טיפול היום, אילו לידים מתפספסים, או במה כדאי להתמקד עכשיו.",
+   "answer": {
+    "headline": "היי, אני השותף העסקי שלך ב‑SocialCRM. אפשר לשאול אותי למשל מה דורש טיפול היום, אילו לידים מתפספסים, או במה כדאי להתמקד עכשיו.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05388,
+   "ms": 2922,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S2",
+   "kind": "social",
+   "question": "אלוף",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "תודה, שמח לעזור.",
+   "answer": {
+    "headline": "תודה, שמח לעזור.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.052805,
+   "ms": 2087,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S3",
+   "kind": "social",
+   "question": "תודה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בשמחה.",
+   "answer": {
+    "headline": "בשמחה.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.052685,
+   "ms": 1898,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S4",
+   "kind": "social",
+   "question": "מה נשמע?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "הכול טוב, תודה. אני כאן כדי לעזור להבין מה קורה בעסק, אילו לידים דורשים תשומת לב ומה כדאי לעשות עכשיו — למשל: „מה מחכה לי היום?” או „איפה אני מפספס לידים?”",
+   "answer": {
+    "headline": "הכול טוב, תודה. אני כאן כדי לעזור להבין מה קורה בעסק, אילו לידים דורשים תשומת לב ומה כדאי לעשות עכשיו — למשל: „מה מחכה לי היום?” או „איפה אני מפספס לידים?”",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.054165,
+   "ms": 3323,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S5",
+   "kind": "social",
+   "question": "סלמתאק",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בכיף.",
+   "answer": {
+    "headline": "בכיף.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.052695,
+   "ms": 1900,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S6",
+   "kind": "social",
+   "question": "אלוף, תודה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בשמחה, אני כאן לכל מה שצריך.",
+   "answer": {
+    "headline": "בשמחה, אני כאן לכל מה שצריך.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.054285,
+   "ms": 2443,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

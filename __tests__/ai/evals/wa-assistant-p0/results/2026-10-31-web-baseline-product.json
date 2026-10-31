@@ -1,0 +1,475 @@
+{
+ "label": "web-baseline-product",
+ "startedAt": "2026-10-31T22:22:52.557Z",
+ "results": [
+  {
+   "id": "P1",
+   "kind": "product",
+   "question": "מה חדש במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אין לי כרגע מידע מוסמך על עדכוני גרסה חדשים ב‑SocialCRM.\nלא סופקו לי יומן שינויים או פרטי גרסה עדכניים, ולכן איני יכול לקבוע מה נוסף לאחרונה.",
+   "answer": {
+    "headline": "אין לי כרגע מידע מוסמך על עדכוני גרסה חדשים ב‑SocialCRM.",
+    "claims": [],
+    "unknown": "לא סופקו לי יומן שינויים או פרטי גרסה עדכניים, ולכן איני יכול לקבוע מה נוסף לאחרונה.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04683,
+   "ms": 3293,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": [
+     "has /אין לי (כרגע )?מידע מוסמך/"
+    ]
+   },
+   "pass": false
+  },
+  {
+   "id": "P2",
+   "kind": "product",
+   "question": "איך אני מחבר את חשבון הוואטסאפ?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "מחברים וואטסאפ דרך הגדרות ← אינטגרציות ← וואטסאפ.\nהיכנס להגדרות, בחר «אינטגרציות» ואז «וואטסאפ», והשלם שם את תהליך החיבור. לאחר החיבור, שיחות נכנסות יופיעו במסך «שיחות».",
+   "answer": {
+    "headline": "מחברים וואטסאפ דרך הגדרות ← אינטגרציות ← וואטסאפ.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "היכנס להגדרות, בחר «אינטגרציות» ואז «וואטסאפ», והשלם שם את תהליך החיבור. לאחר החיבור, שיחות נכנסות יופיעו במסך «שיחות».",
+      "productEvidence": [
+       "whatsapp"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04573,
+   "ms": 2264,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P3",
+   "kind": "product",
+   "question": "תעזור לי לבנות בוט בוואטסאפ",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן—מה הבוט צריך לעשות בוואטסאפ: לענות לשאלות, לאסוף פרטי ליד, לקבוע פגישה או להעביר לנציג?\nב-SocialCRM אפשר לחבר וואטסאפ דרך הגדרות ← אינטגרציות, והשיחות הנכנסות מגיעות למסך «שיחות».\nעדיין לא ברור מה מטרת הבוט ואילו פעולות הוא צריך לבצע.",
+   "answer": {
+    "headline": "כן—מה הבוט צריך לעשות בוואטסאפ: לענות לשאלות, לאסוף פרטי ליד, לקבוע פגישה או להעביר לנציג?",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "ב-SocialCRM אפשר לחבר וואטסאפ דרך הגדרות ← אינטגרציות, והשיחות הנכנסות מגיעות למסך «שיחות».",
+      "productEvidence": [
+       "whatsapp",
+       "conversations"
+      ]
+     }
+    ],
+    "unknown": "עדיין לא ברור מה מטרת הבוט ואילו פעולות הוא צריך לבצע.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05305,
+   "ms": 5189,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P4",
+   "kind": "product",
+   "question": "יש שאלון וואטסאפ",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אם יש לך שאלון קיים לוואטסאפ, שלח אותו כאן ואעזור להפוך אותו לזרימת בוט מסודרת.\nלא ברור אם השאלון כבר כתוב או שאתה רוצה לבנות אותו מאפס.",
+   "answer": {
+    "headline": "אם יש לך שאלון קיים לוואטסאפ, שלח אותו כאן ואעזור להפוך אותו לזרימת בוט מסודרת.",
+    "claims": [],
+    "unknown": "לא ברור אם השאלון כבר כתוב או שאתה רוצה לבנות אותו מאפס.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.056215,
+   "ms": 5903,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P5",
+   "kind": "product",
+   "question": "כמה עולה SocialCRM?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אין לי מחירון מוסמך של SocialCRM, ולכן לא אוכל לנקוב במחיר.\nחסרים מחיר עדכני ופרטי החבילה; צריך לבדוק אותם מול SocialCRM.",
+   "answer": {
+    "headline": "אין לי מחירון מוסמך של SocialCRM, ולכן לא אוכל לנקוב במחיר.",
+    "claims": [],
+    "unknown": "חסרים מחיר עדכני ופרטי החבילה; צריך לבדוק אותם מול SocialCRM.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04764,
+   "ms": 5814,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": [
+     "missing /89/"
+    ]
+   },
+   "pass": false
+  },
+  {
+   "id": "P6",
+   "kind": "product",
+   "question": "יש אוטומציות במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "יש אוטומציה בסיסית לקליטת לידים ולתזכורות, אך אין מידע על תהליכי אוטומציה מתקדמים.\nלידים יכולים להיכנס אוטומטית מהערוצים המחוברים, כולל טפסי לידים מפייסבוק ואינסטגרם.\nאפשר לקבוע מעקב אחרי שיחה ולקבל תזכורת במועד שנקבע.\nהסוכן עצמו אינו שולח הודעות, משנה סטטוסים או מבצע פעולות אוטומטית.\nבידע המוצר אין פירוט על בונה אוטומציות, טריגרים או רצפים אוטומטיים מתקדמים.",
+   "answer": {
+    "headline": "יש אוטומציה בסיסית לקליטת לידים ולתזכורות, אך אין מידע על תהליכי אוטומציה מתקדמים.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "לידים יכולים להיכנס אוטומטית מהערוצים המחוברים, כולל טפסי לידים מפייסבוק ואינסטגרם.",
+      "productEvidence": [
+       "facebook_instagram",
+       "lead_management"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אפשר לקבוע מעקב אחרי שיחה ולקבל תזכורת במועד שנקבע.",
+      "productEvidence": [
+       "tasks_followups"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "הסוכן עצמו אינו שולח הודעות, משנה סטטוסים או מבצע פעולות אוטומטית.",
+      "productEvidence": [
+       "the_agent"
+      ]
+     }
+    ],
+    "unknown": "בידע המוצר אין פירוט על בונה אוטומציות, טריגרים או רצפים אוטומטיים מתקדמים.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.051855,
+   "ms": 4121,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P7",
+   "kind": "product",
+   "question": "אפשר לענות להודעות מפייסבוק מסנג׳ר מתוך המערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "לפי המידע הזמין, אין אפשרות מאושרת לענות להודעות Facebook Messenger מתוך SocialCRM.\nחיבור פייסבוק מיועד לקליטת לידים מטפסי לידים אל מסך «לידים».\nמסך «שיחות» מתואר כמרכז לשיחות וואטסאפ נכנסות, ולא להודעות Messenger.\nאין במידע המוצרי אזכור לתמיכה בהתכתבות דרך Facebook Messenger, ולכן לא ניתן לאשר שהיכולת קיימת.",
+   "answer": {
+    "headline": "לפי המידע הזמין, אין אפשרות מאושרת לענות להודעות Facebook Messenger מתוך SocialCRM.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "חיבור פייסבוק מיועד לקליטת לידים מטפסי לידים אל מסך «לידים».",
+      "productEvidence": [
+       "facebook_instagram"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "מסך «שיחות» מתואר כמרכז לשיחות וואטסאפ נכנסות, ולא להודעות Messenger.",
+      "productEvidence": [
+       "conversations",
+       "whatsapp"
+      ]
+     }
+    ],
+    "unknown": "אין במידע המוצרי אזכור לתמיכה בהתכתבות דרך Facebook Messenger, ולכן לא ניתן לאשר שהיכולת קיימת.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.048775,
+   "ms": 5750,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P8",
+   "kind": "product",
+   "question": "יש דוח על המודעות שלי בפייסבוק?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אין לי מידע על דוח ביצועי מודעות פייסבוק בתוך SocialCRM.\nהחיבור לפייסבוק מיועד לקליטת לידים מטפסי הלידים של הערוצים המחוברים אל מסך «לידים».\nאין בידע המוצר המוסמך דוח על הוצאות פרסום, חשיפות, קליקים או ביצועי מודעות בפייסבוק.\nלא ניתן לראות מהמידע הזמין אם דוח מודעות כזה מתוכנן להמשך.",
+   "answer": {
+    "headline": "אין לי מידע על דוח ביצועי מודעות פייסבוק בתוך SocialCRM.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "החיבור לפייסבוק מיועד לקליטת לידים מטפסי הלידים של הערוצים המחוברים אל מסך «לידים».",
+      "productEvidence": [
+       "facebook_instagram"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אין בידע המוצר המוסמך דוח על הוצאות פרסום, חשיפות, קליקים או ביצועי מודעות בפייסבוק.",
+      "productEvidence": [
+       "facebook_instagram",
+       "not_supported"
+      ]
+     }
+    ],
+    "unknown": "לא ניתן לראות מהמידע הזמין אם דוח מודעות כזה מתוכנן להמשך.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05034,
+   "ms": 4485,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P9",
+   "kind": "product",
+   "question": "איך אני מייבא עסקאות מאקסל?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "ייבוא מאקסל מתועד עבור לידים, לא עבור עסקאות.\nכדי לייבא לידים, היכנס למסך «לידים» ובחר «העלה לידים» להעלאת קובץ אקסל.\nאין במידע המוצר הזמין אפשרות מתועדת לייבוא עסקאות מאקסל.\nלא ידוע אם קיימת אצלך אפשרות נוספת לייבוא עסקאות; המידע הזמין מתעד רק ייבוא לידים.",
+   "answer": {
+    "headline": "ייבוא מאקסל מתועד עבור לידים, לא עבור עסקאות.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "כדי לייבא לידים, היכנס למסך «לידים» ובחר «העלה לידים» להעלאת קובץ אקסל.",
+      "productEvidence": [
+       "lead_management"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אין במידע המוצר הזמין אפשרות מתועדת לייבוא עסקאות מאקסל.",
+      "productEvidence": [
+       "lead_management",
+       "today_and_performance"
+      ]
+     }
+    ],
+    "unknown": "לא ידוע אם קיימת אצלך אפשרות נוספת לייבוא עסקאות; המידע הזמין מתעד רק ייבוא לידים.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04932,
+   "ms": 3521,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P10",
+   "kind": "product",
+   "question": "אפשר שהמערכת תענה ללידים בוואטסאפ לבד?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "לא. כרגע המערכת לא עונה ללידים בוואטסאפ באופן עצמאי.\nאפשר לחבר וואטסאפ ולקבל את השיחות הנכנסות למסך «שיחות», שבו מנהלים את ההתכתבות עם הלידים.\nהסוכן קורא את נתוני העסק ויכול להסביר מה דורש טיפול, אך אינו שולח הודעות או מבצע פעולות בעצמו.",
+   "answer": {
+    "headline": "לא. כרגע המערכת לא עונה ללידים בוואטסאפ באופן עצמאי.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "אפשר לחבר וואטסאפ ולקבל את השיחות הנכנסות למסך «שיחות», שבו מנהלים את ההתכתבות עם הלידים.",
+      "productEvidence": [
+       "whatsapp",
+       "conversations"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "הסוכן קורא את נתוני העסק ויכול להסביר מה דורש טיפול, אך אינו שולח הודעות או מבצע פעולות בעצמו.",
+      "productEvidence": [
+       "the_agent"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04757,
+   "ms": 3336,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P11",
+   "kind": "product",
+   "question": "מה אתה יכול לעשות בשבילי?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אני השותף העסקי שלך בתוך SocialCRM: אפשר לשאול אותי „מה דורש טיפול היום?“, „האם אני מפספס לידים?“ או „מה קרה בשיחה עם דנה?“",
+   "answer": {
+    "headline": "אני השותף העסקי שלך בתוך SocialCRM: אפשר לשאול אותי „מה דורש טיפול היום?“, „האם אני מפספס לידים?“ או „מה קרה בשיחה עם דנה?“",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04633,
+   "ms": 2990,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

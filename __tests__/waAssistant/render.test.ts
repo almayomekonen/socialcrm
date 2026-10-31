@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { APP_LINK, COPY, NO_ACTIONS_NOTE, failureReply, fitReply, redactContactDetails, refusalReply, renderAnswer, replyForAnswer } from '@/lib/waAssistant/render'
+import { APP_LINK, COPY, NO_ACTIONS_NOTE, failureReply, fitReply, productLink, redactContactDetails, refusalReply, renderAnswer, replyForAnswer } from '@/lib/waAssistant/render'
+import { PRODUCT_TOPICS } from '@/lib/agent/product/knowledge'
 import { MAX_REPLY_CHARS, buildPlatformTextPayload } from '@/lib/whatsapp/platform/sendText'
 import { isWaAssistantAgency, waAssistantAgencyIds, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
 import type { AgentAnswer } from '@/lib/agent/types'
@@ -181,5 +182,75 @@ describe('replyForAnswer', () => {
     expect(failureReply('deadline')).toBe(COPY.timeout)
     expect(failureReply('gate_denied')).toBe(COPY.notAvailable)
     expect(failureReply('no_evidence')).toBe(COPY.failed)
+  })
+})
+
+/**
+ * productLink — every product answer links the screen its topic is about. One
+ * case per topic, so a new topic or a moved screen cannot silently change where
+ * an owner is sent.
+ */
+describe('productLink: the screen a product answer links to', () => {
+  const ORIGIN = 'https://getsocialcrm.com'
+  const cite = (...ids: string[]) => ({ claimClass: 'PRODUCT' as const, text: `טענה על ${ids.join(' ו-')}.`, productEvidence: ids })
+  const linkOf = (claims: ReturnType<typeof cite>[]) => replyForAnswer({ headline: 'תשובה', claims, unknown: null }).text.match(/במערכת: (\S+)$/)?.[1] ?? null
+
+  const EXPECTED: Record<string, string | null> = {
+    what_is_socialcrm: null,
+    core_value: null,
+    lead_management: '/leads',
+    conversations: '/inbox',
+    whatsapp: '/settings/integrations?section=whatsapp',
+    facebook_instagram: '/settings/integrations?section=facebook',
+    tasks_followups: null,
+    today_and_performance: null,
+    team: null,
+    getting_started: null,
+    the_agent: '/agent',
+    pricing_trial: '/pricing',
+    automations: '/settings/automations',
+    auto_reply: '/settings/auto-response',
+    whatsapp_questionnaire: '/settings/questionnaire',
+    messenger: '/inbox/messenger',
+    facebook_comments: '/inbox/comments',
+    meta_ads: '/sum_sales/ads',
+    deals_and_performance: '/sum_sales',
+    lead_import: '/leads',
+    deal_import: '/deals',
+    recent_updates: null,
+    not_supported: null,
+  }
+
+  it('covers every topic in the registry', () => {
+    expect(Object.keys(EXPECTED).sort()).toEqual(PRODUCT_TOPICS.map((t) => t.id).sort())
+  })
+
+  it.each(Object.entries(EXPECTED))('%s → %s', (id, route) => {
+    expect(linkOf([cite(id)])).toBe(route ? `${ORIGIN}${route}` : null)
+  })
+
+  it('a deal-import answer goes to Deals, a questionnaire answer to the questionnaire, an auto-reply answer to auto-reply', () => {
+    expect(linkOf([cite('deal_import'), cite('deal_import')])).toBe(`${ORIGIN}/deals`)
+    expect(linkOf([cite('whatsapp_questionnaire'), cite('whatsapp_questionnaire')])).toBe(`${ORIGIN}/settings/questionnaire`)
+    expect(linkOf([cite('auto_reply')])).toBe(`${ORIGIN}/settings/auto-response`)
+  })
+
+  it('the screen most of the answer is about wins, wherever it is cited', () => {
+    expect(linkOf([cite('lead_import'), cite('deal_import'), cite('deal_import')])).toBe(`${ORIGIN}/deals`)
+    expect(linkOf([cite('recent_updates'), cite('deal_import')])).toBe(`${ORIGIN}/deals`)
+  })
+
+  it('an answer split evenly between screens links nothing, never the first cited', () => {
+    expect(linkOf([cite('lead_import'), cite('deal_import')])).toBeNull()
+    expect(linkOf([cite('auto_reply'), cite('whatsapp_questionnaire')])).toBeNull()
+  })
+
+  it('a claim citing two topics on one screen votes once for it', () => {
+    expect(productLink([cite('lead_management', 'lead_import'), cite('deal_import')])).toBeNull()
+    expect(productLink([cite('lead_management', 'lead_import'), cite('lead_import'), cite('deal_import')])).toBe('/leads')
+  })
+
+  it('an unknown topic id links nothing', () => {
+    expect(productLink([cite('invented_topic')])).toBeNull()
   })
 })

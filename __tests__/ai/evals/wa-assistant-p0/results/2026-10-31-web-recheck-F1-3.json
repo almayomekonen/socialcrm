@@ -1,0 +1,47 @@
+{
+ "label": "web-recheck-F1-3",
+ "startedAt": "2026-10-31T22:27:07.221Z",
+ "results": [
+  {
+   "id": "F1",
+   "kind": "financial",
+   "question": "כמה העסק שלי עשה השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אין לי גישה לסכום ההכנסות שלך, אבל במסך «ביצועים» אפשר לבחור «השנה» ולראות את סך ההכנסות מעסקאות ששולמו ונרשמו במערכת.\nמסך «ביצועים» מציג את ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה, כולל השנה.\nהסוכן עדיין לא קורא את נתוני העסקאות וההכנסות ולכן אינו יכול למסור את הסכום.",
+   "answer": {
+    "headline": "אין לי גישה לסכום ההכנסות שלך, אבל במסך «ביצועים» אפשר לבחור «השנה» ולראות את סך ההכנסות מעסקאות ששולמו ונרשמו במערכת.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "מסך «ביצועים» מציג את ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה, כולל השנה.",
+      "productEvidence": [
+       "deals_and_performance"
+      ]
+     }
+    ],
+    "unknown": "הסוכן עדיין לא קורא את נתוני העסקאות וההכנסות ולכן אינו יכול למסור את הסכום.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05718,
+   "ms": 3334,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}
