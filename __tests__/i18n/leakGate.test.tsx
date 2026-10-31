@@ -273,6 +273,10 @@ vi.mock('@/lib/flags/whatsappQuestionnaireFlags', async () => (await import('./l
 vi.mock('@/lib/inbox/autoresponse/questionnaire/builder/service', async () => (await import('./leakGateQuestionnaireMocks')).serviceModule())
 vi.mock('@/actions/questionnaire/builderDraft', async () => (await import('./questionnaireMocks')).draftActionsModule())
 vi.mock('@/actions/questionnaire/builderPublish', async () => (await import('./questionnaireMocks')).publishActionsModule())
+// The support centre (Phase F5; I/O only — the layout, pages, presenters and the knowledge base run for real).
+vi.mock('@/db/support/requests', async () => (await import('./trialSupportMocks')).supportRequestsDbModule())
+vi.mock('@/db/support/messages', async () => (await import('./trialSupportMocks')).supportMessagesDbModule())
+vi.mock('@/actions/support/requests', async () => (await import('./trialSupportMocks')).supportActionsModule())
 
 const { SURFACES } = await import('./surfaces')
 

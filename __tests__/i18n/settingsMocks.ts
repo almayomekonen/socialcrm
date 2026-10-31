@@ -93,7 +93,8 @@ export const availabilityModule = () => ({
   describeCardBillingAvailability: () => ({ ok: setEnv.billingAvailable, reason: setEnv.billingAvailable ? 'ok' : 'missing_env' }),
 })
 export const subscriptionActionsModule = () => ({ cancelRenewal: record('cancelRenewal', { ok: true }), resumeRenewal: record('resumeRenewal', { ok: true }) })
-export const paymentMethodActionsModule = () => ({ startCardSetup: record('startCardSetup', { url: 'https://grow.example.test/pay' }) })
+// `getCardSetupStatus`: the card return page in the leak gate (Phase F5) — it stays verifying.
+export const paymentMethodActionsModule = () => ({ startCardSetup: record('startCardSetup', { url: 'https://grow.example.test/pay' }), getCardSetupStatus: async () => ({ state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false }) })
 export const trialActionsModule = () => ({ trackTrialStartClicked: async () => {}, trackTrialStartFailed: async () => {} })
 
 /** `db(table)`: chainable + awaitable, answering from `setEnv` by table. */
