@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
+import { getByRole } from '@testing-library/dom'
 import { findHebrewLeaks } from './leakScan'
 import { alignment, iconButtons, iconPicker, readyMessageChevrons, toastBodies, uploaderFailures } from './auditFixesSurfaces'
 
@@ -51,6 +52,31 @@ describe('A: the questionnaire icon chooser opens the emoji picker in the interf
       expect(HEBREW.test(panel.outerHTML)).toBe(false)
     })
   }
+  // Owner-approved follow-up: the library's own category headers and Clear button, outside Hebrew only.
+  const LIBRARY = {
+    en: { clear: 'Clear', first: 'Frequently used', last: 'Flags' },
+    ar: { clear: 'مسح', first: 'الأكثر استخدامًا', last: 'الأعلام' },
+  }
+  const ORDER = ['suggested', 'smileys_people', 'animals_nature', 'food_drink', 'travel_places', 'activities', 'objects', 'symbols', 'flags']
+  for (const locale of ['en', 'ar'] as const) {
+    test(`${locale}: the library's category names and Clear label`, async () => {
+      const stub = parse(await iconPicker(locale)).querySelector('[data-stub]')!
+      expect(stub.getAttribute('data-clear')).toBe(LIBRARY[locale].clear)
+      const cats = JSON.parse(stub.getAttribute('data-categories')!) as { category: string; name: string }[]
+      expect(cats.map((c) => c.category)).toEqual(ORDER)
+      expect(cats[0].name).toBe(LIBRARY[locale].first)
+      expect(cats[cats.length - 1].name).toBe(LIBRARY[locale].last)
+      expect(new Set(cats.map((c) => c.name)).size).toBe(ORDER.length)
+      expect(cats.some((c) => HEBREW.test(c.name) || c.name.startsWith('inbox.'))).toBe(false)
+    })
+  }
+  test('he and no provider pass nothing to the library (its built-in text, exactly as before)', async () => {
+    for (const locale of ['he', null] as const) {
+      const stub = parse(await iconPicker(locale)).querySelector('[data-stub]')!
+      expect(stub.hasAttribute('data-clear')).toBe(false)
+      expect(stub.hasAttribute('data-categories')).toBe(false)
+    }
+  })
 })
 
 describe('C: the phone ready-messages rows mirror their chevron in LTR', () => {
@@ -87,24 +113,46 @@ describe('D: header rows and option buttons start at the reading edge outside He
   }
 })
 
-describe('E: icon-only buttons are named outside Hebrew; Hebrew stays unnamed', () => {
-  const NAMES = { en: ['Close', 'Add a goal', 'Remove the last goal'], ar: ['إغلاق', 'إضافة هدف', 'إزالة الهدف الأخير'] }
-  for (const locale of ['en', 'ar'] as const) {
-    test(locale, async () => {
-      const he = await iconButtons(null)
+describe('E: icon-only buttons are named in every language (owner-approved Hebrew a11y change)', () => {
+  const NAMES = { he: ['סגירה', 'הוספת יעד', 'הסרת היעד האחרון'], en: ['Close', 'Add a goal', 'Remove the last goal'], ar: ['إغلاق', 'إضافة هدف', 'إزالة الهدف الأخير'] }
+  for (const locale of ['he', 'en', 'ar'] as const) {
+    test(`${locale}: accessible names`, async () => {
       const out = await iconButtons(locale)
       const [close, add, remove] = NAMES[locale]
-      expect(parse(out.fileFormClose).querySelector('button')!.getAttribute('aria-label')).toBe(close)
-      const goal = [...parse(out.goalButtons).querySelectorAll('button')]
-      expect(goal.slice(0, 2).map((b) => b.getAttribute('aria-label'))).toEqual([add, remove])
-      // Same markup otherwise: removing the name gives back the Hebrew button exactly.
-      const strip = (h: string) => h.replace(/ aria-label="[^"]*"/g, '')
-      expect(strip(out.fileFormClose)).toBe(he.fileFormClose)
-      expect(strip(out.goalButtons).replace(/>[^<]+</g, '><')).toBe(he.goalButtons.replace(/>[^<]+</g, '><'))
-      expect(he.fileFormClose).not.toContain('aria-label')
-      expect(he.goalButtons.split('\n').slice(0, 2).join('')).not.toContain('aria-label')
+      // Exposed as the buttons' accessible names (role + name), not only as attributes.
+      expect(getByRole(parse(out.fileFormClose), 'button', { name: close })).toBeTruthy()
+      const goal = parse(out.goalButtons)
+      expect(getByRole(goal, 'button', { name: add })).toBeTruthy()
+      expect(getByRole(goal, 'button', { name: remove })).toBeTruthy()
     })
   }
+  test('without a provider the buttons fall back to the Hebrew names', async () => {
+    const none = await iconButtons(null)
+    expect(none).toEqual(await iconButtons('he'))
+  })
+  test("the name is the only change to the Hebrew buttons' markup", async () => {
+    const he = await iconButtons('he')
+    const strip = (h: string) => h.replace(/ aria-label="[^"]*"/g, '')
+    expect(strip(he.fileFormClose)).toBe(
+      '<button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap hover:opacity-85 size-4 p-0 absolute top-4 left-4" popovertarget="filePopover">' +
+        he.fileFormClose.slice(he.fileFormClose.indexOf('<div')),
+    )
+    for (const locale of ['en', 'ar'] as const) {
+      const out = await iconButtons(locale)
+      expect(strip(out.goalButtons).replace(/>[^<]+</g, '><')).toBe(strip(he.goalButtons).replace(/>[^<]+</g, '><'))
+    }
+  })
+  test('the file form close button sits at the end corner: right in English, left in Hebrew and Arabic', async () => {
+    const cls = async (l: 'he' | 'en' | 'ar') => parse((await iconButtons(l)).fileFormClose).querySelector('button')!.className
+    expect(await cls('en')).toContain('right-4')
+    expect(await cls('en')).not.toContain('left-4')
+    for (const l of ['he', 'ar'] as const) {
+      expect(await cls(l)).toContain('left-4')
+      expect(await cls(l)).not.toContain('right-4')
+    }
+    const strip = (h: string) => h.replace(/ aria-label="[^"]*"/g, '')
+    expect(strip((await iconButtons('ar')).fileFormClose)).toBe(strip((await iconButtons('he')).fileFormClose))
+  })
 })
 
 describe('G: a toast body declares the interface language; a verbatim Hebrew sentence stays Hebrew', () => {

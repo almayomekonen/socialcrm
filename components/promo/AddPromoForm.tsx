@@ -132,14 +132,14 @@ function SelectBranch({ goalLength, setGoalLength, promo, index }) {
       <div className='flex items-end gap-2 '>
         <SelectPrdctOpts key={Math.random()} prdct={promo?.goals?.conditions?.[index] || {}} index={index} />
 
-        {/* Icon-only: named outside Hebrew (final UI audit, E6 pattern); Hebrew markup is unchanged. */}
+        {/* Icon-only, named in every language (final UI audit, owner-approved Hebrew a11y change). */}
         <Btn
           onClick={() => setGoalLength(goalLength + 1)}
           className='px-3 '
           icon='plus'
           variant='soft'
           type='button'
-          {...(tr.locale === 'he' ? {} : { 'aria-label': tr('admin.promos.form.addGoal') })}
+          aria-label={tr('admin.promos.form.addGoal')}
         />
         {goalLength !== 1 && (
           <Btn
@@ -150,7 +150,7 @@ function SelectBranch({ goalLength, setGoalLength, promo, index }) {
             className='px-3'
             variant='soft'
             type='button'
-            {...(tr.locale === 'he' ? {} : { 'aria-label': tr('admin.promos.form.removeGoal') })}
+            aria-label={tr('admin.promos.form.removeGoal')}
           />
         )}
       </div>

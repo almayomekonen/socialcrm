@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { SelectSearch } from '@/lib/form/SelectSearch'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 
 /** Upload form of the lead files tab; follows the interface language. Task titles are data. */
 export default function FileForm({ clientId, tasks }) {
@@ -26,14 +27,15 @@ export default function FileForm({ clientId, tasks }) {
 
   return (
     <div popover='manual' id='filePopover' className='pop overflow-hidden w-[450px] relative'>
-      {/* Icon-only: named outside Hebrew (final UI audit, E6 pattern); Hebrew markup is unchanged. */}
+      {/* Icon-only, named in every language (final UI audit, owner-approved Hebrew a11y change). Sits at the
+          dialog's end corner: left in RTL, right in English. */}
       <Btn
         variant='sign'
         size='sign'
-        className='absolute top-4 left-4'
+        className={dirFor(t.locale) === 'ltr' ? 'absolute top-4 right-4' : 'absolute top-4 left-4'}
         icon='circle-x'
         popoverTarget='filePopover'
-        {...(t.locale === 'he' ? {} : { 'aria-label': t('common.dialog.close') })}
+        aria-label={t('common.dialog.close')}
       />
       <form onSubmit={onSubmit} className='space-y-4'>
         <Title lbl={t('leadTabs.files.form.title')} />
