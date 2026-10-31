@@ -67,7 +67,7 @@ export async function alignment(locale: UiLocale | null): Promise<Record<string,
   v = render(await wrap(locale, <AdsDailyTrend daily={[{ date: '2026-10-01', spend: 12.5, linkClicks: 3, leads: 1 }] as never} currency='USD' showLeads locale={l} />))
   out.trendHead = html(v.container.querySelector('thead'))
   cleanup()
-  const row = { id: 'c1', name: 'קמפיין סתיו', objective: 'OUTCOME_LEADS', status: 'ACTIVE', metrics: { spend: 10, linkClicks: 4, linkCtr: 1.2, reach: 300 }, result: { kind: 'lead', count: 2, cost: 5 } }
+  const row = { id: 'c1', name: 'קמפיין סתיו', objective: 'OUTCOME_LEADS', status: 'ACTIVE', metrics: { spend: 10, linkClicks: 4, linkCtr: 1.2, reach: 300 }, result: { kind: 'leads', count: 2, cost: 5 } }
   v = render(await wrap(locale, <AdsResultsTable title='קמפיינים' rows={[row] as never} currency='USD' nameHeader='קמפיין' emptyText='-' statusesAvailable locale={l} />))
   out.resultsHead = html(v.container.querySelector('thead'))
   cleanup()

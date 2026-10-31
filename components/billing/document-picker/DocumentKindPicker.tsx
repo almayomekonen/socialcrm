@@ -85,7 +85,7 @@ function KindRow({
     <button
       type='button'
       onClick={() => onPick(entry)}
-      className='w-full text-right px-3 py-3 rounded-md text-base text-gray-900 bg-softy/40 hover:bg-softy/70 transition-colors font-medium'
+      className={`w-full ${t.locale === 'he' ? 'text-right' : 'text-start'} px-3 py-3 rounded-md text-base text-gray-900 bg-softy/40 hover:bg-softy/70 transition-colors font-medium`}
     >
       {kindLabel(t, entry)}
     </button>

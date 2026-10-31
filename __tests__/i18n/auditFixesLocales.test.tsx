@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { findHebrewLeaks } from './leakScan'
-import { iconPicker, readyMessageChevrons } from './auditFixesSurfaces'
+import { alignment, iconPicker, readyMessageChevrons } from './auditFixesSurfaces'
 
 /**
  * The final UI audit fixes in en / ar (Hebrew identity: auditFixesHebrewBaseline,
@@ -25,9 +25,12 @@ beforeAll(() => {
 })
 afterAll(() => vi.restoreAllMocks())
 
+/** A <template> parses table parts (a lone <thead>) that a <div> would drop. */
 const parse = (html: string) => {
+  const tpl = document.createElement('template')
+  tpl.innerHTML = html
   const box = document.createElement('div')
-  box.innerHTML = html
+  box.append(tpl.content)
   return box
 }
 const HEBREW = /[֐-׿]/
@@ -61,4 +64,25 @@ describe('C: the phone ready-messages rows mirror their chevron in LTR', () => {
     expect(en.every((c) => c.includes('-scale-x-100'))).toBe(true)
     expect(en.map((c) => c.replace(' -scale-x-100', ' '))).toEqual(none)
   })
+})
+
+describe('D: header rows and option buttons start at the reading edge outside Hebrew', () => {
+  for (const locale of ['en', 'ar'] as const) {
+    test(locale, async () => {
+      const he = await alignment(null)
+      const out = await alignment(locale)
+      for (const key of ['billingHead', 'trendHead', 'resultsHead', 'kindOptions'] as const) {
+        const el = parse(out[key])
+        const aligned = key === 'billingHead' || key === 'trendHead' ? [el.querySelector('tr')!] : key === 'resultsHead' ? [...el.querySelectorAll('th')] : [...el.querySelectorAll('button')]
+        expect(aligned.length, key).toBeGreaterThan(0)
+        for (const a of aligned) {
+          expect(a.className, key).toContain('text-start')
+          expect(a.className, key).not.toContain('text-right')
+        }
+        // Hebrew keeps the physical right edge.
+        expect(he[key], key).toContain('text-right')
+        expect(he[key], key).not.toContain('text-start')
+      }
+    })
+  }
 })
