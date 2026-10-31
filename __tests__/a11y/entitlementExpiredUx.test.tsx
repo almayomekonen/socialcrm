@@ -948,7 +948,9 @@ describe('surfaces the sweep deliberately left alone', () => {
     const panel = read('components/notifications/NotificationPanel.tsx')
     expect(panel).not.toContain('useAccessDenied')
     // An empty panel means "you are up to date", never "your plan ended".
-    expect(panel).toContain('אין התראות חדשות')
+    // (i18n Phase F3: the sentence moved to the catalog; the panel renders its key.)
+    expect(panel).toContain("t('notifications.panel.empty.title')")
+    expect(read('lib/i18n/messages/he/notifications/chrome.ts')).toContain("title: 'אין התראות חדשות'")
   })
 })
 

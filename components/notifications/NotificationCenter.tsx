@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { useNotifications } from '@/modules/notifications/NotificationContext'
 import {
   appendPage,
@@ -69,6 +70,7 @@ export default function NotificationCenter({
    */
   variant?: 'desktop' | 'mobile'
 }) {
+  const t = useT()
   const { unreadCount, markSeen, markRead, markAllRead } = useNotifications()
   const router = useRouter()
   const isMobile = variant === 'mobile'
@@ -179,7 +181,7 @@ export default function NotificationCenter({
       markRead([...ids])
     } catch {
       setItems((current) => restoreNotificationUnread(current, snapshot, ids))
-      toast('error', 'לא הצלחנו לסמן כנקרא. נסה שוב.')
+      toast('error', t('inbox.mobile.list.markReadFailed'))
     }
     setBusy(false)
   }

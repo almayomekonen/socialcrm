@@ -1,3 +1,7 @@
+'use client'
+
+import { useT } from '@/lib/i18n/I18nProvider'
+
 /**
  * The center's two list controls — "mark all read" above the list and "load
  * more" below it — shared by the desktop and phone lists, which differ only in
@@ -5,6 +9,7 @@
  */
 
 export function MarkAllReadBar({ onClick, mobile = false }: { onClick: () => void; mobile?: boolean }) {
+  const t = useT()
   return (
     <div className='flex items-center justify-end border-b px-3 py-2'>
       <button
@@ -16,7 +21,7 @@ export function MarkAllReadBar({ onClick, mobile = false }: { onClick: () => voi
             : 'rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary'
         }
       >
-        סימון הכל כנקרא
+        {t('notifications.panel.markAll')}
       </button>
     </div>
   )
@@ -34,6 +39,7 @@ export function LoadMoreButton({
   failed: boolean
   mobile?: boolean
 }) {
+  const t = useT()
   return (
     <div className='border-t px-3 py-2 text-center'>
       <button
@@ -42,7 +48,7 @@ export function LoadMoreButton({
         disabled={loading}
         className={`${mobile ? 'flex min-h-11 w-full items-center justify-center ' : ''}rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary`}
       >
-        {loading ? 'טוען...' : failed ? 'לא הצלחנו לטעון — נסה שוב' : 'הצג עוד'}
+        {loading ? t('common.toast.loading') : failed ? t('notifications.center.loadFailed') : t('notifications.center.loadMore')}
       </button>
     </div>
   )

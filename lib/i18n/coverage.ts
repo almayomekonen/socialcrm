@@ -45,6 +45,12 @@ const ALLOWED_SAME = new Set<string>([
   'deals.product.ppc',
   // A developer tool's product name, shown in Latin letters in Hebrew too (its phone handoff, Phase F1).
   'mobileShell.desktopOnly.title.aiInspector',
+  // Notifications (Phase F3): the WhatsApp brand in the stored-text wording; the
+  // away line's "{label} {count}" pattern and its list separator (a comma in
+  // Hebrew and English, the Arabic comma in Arabic) — the words come from other keys.
+  'notifications.content.provider.whatsapp',
+  'notifications.panel.away.category',
+  'notifications.panel.away.separator',
 ])
 
 type Leaf = string | Record<string, string>

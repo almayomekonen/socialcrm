@@ -1,8 +1,11 @@
 'use client'
 
 import Icon from '@/lib/Icon'
-import { timeAgo } from '@/components/settings/connections/copy'
-import { CATEGORY_ICON, CATEGORY_LABEL } from '@/modules/notifications/dropdown'
+import { timeAgoIn } from '@/components/settings/connections/copy'
+import { CATEGORY_ICON } from '@/modules/notifications/dropdown'
+import { categoryLabelIn, storedTextIn } from '@/modules/notifications/display'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { untranslatedAttrs } from '@/lib/i18n/config'
 import type { NotificationCategory } from '@/lib/notifications/types'
 import type { NotificationFeedItem } from '@/modules/notifications/types'
 import useLongPress from '@/components/mobile/useLongPress'
@@ -41,11 +44,14 @@ export default function NotificationRowMobile({
   onToggle?: () => void
   onEnterSelection?: () => void
 }) {
-  const when = timeAgo(item.createdAt)
+  const t = useT()
+  const title = storedTextIn(item, 'title', t.locale)!
+  const body = storedTextIn(item, 'body', t.locale)
+  const when = timeAgoIn(item.createdAt, t.locale)
   const unread = item.readAt === null
   const iconTone = unread ? (CATEGORY_ICON_TONE[item.category] ?? 'bg-gray-400') : 'bg-gray-400'
   const longPress = useLongPress(onEnterSelection ?? (() => {}), Boolean(onEnterSelection) && !selecting)
-  const source = CATEGORY_LABEL[item.category]
+  const source = categoryLabelIn(item.category, t.locale)
   const meta = [when, source].filter(Boolean).join(' · ')
 
   const markCls = `mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md ${
@@ -64,20 +70,28 @@ export default function NotificationRowMobile({
 
       <span className='min-w-0 flex-1'>
         <span className='flex items-center gap-2'>
-          <span className={`truncate text-[15px] leading-tight ${unread ? 'font-semibold text-ink' : 'font-medium text-gray-600'}`}>
-            {item.title}
+          <span
+            className={`truncate text-[15px] leading-tight ${unread ? 'font-semibold text-ink' : 'font-medium text-gray-600'}`}
+            {...(title.verbatim ? untranslatedAttrs(t.locale) : {})}
+          >
+            {title.text}
           </span>
           {unread && !selected && <span aria-hidden className='ms-auto size-1.5 shrink-0 rounded-full bg-primary' />}
         </span>
 
-        {item.body && (
-          <span className='mt-0.5 block truncate text-[13px] leading-snug text-gray-500'>{item.body}</span>
+        {body && (
+          <span
+            className='mt-0.5 block truncate text-[13px] leading-snug text-gray-500'
+            {...(body.verbatim ? untranslatedAttrs(t.locale) : {})}
+          >
+            {body.text}
+          </span>
         )}
 
         {meta && <span className='mt-1 block text-[11px] leading-none text-gray-400'>{meta}</span>}
       </span>
 
-      {unread && <span className='sr-only'>לא נקרא</span>}
+      {unread && <span className='sr-only'>{t('inbox.row.unread')}</span>}
     </>
   )
 

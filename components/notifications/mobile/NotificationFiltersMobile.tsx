@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import { centerHref, type CenterFilters } from '@/modules/notifications/center'
+import { categoryLabelIn } from '@/modules/notifications/display'
+import { LEGACY_DEFAULT_LOCALE, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The notification filter, for a phone: one segmented control, three choices.
@@ -24,33 +27,38 @@ import { centerHref, type CenterFilters } from '@/modules/notifications/center'
  *
  * Links, not state: the filter lives in the URL, so back/forward work and a
  * filtered view can be shared — the same rule the desktop chips follow.
+ *
+ * Labelled by category CODE in `locale` (Hebrew: "הכל" / `CATEGORY_LABEL`).
  */
 
-const SEGMENTS: { label: string; category: CenterFilters['category'] }[] = [
-  { label: 'הכל', category: null },
-  { label: 'לידים', category: 'leads' },
-  { label: 'מעקבים', category: 'followups' },
-]
+const SEGMENTS: CenterFilters['category'][] = [null, 'leads', 'followups']
 
-export default function NotificationFiltersMobile({ filters }: { filters: CenterFilters }) {
+export default function NotificationFiltersMobile({
+  filters,
+  locale = LEGACY_DEFAULT_LOCALE,
+}: {
+  filters: CenterFilters
+  locale?: UiLocale
+}) {
+  const t = translatorFor(locale)
   return (
     <div
       role='navigation'
-      aria-label='סינון התראות'
+      aria-label={t('notifications.filters.mobileLabel')}
       className='flex items-stretch overflow-hidden rounded-md border border-gray-200 bg-white'
     >
-      {SEGMENTS.map((s) => {
-        const active = filters.category === s.category
+      {SEGMENTS.map((category) => {
+        const active = filters.category === category
         return (
           <Link
-            key={s.label}
-            href={centerHref({ ...filters, category: s.category })}
+            key={category ?? 'all'}
+            href={centerHref({ ...filters, category })}
             aria-current={active ? 'page' : undefined}
             className={`press flex min-h-11 flex-1 items-center justify-center border-s border-gray-200 text-[13px] font-medium first:border-s-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
               active ? 'bg-primary-tint text-primary-text' : 'bg-white text-gray-500'
             }`}
           >
-            {s.label}
+            {category ? categoryLabelIn(category, locale) : t('notifications.filters.all')}
           </Link>
         )
       })}
