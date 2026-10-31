@@ -14,7 +14,10 @@ import {
   isProductTopic,
   productKnowledgeIndex,
 } from '@/lib/agent/product/knowledge'
+import { globSync } from 'node:fs'
 import { AGENT_SYSTEM_PROMPT } from '@/lib/agent/prompt'
+import { PRICING, TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 import { createEvidenceCollector } from '@/lib/agent/evidence'
 import { validateAgentAnswer, validateAgentAnswerDetailed } from '@/lib/agent/validate'
 import type { AgentAnswer } from '@/lib/agent/types'
@@ -59,13 +62,42 @@ describe('canonical product knowledge', () => {
     // product's word. It is legitimate only where it names this feature, which
     // the product itself calls "הסוכן שלך"; those two topics are the exception,
     // and every other topic must be clean.
-    const namesTheAgent = new Set(['the_agent', 'not_supported'])
+    const namesTheAgent = new Set(['the_agent', 'not_supported', 'recent_updates'])
     for (const t of PRODUCT_TOPICS) {
       if (namesTheAgent.has(t.id)) continue
       expect(t.summary, t.id).not.toMatch(/סוכן/)
     }
     // And nowhere does it call a person one.
     for (const t of PRODUCT_TOPICS) expect(t.summary, t.id).not.toMatch(/הסוכן ש(לו|לה|להם)/)
+  })
+
+  it('quotes the price and the trial from their single source, never a retyped figure', () => {
+    const pricing = getProductTopic('pricing_trial')!.summary
+    expect(pricing).toContain(TRIAL_OFFER_FAQ_ANSWER)
+    expect(pricing).toContain(`${PRICING.currency}${PRICING.monthly}`)
+    expect(pricing).toContain(`${TRIAL_LENGTH_DAYS} ימי`)
+  })
+
+  it('no longer claims the product has no revenue report, or that the agent never acts', () => {
+    // Performance shows paid revenue (db/helpers/sum_helpers.ts saleStats); the agent proposes tasks, follow-ups and meetings.
+    expect(getProductTopic('not_supported')!.summary).not.toMatch(/אין כרגע דוח המרות או דוח הכנסות/)
+    expect(getProductTopic('not_supported')!.summary).toMatch(/ביצועים/)
+    expect(getProductTopic('the_agent')!.summary).not.toMatch(/לא מבצע פעולות/)
+    expect(getProductTopic('deals_and_performance')!.summary).toMatch(/ששולמו/)
+  })
+
+  it('says so wherever a feature is switched on per account', () => {
+    // The index is the same for every tenant: a flag-gated feature must not read as one every owner has.
+    for (const id of ['automations', 'questionnaire_auto_reply', 'messenger', 'comments_and_ads', 'recent_updates']) {
+      expect(getProductTopic(id)!.summary, id).toMatch(/לחשבונות שנבחרו/)
+    }
+  })
+
+  it('every route a topic names is a real page in the app', () => {
+    const pages = globSync('app/**/page.tsx').map((f) => '/' + f.replace(/\\/g, '/').split('/').slice(1, -1).filter((seg) => !/^\(.*\)$/.test(seg)).join('/'))
+    for (const t of PRODUCT_TOPICS) {
+      for (const route of t.routes ?? []) expect(pages, `${t.id} ${route}`).toContain(route.split('?')[0])
+    }
   })
 
   it('exposes an index compact enough to sit in a prompt', () => {

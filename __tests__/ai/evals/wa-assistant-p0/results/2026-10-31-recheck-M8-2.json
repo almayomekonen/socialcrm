@@ -1,0 +1,29 @@
+{
+ "label": "recheck-M8-2",
+ "startedAt": "2026-10-31T22:07:26.297Z",
+ "results": [
+  {
+   "id": "M8",
+   "kind": "meeting",
+   "question": "טיפשול",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "צודק, פישלתי — עדיין צריך לאתר את אבי במערכת לפני שאפשר לבקש את הפגישה.",
+   "costUsd": 0.056545,
+   "ms": 3476,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

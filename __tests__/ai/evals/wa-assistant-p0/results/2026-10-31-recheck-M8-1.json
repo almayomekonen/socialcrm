@@ -1,0 +1,29 @@
+{
+ "label": "recheck-M8-1",
+ "startedAt": "2026-10-31T22:07:18.112Z",
+ "results": [
+  {
+   "id": "M8",
+   "kind": "meeting",
+   "question": "טיפשול",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "צודק, פישלתי — לא הייתי צריך להניח באיזה אבי מדובר, והפגישה עדיין לא נקבעה.",
+   "costUsd": 0.056605,
+   "ms": 3698,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

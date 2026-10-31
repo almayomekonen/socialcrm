@@ -184,7 +184,8 @@ describe('the prompt permits honesty and forbids selling', () => {
 
   it('forbids inventing ROI, revenue, conversion, time saved or price', () => {
     expect(AGENT_SYSTEM_PROMPT).toMatch(/אסור להמציא ROI, החזר השקעה, הכנסה, שיעור המרה, חיסכון בזמן או מחיר/)
-    expect(AGENT_SYSTEM_PROMPT).toMatch(/אין לך מחירון/)
+    // A price may be stated only as the pricing_trial topic states it (lib/pricing.ts); any other figure is invented.
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/את המחיר ותנאי תקופת הניסיון מותר לומר רק כפי שהם כתובים בנושא pricing_trial/)
   })
 
   it('asks it to name what is missing rather than guess upward', () => {
