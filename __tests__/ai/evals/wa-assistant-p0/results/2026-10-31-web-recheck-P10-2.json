@@ -1,0 +1,63 @@
+{
+ "label": "web-recheck-P10-2",
+ "startedAt": "2026-10-31T22:27:01.995Z",
+ "results": [
+  {
+   "id": "P10",
+   "kind": "product",
+   "question": "אפשר שהמערכת תענה ללידים בוואטסאפ לבד?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. בוואטסאפ אפשר להפעיל מענה אוטומטי בהגדרות ← מענה אוטומטי: הודעה קבועה או מענה חכם לפי תיאור העסק. כשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה. שיחת בירור מלאה זמינה רק בחשבונות שנבחרו.\nאפשר להפעיל מענה אוטומטי ללידים בוואטסאפ, כהודעה קבועה או כמענה חכם לפי תיאור העסק.\nכשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה.\nשיחת בירור מלאה עם הליד מופעלת רק בחשבונות שנבחרו.",
+   "answer": {
+    "headline": "כן. בוואטסאפ אפשר להפעיל מענה אוטומטי בהגדרות ← מענה אוטומטי: הודעה קבועה או מענה חכם לפי תיאור העסק. כשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה. שיחת בירור מלאה זמינה רק בחשבונות שנבחרו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "אפשר להפעיל מענה אוטומטי ללידים בוואטסאפ, כהודעה קבועה או כמענה חכם לפי תיאור העסק.",
+      "productEvidence": [
+       "auto_reply"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "כשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה.",
+      "productEvidence": [
+       "auto_reply"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "שיחת בירור מלאה עם הליד מופעלת רק בחשבונות שנבחרו.",
+      "productEvidence": [
+       "auto_reply"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05866,
+   "ms": 3926,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

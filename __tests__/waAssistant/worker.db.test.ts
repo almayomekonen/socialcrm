@@ -135,6 +135,30 @@ describe('a question, answered once', () => {
     ])
   })
 
+  it('a claimless reply ("אלוף" → "תודה, בשמחה.") is sent as written and becomes the next turn\'s history', async () => {
+    await owner('972500006011')
+    const w = await ask('972500006011', 'אלוף')
+    await ask('972500006011', 'סלמתאק')
+    const h = harness(answer({ headline: 'תודה, בשמחה.', claims: [] }))
+    await runWaAssistantWorker({}, h.deps)
+    expect(h.sendText.mock.calls[0][0].body).toBe('תודה, בשמחה.')
+    expect(await job(w)).toMatchObject({ status: 'answered', answerHeadline: 'תודה, בשמחה.' })
+    await runWaAssistantWorker({}, h.deps)
+    expect(h.runAgent.mock.calls[1][0].history).toEqual([
+      { role: 'user', content: 'אלוף' },
+      { role: 'assistant', content: 'תודה, בשמחה.' },
+    ])
+  })
+
+  it('an answer with nothing in it still gets the fixed no-answer reply', async () => {
+    await owner('972500006012')
+    const w = await ask('972500006012', 'מה?')
+    const h = harness(answer({ headline: '   ', claims: [] }))
+    await runWaAssistantWorker({}, h.deps)
+    expect(h.sendText.mock.calls[0][0].body).toBe(COPY.noAnswer)
+    expect(await job(w)).toMatchObject({ status: 'answered', answerHeadline: null })
+  })
+
   it('an answer that proposes an action performs nothing and says so', async () => {
     await owner('972500006005')
     await ask('972500006005', 'קבע לי פגישה עם דניאל')

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { APP_LINK, COPY, NO_ACTIONS_NOTE, fitReply, redactContactDetails, refusalReply, renderAnswer } from '@/lib/waAssistant/render'
+import { APP_LINK, COPY, NO_ACTIONS_NOTE, failureReply, fitReply, productLink, redactContactDetails, refusalReply, renderAnswer, replyForAnswer } from '@/lib/waAssistant/render'
+import { PRODUCT_TOPICS } from '@/lib/agent/product/knowledge'
 import { MAX_REPLY_CHARS, buildPlatformTextPayload } from '@/lib/whatsapp/platform/sendText'
 import { isWaAssistantAgency, waAssistantAgencyIds, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
 import type { AgentAnswer } from '@/lib/agent/types'
@@ -97,5 +98,159 @@ describe('waAssistantFlags', () => {
     expect(waAssistantDailyUsdCap()).toBe(2)
     process.env.WA_ASSISTANT_DAILY_USD_CAP = '5.5'
     expect(waAssistantDailyUsdCap()).toBe(5.5)
+  })
+})
+
+/**
+ * replyForAnswer — what the owner receives. The claimless cases replay the model
+ * output production actually produced (agent_investigations #41, #44, #47, #50),
+ * which the worker used to replace with COPY.noAnswer.
+ */
+describe('replyForAnswer', () => {
+  const plain = (text: string) => {
+    expect(text.startsWith('*')).toBe(false)
+    expect(text).not.toMatch(/^• /m)
+    expect(text).not.toContain(APP_LINK)
+  }
+
+  it('"אלוף" → the model\'s own thanks, plain, kept as history (prod #41)', () => {
+    const r = replyForAnswer({ headline: 'תודה, בשמחה.', claims: [], unknown: null })
+    expect(r).toEqual({ text: 'תודה, בשמחה.', headline: 'תודה, בשמחה.' })
+  })
+
+  it.each([
+    ['עם איזה ליד לקבוע את הפגישה?'], // prod #44
+    ['לכמה דקות לקבוע את הפגישה?'], // prod #47
+  ])('a clarifying question is sent as asked, so the next turn can answer it: %s', (q) => {
+    const r = replyForAnswer({ headline: q, claims: [], unknown: null })
+    expect(r.text).toBe(q)
+    expect(r.headline).toBe(q)
+  })
+
+  it('an honest "I can\'t tell" is plain: the sentence and its reason, no report chrome', () => {
+    const r = replyForAnswer({ headline: 'לא מצאתי ליד בשם שי חדד.', claims: [], unknown: 'אולי הוא רשום בשם אחר.' })
+    expect(r.text).toBe('לא מצאתי ליד בשם שי חדד.\n\nאולי הוא רשום בשם אחר.')
+    plain(r.text)
+  })
+
+  it('an answer with nothing in it is still the fixed no-answer reply, and keeps no history', () => {
+    expect(replyForAnswer({ headline: '', claims: [], unknown: null })).toEqual({ text: COPY.noAnswer, headline: null })
+    expect(replyForAnswer({ headline: '  ', claims: [], unknown: null }, { note: NO_ACTIONS_NOTE }).text).toBe(`${COPY.noAnswer}\n\n${NO_ACTIONS_NOTE}`)
+  })
+
+  it('a plain reply is still redacted and still carries the no-actions note', () => {
+    const r = replyForAnswer({ headline: 'הטלפון של דנה הוא 0541234567', claims: [], unknown: null }, { note: NO_ACTIONS_NOTE })
+    expect(r.text).not.toContain('0541234567')
+    expect(r.text.endsWith(`\n\n${NO_ACTIONS_NOTE}`)).toBe(true)
+  })
+
+  it('a product answer is plain and links the screen it cites, not the Agent page', () => {
+    const r = replyForAnswer({
+      headline: 'את ההכנסות רואים במסך ביצועים.',
+      claims: [{ claimClass: 'PRODUCT', text: 'מסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו לפי תקופה.', productEvidence: ['deals_and_performance'] }],
+      unknown: null,
+    })
+    plain(r.text)
+    expect(r.text).toContain('מסך «ביצועים» מציג')
+    expect(r.text.endsWith('במערכת: https://getsocialcrm.com/sum_sales')).toBe(true)
+  })
+
+  it('a product claim the headline already says in full is not repeated', () => {
+    const r = replyForAnswer({
+      headline: 'SocialCRM עולה ₪89 לחודש, בלי תוספת לכל נציג. יש 7 ימי התנסות.',
+      claims: [
+        { claimClass: 'PRODUCT', text: 'SocialCRM עולה ₪89 לחודש, בלי תוספת לכל נציג.', productEvidence: ['pricing_trial'] },
+        { claimClass: 'PRODUCT', text: 'כדי להתחיל נדרש כרטיס אשראי.', productEvidence: ['pricing_trial'] },
+      ],
+      unknown: null,
+    })
+    expect(r.text).toBe('SocialCRM עולה ₪89 לחודש, בלי תוספת לכל נציג. יש 7 ימי התנסות.\n\nכדי להתחיל נדרש כרטיס אשראי.\n\nבמערכת: https://getsocialcrm.com/pricing')
+  })
+
+  it('a product topic without a screen gets no link', () => {
+    const r = replyForAnswer({ headline: 'מה חדש', claims: [{ claimClass: 'PRODUCT', text: 'נוסף ייבוא עסקאות.', productEvidence: ['recent_updates'] }], unknown: null })
+    expect(r.text).toBe('מה חדש\n\nנוסף ייבוא עסקאות.')
+  })
+
+  it('an answer with business claims is still the report: bold headline, bullets, the app link', () => {
+    expect(replyForAnswer(answer())).toEqual(renderAnswer(answer()))
+    const mixed = answer({ claims: [...answer().claims, { claimClass: 'PRODUCT', text: 'אפשר לענות מ«שיחות».', productEvidence: ['conversations'] }] })
+    expect(replyForAnswer(mixed).text).toContain(APP_LINK)
+  })
+
+  it('failureReply keeps the worker\'s fixed copy per reason', () => {
+    expect(failureReply('deadline')).toBe(COPY.timeout)
+    expect(failureReply('gate_denied')).toBe(COPY.notAvailable)
+    expect(failureReply('no_evidence')).toBe(COPY.failed)
+  })
+})
+
+/**
+ * productLink — every product answer links the screen its topic is about. One
+ * case per topic, so a new topic or a moved screen cannot silently change where
+ * an owner is sent.
+ */
+describe('productLink: the screen a product answer links to', () => {
+  const ORIGIN = 'https://getsocialcrm.com'
+  const cite = (...ids: string[]) => ({ claimClass: 'PRODUCT' as const, text: `טענה על ${ids.join(' ו-')}.`, productEvidence: ids })
+  const linkOf = (claims: ReturnType<typeof cite>[]) => replyForAnswer({ headline: 'תשובה', claims, unknown: null }).text.match(/במערכת: (\S+)$/)?.[1] ?? null
+
+  const EXPECTED: Record<string, string | null> = {
+    what_is_socialcrm: null,
+    core_value: null,
+    lead_management: '/leads',
+    conversations: '/inbox',
+    whatsapp: '/settings/integrations?section=whatsapp',
+    facebook_instagram: '/settings/integrations?section=facebook',
+    tasks_followups: null,
+    today_and_performance: null,
+    team: null,
+    getting_started: null,
+    the_agent: '/agent',
+    pricing_trial: '/pricing',
+    automations: '/settings/automations',
+    auto_reply: '/settings/auto-response',
+    whatsapp_questionnaire: '/settings/questionnaire',
+    messenger: '/inbox/messenger',
+    facebook_comments: '/inbox/comments',
+    meta_ads: '/sum_sales/ads',
+    deals_and_performance: '/sum_sales',
+    lead_import: '/leads',
+    deal_import: '/deals',
+    recent_updates: null,
+    not_supported: null,
+  }
+
+  it('covers every topic in the registry', () => {
+    expect(Object.keys(EXPECTED).sort()).toEqual(PRODUCT_TOPICS.map((t) => t.id).sort())
+  })
+
+  it.each(Object.entries(EXPECTED))('%s → %s', (id, route) => {
+    expect(linkOf([cite(id)])).toBe(route ? `${ORIGIN}${route}` : null)
+  })
+
+  it('a deal-import answer goes to Deals, a questionnaire answer to the questionnaire, an auto-reply answer to auto-reply', () => {
+    expect(linkOf([cite('deal_import'), cite('deal_import')])).toBe(`${ORIGIN}/deals`)
+    expect(linkOf([cite('whatsapp_questionnaire'), cite('whatsapp_questionnaire')])).toBe(`${ORIGIN}/settings/questionnaire`)
+    expect(linkOf([cite('auto_reply')])).toBe(`${ORIGIN}/settings/auto-response`)
+  })
+
+  it('the screen most of the answer is about wins, wherever it is cited', () => {
+    expect(linkOf([cite('lead_import'), cite('deal_import'), cite('deal_import')])).toBe(`${ORIGIN}/deals`)
+    expect(linkOf([cite('recent_updates'), cite('deal_import')])).toBe(`${ORIGIN}/deals`)
+  })
+
+  it('an answer split evenly between screens links nothing, never the first cited', () => {
+    expect(linkOf([cite('lead_import'), cite('deal_import')])).toBeNull()
+    expect(linkOf([cite('auto_reply'), cite('whatsapp_questionnaire')])).toBeNull()
+  })
+
+  it('a claim citing two topics on one screen votes once for it', () => {
+    expect(productLink([cite('lead_management', 'lead_import'), cite('deal_import')])).toBeNull()
+    expect(productLink([cite('lead_management', 'lead_import'), cite('lead_import'), cite('deal_import')])).toBe('/leads')
+  })
+
+  it('an unknown topic id links nothing', () => {
+    expect(productLink([cite('invented_topic')])).toBeNull()
   })
 })

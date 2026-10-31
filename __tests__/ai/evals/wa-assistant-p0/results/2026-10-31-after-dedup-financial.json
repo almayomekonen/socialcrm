@@ -1,0 +1,97 @@
+{
+ "label": "after-dedup-financial",
+ "startedAt": "2026-10-31T22:09:31.611Z",
+ "results": [
+  {
+   "id": "F1",
+   "kind": "financial",
+   "question": "כמה העסק שלי עשה השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אין לי גישה לסכום ההכנסות שלך, אבל במסך «ביצועים» אפשר לבחור «השנה» ולראות כמה העסק הכניס מעסקאות שסומנו כשולמו.\n\nמסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה, כולל השנה.\n\nהסוכן עדיין לא קורא את נתוני העסקאות וההכנסות ולכן אינו יכול למסור את הסכום.\n\nסכום ההכנסות של העסק השנה אינו זמין לי.\n\nבמערכת: https://getsocialcrm.com/sum_sales",
+   "answer": {
+    "headline": "אין לי גישה לסכום ההכנסות שלך, אבל במסך «ביצועים» אפשר לבחור «השנה» ולראות כמה העסק הכניס מעסקאות שסומנו כשולמו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "מסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה, כולל השנה.",
+      "productEvidence": [
+       "deals_and_performance"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "הסוכן עדיין לא קורא את נתוני העסקאות וההכנסות ולכן אינו יכול למסור את הסכום.",
+      "productEvidence": [
+       "not_supported"
+      ]
+     }
+    ],
+    "unknown": "סכום ההכנסות של העסק השנה אינו זמין לי.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05776,
+   "ms": 3500,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "F2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אין לי גישה לסכום ההכנסות עצמו; במסך «ביצועים» אפשר לבחור «החודש» ולראות את סך ההכנסות מעסקאות שסומנו כשולמו.\n\nמסך «ביצועים» מציג הכנסות מעסקאות ששולמו לפי התקופה שנבחרה, אך הסוכן אינו קורא כרגע את נתוני העסקאות וההכנסות.\n\nסכום ההכנסות שנכנס החודש אינו זמין לי.\n\nבמערכת: https://getsocialcrm.com/sum_sales",
+   "answer": {
+    "headline": "אין לי גישה לסכום ההכנסות עצמו; במסך «ביצועים» אפשר לבחור «החודש» ולראות את סך ההכנסות מעסקאות שסומנו כשולמו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "מסך «ביצועים» מציג הכנסות מעסקאות ששולמו לפי התקופה שנבחרה, אך הסוכן אינו קורא כרגע את נתוני העסקאות וההכנסות.",
+      "productEvidence": [
+       "deals_and_performance",
+       "not_supported"
+      ]
+     }
+    ],
+    "unknown": "סכום ההכנסות שנכנס החודש אינו זמין לי.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05674,
+   "ms": 2794,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

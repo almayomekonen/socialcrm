@@ -14,7 +14,10 @@ import {
   isProductTopic,
   productKnowledgeIndex,
 } from '@/lib/agent/product/knowledge'
+import { globSync } from 'node:fs'
 import { AGENT_SYSTEM_PROMPT } from '@/lib/agent/prompt'
+import { PRICING, TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 import { createEvidenceCollector } from '@/lib/agent/evidence'
 import { validateAgentAnswer, validateAgentAnswerDetailed } from '@/lib/agent/validate'
 import type { AgentAnswer } from '@/lib/agent/types'
@@ -59,13 +62,50 @@ describe('canonical product knowledge', () => {
     // product's word. It is legitimate only where it names this feature, which
     // the product itself calls "הסוכן שלך"; those two topics are the exception,
     // and every other topic must be clean.
-    const namesTheAgent = new Set(['the_agent', 'not_supported'])
+    const namesTheAgent = new Set(['the_agent', 'not_supported', 'recent_updates'])
     for (const t of PRODUCT_TOPICS) {
       if (namesTheAgent.has(t.id)) continue
       expect(t.summary, t.id).not.toMatch(/סוכן/)
     }
     // And nowhere does it call a person one.
     for (const t of PRODUCT_TOPICS) expect(t.summary, t.id).not.toMatch(/הסוכן ש(לו|לה|להם)/)
+  })
+
+  it('quotes the price and the trial from their single source, never a retyped figure', () => {
+    const pricing = getProductTopic('pricing_trial')!.summary
+    expect(pricing).toContain(TRIAL_OFFER_FAQ_ANSWER)
+    expect(pricing).toContain(`${PRICING.currency}${PRICING.monthly}`)
+    expect(pricing).toContain(`${TRIAL_LENGTH_DAYS} ימי`)
+  })
+
+  it('no longer claims the product has no revenue report, or that the agent never acts', () => {
+    // Performance shows paid revenue (db/helpers/sum_helpers.ts saleStats); the agent proposes tasks, follow-ups and meetings.
+    expect(getProductTopic('not_supported')!.summary).not.toMatch(/אין כרגע דוח המרות או דוח הכנסות/)
+    expect(getProductTopic('not_supported')!.summary).toMatch(/ביצועים/)
+    expect(getProductTopic('the_agent')!.summary).not.toMatch(/לא מבצע פעולות/)
+    expect(getProductTopic('deals_and_performance')!.summary).toMatch(/ששולמו/)
+  })
+
+  it('says so wherever a feature is switched on per account', () => {
+    // The index is the same for every tenant: a flag-gated feature must not read as one every owner has.
+    for (const id of ['automations', 'auto_reply', 'whatsapp_questionnaire', 'messenger', 'facebook_comments', 'meta_ads', 'recent_updates']) {
+      expect(getProductTopic(id)!.summary, id).toMatch(/לחשבונות שנבחרו/)
+    }
+  })
+
+  it('every route a topic names is a real page in the app', () => {
+    const pages = globSync('app/**/page.tsx').map((f) => '/' + f.replace(/\\/g, '/').split('/').slice(1, -1).filter((seg) => !/^\(.*\)$/.test(seg)).join('/'))
+    for (const t of PRODUCT_TOPICS) {
+      for (const route of t.routes ?? []) expect(pages, `${t.id} ${route}`).toContain(route.split('?')[0])
+    }
+  })
+
+  it('a topic links only a screen it names, and a topic naming several screens says which one it is about', () => {
+    for (const t of PRODUCT_TOPICS) {
+      if (t.link) expect(t.routes ?? [], t.id).toContain(t.link)
+    }
+    // The four without a link span several screens with no single subject; a reply citing them links nothing.
+    expect(PRODUCT_TOPICS.filter((t) => (t.routes?.length ?? 0) > 0 && !t.link).map((t) => t.id).sort()).toEqual(['getting_started', 'tasks_followups', 'team', 'today_and_performance'])
   })
 
   it('exposes an index compact enough to sit in a prompt', () => {
@@ -112,6 +152,17 @@ describe('a PRODUCT claim is grounded in the registry, not in CRM evidence', () 
   it('is refused when it cites a topic that does not exist', () => {
     expect(validateAgentAnswer(product(['invented_feature']), empty())).toBeNull()
     expect(isProductTopic('invented_feature')).toBe(false)
+  })
+
+  it('every topic is citable: a product answer on any of them survives with no CRM evidence (web Agent and WhatsApp alike)', () => {
+    for (const t of PRODUCT_TOPICS) expect(validateAgentAnswer(product([t.id]), empty()), t.id).not.toBeNull()
+  })
+
+  it('a casual reply with no claims passes the shared validator on the interactive path, so the web panel shows it', () => {
+    const casual: AgentAnswer = { headline: 'תודה, כיף לשמוע.', claims: [], unknown: null }
+    expect(validateAgentAnswer(casual, empty())?.headline).toBe('תודה, כיף לשמוע.')
+    // The autonomous path still refuses an answer asserting nothing.
+    expect(validateAgentAnswerDetailed(casual, empty(), { requireClaim: true }).rejection).toBe('no-supportable-claim')
   })
 
   it('cannot be grounded by a lead or a metric', () => {

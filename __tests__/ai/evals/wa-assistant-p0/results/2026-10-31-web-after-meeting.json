@@ -1,0 +1,264 @@
+{
+ "label": "web-after-meeting",
+ "startedAt": "2026-10-31T22:28:22.263Z",
+ "results": [
+  {
+   "id": "M1",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם ליד",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "עם איזה ליד לקבוע את הפגישה?",
+   "answer": {
+    "headline": "עם איזה ליד לקבוע את הפגישה?",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05379,
+   "ms": 2553,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M2",
+   "kind": "meeting",
+   "question": "עם יוסי",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "מה כותרת הפגישה, באיזה תאריך ושעה, ולכמה דקות לקבוע אותה עם יוסי הזדמנות?",
+   "answer": {
+    "headline": "מה כותרת הפגישה, באיזה תאריך ושעה, ולכמה דקות לקבוע אותה עם יוסי הזדמנות?",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.10801,
+   "ms": 4415,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M3",
+   "kind": "meeting",
+   "question": "מחר בשעה 10 וחצי",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "מה כותרת הפגישה ולכמה דקות לקבוע אותה?",
+   "answer": {
+    "headline": "מה כותרת הפגישה ולכמה דקות לקבוע אותה?",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.109225,
+   "ms": 4703,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M4",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם הליד הראשון שמופיע ברשימה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "עם דנה הזדמנות — מה כותרת הפגישה, באיזה תאריך ושעה, וכמה דקות היא תימשך?",
+   "answer": {
+    "headline": "עם דנה הזדמנות — מה כותרת הפגישה, באיזה תאריך ושעה, וכמה דקות היא תימשך?",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.113935,
+   "ms": 5725,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M5",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם אבי \nלמחר בבוקר בשעה 10:00",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "כמה זמן להקצות לפגישה עם אבי?",
+   "answer": {
+    "headline": "כמה זמן להקצות לפגישה עם אבי?",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.10653,
+   "ms": 3840,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M6",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם Shay Hadad ליום ראשון בשעה 12:00",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לא מצאתי ליד בשם Shay Hadad — אפשר לבדוק את האיות או לתת לי שם אחר שמופיע במערכת?",
+   "answer": {
+    "headline": "לא מצאתי ליד בשם Shay Hadad — אפשר לבדוק את האיות או לתת לי שם אחר שמופיע במערכת?",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.11283,
+   "ms": 6140,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M7",
+   "kind": "meeting",
+   "question": "סלמתאק",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "סלמתאק. כדי להשלים את בקשת הפגישה עם יוסי למחר ב־10:30, עדיין חסרים כותרת ומשך בדקות.",
+   "answer": {
+    "headline": "סלמתאק. כדי להשלים את בקשת הפגישה עם יוסי למחר ב־10:30, עדיין חסרים כותרת ומשך בדקות.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05568,
+   "ms": 2800,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M8",
+   "kind": "meeting",
+   "question": "טיפשול",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "קיבלתי. כדי להשלים את הבקשה עדיין צריך לזהות איזה אבי ומה כותרת הפגישה.",
+   "answer": {
+    "headline": "קיבלתי. כדי להשלים את הבקשה עדיין צריך לזהות איזה אבי ומה כותרת הפגישה.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.058485,
+   "ms": 4432,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

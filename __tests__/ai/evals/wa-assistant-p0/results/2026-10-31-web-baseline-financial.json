@@ -1,0 +1,93 @@
+{
+ "label": "web-baseline-financial",
+ "startedAt": "2026-10-31T22:23:41.692Z",
+ "results": [
+  {
+   "id": "F1",
+   "kind": "financial",
+   "question": "כמה העסק שלי עשה השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אין לי נתוני הכנסה שמאפשרים לחשב כמה העסק עשה השנה.\nב-SocialCRM אין כרגע דוח הכנסות מלא, ולכן אי אפשר לחשב מכאן הכנסה שנתית באופן אמין.\nחסרים נתוני הכנסות או עסקאות ששולמו מתחילת 2026 ועד היום.",
+   "answer": {
+    "headline": "אין לי נתוני הכנסה שמאפשרים לחשב כמה העסק עשה השנה.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "ב-SocialCRM אין כרגע דוח הכנסות מלא, ולכן אי אפשר לחשב מכאן הכנסה שנתית באופן אמין.",
+      "productEvidence": [
+       "not_supported"
+      ]
+     }
+    ],
+    "unknown": "חסרים נתוני הכנסות או עסקאות ששולמו מתחילת 2026 ועד היום.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04792,
+   "ms": 3538,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": [
+     "missing /ביצועים/",
+     "has /אין (כרגע )?דוח הכנסות/"
+    ]
+   },
+   "pass": false
+  },
+  {
+   "id": "F2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אי אפשר לחשב כמה כסף נכנס החודש מהנתונים הזמינים ב‑SocialCRM.\nאין כרגע במערכת דוח הכנסות מלא, ולכן לא ניתן לחשב באופן אמין את ההכנסה החודשית.\nחסרים נתוני הכנסות או תשלומים לחודש הנוכחי.",
+   "answer": {
+    "headline": "אי אפשר לחשב כמה כסף נכנס החודש מהנתונים הזמינים ב‑SocialCRM.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "אין כרגע במערכת דוח הכנסות מלא, ולכן לא ניתן לחשב באופן אמין את ההכנסה החודשית.",
+      "productEvidence": [
+       "not_supported"
+      ]
+     }
+    ],
+    "unknown": "חסרים נתוני הכנסות או תשלומים לחודש הנוכחי.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04666,
+   "ms": 3035,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": [
+     "missing /ביצועים/"
+    ]
+   },
+   "pass": false
+  }
+ ]
+}

@@ -19,7 +19,7 @@ import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/li
 import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
 import { resolveAssistantScope } from './identity'
-import { COPY, NO_ACTIONS_NOTE, fitReply, refusalReply, renderAnswer } from './render'
+import { COPY, NO_ACTIONS_NOTE, failureReply, refusalReply, replyForAnswer } from './render'
 import { proposeMeeting, type ProposeDeps } from './meetings/propose'
 import { decideMeeting, type DecideDeps } from './meetings/decide'
 import { MEETING_COPY } from './meetings/copy'
@@ -156,12 +156,11 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   })
 
   if (result.ok !== true) {
-    const text = result.reason === 'deadline' ? COPY.timeout : result.reason === 'gate_denied' ? COPY.notAvailable : COPY.failed
     return finish(job, {
       status: 'failed',
       stopReason: result.reason,
       costUsd: result.costUsd ?? 0,
-      reply: await reply1(job, platform, who.phoneE164, text, deps),
+      reply: await reply1(job, platform, who.phoneE164, failureReply(result.reason), deps),
       durationMs: elapsed(),
     })
   }
@@ -173,15 +172,13 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   }
 
   const note = result.answer.proposedAction || result.answer.proposedBatch ? NO_ACTIONS_NOTE : null
-  const rendered = renderAnswer(result.answer, { note })
-  const hasContent = (result.answer.claims?.length ?? 0) > 0 || !!result.answer.unknown
-  const text = hasContent ? rendered.text : fitReply(COPY.noAnswer, note)
+  const reply = replyForAnswer(result.answer, { note })
   return finish(job, {
     status: 'answered',
     stopReason: result.stopReason,
-    answerHeadline: hasContent ? rendered.headline : null,
+    answerHeadline: reply.headline,
     costUsd: result.costUsd,
-    reply: await reply1(job, platform, who.phoneE164, text, deps),
+    reply: await reply1(job, platform, who.phoneE164, reply.text, deps),
     durationMs: elapsed(),
   })
 }

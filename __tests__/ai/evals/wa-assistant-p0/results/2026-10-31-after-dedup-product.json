@@ -1,0 +1,551 @@
+{
+ "label": "after-dedup-product",
+ "startedAt": "2026-10-31T22:08:54.497Z",
+ "results": [
+  {
+   "id": "P1",
+   "kind": "product",
+   "question": "מה חדש במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "נוספו לאחרונה ייבוא עסקאות, יכולות חדשות בשיחות ובפרסום, שאלון וואטסאפ והסוכן בוואטסאפ.\n\nייבוא עסקאות מאקסל זמין כעת לכל החשבונות.\n\nבמהלך ספטמבר–אוקטובר 2026 החלה פתיחה הדרגתית לחשבונות שנבחרו של מסנג׳ר בתוך «שיחות», תגובות מפייסבוק כלידים, דוח מודעות פייסבוק, בונה שאלון וואטסאפ, ממשק באנגלית והסוכן בוואטסאפ — שבו אפשר לשאול על העסק ולקבוע פגישה.\n\nאם אחת מהיכולות ההדרגתיות אינה מופיעה אצלך, היא עדיין לא הופעלה בחשבון שלך.",
+   "answer": {
+    "headline": "נוספו לאחרונה ייבוא עסקאות, יכולות חדשות בשיחות ובפרסום, שאלון וואטסאפ והסוכן בוואטסאפ.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "ייבוא עסקאות מאקסל זמין כעת לכל החשבונות.",
+      "productEvidence": [
+       "recent_updates"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "במהלך ספטמבר–אוקטובר 2026 החלה פתיחה הדרגתית לחשבונות שנבחרו של מסנג׳ר בתוך «שיחות», תגובות מפייסבוק כלידים, דוח מודעות פייסבוק, בונה שאלון וואטסאפ, ממשק באנגלית והסוכן בוואטסאפ — שבו אפשר לשאול על העסק ולקבוע פגישה.",
+      "productEvidence": [
+       "recent_updates"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אם אחת מהיכולות ההדרגתיות אינה מופיעה אצלך, היא עדיין לא הופעלה בחשבון שלך.",
+      "productEvidence": [
+       "recent_updates"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05967,
+   "ms": 4641,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P2",
+   "kind": "product",
+   "question": "איך אני מחבר את חשבון הוואטסאפ?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כדי לחבר וואטסאפ, היכנס להגדרות ← אינטגרציות ← וואטסאפ ובצע שם את תהליך החיבור. לאחר החיבור, שיחות נכנסות יופיעו במסך «שיחות».\n\nחיבור וואטסאפ מתבצע דרך הגדרות ← אינטגרציות ← וואטסאפ.\n\nלאחר החיבור, שיחות נכנסות מגיעות למסך «שיחות».\n\nבמערכת: https://getsocialcrm.com/settings/integrations?section=whatsapp",
+   "answer": {
+    "headline": "כדי לחבר וואטסאפ, היכנס להגדרות ← אינטגרציות ← וואטסאפ ובצע שם את תהליך החיבור. לאחר החיבור, שיחות נכנסות יופיעו במסך «שיחות».",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "חיבור וואטסאפ מתבצע דרך הגדרות ← אינטגרציות ← וואטסאפ.",
+      "productEvidence": [
+       "whatsapp"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "לאחר החיבור, שיחות נכנסות מגיעות למסך «שיחות».",
+      "productEvidence": [
+       "whatsapp"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05572,
+   "ms": 2514,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P3",
+   "kind": "product",
+   "question": "תעזור לי לבנות בוט בוואטסאפ",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אפשר לבנות בוואטסאפ מענה אוטומטי קבוע או חכם, ובחשבונות נבחרים גם שאלון עם שאלות ואפשרויות בחירה; איזה תהליך תרצה שהבוט יבצע?\n\nהמענה האוטומטי יכול לשלוח הודעה קבועה או מענה חכם לפי תיאור העסק, ושאלון וואטסאפ מלא זמין לחשבונות שנבחרו.\n\nבמערכת: https://getsocialcrm.com/settings/auto-response",
+   "answer": {
+    "headline": "אפשר לבנות בוואטסאפ מענה אוטומטי קבוע או חכם, ובחשבונות נבחרים גם שאלון עם שאלות ואפשרויות בחירה; איזה תהליך תרצה שהבוט יבצע?",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "המענה האוטומטי יכול לשלוח הודעה קבועה או מענה חכם לפי תיאור העסק, ושאלון וואטסאפ מלא זמין לחשבונות שנבחרו.",
+      "productEvidence": [
+       "questionnaire_auto_reply"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05749,
+   "ms": 3044,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P4",
+   "kind": "product",
+   "question": "יש שאלון וואטסאפ",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "נכון — יש שאלון וואטסאפ, ואפשר לבנות בעזרתו תהליך בירור מובנה ללידים; היכולת מופעלת כרגע בחשבונות שנבחרו.\n\nהשאלון כולל שאלות קבועות עם אפשרויות בחירה, והתשובות נשמרות על הליד.\n\nהשאלון עובד בוואטסאפ בלבד ומופעל בחשבונות שנבחרו, לכן ייתכן שעדיין לא יופיע אצלך.\n\nבמערכת: https://getsocialcrm.com/settings/auto-response",
+   "answer": {
+    "headline": "נכון — יש שאלון וואטסאפ, ואפשר לבנות בעזרתו תהליך בירור מובנה ללידים; היכולת מופעלת כרגע בחשבונות שנבחרו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "השאלון כולל שאלות קבועות עם אפשרויות בחירה, והתשובות נשמרות על הליד.",
+      "productEvidence": [
+       "questionnaire_auto_reply"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "השאלון עובד בוואטסאפ בלבד ומופעל בחשבונות שנבחרו, לכן ייתכן שעדיין לא יופיע אצלך.",
+      "productEvidence": [
+       "questionnaire_auto_reply"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.057925,
+   "ms": 3768,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P5",
+   "kind": "product",
+   "question": "כמה עולה SocialCRM?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "SocialCRM עולה ₪89 לחודש במסלול Pro אחד, בחיוב חודשי וללא תוספת לכל נציג. יש 7 ימי התנסות במערכת המלאה ללא חיוב; נדרש כרטיס אשראי, ואם לא מבטלים לפני תום התקופה המנוי מתחיל. אפשר לבטל בכל עת.\n\nיש 7 ימי התנסות במערכת המלאה ללא חיוב; נדרש כרטיס אשראי, והוא אינו מחויב במהלך ההתנסות.\n\nאם לא מבטלים לפני תום 7 ימי ההתנסות, המנוי מתחיל; אפשר לבטל בכל עת.\n\nבמערכת: https://getsocialcrm.com/pricing",
+   "answer": {
+    "headline": "SocialCRM עולה ₪89 לחודש במסלול Pro אחד, בחיוב חודשי וללא תוספת לכל נציג. יש 7 ימי התנסות במערכת המלאה ללא חיוב; נדרש כרטיס אשראי, ואם לא מבטלים לפני תום התקופה המנוי מתחיל. אפשר לבטל בכל עת.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "SocialCRM עולה ₪89 לחודש במסלול Pro אחד, בחיוב חודשי וללא תוספת לכל נציג.",
+      "productEvidence": [
+       "pricing_trial"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "יש 7 ימי התנסות במערכת המלאה ללא חיוב; נדרש כרטיס אשראי, והוא אינו מחויב במהלך ההתנסות.",
+      "productEvidence": [
+       "pricing_trial"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אם לא מבטלים לפני תום 7 ימי ההתנסות, המנוי מתחיל; אפשר לבטל בכל עת.",
+      "productEvidence": [
+       "pricing_trial"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05796,
+   "ms": 2922,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P6",
+   "kind": "product",
+   "question": "יש אוטומציות במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. ב-SocialCRM אפשר להגדיר אוטומציות במבנה של „כש... אז...” — למשל, כשנכנס ליד חדש, סטטוס משתנה, נקבעת פגישה או נשלח טופס מהאתר, אפשר לשלוח מייל או תבנית וואטסאפ מאושרת, ליצור משימה לנציג או להכין טיוטת הצעת מחיר. אפשר להריץ מיד, בהשהיה או לפני פגישה. ההגדרה נמצאת בהגדרות ← אוטומציות, זמינה למנהלים ומופעלת כרגע רק בחשבונות שנבחרו; לידים שיובאו לא מפעילים אוטומציות.\n\nאוטומציה ב-SocialCRM היא כלל של „כש... אז...”, עם טריגרים כמו ליד חדש, שינוי סטטוס, קביעת פגישה או שליחת טופס מהאתר, ופעולות כמו שליחת מייל, שליחת תבנית וואטסאפ מאושרת, יצירת משימה לנציג או הכנת טיוטת הצעת מחיר.\n\nאפשר להריץ אוטומציה מיד, לאחר השהיה או לפני פגישה, ויש גם תבניות מוכנות.\n\nהאוטומציות מוגדרות בהגדרות ← אוטומציות, זמינות למנהלים ומופעלות בחשבונות שנבחרו; לידים מייבוא אינם מפעילים אותן.\n\nבמערכת: https://getsocialcrm.com/settings/automations",
+   "answer": {
+    "headline": "כן. ב-SocialCRM אפשר להגדיר אוטומציות במבנה של „כש... אז...” — למשל, כשנכנס ליד חדש, סטטוס משתנה, נקבעת פגישה או נשלח טופס מהאתר, אפשר לשלוח מייל או תבנית וואטסאפ מאושרת, ליצור משימה לנציג או להכין טיוטת הצעת מחיר. אפשר להריץ מיד, בהשהיה או לפני פגישה. ההגדרה נמצאת בהגדרות ← אוטומציות, זמינה למנהלים ומופעלת כרגע רק בחשבונות שנבחרו; לידים שיובאו לא מפעילים אוטומציות.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "אוטומציה ב-SocialCRM היא כלל של „כש... אז...”, עם טריגרים כמו ליד חדש, שינוי סטטוס, קביעת פגישה או שליחת טופס מהאתר, ופעולות כמו שליחת מייל, שליחת תבנית וואטסאפ מאושרת, יצירת משימה לנציג או הכנת טיוטת הצעת מחיר.",
+      "productEvidence": [
+       "automations"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אפשר להריץ אוטומציה מיד, לאחר השהיה או לפני פגישה, ויש גם תבניות מוכנות.",
+      "productEvidence": [
+       "automations"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "האוטומציות מוגדרות בהגדרות ← אוטומציות, זמינות למנהלים ומופעלות בחשבונות שנבחרו; לידים מייבוא אינם מפעילים אותן.",
+      "productEvidence": [
+       "automations"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.062385,
+   "ms": 4187,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P7",
+   "kind": "product",
+   "question": "אפשר לענות להודעות מפייסבוק מסנג׳ר מתוך המערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. הודעות מסנג׳ר לעמוד הפייסבוק יכולות להגיע ללשונית «מסנג׳ר» במסך «שיחות», ואפשר לענות מהמערכת עד 24 שעות מההודעה האחרונה של הפונה. צריך לחבר עמוד פייסבוק, והיכולת מופעלת בהדרגה לחשבונות שנבחרו.\n\nבמערכת: https://getsocialcrm.com/inbox/messenger",
+   "answer": {
+    "headline": "כן. הודעות מסנג׳ר לעמוד הפייסבוק יכולות להגיע ללשונית «מסנג׳ר» במסך «שיחות», ואפשר לענות מהמערכת עד 24 שעות מההודעה האחרונה של הפונה. צריך לחבר עמוד פייסבוק, והיכולת מופעלת בהדרגה לחשבונות שנבחרו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "הודעות מסנג׳ר לעמוד הפייסבוק יכולות להגיע ללשונית «מסנג׳ר» במסך «שיחות», ואפשר לענות מהמערכת עד 24 שעות מההודעה האחרונה של הפונה.",
+      "productEvidence": [
+       "messenger"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "צריך לחבר עמוד פייסבוק, והיכולת מופעלת בהדרגה לחשבונות שנבחרו.",
+      "productEvidence": [
+       "messenger"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.057385,
+   "ms": 2576,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P8",
+   "kind": "product",
+   "question": "יש דוח על המודעות שלי בפייסבוק?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. במסך «ביצועים» ← «מודעות» יש דוח למנהלים שמציג הוצאה, חשיפות, קליקים ולידים לכל קמפיין, וגם מה קרה בפועל עם הלידים שהגיעו ממנו. הדוח מופעל כרגע רק בחשבונות שנבחרו; אם הוא לא מופיע אצלך, כנראה שעדיין לא הופעל בחשבון.\n\nדוח המודעות מופעל כרגע רק בחשבונות שנבחרו.\n\nבמערכת: https://getsocialcrm.com/inbox/comments",
+   "answer": {
+    "headline": "כן. במסך «ביצועים» ← «מודעות» יש דוח למנהלים שמציג הוצאה, חשיפות, קליקים ולידים לכל קמפיין, וגם מה קרה בפועל עם הלידים שהגיעו ממנו. הדוח מופעל כרגע רק בחשבונות שנבחרו; אם הוא לא מופיע אצלך, כנראה שעדיין לא הופעל בחשבון.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "במסך «ביצועים» ← «מודעות» יש דוח למנהלים שמציג הוצאה, חשיפות, קליקים ולידים לכל קמפיין, וגם מה קרה בפועל עם הלידים שהגיעו ממנו.",
+      "productEvidence": [
+       "comments_and_ads"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "דוח המודעות מופעל כרגע רק בחשבונות שנבחרו.",
+      "productEvidence": [
+       "comments_and_ads"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05751,
+   "ms": 2912,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P9",
+   "kind": "product",
+   "question": "איך אני מייבא עסקאות מאקסל?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "במסך «עסקאות» בחר ייבוא מאקסל והעלה קובץ עם עמודת סכום ועמודת טלפון או מייל.\n\nכל שורה בקובץ מותאמת לליד קיים לפי הטלפון, ואם אין התאמה — לפי המייל.\n\nאם סטטוס העסקה ריק, העסקה תיובא בסטטוס «חדש». הייבוא לא משנה את סטטוס הליד ולא מפעיל אוטומציות.\n\nבמערכת: https://getsocialcrm.com/leads",
+   "answer": {
+    "headline": "במסך «עסקאות» בחר ייבוא מאקסל והעלה קובץ עם עמודת סכום ועמודת טלפון או מייל.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "כל שורה בקובץ מותאמת לליד קיים לפי הטלפון, ואם אין התאמה — לפי המייל.",
+      "productEvidence": [
+       "importing"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אם סטטוס העסקה ריק, העסקה תיובא בסטטוס «חדש». הייבוא לא משנה את סטטוס הליד ולא מפעיל אוטומציות.",
+      "productEvidence": [
+       "importing"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05886,
+   "ms": 3228,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P10",
+   "kind": "product",
+   "question": "אפשר שהמערכת תענה ללידים בוואטסאפ לבד?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. בוואטסאפ אפשר להגדיר בהגדרות ← מענה אוטומטי הודעה קבועה או מענה חכם לפי תיאור העסק; כשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה. שיחת בירור מלאה ושאלון וואטסאפ זמינים רק בחשבונות שנבחרו.\n\nאפשר להגדיר מענה אוטומטי קבוע או חכם ללידים שפונים בוואטסאפ.\n\nשיחת בירור מלאה ושאלון וואטסאפ מופעלים רק בחשבונות שנבחרו.\n\nבמערכת: https://getsocialcrm.com/settings/auto-response",
+   "answer": {
+    "headline": "כן. בוואטסאפ אפשר להגדיר בהגדרות ← מענה אוטומטי הודעה קבועה או מענה חכם לפי תיאור העסק; כשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה. שיחת בירור מלאה ושאלון וואטסאפ זמינים רק בחשבונות שנבחרו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "אפשר להגדיר מענה אוטומטי קבוע או חכם ללידים שפונים בוואטסאפ.",
+      "productEvidence": [
+       "questionnaire_auto_reply"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "כשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה.",
+      "productEvidence": [
+       "questionnaire_auto_reply"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "שיחת בירור מלאה ושאלון וואטסאפ מופעלים רק בחשבונות שנבחרו.",
+      "productEvidence": [
+       "questionnaire_auto_reply"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.0596,
+   "ms": 3584,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P11",
+   "kind": "product",
+   "question": "מה אתה יכול לעשות בשבילי?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אני השותף העסקי שלך בתוך SocialCRM: יכול לעזור להבין מה דורש טיפול, לזהות לידים שנשכחו ולהמליץ על הצעד הבא. למשל: „מה הכי חשוב שאעשה היום?”, „אילו לידים מחכים למענה?” או „מה קרה בשיחה עם דניאל?”",
+   "answer": {
+    "headline": "אני השותף העסקי שלך בתוך SocialCRM: יכול לעזור להבין מה דורש טיפול, לזהות לידים שנשכחו ולהמליץ על הצעד הבא. למשל: „מה הכי חשוב שאעשה היום?”, „אילו לידים מחכים למענה?” או „מה קרה בשיחה עם דניאל?”",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05404,
+   "ms": 2252,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

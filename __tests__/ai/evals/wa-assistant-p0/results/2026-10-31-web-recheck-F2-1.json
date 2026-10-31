@@ -1,0 +1,55 @@
+{
+ "label": "web-recheck-F2-1",
+ "startedAt": "2026-10-31T22:26:43.209Z",
+ "results": [
+  {
+   "id": "F2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אין לי גישה לסכום ההכנסות עצמו; במסך «ביצועים» אפשר לראות כמה נכנס החודש מעסקאות שסומנו כשולמו.\nמסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה, כולל החודש.\nהסוכן עדיין לא קורא את נתוני העסקאות וההכנסות ולכן אינו יכול למסור את הסכום.\nסכום ההכנסות שנכנס החודש אינו זמין לי; הוא מופיע במסך «ביצועים» לפי העסקאות שנרשמו במערכת וסומנו כשולמו.",
+   "answer": {
+    "headline": "אין לי גישה לסכום ההכנסות עצמו; במסך «ביצועים» אפשר לראות כמה נכנס החודש מעסקאות שסומנו כשולמו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "מסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה, כולל החודש.",
+      "productEvidence": [
+       "deals_and_performance"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "הסוכן עדיין לא קורא את נתוני העסקאות וההכנסות ולכן אינו יכול למסור את הסכום.",
+      "productEvidence": [
+       "not_supported"
+      ]
+     }
+    ],
+    "unknown": "סכום ההכנסות שנכנס החודש אינו זמין לי; הוא מופיע במסך «ביצועים» לפי העסקאות שנרשמו במערכת וסומנו כשולמו.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05865,
+   "ms": 3353,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

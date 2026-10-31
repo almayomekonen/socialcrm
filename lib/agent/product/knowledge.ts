@@ -1,3 +1,5 @@
+import { TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
+
 /**
  * Canonical SocialCRM product knowledge — the agent's non-CRM knowledge domain.
  *
@@ -18,6 +20,13 @@
  *   · `lib/navs/Nav.tsx`                 — which destinations actually exist.
  *   · `claude/product.md`                — the product definition (core value,
  *     target user, what this is deliberately NOT).
+ *
+ * Topics added 2026-10-31 (pricing_trial … recent_updates) are anchored in the
+ * feature's own code instead, named in each `source`, and say in their text when
+ * a feature is switched on per account: this index is the same for every tenant,
+ * so a flag-gated feature must never read as something every owner already has.
+ * The price is not retyped here — it is the marketing FAQ's own sentence
+ * (`lib/pricing.ts`), so the agent and the site cannot quote different prices.
  *
  * A capability that is not in one of those is not in here. That constraint is
  * the whole point: an agent that oversells is worse than one that says less,
@@ -42,6 +51,17 @@ export const PRODUCT_TOPIC_IDS = [
   'team',
   'getting_started',
   'the_agent',
+  'pricing_trial',
+  'automations',
+  'auto_reply',
+  'whatsapp_questionnaire',
+  'messenger',
+  'facebook_comments',
+  'meta_ads',
+  'deals_and_performance',
+  'lead_import',
+  'deal_import',
+  'recent_updates',
   'not_supported',
 ] as const
 
@@ -53,8 +73,15 @@ export type ProductTopic = {
   title: string
   /** What reaches the model. Substantive enough to answer from directly. */
   summary: string
-  /** Verified in-app destinations, or none when the topic is not a screen. */
+  /** Verified in-app destinations the topic mentions (shown to the model), or none. */
   routes?: string[]
+  /**
+   * The ONE screen this topic is about — what a WhatsApp reply citing it links
+   * to. Separate from `routes` because a topic can mention several screens
+   * while being about one; omitted when no single screen is the subject
+   * (e.g. getting_started), so a reply never links a screen it did not discuss.
+   */
+  link?: string
   /** Where in the repo this claim is anchored. Auditable, not decorative. */
   source: string
 }
@@ -80,6 +107,7 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     summary:
       'מסך «לידים» מרכז את כל הלידים מכל הערוצים ומשם מתחילה העבודה היומיומית. אפשר להוסיף ליד ידנית («הוסף ליד»), לייבא לידים מקובץ אקסל («העלה לידים»), או לקבל אותם אוטומטית מהערוצים המחוברים. לשוניות הסטטוס מראות מי חדש, מי בטיפול ומי דורש תשומת לב. פותחים ליד כדי לראות פרטים, ליצור קשר ולעדכן את הפעולה הבאה. ליד שנסגר ממשיך להיות מנוהל דרך מסך «לקוחות».',
     routes: ['/leads', '/clients'],
+    link: '/leads',
     source: 'lib/copilot/general/guideMap.ts (importLeads, addLead, pipeline, lead) · lib/education/registry.ts',
   },
   {
@@ -88,6 +116,7 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     summary:
       'מסך «שיחות» מרכז את שיחות הוואטסאפ הנכנסות ומשם מנהלים את ההתכתבות עם הלידים. השיחה והליד מקושרים, כך שאפשר לראות מה נאמר בפועל לצד מצב הליד.',
     routes: ['/inbox'],
+    link: '/inbox',
     source: 'lib/copilot/general/guideMap.ts (guide.inbox) · lib/education/registry.ts',
   },
   {
@@ -95,6 +124,7 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     title: 'חיבור וואטסאפ',
     summary: 'מחברים וואטסאפ בהגדרות ← אינטגרציות ← וואטסאפ. אחרי החיבור, שיחות נכנסות מגיעות למסך «שיחות».',
     routes: ['/settings/integrations?section=whatsapp', '/inbox'],
+    link: '/settings/integrations?section=whatsapp',
     source: 'lib/copilot/general/guideMap.ts (guide.connectWhatsapp)',
   },
   {
@@ -102,6 +132,7 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     title: 'חיבור פייסבוק ואינסטגרם',
     summary: 'מחברים פייסבוק בהגדרות ← אינטגרציות ← פייסבוק. לידים מטפסי הלידים של הערוצים המחוברים נכנסים למסך «לידים».',
     routes: ['/settings/integrations?section=facebook', '/leads'],
+    link: '/settings/integrations?section=facebook',
     source: 'lib/copilot/general/guideMap.ts (guide.connectFacebook) · lib/education/registry.ts (ליד חדש)',
   },
   {
@@ -140,16 +171,113 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     id: 'the_agent',
     title: 'הסוכן שלך',
     summary:
-      'הסוכן עונה על סמך הנתונים של העסק בלבד, ומסביר מה קורה, מה דורש טיפול ומה כדאי לעשות. הוא קורא בלבד — הוא לא שולח הודעות, לא משנה סטטוסים ולא מבצע פעולות. כשאין לו נתון, הוא אומר זאת במקום לנחש.',
+      'הסוכן עונה על סמך הנתונים של העסק, ומסביר מה קורה, מה דורש טיפול ומה כדאי לעשות. הוא לא שולח הודעות ללידים ולא משנה סטטוסים. כשמבקשים ממנו, הוא יכול להציע ליצור משימה, לקבוע מעקב או לקבוע פגישה — המערכת מאמתת את הפעולה ומודיעה מה קרה. בוואטסאפ הוא זמין בפיילוט, ושם רק פגישה, ורק אחרי לחיצה על כפתור האישור. כשאין לו נתון, הוא אומר זאת במקום לנחש.',
     routes: ['/agent'],
-    source: 'lib/agent/tools/index.ts (read-only surface) · lib/agent/validate.ts (evidence gate)',
+    link: '/agent',
+    source: 'lib/agent/tools/index.ts (read tools) · lib/agent/actions (create_task / create_follow_up / create_meeting) · lib/waAssistant/worker.ts (WhatsApp: meetings only, WA_ASSISTANT_*)',
+  },
+  {
+    id: 'pricing_trial',
+    title: 'מחיר ותקופת ניסיון',
+    summary: `${TRIAL_OFFER_FAQ_ANSWER} מסלול אחד (Pro), חיוב חודשי, בלי תוספת לכל נציג. כשתקופת הניסיון מסתיימת בלי מנוי, הלידים והנתונים נשמרים, וכדי להמשיך לעבוד צריך לשדרג.`,
+    routes: ['/pricing'],
+    link: '/pricing',
+    source: 'lib/pricing.ts (PRICING, TRIAL_OFFER_FAQ_ANSWER) · lib/trial/index.ts (TRIAL_LENGTH_DAYS) · components/lumen/sections/pricing.tsx · lib/i18n/messages/he/trial/gate.ts',
+  },
+  {
+    id: 'automations',
+    title: 'אוטומציות',
+    summary:
+      'אוטומציה היא כלל של "כש... אז...": כשנכנס ליד חדש, כשסטטוס של ליד משתנה, כשנקבעת פגישה או כשנשלח טופס מהאתר — לשלוח מייל, לשלוח תבנית וואטסאפ מאושרת, ליצור משימה לנציג או להכין טיוטת הצעת מחיר. אפשר להריץ מיד, אחרי השהיה או לפני פגישה, ויש תבניות מוכנות. לידים מייבוא לא מפעילים אוטומציות. מוגדר בהגדרות ← אוטומציות, למנהלים בלבד, והאפשרות מופעלת לחשבונות שנבחרו.',
+    routes: ['/settings/automations', '/settings/automation-templates'],
+    link: '/settings/automations',
+    source: 'lib/automations/types.ts · lib/automations/catalog/entries · lib/automations/emit.ts · lib/automations/flags.ts (AUTOMATIONS_ENABLED, AUTOMATIONS_AGENCY_ALLOWLIST, AUTOMATIONS_SEND_MODE)',
+  },
+  {
+    id: 'auto_reply',
+    title: 'מענה אוטומטי בוואטסאפ',
+    summary:
+      'מענה אוטומטי (הגדרות ← מענה אוטומטי, למנהלים) עונה ללידים שפונים בוואטסאפ: הודעה קבועה אחת, או מענה חכם שנכתב לפי תיאור העסק שהמנהל מזין. כשנציג עונה בעצמו, המענה האוטומטי מפסיק בשיחה הזו. שיחת בירור מלאה עם הליד מופעלת לחשבונות שנבחרו. זה עובד בוואטסאפ בלבד.',
+    routes: ['/settings/auto-response'],
+    link: '/settings/auto-response',
+    source: 'app/(app)/settings/(admin_settings)/auto-response · lib/inbox/autoresponse (enqueueInboundAutoResponse: whatsapp only) · lib/inbox/humanTakeover.ts · lib/flags/smartReplyAgentFlags.ts',
+  },
+  {
+    id: 'whatsapp_questionnaire',
+    title: 'שאלון וואטסאפ',
+    summary:
+      'שאלון וואטסאפ שואל את הליד שאלות קבועות עם אפשרויות בחירה, והתשובות נשמרות על הליד; בסוף הצוות מקבל סיכום. בונים אותו בהגדרות ← שאלון וואטסאפ (למנהלים), עם בדיקה בצ׳אט לפני פרסום. השאלון מופעל לחשבונות שנבחרו, ועובד בוואטסאפ בלבד.',
+    routes: ['/settings/questionnaire'],
+    link: '/settings/questionnaire',
+    source: 'lib/inbox/autoresponse/questionnaire/definition.ts · questionnaire/finalize.ts · app/(app)/settings/(admin_settings)/questionnaire/page.tsx · lib/flags/questionnaireBuilderFlags.ts · lib/flags/whatsappQuestionnaireFlags.ts',
+  },
+  {
+    id: 'messenger',
+    title: 'פייסבוק מסנג׳ר',
+    summary:
+      'הודעות מסנג׳ר לעמוד הפייסבוק מגיעות ללשונית מסנג׳ר במסך «שיחות», ואפשר לענות מהמערכת עד 24 שעות מההודעה האחרונה של הפונה, ולהפוך שיחה לליד. לפעמים שם ותמונת הפונה לא מוצגים בגלל הרשאה של Meta. מחברים עמוד פייסבוק (מנהל), והיכולת מופעלת לחשבונות שנבחרו. הודעות פרטיות באינסטגרם לא נתמכות.',
+    routes: ['/inbox/messenger'],
+    link: '/inbox/messenger',
+    source: 'app/(app)/inbox/messenger/page.tsx · lib/facebook/messenger/rules.ts (24h) · modules/messenger/leadActions.ts · lib/facebook/permissions.ts (FACEBOOK_MESSENGER_*) · lib/product/capabilities.ts (no Instagram DM)',
+  },
+  {
+    id: 'facebook_comments',
+    title: 'תגובות מפייסבוק',
+    summary:
+      'תגובות על פוסטים בעמוד הפייסבוק יכולות להופיע בלשונית תגובות במסך «שיחות», ומשם אפשר להפוך תגובה לליד, ובחלק מהחשבונות גם להשיב כעמוד. התגובות מופעלות לחשבונות שנבחרו.',
+    routes: ['/inbox/comments'],
+    link: '/inbox/comments',
+    source: 'app/(app)/inbox/comments/page.tsx · modules/facebookComments/actions.ts · lib/facebook/comments/capability.ts (FACEBOOK_COMMENTS_*, FACEBOOK_COMMENT_REPLIES_*)',
+  },
+  {
+    id: 'meta_ads',
+    title: 'מודעות פייסבוק ואינסטגרם',
+    summary:
+      'לידים מטפסי לידים של מודעות פייסבוק ואינסטגרם נכנסים אוטומטית ל«לידים», כולל תשובות הטופס. דוח מודעות (ביצועים ← מודעות, למנהלים) מראה הוצאה, חשיפות, קליקים ולידים לכל קמפיין, ומה קרה בפועל עם הלידים שהגיעו ממנו. דוח המודעות מופעל לחשבונות שנבחרו.',
+    routes: ['/sum_sales/ads', '/leads'],
+    link: '/sum_sales/ads',
+    source: 'app/api/webhooks/facebook/route.ts (Lead Ads) · lib/facebook/leadFormAnswers.ts · lib/facebook/ads/metrics.ts · lib/facebook/ads/crmOutcomes.ts · app/(app)/sum_sales/layout.tsx (FACEBOOK_ADS_REPORTING_*, admin)',
+  },
+  {
+    id: 'deals_and_performance',
+    title: 'עסקאות, ביצועים והכנסות',
+    summary:
+      'עסקה שייכת לליד ויש לה סכום וסטטוס (חדש, בהצעה, במו"מ, ממתין לתשלום, שולם, בוטל). מסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו, את מספר העסקאות שנסגרו ואת שווי העסקאות שעדיין בתהליך, לפי תקופה שבוחרים (החודש, השנה, השנה הקודמת ועוד). שם רואים כמה העסק הכניס — לפי העסקאות שנרשמו במערכת. מסך «עסקאות» מציג את העסקאות עצמן. שני המסכים זמינים במחשב.',
+    routes: ['/sum_sales', '/deals'],
+    link: '/sum_sales',
+    source: 'db/helpers/sum_helpers.ts (saleStats: totalRevenue = status שולם, pipelineValue) · components/sumSales/AllNumbox.tsx · types/lists.ts (statuses) · components/filter/SelectDateRange.tsx',
+  },
+  {
+    id: 'lead_import',
+    title: 'ייבוא לידים',
+    summary:
+      'ייבוא לידים («העלה לידים» במסך «לידים»): קובץ אקסל או CSV, או הדבקה. כל שורה צריכה שם פרטי וטלפון או תעודת זהות; טלפון שכבר קיים לא ייובא פעמיים, והלידים נכנסים בסטטוס חדש ולא מפעילים אוטומציות.',
+    routes: ['/leads'],
+    link: '/leads',
+    source: 'lib/leads/importMapping.ts · actions/clients.ts (import, duplicates) · lib/automations/emit.ts (imports never trigger)',
+  },
+  {
+    id: 'deal_import',
+    title: 'ייבוא עסקאות',
+    summary:
+      'ייבוא עסקאות (במסך «עסקאות»): קובץ אקסל עם עמודת סכום ועמודת טלפון או מייל. כל שורה מותאמת לליד קיים לפי טלפון ואז מייל, וסטטוס ריק נחשב חדש. הייבוא לא משנה את סטטוס הליד ולא מפעיל אוטומציות.',
+    routes: ['/deals'],
+    link: '/deals',
+    source: 'lib/deals/importMapping.ts · actions/dealImport.ts · components/sales/UploadDealsData.tsx',
+  },
+  {
+    id: 'recent_updates',
+    title: 'מה חדש במערכת',
+    summary:
+      'נוספו לאחרונה (ספטמבר–אוקטובר 2026): ייבוא עסקאות מאקסל, זמין לכולם. נפתחים בהדרגה לחשבונות שנבחרו: הודעות מסנג׳ר בתוך «שיחות», תגובות מפייסבוק כלידים, דוח מודעות פייסבוק עם מה שקרה ללידים מכל קמפיין, בונה שאלון וואטסאפ, ממשק באנגלית, והסוכן בוואטסאפ — שאפשר לשאול אותו על העסק ולקבוע דרכו פגישה. אם יכולת לא מופיעה אצלך, היא עוד לא הופעלה בחשבון שלך.',
+    source: 'git origin/main merges 2026-09-23 → 2026-10-31 (#65/#66 Messenger, #97–#99 deal import, #113 comments, #116 ads, #121/#122 questionnaire builder, #157/#158 WhatsApp assistant, #165–#175 i18n) · each feature flag file named in its own topic',
   },
   {
     id: 'not_supported',
     title: 'מה המערכת לא עושה',
     summary:
-      'SocialCRM היא לא מערכת ביטוח, לא ERP ולא CRM ארגוני עם תהליכים מרובי שלבים. אין כרגע דוח המרות או דוח הכנסות מלא, ולכן אי אפשר לחשב שיעור המרה או הכנסה צפויה בצורה אמינה. הסוכן לא מבצע מחקר שוק ולא בודק מתחרים.',
-    source: 'claude/product.md §9 (what we are not) · lib/agent/tools/index.ts (the six read tools)',
+      'SocialCRM היא לא מערכת ביטוח, לא ERP ולא CRM ארגוני עם תהליכים מרובי שלבים. אין דוח של שיעור המרה, ואין חיזוי הכנסות. את ההכנסות מעסקאות ששולמו רואים במסך «ביצועים» — אבל הסוכן עצמו עדיין לא קורא את נתוני העסקאות וההכנסות, ולכן לא יכול לומר סכום. אין מענה אוטומטי ואין תיבת הודעות להודעות פרטיות באינסטגרם. הסוכן לא מבצע מחקר שוק ולא בודק מתחרים.',
+    source: 'claude/product.md §9 · lib/agent/tools/index.ts (no revenue tool) · db/helpers/sum_helpers.ts (revenue lives in Performance) · lib/product/capabilities.ts (no Instagram DM)',
   },
 ]
 
@@ -173,7 +301,7 @@ export function getProductTopic(id: string): ProductTopic | undefined {
  * round trip (and seconds) to fetch constants. Keeping it inline is what lets
  * "למה המערכת טובה?" answer without touching the CRM at all.
  *
- * It stays an INDEX, not a manual — around a dozen entries — so the prompt keeps
+ * It stays an INDEX, not a manual — about twenty entries — so the prompt keeps
  * defining behaviour while this supplies knowledge. When a topic needs more
  * depth than a summary, that is the moment to add a retrieval tool, not to grow
  * this text.

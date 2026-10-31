@@ -1,0 +1,1239 @@
+{
+ "label": "after",
+ "startedAt": "2026-10-31T21:32:05.577Z",
+ "results": [
+  {
+   "id": "S1",
+   "kind": "social",
+   "question": "hey",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "היי, אני השותף העסקי שלך ב‑SocialCRM. אפשר לשאול אותי למשל מה דורש טיפול היום, אילו לידים מתפספסים, או איך להתחיל לעבוד עם המערכת.",
+   "costUsd": 0.05329,
+   "ms": 2445,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S2",
+   "kind": "social",
+   "question": "אלוף",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "תודה, כיף לשמוע.",
+   "costUsd": 0.052215,
+   "ms": 2253,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S3",
+   "kind": "social",
+   "question": "תודה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בשמחה, אני כאן כשתצטרך.",
+   "costUsd": 0.052305,
+   "ms": 2475,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S4",
+   "kind": "social",
+   "question": "מה נשמע?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "הכול טוב, תודה. אני כאן לעזור להבין מה קורה בעסק, מה דורש טיפול ומה כדאי לעשות עכשיו.",
+   "costUsd": 0.052735,
+   "ms": 2262,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S5",
+   "kind": "social",
+   "question": "סלמתאק",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "סלמתאק, בכיף.",
+   "costUsd": 0.052195,
+   "ms": 1532,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S6",
+   "kind": "social",
+   "question": "אלוף, תודה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בשמחה, אני כאן לכל מה שצריך.",
+   "costUsd": 0.052945,
+   "ms": 1998,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P1",
+   "kind": "product",
+   "question": "מה חדש במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "חדש במערכת: ייבוא עסקאות זמין לכולם, וכמה יכולות נוספות נפתחות בהדרגה לחשבונות נבחרים.\n\nאפשר לייבא עסקאות מקובץ אקסל; היכולת זמינה לכל החשבונות.\n\nנפתחים בהדרגה לחשבונות נבחרים: מסנג׳ר בתוך «שיחות», הפיכת תגובות בפייסבוק ללידים, דוח מודעות פייסבוק, בונה שאלון וואטסאפ, ממשק באנגלית והסוכן בוואטסאפ לקביעת פגישות ולשאלות על העסק. אם יכולת אינה מופיעה אצלך, היא כנראה טרם הופעלה בחשבון.",
+   "costUsd": 0.05928,
+   "ms": 3663,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P2",
+   "kind": "product",
+   "question": "איך אני מחבר את חשבון הוואטסאפ?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כדי לחבר וואטסאפ, היכנס להגדרות ← אינטגרציות ← וואטסאפ ובצע שם את תהליך החיבור. לאחר החיבור, השיחות הנכנסות יופיעו במסך «שיחות».\n\nחיבור חשבון וואטסאפ מתבצע דרך הגדרות ← אינטגרציות ← וואטסאפ.\n\nלאחר החיבור, שיחות וואטסאפ נכנסות מגיעות למסך «שיחות».\n\nבמערכת: https://getsocialcrm.com/settings/integrations?section=whatsapp",
+   "costUsd": 0.05602,
+   "ms": 2618,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P3",
+   "kind": "product",
+   "question": "תעזור לי לבנות בוט בוואטסאפ",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן — ב‑SocialCRM אפשר להגדיר בוואטסאפ מענה אוטומטי קבוע או חכם, ובחשבונות שנבחרו גם שאלון מובנה; מה הבוט צריך לעשות: לענות לפניות, לאסוף פרטים או לסנן לידים?\n\nמענה אוטומטי יכול לשלוח הודעה קבועה או תשובה חכמה לפי תיאור העסק, והוא מפסיק בשיחה כשנציג עונה בעצמו.\n\nשאלון וואטסאפ עם שאלות ואפשרויות בחירה, ששומר את התשובות על הליד, מופעל בחשבונות שנבחרו בלבד.\n\nבמערכת: https://getsocialcrm.com/settings/auto-response",
+   "costUsd": 0.05869,
+   "ms": 3055,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P4",
+   "kind": "product",
+   "question": "יש שאלון וואטסאפ",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן — ב-SocialCRM יש שאלון וואטסאפ עם שאלות קבועות ואפשרויות בחירה, והתשובות נשמרות על הליד; היכולת מופעלת כרגע לחשבונות שנבחרו בלבד.\n\nאת השאלון מגדירים בהגדרות ← שאלון, והוא מיועד לוואטסאפ בלבד.\n\nאם האפשרות לא מופיעה בחשבון שלך, ייתכן שהיא עדיין לא הופעלה עבורו.\n\nבמערכת: https://getsocialcrm.com/settings/auto-response",
+   "costUsd": 0.057415,
+   "ms": 3715,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P5",
+   "kind": "product",
+   "question": "כמה עולה SocialCRM?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "SocialCRM עולה 89 ₪ לחודש במסלול Pro אחד, בחיוב חודשי וללא תוספת לכל נציג. יש 7 ימי התנסות במערכת המלאה ללא חיוב; נדרש כרטיס אשראי, ואם לא מבטלים לפני סוף התקופה המנוי מתחיל אוטומטית. אפשר לבטל בכל עת.\n\nSocialCRM עולה 89 ₪ לחודש במסלול Pro אחד, בחיוב חודשי וללא תוספת לכל נציג.\n\nיש 7 ימי התנסות במערכת המלאה ללא חיוב; נדרש כרטיס אשראי, והוא אינו מחויב במהלך ההתנסות.\n\nאם לא מבטלים לפני תום 7 הימים, המנוי מתחיל ב-89 ₪ לחודש; אפשר לבטל בכל עת.\n\nבמערכת: https://getsocialcrm.com/pricing",
+   "costUsd": 0.05826,
+   "ms": 3178,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P6",
+   "kind": "product",
+   "question": "יש אוטומציות במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. אוטומציות הן כללים של „כש… אז…” — למשל, כשנכנס ליד חדש או משתנה סטטוס, אפשר לשלוח מייל או תבנית וואטסאפ מאושרת, ליצור משימה לנציג או להכין טיוטת הצעת מחיר. אפשר להפעיל אותן מיד, בהשהיה או לפני פגישה, ויש גם תבניות מוכנות. ההגדרה נמצאת בהגדרות ← אוטומציות, זמינה למנהלים ומופעלת בחשבונות שנבחרו בלבד.\n\nאוטומציות מאפשרות להגדיר כללי „כש… אז…” עבור ליד חדש, שינוי סטטוס, קביעת פגישה או שליחת טופס מהאתר, ולהפעיל בעקבותיהם מייל, תבנית וואטסאפ מאושרת, משימה לנציג או טיוטת הצעת מחיר.\n\nאפשר להריץ אוטומציה מיד, לאחר השהיה או לפני פגישה, ולהשתמש בתבניות מוכנות.\n\nהאוטומציות מוגדרות בהגדרות ← אוטומציות, זמינות למנהלים ומופעלות בחשבונות שנבחרו; לידים מייבוא אינם מפעילים אותן.\n\nבמערכת: https://getsocialcrm.com/settings/automations",
+   "costUsd": 0.061215,
+   "ms": 3773,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P7",
+   "kind": "product",
+   "question": "אפשר לענות להודעות מפייסבוק מסנג׳ר מתוך המערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. הודעות מסנג׳ר לעמוד הפייסבוק יכולות להגיע ללשונית מסנג׳ר במסך «שיחות», ואפשר לענות מתוך המערכת עד 24 שעות מההודעה האחרונה של הפונה. מחברים עמוד פייסבוק דרך חשבון מנהל; היכולת נפתחת בהדרגה לחשבונות שנבחרו, ולכן ייתכן שעדיין אינה פעילה אצלך.\n\nהודעות מסנג׳ר לעמוד הפייסבוק יכולות להגיע ללשונית מסנג׳ר במסך «שיחות», ואפשר לענות מתוך המערכת עד 24 שעות מההודעה האחרונה של הפונה.\n\nנדרש לחבר עמוד פייסבוק דרך חשבון מנהל, והיכולת מופעלת לחשבונות שנבחרו בלבד.\n\nבמערכת: https://getsocialcrm.com/inbox/messenger",
+   "costUsd": 0.057895,
+   "ms": 3181,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P8",
+   "kind": "product",
+   "question": "יש דוח על המודעות שלי בפייסבוק?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. במסך «ביצועים» ← «מודעות» יש דוח למנהלים שמציג הוצאה, חשיפות, קליקים ולידים לכל קמפיין, וגם מה קרה בפועל עם הלידים שהגיעו ממנו. הדוח מופעל בהדרגה לחשבונות שנבחרו, כך שייתכן שעדיין לא הופעל אצלך.\n\nדוח המודעות נמצא במסך «ביצועים» ← «מודעות» ומציג הוצאה, חשיפות, קליקים ולידים לכל קמפיין, וכן מה קרה ללידים שהגיעו ממנו.\n\nהדוח מיועד למנהלים ומופעל בהדרגה לחשבונות שנבחרו, ולכן ייתכן שאינו זמין עדיין בחשבון שלך.\n\nבמערכת: https://getsocialcrm.com/inbox/comments",
+   "costUsd": 0.05766,
+   "ms": 2878,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P9",
+   "kind": "product",
+   "question": "איך אני מייבא עסקאות מאקסל?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "במסך «עסקאות» בחר באפשרות הייבוא והעלה קובץ אקסל עם עמודת סכום ועמודת טלפון או מייל.\n\nכל שורה בקובץ מותאמת לליד קיים לפי מספר הטלפון, ואם אין התאמה — לפי המייל.\n\nאם סטטוס העסקה ריק, העסקה תיובא בסטטוס «חדש»; הייבוא לא משנה את סטטוס הליד ולא מפעיל אוטומציות.\n\nבמערכת: https://getsocialcrm.com/leads",
+   "costUsd": 0.05748,
+   "ms": 2589,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P10",
+   "kind": "product",
+   "question": "אפשר שהמערכת תענה ללידים בוואטסאפ לבד?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "כן. בוואטסאפ אפשר להגדיר מענה אוטומטי קבוע או מענה חכם לפי תיאור העסק; כשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה. שיחת בירור מלאה ושאלון וואטסאפ זמינים רק בחשבונות שנבחרו.\n\nאפשר להגדיר בוואטסאפ הודעה אוטומטית קבועה או מענה חכם לפי תיאור העסק.\n\nכשנציג עונה בעצמו, המענה האוטומטי מפסיק באותה שיחה.\n\nשיחת בירור מלאה ושאלון וואטסאפ מופעלים רק בחשבונות שנבחרו.\n\nבמערכת: https://getsocialcrm.com/settings/auto-response",
+   "costUsd": 0.05951,
+   "ms": 2951,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "P11",
+   "kind": "product",
+   "question": "מה אתה יכול לעשות בשבילי?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אני השותף העסקי שלך בתוך SocialCRM: יכול לעזור להבין מה קורה בעסק, לזהות אילו לידים דורשים תשומת לב ולהמליץ מה לעשות עכשיו. למשל: „מה הכי חשוב שאעשה היום?”, „האם אני מפספס לידים?” או „מה קרה בשיחה עם דני?”",
+   "costUsd": 0.0541,
+   "ms": 2186,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "F1",
+   "kind": "financial",
+   "question": "כמה העסק שלי עשה השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אני עדיין לא רואה את נתוני העסקאות ולכן לא יכול לומר כמה העסק עשה השנה; במסך «ביצועים» אפשר לבחור «השנה» ולראות את סך ההכנסות מעסקאות ששולמו ונרשמו במערכת.\n\nמסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה, כולל השנה.\n\nסכום ההכנסות של העסק השנה אינו זמין לי.\n\nבמערכת: https://getsocialcrm.com/sum_sales",
+   "costUsd": 0.05644,
+   "ms": 3063,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "F2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אני עדיין לא רואה את נתוני העסקאות ולכן לא יכול לומר כמה כסף נכנס החודש; במסך «ביצועים» אפשר לבחור „החודש” ולראות את סך ההכנסות מעסקאות שסומנו כשולמו.\n\nמסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו לפי התקופה שנבחרה.\n\nסכום ההכנסות החודשי אינו זמין לי מתוך נתוני ה-CRM שאני יכול לקרוא.\n\nבמערכת: https://getsocialcrm.com/sum_sales",
+   "costUsd": 0.05671,
+   "ms": 2927,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B1",
+   "kind": "business",
+   "question": "מה דורש טיפול היום?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*היום דורשים טיפול 10 לידים עם מעקב באיחור; כדאי להתחיל מדנה ולהמשיך לפי סדר הרשימה.*\n\n• נותרו להיום 10 מתוך 10 פריטים לטיפול.\n• דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון נמצאים במעקב באיחור.\n• כדאי לעבור על המעקבים לפי סדר הרשימה, החל מדנה, ולתעד צעד הבא אחרי כל שיחה.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.113925,
+   "ms": 5316,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B2",
+   "kind": "business",
+   "question": "מה הכי דחוף?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state",
+    "get_lead_health"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*הכי דחוף עכשיו הוא לסגור את פער המעקבים: 10 לידים נמצאים באיחור וכבר התקררו.*\n\n• יש 10 מעקבים באיחור, וכל 10 הלידים גם מסווגים ככאלה שלא נוצר איתם קשר זמן רב.\n• דנה היא הוותיקה ביותר בתור המעקבים, עם 52 ימי המתנה.\n• נראה שהבעיה המרכזית אינה עומס חדש, אלא מעקבים ישנים שנשארו פתוחים.\n• לעבור היום על עשרת הלידים לפי סדר האיחור, להתחיל מדנה, ובכל שיחה להחליט על המשך ברור או סגירה.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.123065,
+   "ms": 9579,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B3",
+   "kind": "business",
+   "question": "מי מחכה לטיפול?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "FACT",
+    "OBSERVATION",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*10 לידים מחכים לטיפול היום, ולכולם יש מעקב באיחור.*\n\n• דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון מחכים למעקב.\n• נותרו היום 10 מתוך 10 פריטים לטיפול.\n• כדאי להתחיל מדנה ולהמשיך לפי סדר התור, כדי לסגור קודם את המעקבים שכבר באיחור.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.114525,
+   "ms": 5046,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B4",
+   "kind": "business",
+   "question": "במה כדאי לי להתמקד?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state",
+    "get_lead_health"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "FACT",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*כדאי להתמקד קודם בסגירת לולאת המעקב של 10 הלידים שהתקררו ונמצאים באיחור.*\n\n• כל 10 הפריטים שנותרו להיום הם מעקבים באיחור.\n• אותם 10 לידים מסווגים גם כלידים שהתקררו; אין כרגע לידים שממתינים למענה ואין לידים פתוחים ללא צעד הבא.\n• דנה היא הראשונה במדגם, עם מעקב שממתין כבר 52 ימים.\n• נראה שהבעיה המרכזית אינה עומס חדש אלא מעקבים ישנים שלא נסגרו.\n• עבור היום על כל 10 הלידים, החל מדנה: צור קשר, ואז קבע מעקב חדש או סגור את הליד בהתאם לתוצאה.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.12415,
+   "ms": 7195,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B5",
+   "kind": "business",
+   "question": "מה הלוז<",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*היום מחכים לך 10 מעקבים באיחור, ואין פגישות מתוכננות.*\n\n• בתור להיום יש 10 פריטים, וכולם עדיין ממתינים לטיפול.\n• המעקבים הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.\n• הייתי מתחיל עכשיו בסבב חזרה למעקבים האלה, לפי הסדר שבתור.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.11752,
+   "ms": 5788,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B6",
+   "kind": "business",
+   "question": "מה מצב העסק?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_business_summary"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "RECOMMENDATION"
+   ],
+   "businessState": "AT_RISK",
+   "reply": "*העסק לא בשריפה, אבל ספר הלידים נמצא בסיכון: כל 10 הלידים הפתוחים לא קיבלו קשר לאחרונה.*\n\n• יש 10 לידים במערכת, כולם פתוחים וכולם מוגדרים ככאלה שלא נוצר איתם קשר לאחרונה.\n• אין לידים חדשים השבוע, ואין כרגע מעקבים או משימות באיחור ולידים שממתינים למענה.\n• כדאי לעבור עכשיו על 10 הלידים הפתוחים, להחליט מי עדיין רלוונטי ולקבוע לכל ליד רלוונטי צעד הבא.\n\nאין לי כאן נתוני עסקאות או הכנסות, ולכן אי אפשר לקבוע את מצב המכירות או ההכנסות.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.115885,
+   "ms": 6311,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B7",
+   "kind": "business",
+   "question": "הצג לידים שלא קיבלו מענה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_lead_segment"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*אין כרגע לידים שממתינים למענה ממך.*\n\n• מספר הלידים שלא קיבלו מענה הוא 0.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.107715,
+   "ms": 5514,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B8",
+   "kind": "business",
+   "question": "כמה לידים יש לי היום במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*יש לך היום 10 לידים בתור העבודה, וכולם עדיין ממתינים לטיפול.*\n\n• בתור של היום יש 10 לידים, וטרם טופל אף אחד מהם.\n\nזהו מספר הלידים בתור של היום, לא כלל הלידים במערכת.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.11575,
+   "ms": 6259,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B9",
+   "kind": "business",
+   "question": "דבר אליי מה חדש בעסק",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_business_summary"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "AT_RISK",
+   "reply": "*העסק שקט כרגע, אבל כל 10 הלידים הפתוחים לא קיבלו קשר לאחרונה — זה הדבר הראשון שהייתי מטפל בו.*\n\n• יש 10 לידים במערכת, וכולם עדיין פתוחים.\n• לא נכנסו לידים חדשים השבוע, ואין כרגע ממתינים למענה, משימות באיחור או מעקבים להיום.\n• נראה שהאתגר כרגע אינו עומס חדש אלא חוסר פעילות מול הלידים הקיימים.\n• כדאי לעבור עכשיו על הלידים שלא קיבלו קשר לאחרונה ולקבוע לכל רלוונטי צעד הבא.\n\nהתמונה המספרית לא מציגה מי הם הלידים; כדי לתעדף אותם לפי שמות צריך לבדוק את בריאות ספר הלידים.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.1182,
+   "ms": 6385,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B10",
+   "kind": "business",
+   "question": "סכם לי את היום",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*להיום נשארו 10 מעקבים באיחור, ועדיין לא טופל אף פריט.*\n\n• בתור היום יש 10 פריטים, וכולם עדיין ממתינים לטיפול.\n• המעקבים באיחור הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.\n• כדאי להתחיל עכשיו בסבב חזרה לעשרת הלידים ולעדכן צעד הבא אחרי כל שיחה.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.11774,
+   "ms": 6723,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B11",
+   "kind": "business",
+   "question": "סכם לי את היום האחרון",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*היום הסתיים עם 10 מעקבים באיחור שעדיין ממתינים לטיפול.*\n\n• בתור היום היו 10 פריטים, וכולם עדיין נותרו פתוחים.\n• המעקבים באיחור הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.\n• כדאי להתחיל בסבב חזרה לעשרת הלידים האלה ולעדכן צעד הבא אחרי כל שיחה.\n\nזהו סיכום של תור העבודה היומי בלבד, לא של כלל פעילות העסק או מצב כל ספר הלידים.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.117385,
+   "ms": 6540,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B12",
+   "kind": "business",
+   "question": "מי הליד הכי חם?",
+   "ok": false,
+   "stopReason": "no_evidence",
+   "rejection": "unsupported-claim/RULE_05",
+   "tools": [
+    "get_lead_health"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לא הצלחתי להשלים את הבדיקה הפעם. אפשר לנסות שוב בעוד רגע, או להמשיך ב-SocialCRM: https://getsocialcrm.com/agent",
+   "costUsd": 0.119255,
+   "ms": 6638,
+   "checks": {
+    "fallback": true,
+    "refused": true,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": false
+  },
+  {
+   "id": "B13",
+   "kind": "business",
+   "question": "מה חדש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "לאחרונה נוספו ייבוא עסקאות מאקסל, ולחשבונות נבחרים נפתחות בהדרגה יכולות חדשות בשיחות, בפרסום ובוואטסאפ.\n\nייבוא עסקאות מאקסל זמין כעת לכל החשבונות.\n\nמסנג׳ר בתוך «שיחות», תגובות מפייסבוק כלידים ודוח מודעות נפתחים בהדרגה לחשבונות נבחרים.\n\nגם בונה שאלון וואטסאפ, ממשק באנגלית והסוכן בוואטסאפ נפתחים בהדרגה לחשבונות נבחרים; אם יכולת לא מופיעה אצלך, היא עדיין לא הופעלה בחשבון.",
+   "costUsd": 0.05978,
+   "ms": 3497,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B14",
+   "kind": "business",
+   "question": "תיכנס ל/leads ותגיד לי מה המספר שאתה רואה שם",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אין לי גישה ישירה למסך ‎/leads‎ כדי לראות את המספר שמופיע אצלך שם.\n\nהמספר שמוצג כעת במסך «לידים»",
+   "costUsd": 0.05481,
+   "ms": 3303,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "L1",
+   "kind": "lead",
+   "question": "מי זה יוסי?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead",
+    "get_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "FACT"
+   ],
+   "businessState": "URGENT",
+   "reply": "*יוסי הזדמנות הוא ליד שכבר נוצר איתו קשר, אך המעקב שלו עבר ללא עדכון נוסף.*\n\n• הליד נמצא בסטטוס „נוצר קשר”, והמעקב נקבע ל־2026-09-10.\n\nאין מקור ליד, נציג מטפל, הערות או תוצאת שיחה, ולכן לא ניתן לדעת כרגע מי הוא ומה ביקש.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.16965,
+   "ms": 9165,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "L2",
+   "kind": "lead",
+   "question": "מה קרה עם יוסי?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead",
+    "get_lead",
+    "get_conversation"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "FACT",
+    "FACT",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*יוסי נמצא בסטטוס „נוצר קשר”, אבל המעקב שנקבע ל־10 בספטמבר עבר ואין תיעוד שיחה שמסביר מה קרה.*\n\n• יוסי נמצא בסטטוס „נוצר קשר”, והמעקב הבא רשום ל־2026-09-10.\n• לא נמצאו הודעות, הערות או תוצאת שיחה מתועדת.\n• נראה שלולאת המעקב איתו נקטעה, אבל אין מספיק תיעוד כדי לדעת למה.\n• כדאי לחזור ליוסי עכשיו, לברר אם הפנייה עדיין רלוונטית, ואז לעדכן סטטוס ומעקב חדש.\n\nלא ידוע מה נאמר ליוסי או מדוע לא בוצע המעקב, משום שאין שיחה או הערות מתועדות.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.169875,
+   "ms": 9245,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "L3",
+   "kind": "lead",
+   "question": "מה עם דנה התקדם?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead",
+    "get_lead",
+    "get_conversation"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "FACT",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*לא נראית התקדמות מתועדת אצל דנה: היא עדיין בסטטוס „נוצר קשר”, והמעקב שנקבע ל־9 בספטמבר כבר עבר.*\n\n• דנה נמצאת בסטטוס „נוצר קשר”, עם מעקב שנקבע ל־2026-09-09 וללא משימות באיחור.\n• נראה שאין במערכת תיעוד שמאפשר לקבוע שהליד התקדם מעבר ליצירת קשר.\n• כדאי לחזור לדנה ולעדכן מיד אחר כך סטטוס ומעקב חדש.\n\nאין שיחה, תוצאת שיחה או הערות מתועדות, ולכן אי אפשר לדעת מה סוכם איתה בפועל.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.170935,
+   "ms": 9007,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "L4",
+   "kind": "lead",
+   "question": "תקרא את השיחה ותגיד לי מה היא אמרה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead",
+    "get_conversation"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לא מופיעות הודעות בשיחה של דנה, ולכן אין לי אפשרות לדעת מה היא אמרה.\n\nהשיחה של דנה לא מכילה הודעות זמינות לקריאה.",
+   "costUsd": 0.16131,
+   "ms": 6147,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "L5",
+   "kind": "lead",
+   "question": "שי חדד מראה התעניינות?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לא מצאתי ליד בשם שי חדד, ולכן אי אפשר לבדוק כרגע אם הוא מראה התעניינות.\n\nלא נמצא ליד תואם בשם שי חדד.",
+   "costUsd": 0.106805,
+   "ms": 4660,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "L6",
+   "kind": "lead",
+   "question": "סכם לי את הליד החדש שהצטרף לא מזמן",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_lead_segment"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*לא נמצא ליד שהצטרף השבוע, ולכן אין כרגע ליד חדש שאפשר לסכם.*\n\n• מספר הלידים החדשים השבוע הוא 0.\n\nלא ברור לאיזה ליד התכוונת; אפשר לכתוב את שמו ואבדוק אותו.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "costUsd": 0.109835,
+   "ms": 5116,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M1",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם ליד",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "עם איזה ליד לקבוע את הפגישה?",
+   "costUsd": 0.0529,
+   "ms": 2275,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M2",
+   "kind": "meeting",
+   "question": "עם יוסי",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "מה כותרת הפגישה, באיזה תאריך ושעה, ולכמה דקות?",
+   "costUsd": 0.105675,
+   "ms": 3761,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M3",
+   "kind": "meeting",
+   "question": "מחר בשעה 10 וחצי",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "מה כותרת הפגישה ולכמה דקות לקבוע אותה?",
+   "costUsd": 0.107685,
+   "ms": 5051,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M4",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם הליד הראשון שמופיע ברשימה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לדנה הזדמנות — מה כותרת הפגישה, באיזה תאריך ושעה, ולכמה דקות?",
+   "costUsd": 0.109195,
+   "ms": 4431,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M5",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם אבי \nלמחר בבוקר בשעה 10:00",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לכמה זמן לקבוע את הפגישה עם אבי הזדמנות?",
+   "costUsd": 0.106215,
+   "ms": 4200,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M6",
+   "kind": "meeting",
+   "question": "תקבע לי פגישה עם Shay Hadad ליום ראשון בשעה 12:00",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "find_lead"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לא מצאתי ליד בשם Shay Hadad. באיזה שם הוא מופיע במערכת?",
+   "costUsd": 0.107675,
+   "ms": 4396,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "M7",
+   "kind": "meeting",
+   "question": "סלמתאק",
+   "ok": false,
+   "stopReason": "deadline",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לקח לי יותר מדי זמן לבדוק את זה. אפשר לנסות שוב בניסוח קצר יותר, או להמשיך ב-SocialCRM: https://getsocialcrm.com/agent",
+   "costUsd": 0,
+   "ms": 965082,
+   "checks": {
+    "fallback": true,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": true,
+    "patternFailures": []
+   },
+   "pass": false
+  },
+  {
+   "id": "M8",
+   "kind": "meeting",
+   "question": "טיפשול",
+   "ok": false,
+   "stopReason": "deadline",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לקח לי יותר מדי זמן לבדוק את זה. אפשר לנסות שוב בניסוח קצר יותר, או להמשיך ב-SocialCRM: https://getsocialcrm.com/agent",
+   "costUsd": 0,
+   "ms": 161905,
+   "checks": {
+    "fallback": true,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": false
+  }
+ ]
+}
