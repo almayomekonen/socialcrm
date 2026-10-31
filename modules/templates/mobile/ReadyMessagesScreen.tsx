@@ -4,6 +4,20 @@ import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import type { ConnectionNotice as Notice } from '@/lib/connections/messages'
 import { listTemplates } from '@/db/whatsappTemplates'
 import ReadyMessagesWorkspace from './ReadyMessagesWorkspace'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey, Translator } from '@/lib/i18n/translate'
+
+const NOTICE_KEYS: Record<'notConnected' | 'notReady', { title: MessageKey; explanation: MessageKey }> = {
+  notConnected: { title: 'settings.templates.notConnected.title', explanation: 'settings.templates.notConnected.explanation' },
+  notReady: { title: 'settings.templates.notReady.title', explanation: 'settings.templates.notReady.explanation' },
+}
+
+/** A notice in `t`'s language (Hebrew: the constant itself — the same copy as `TemplatesSection`). */
+function worded(base: Notice, t: Translator, keys: 'notConnected' | 'notReady'): Notice {
+  if (t.locale === 'he') return base
+  return { ...base, title: t(NOTICE_KEYS[keys].title), explanation: t(NOTICE_KEYS[keys].explanation) }
+}
 
 const NOT_CONNECTED: Notice = {
   tone: 'attention',
@@ -25,23 +39,27 @@ export default async function ReadyMessagesScreen({
   agencyId,
   connected,
   messagingReady,
+  locale = 'he',
 }: {
   agencyId: number
   connected: boolean
   messagingReady: boolean
+  /** The interface language, resolved once by the page (Hebrew by default). */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   if (!connected) {
     return (
-      <div className='px-4 pb-8 pt-4'>
-        <BackLink />
-        <h1 className='text-xl font-bold text-ink'>הודעות מוכנות</h1>
+      <div className='px-4 pb-8 pt-4' {...regionAttrs(locale)}>
+        <BackLink t={t} />
+        <h1 className='text-xl font-bold text-ink'>{t('settings.mobile.landing.readyMessages')}</h1>
         <div className='mt-3 grid gap-3'>
-          <ConnectionNotice notice={NOT_CONNECTED} />
+          <ConnectionNotice notice={worded(NOT_CONNECTED, t, 'notConnected')} />
           <Link
             href={'/settings/integrations?section=whatsapp' as Route}
             className='press flex min-h-11 items-center justify-center rounded-md bg-solid font-medium text-white'
           >
-            למעבר לחיבור וואטסאפ
+            {t('settings.templates.goConnect')}
           </Link>
         </div>
       </div>
@@ -50,11 +68,11 @@ export default async function ReadyMessagesScreen({
 
   if (!messagingReady) {
     return (
-      <div className='px-4 pb-8 pt-4'>
-        <BackLink />
-        <h1 className='text-xl font-bold text-ink'>הודעות מוכנות</h1>
+      <div className='px-4 pb-8 pt-4' {...regionAttrs(locale)}>
+        <BackLink t={t} />
+        <h1 className='text-xl font-bold text-ink'>{t('settings.mobile.landing.readyMessages')}</h1>
         <div className='mt-3'>
-          <ConnectionNotice notice={NOT_READY} />
+          <ConnectionNotice notice={worded(NOT_READY, t, 'notReady')} />
         </div>
       </div>
     )
@@ -63,13 +81,13 @@ export default async function ReadyMessagesScreen({
   return <ReadyMessagesBody agencyId={agencyId} />
 }
 
-function BackLink() {
+function BackLink({ t }: { t: Translator }) {
   return (
     <Link
       href={'/settings/integrations' as Route}
       className='mb-3 inline-flex min-h-11 items-center text-sm font-medium text-primary-text'
     >
-      חזרה לאינטגרציות
+      {t('settings.mobile.landing.back')}
     </Link>
   )
 }

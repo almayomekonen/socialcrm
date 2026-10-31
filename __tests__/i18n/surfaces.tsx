@@ -22,6 +22,7 @@ import { QUESTIONNAIRE_SURFACES } from './questionnaireSurfaces'
 import { SHARED_SURFACES } from './sharedSurfaces'
 import { MOBILE_SHELL_SURFACES } from './mobileShellSurfaces'
 import { PHONE_LEADS_SURFACES } from './phoneLeadsSurfaces'
+import { PHONE_SETTINGS_SURFACES } from './phoneSettingsSurfaces'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -219,6 +220,7 @@ export const SURFACES: Surface[] = [
   ...SHARED_SURFACES,
   ...MOBILE_SHELL_SURFACES,
   ...PHONE_LEADS_SURFACES,
+  ...PHONE_SETTINGS_SURFACES,
   ...(
     [
       ['desktop, Today brief v2 + analytics', { mobile: false, v2: true, stats: STATS }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],

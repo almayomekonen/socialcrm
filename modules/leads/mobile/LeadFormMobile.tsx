@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Input, Select } from '@/lib/form'
 import { getFormData2 } from '@/lib/form/funcs'
-import { genderOpt, leadSourceCreateOpt } from '@/types/lists'
 import { useUser } from '@/lib/hooksNEvents'
 import { api, isIdNumValid } from '@/lib/funcs'
 import { toast } from '@/lib/toast'
@@ -17,43 +16,11 @@ import QuotaPaywallMobile from './QuotaPaywallMobile'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { useT } from '@/lib/i18n/I18nProvider'
-import type { MessageKey, Translator } from '@/lib/i18n/translate'
-import { leadStatusFormLabel } from '@/lib/leads/statusStyles'
+import { formOptions } from './leadFormOptions'
 
 const DUPLICATE_CHECK_DEBOUNCE_MS = 400
 const CONTACT_FIELDS = ['firstName', 'lastName', 'idNum', 'phone', 'secPhone', 'email'] as const
 const FIELD = 'h-11 text-base'
-
-const STATUS_OPTIONS = [
-  { name: 'חדש', id: 'new' },
-  { name: 'בטיפול', id: 'contacted' },
-  { name: 'מתעניין', id: 'interested' },
-  { name: 'נסגר', id: 'closed' },
-  { name: 'לא רלוונטי', id: 'lost' },
-]
-
-/**
- * Display labels for the stored option VALUES (same mapping as the desktop
- * `clientForm`). The form submits the stored value unchanged; Hebrew passes the
- * exact option lists it always passed.
- */
-const GENDER_KEY: Record<string, MessageKey> = { 'זכר': 'leads.form.genderOption.male', 'נקבה': 'leads.form.genderOption.female' }
-const SOURCE_KEY: Record<string, MessageKey> = {
-  'ידני': 'leads.form.sourceOption.manual',
-  'אתר': 'leads.form.sourceOption.website',
-  'המלצה': 'leads.form.sourceOption.referral',
-  'ייבוא': 'leads.form.sourceOption.import',
-  'אחר': 'leads.form.sourceOption.misc',
-}
-function formOptions(t: Translator) {
-  if (t.locale === 'he') return { gender: genderOpt, source: leadSourceCreateOpt, status: STATUS_OPTIONS }
-  const label = (values: string[], keys: Record<string, MessageKey>) => values.map((v) => ({ id: v, name: keys[v] ? t(keys[v]) : v }))
-  return {
-    gender: label(genderOpt, GENDER_KEY),
-    source: label(leadSourceCreateOpt, SOURCE_KEY),
-    status: STATUS_OPTIONS.map((o) => ({ id: o.id, name: leadStatusFormLabel(o.id, t.locale) as string })),
-  }
-}
 
 /**
  * Phone add-lead sheet. Same action, validation, duplicates, and quota as

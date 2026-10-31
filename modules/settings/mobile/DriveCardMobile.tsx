@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react'
 import type { IntegrationDescriptor } from '@/components/settings/integrations/catalog'
 import IntegrationCardMobile from './IntegrationCardMobile'
 import { driveReturnCopy } from './oauthReturn'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
+
+/** The catalog descriptor's own copy in the interface language (same keys as the desktop `IntegrationCard`). */
+const COPY: Record<string, { description: MessageKey; connectLabel: MessageKey }> = {
+  'google-drive': { description: 'settings.integrations.drive.description', connectLabel: 'settings.integrations.drive.connect' },
+}
 
 type DriveStatus =
   | { state: 'loading' }
@@ -25,6 +32,10 @@ export default function DriveCardMobile({
   returnConnected?: boolean
   returnError?: string | null
 }) {
+  const t = useT()
+  const copy = t.locale === 'he' ? undefined : COPY[integration.id]
+  const description = copy ? t(copy.description) : integration.description
+  const connectLabel = copy ? t(copy.connectLabel) : integration.connectLabel
   const [status, setStatus] = useState<DriveStatus>({ state: 'loading' })
 
   useEffect(() => {
@@ -45,16 +56,19 @@ export default function DriveCardMobile({
 
   const loading = status.state === 'loading'
   const connected = status.state === 'connected'
-  const overlay = driveReturnCopy({
-    connected,
-    error: returnError,
-    connecting: returnConnected && loading,
-  })
+  const overlay = driveReturnCopy(
+    {
+      connected,
+      error: returnError,
+      connecting: returnConnected && loading,
+    },
+    t.locale,
+  )
 
-  const statusLabel = overlay?.statusLabel ?? (loading ? 'טוען…' : connected ? 'מחובר' : 'לא מחובר')
+  const statusLabel = overlay?.statusLabel ?? (loading ? t('settings.integrations.card.loading') : connected ? t('settings.integrations.card.connected') : t('settings.integrations.card.notConnected'))
   const explanation =
-    overlay?.explanation ?? (connected && status.email ? `מחובר · ${status.email}` : integration.description)
-  const actionLabel = overlay?.actionLabel ?? (connected ? 'ניהול' : integration.connectLabel)
+    overlay?.explanation ?? (connected && status.email ? t('settings.mobile.status.connectedAs', { email: status.email }) : description)
+  const actionLabel = overlay?.actionLabel ?? (connected ? t('settings.mobile.landing.manage') : connectLabel)
   const role = overlay?.role ?? (loading ? 'neutral' : connected ? 'success' : 'neutral')
 
   return (

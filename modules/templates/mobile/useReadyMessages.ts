@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState } from 'react'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { templateSentence } from '@/components/settings/templates/templateCopy'
 import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
 import { applyTemplateUpdates } from '@/modules/templates/client/applyTemplateUpdates'
 import { createTemplate } from '@/actions/whatsapp/templates/createTemplate'
@@ -30,6 +32,7 @@ export function useReadyMessages({
   /** A message left the list (archived / discarded). */
   onRemoved: (id: number) => void
 }) {
+  const t = useT()
   const [templates, setTemplates] = useState(initial)
   const templatesRef = useRef(templates)
   templatesRef.current = templates
@@ -72,10 +75,10 @@ export function useReadyMessages({
         setTemplates((prev) =>
           prev.filter((t) => t.id !== retryOf).map((t) => (t.id === tempId ? res.template : t)),
         )
-        toast('success', 'ההודעה נוצרה ונשלחה לאישור וואטסאפ')
+        toast('success', t('settings.templates.created'))
       } else if ('error' in res) {
         setTemplates((prev) => prev.filter((t) => t.id !== tempId))
-        toast('error', res.error)
+        toast('error', templateSentence(res.error, t))
       }
     })
   }
@@ -85,9 +88,9 @@ export function useReadyMessages({
     if (res.ok) {
       setTemplates((prev) => prev.filter((t) => t.id !== id))
       onRemoved(id)
-      toast('success', 'ההודעה הועברה לארכיון')
+      toast('success', t('settings.templates.archived'))
     } else if ('error' in res) {
-      toast('error', res.error)
+      toast('error', templateSentence(res.error, t))
     }
   }
 
@@ -96,9 +99,9 @@ export function useReadyMessages({
     if (res.ok) {
       setTemplates((prev) => prev.filter((t) => t.id !== id))
       onRemoved(id)
-      toast('success', 'ההודעה הוסרה')
+      toast('success', t('settings.templates.discarded'))
     } else if ('error' in res) {
-      toast('error', res.error)
+      toast('error', templateSentence(res.error, t))
     }
   }
 

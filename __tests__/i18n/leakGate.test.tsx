@@ -256,7 +256,6 @@ vi.mock('@/actions/quotes/templates', async () => (await import('./adminMocks'))
 vi.mock('@/lib/flags/questionnaireBuilderFlags', async () => (await import('./leakGateQuestionnaireMocks')).builderFlagsModule())
 vi.mock('@/actions/autoResponse/updateSettings', async () => (await import('./adminMocks')).updateAutoResponseModule())
 vi.mock('@/actions/autoResponse/previewAgent', async () => (await import('./adminMocks')).previewAgentModule())
-vi.mock('@/modules/settings/mobile/AutoResponseMobile', async () => (await import('./adminMocks')).autoResponseMobileModule())
 // The automations screens (Phase E5b; I/O only — pages, panels, cards, the template and integration overviews run for real).
 vi.mock('@/lib/automations/flags', async () => (await import('./leakGateAutomationsMocks')).flagsModule())
 vi.mock('@/db/automations/definitions', async () => (await import('./automationsMocks')).definitionsDbModule())

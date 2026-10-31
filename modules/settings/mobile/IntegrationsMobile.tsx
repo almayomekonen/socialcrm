@@ -18,6 +18,8 @@ import WebsiteConnection, { isWebsiteSectionVisible } from '@/components/setting
 import IntegrationsLanding from './IntegrationsLanding'
 import ReadyMessagesScreen from '@/modules/templates/mobile/ReadyMessagesScreen'
 import { parseOAuthReturnQuery, resolveMobileIntegrationSheet } from './oauthReturn'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 type Viewer = { id: number; role: string; agencyId: number }
 
@@ -28,9 +30,12 @@ type Viewer = { id: number; role: string; agencyId: number }
 export default async function IntegrationsMobile({
   user,
   searchParams,
+  locale = 'he',
 }: {
   user: Viewer
   searchParams: { [key: string]: string | string[] | undefined }
+  /** The interface language, resolved once by the page (Hebrew by default). */
+  locale?: UiLocale
 }) {
   const oauthQuery = parseOAuthReturnQuery(searchParams)
   const activeSection = oauthQuery.section
@@ -94,21 +99,22 @@ export default async function IntegrationsMobile({
         agencyId={user.agencyId}
         connected={!!waConnection}
         messagingReady={waMessagingReady}
+        locale={locale}
       />
     )
   }
 
   if (activeSection === 'website' && websiteVisible) {
     return (
-      <div className='px-4 pb-8 pt-4'>
+      <div className='px-4 pb-8 pt-4' {...regionAttrs(locale)}>
         <Link
           href={'/settings/integrations' as Route}
           className='mb-3 inline-flex min-h-11 items-center text-sm font-medium text-primary-text'
         >
-          חזרה לאינטגרציות
+          {translatorFor(locale)('settings.mobile.landing.back')}
         </Link>
-        <h1 className='mb-3 text-xl font-bold text-ink'>האתר שלי</h1>
-        <WebsiteConnection user={user} />
+        <h1 className='mb-3 text-xl font-bold text-ink'>{translatorFor(locale)('settings.integrations.section.website')}</h1>
+        <WebsiteConnection user={user} locale={locale} />
       </div>
     )
   }

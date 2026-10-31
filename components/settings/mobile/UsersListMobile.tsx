@@ -5,6 +5,10 @@ import Icon from '@/lib/Icon'
 import BottomSheet from '@/components/mobile/BottomSheet'
 import MobileListRow, { MobileList } from '@/components/mobile/MobileListRow'
 import { MapRoles } from '@/types/roles'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
+import { adminRoleLabel } from '@/components/agntsAndGrps/adminLabels'
+import type { Translator } from '@/lib/i18n/translate'
 
 /**
  * משתמשים on a phone — a list, not the desktop users table.
@@ -48,7 +52,9 @@ export type MobileInvitationRow = {
   expiresAt: string | null
 }
 
-const roleLabel = (role: string | null) => (role && MapRoles[role as keyof typeof MapRoles]) || role || '—'
+/** By role CODE; Hebrew is `MapRoles` itself (as before), other languages the admin role labels. */
+const roleLabel = (role: string | null, t: Translator) =>
+  t.locale === 'he' ? (role && MapRoles[role as keyof typeof MapRoles]) || role || '—' : (role && adminRoleLabel(role, t.locale)) || role || '—'
 
 function Chip({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'warn' }) {
   const cls =
@@ -65,28 +71,31 @@ export default function UsersListMobile({
   users: MobileUserRow[]
   invitations: MobileInvitationRow[]
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const [selected, setSelected] = useState<MobileUserRow | null>(null)
 
   return (
-    <div className='pb-4'>
-      <Section title='משתמשים' count={users.length} />
+    <div className='pb-4' {...region}>
+      <Section title={t('admin.mobile.users.title')} count={users.length} />
 
       {users.length === 0 ? (
-        <Empty text='אין עדיין משתמשים בסביבת העבודה.' />
+        <Empty text={t('admin.mobile.users.noUsers')} />
       ) : (
         <MobileList className='border-y border-gray-200 bg-white'>
           {users.map((u) => (
             <MobileListRow
+              translated
               key={u.id}
               onClick={() => setSelected(u)}
-              title={u.name || u.email || `משתמש ${u.id}`}
+              title={u.name || u.email || t('admin.mobile.users.userFallback', { id: String(u.id) })}
               subtitle={u.email ?? undefined}
               badges={
                 <>
-                  <Chip label={roleLabel(u.role)} />
+                  <Chip label={roleLabel(u.role, t)} />
                   {/* Shown only when true — a "פעיל" chip on every row is noise
                       that makes the one suspended user harder to spot. */}
-                  {u.suspended && <Chip label='מושעה' tone='warn' />}
+                  {u.suspended && <Chip label={t('admin.mobile.users.suspended')} tone='warn' />}
                 </>
               }
             />
@@ -94,21 +103,22 @@ export default function UsersListMobile({
         </MobileList>
       )}
 
-      <Section title='הזמנות' count={invitations.length} />
+      <Section title={t('admin.mobile.users.invitations')} count={invitations.length} />
 
       {invitations.length === 0 ? (
-        <Empty text='אין הזמנות ממתינות.' />
+        <Empty text={t('admin.mobile.users.noInvitations')} />
       ) : (
         <MobileList className='border-y border-gray-200 bg-white'>
           {invitations.map((i) => (
             <MobileListRow
+              translated
               key={i.id}
-              title={i.name || i.email || `הזמנה ${i.id}`}
+              title={i.name || i.email || t('admin.mobile.users.invitationFallback', { id: String(i.id) })}
               subtitle={i.email ?? undefined}
               meta={i.expiresAt ?? undefined}
               badges={
                 <>
-                  <Chip label={roleLabel(i.role)} />
+                  <Chip label={roleLabel(i.role, t)} />
                   {i.status && <Chip label={i.status} />}
                 </>
               }
@@ -121,16 +131,16 @@ export default function UsersListMobile({
         </MobileList>
       )}
 
-      <BottomSheet open={selected !== null} onClose={() => setSelected(null)} title={selected?.name || 'משתמש'}>
+      <BottomSheet open={selected !== null} onClose={() => setSelected(null)} title={selected?.name || t('admin.mobile.users.user')} translated>
         {selected && (
           <div className='flex flex-col gap-1'>
-            <DetailRow label='תפקיד' value={roleLabel(selected.role)} />
-            <DetailRow label='אימייל' value={selected.email} href={selected.email ? `mailto:${selected.email}` : null} />
-            <DetailRow label='טלפון' value={selected.phone} href={selected.phone ? `tel:${selected.phone}` : null} />
-            <DetailRow label='סטטוס' value={selected.suspended ? 'מושעה' : 'פעיל'} />
+            <DetailRow label={t('admin.mobile.users.role')} value={roleLabel(selected.role, t)} />
+            <DetailRow label={t('admin.mobile.users.email')} value={selected.email} href={selected.email ? `mailto:${selected.email}` : null} />
+            <DetailRow label={t('admin.mobile.users.phone')} value={selected.phone} href={selected.phone ? `tel:${selected.phone}` : null} />
+            <DetailRow label={t('admin.mobile.users.status')} value={selected.suspended ? t('admin.mobile.users.suspended') : t('admin.mobile.users.active')} />
 
             <p className='mt-3 border-t border-gray-100 pt-3 text-[12px] leading-relaxed text-gray-500'>
-              הוספת משתמשים, שינוי תפקידים והרשאות זמינים מהמחשב.
+              {t('admin.mobile.users.desktopNote')}
             </p>
           </div>
         )}
@@ -158,6 +168,7 @@ function Empty({ text }: { text: string }) {
  * this avoids.
  */
 function DetailRow({ label, value, href }: { label: string; value: string | null; href?: string | null }) {
+  const t = useT()
   if (!value) return null
   const body = (
     <>
@@ -174,7 +185,7 @@ function DetailRow({ label, value, href }: { label: string; value: string | null
         className='press flex min-h-11 items-center justify-between gap-3 rounded-md px-1 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
         {body}
-        <Icon name='angle-left' type='sol' className='size-3.5 shrink-0 bg-gray-300' />
+        <Icon name='angle-left' type='sol' className='size-3.5 shrink-0 bg-gray-300' flip={dirFor(t.locale) === 'ltr'} />
       </a>
     )
   }

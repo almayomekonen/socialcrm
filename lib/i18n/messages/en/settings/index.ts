@@ -6,5 +6,6 @@ import { fb, wa, waAction, metaShown } from './notices'
 import { metaSteps } from './metaSteps'
 import { templates } from './templates'
 import { messenger } from './messenger'
+import { mobile } from './mobile'
 
-export const settings: Messages['settings'] = { account, payment, integrations, fb, wa, waAction, metaShown, metaSteps, templates, messenger }
+export const settings: Messages['settings'] = { account, payment, integrations, fb, wa, waAction, metaShown, metaSteps, templates, messenger, mobile }

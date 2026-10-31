@@ -1,4 +1,5 @@
-import { formatDate } from '@/lib/dates'
+import { formatLeadDate } from '@/lib/leads/leadDate'
+import type { UiLocale } from '@/lib/i18n/config'
 
 /**
  * "פעילות התחברות אחרונה" on a phone — the same rows, without the table.
@@ -17,8 +18,11 @@ import { formatDate } from '@/lib/dates'
  */
 export default function LoginActivityMobile({
   rows,
+  locale = 'he',
 }: {
   rows: { device: string; ip: string; at: string | Date }[]
+  /** The date's language (Hebrew by default: the legacy `formatDate`, as before). */
+  locale?: UiLocale
 }) {
   return (
     <ul className='divide-y divide-gray-100'>
@@ -26,7 +30,7 @@ export default function LoginActivityMobile({
         <li key={`${r.ip}-${i}`} className='flex flex-col gap-0.5 py-3 first:pt-0 last:pb-0'>
           <div className='flex items-baseline justify-between gap-3'>
             <span className='truncate text-[14px] font-medium text-ink'>{r.device}</span>
-            <span className='shrink-0 text-[11px] tabular-nums text-gray-400'>{formatDate(r.at)}</span>
+            <span className='shrink-0 text-[11px] tabular-nums text-gray-400'>{formatLeadDate(locale, r.at)}</span>
           </div>
           <span className='text-[12px] tabular-nums text-gray-500' dir='ltr'>
             {r.ip}

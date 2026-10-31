@@ -11,7 +11,8 @@ import { connections } from './connections'
 import { questionnaire } from './questionnaire'
 import { questionnaireFlow } from './questionnaireFlow'
 import { questionnaireCopy } from './questionnaireCopy'
+import { mobile } from './mobile'
 
 const page: Messages['admin']['page'] = { denied: "You don't have permission to view this page", title: { group: 'Admin settings' } }
 
-export const admin: Messages['admin'] = { page, users, invitations, teams, promos, taskTmplts, quotes, autoResponse, automations, automationSheet, automationCatalog, automationTemplates, connections, questionnaire, questionnaireFlow, questionnaireCopy }
+export const admin: Messages['admin'] = { page, users, invitations, teams, promos, taskTmplts, quotes, autoResponse, automations, automationSheet, automationCatalog, automationTemplates, connections, questionnaire, questionnaireFlow, questionnaireCopy, mobile }

@@ -3,6 +3,8 @@ import { isAdmin } from '@/types/roles'
 import type { Roles } from '@/types/roles'
 import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import AutoResponseToggle from './AutoResponseToggle'
+import { regionAttrs, untranslatedAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * מענה אוטומטי, on a phone: is it on, what does it say, and how to stop it.
@@ -26,14 +28,18 @@ import AutoResponseToggle from './AutoResponseToggle'
 export default async function AutoResponseMobile({
   agencyId,
   role,
+  locale = 'he',
 }: {
   agencyId: number
   role: Roles
+  /** The interface language, resolved once by the page (Hebrew by default). */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   if (!isAdmin(role)) {
     return (
-      <div className='px-4 py-10 text-center'>
-        <p className='text-sm text-gray-500'>אין לך הרשאה לצפות בדף זה</p>
+      <div className='px-4 py-10 text-center' {...regionAttrs(locale)}>
+        <p className='text-sm text-gray-500'>{t('admin.page.denied')}</p>
       </div>
     )
   }
@@ -52,25 +58,24 @@ export default async function AutoResponseMobile({
   const questionnaire = channel?.responder === 'questionnaire'
 
   return (
-    <div className='flex flex-col gap-4 px-4 pb-8 pt-3'>
+    <div className='flex flex-col gap-4 px-4 pb-8 pt-3' {...regionAttrs(locale)}>
       <AutoResponseToggle initialEnabled={master} />
 
       {channelOff && (
         <p className='rounded-xl border border-warning-border bg-warning-bg px-3.5 py-3 text-[13px] leading-relaxed text-warning-text'>
-          ערוץ הוואטסאפ כבוי, כך שגם כשהמענה האוטומטי פעיל לא נשלחות הודעות. אפשר להפעיל אותו מהמחשב.
+          {t('admin.mobile.autoResponse.channelOff')}
         </p>
       )}
 
       {questionnaire && (
         <p className='rounded-xl border border-warning-border bg-warning-bg px-3.5 py-3 text-[13px] leading-relaxed text-warning-text'>
-          הפניות בוואטסאפ נענות כרגע בשאלון קבוע שהוגדר עבורכם, ולא בהודעה שמופיעה כאן. כיבוי המענה האוטומטי עוצר גם
-          את השאלון.
+          {t('admin.mobile.autoResponse.questionnaire')}
         </p>
       )}
 
       <section aria-labelledby='auto-response-message' className='flex flex-col gap-2'>
         <h2 id='auto-response-message' className='px-1 text-sm font-semibold text-gray-500'>
-          ההודעה שנשלחת
+          {t('admin.mobile.autoResponse.sent')}
         </h2>
 
         <div className='rounded-xl border border-gray-200 bg-white px-3.5 py-3'>
@@ -78,21 +83,23 @@ export default async function AutoResponseMobile({
             fixedBody ? (
               /* The stored text, verbatim. Nothing is generated or previewed
                  here — this is the exact נוסח the desktop form saved. */
-              <p className='whitespace-pre-wrap text-[15px] leading-relaxed text-ink'>{fixedBody}</p>
+              <p className='whitespace-pre-wrap text-[15px] leading-relaxed text-ink' {...untranslatedAttrs(locale)}>
+                {fixedBody}
+              </p>
             ) : (
-              <p className='text-[15px] leading-relaxed text-gray-500'>עדיין לא הוגדרה הודעה קבועה.</p>
+              <p className='text-[15px] leading-relaxed text-gray-500'>{t('admin.mobile.autoResponse.fixedNotSet')}</p>
             )
           ) : (
             <>
               <div className='flex items-center gap-2'>
                 <Icon type='sol' name='sparkles' className='size-4 bg-primary' />
-                <p className='text-[15px] font-medium text-ink'>מענה חכם</p>
+                <p className='text-[15px] font-medium text-ink'>{t('admin.autoResponse.style.ai')}</p>
               </div>
               <p className='mt-1 text-[13px] leading-relaxed text-gray-500'>
-                כל תשובה נכתבת לפי ההודעה שהתקבלה, כך שאין נוסח קבוע להצגה.
+                {t('admin.mobile.autoResponse.smartExplain')}
               </p>
               {guidance && (
-                <div className='mt-3 border-t border-gray-100 pt-3'>
+                <div className='mt-3 border-t border-gray-100 pt-3' {...untranslatedAttrs(locale)}>
                   <p className='text-[12px] font-medium text-gray-500'>על העסק שלכם</p>
                   <p className='mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-ink'>{guidance}</p>
                 </div>
@@ -106,7 +113,7 @@ export default async function AutoResponseMobile({
           mobile workspace uses for desk work (lib/mobile/desktopOnlyRoutes.ts):
           state where it lives, never apologise, never frame it as missing. */}
       <p className='px-1 text-[13px] leading-relaxed text-gray-500'>
-        הגדרות מתקדמות זמינות מהמחשב.
+        {t('admin.mobile.autoResponse.advanced')}
       </p>
     </div>
   )

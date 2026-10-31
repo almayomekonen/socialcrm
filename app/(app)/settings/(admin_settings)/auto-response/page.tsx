@@ -33,7 +33,9 @@ export default async function AutoResponseSettingsPage() {
    * path below is unchanged.
    */
   if (await isMobileWorkspaceRequest(user.agencyId)) {
-    return <AutoResponseMobile agencyId={user.agencyId} role={user.role} />
+    // The layout's request-memoised read: the phone screen is worded in it.
+    const { locale: mobileLocale } = await getUiLocaleState(user)
+    return <AutoResponseMobile agencyId={user.agencyId} role={user.role} locale={mobileLocale} />
   }
 
 

@@ -21,10 +21,11 @@ import { connections } from './connections'
 import { questionnaire } from './questionnaire'
 import { questionnaireFlow } from './questionnaireFlow'
 import { questionnaireCopy } from './questionnaireCopy'
+import { mobile } from './mobile'
 
 const page = {
   denied: 'אין לך הרשאה לצפות בדף זה',
   title: { group: 'הגדרות אדמין' },
 }
 
-export const admin = { page, users, invitations, teams, promos, taskTmplts, quotes, autoResponse, automations, automationSheet, automationCatalog, automationTemplates, connections, questionnaire, questionnaireFlow, questionnaireCopy } as const
+export const admin = { page, users, invitations, teams, promos, taskTmplts, quotes, autoResponse, automations, automationSheet, automationCatalog, automationTemplates, connections, questionnaire, questionnaireFlow, questionnaireCopy, mobile } as const

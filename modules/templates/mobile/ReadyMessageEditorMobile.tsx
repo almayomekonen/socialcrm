@@ -6,10 +6,13 @@ import { validateTemplateInput } from '@/lib/whatsapp/templates/validate'
 import { TEMPLATE_VARIABLES } from '@/lib/whatsapp/templates/messages'
 import type { TemplateInput, TemplatePurpose } from '@/lib/whatsapp/templates/types'
 import WhatsappMessagePreview from '@/components/settings/templates/WhatsappMessagePreview'
+import { templateSentence, variableLabel } from '@/components/settings/templates/templateCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
-const PURPOSES: { value: TemplatePurpose; label: string; hint: string }[] = [
-  { value: 'UTILITY', label: 'עדכון או תזכורת לליד', hint: 'סטטוס, תזכורת, מענה' },
-  { value: 'MARKETING', label: 'מבצע או הצעה שיווקית', hint: 'קופון, מבצע, השקה' },
+const PURPOSES: { value: TemplatePurpose; label: MessageKey; hint: MessageKey }[] = [
+  { value: 'UTILITY', label: 'settings.mobile.ready.utility', hint: 'settings.templates.form.utilityHint' },
+  { value: 'MARKETING', label: 'settings.templates.form.marketing', hint: 'settings.templates.form.marketingHint' },
 ]
 
 const FIELD =
@@ -37,6 +40,7 @@ export default function ReadyMessageEditorMobile({
   note?: string
   initial?: { displayTitle: string; bodyText: string; purpose?: TemplatePurpose }
 }) {
+  const t = useT()
   const [title, setTitle] = useState(initial?.displayTitle ?? '')
   const [body, setBody] = useState(initial?.bodyText ?? '')
   const [purpose, setPurpose] = useState<TemplatePurpose | ''>(initial?.purpose ?? '')
@@ -82,7 +86,7 @@ export default function ReadyMessageEditorMobile({
     }
     const result = validateTemplateInput(input)
     if ('errors' in result) {
-      setErrors(result.errors)
+      setErrors(result.errors.map((e) => templateSentence(e, t)))
       return
     }
     onCreate(input)
@@ -90,7 +94,7 @@ export default function ReadyMessageEditorMobile({
   }
 
   return (
-    <BottomSheet open={open} onClose={close} title={heading} titleId='ready-message-editor-title' dismissOnScrim={false}>
+    <BottomSheet open={open} onClose={close} title={heading} titleId='ready-message-editor-title' dismissOnScrim={false} translated>
       <form
         className='flex flex-col gap-4'
         aria-labelledby='ready-message-editor-title'
@@ -102,29 +106,29 @@ export default function ReadyMessageEditorMobile({
         {note && <p className='text-sm leading-relaxed text-gray-500'>{note}</p>}
 
         <label className='grid gap-1.5'>
-          <span className='text-sm font-medium text-ink'>שם ההודעה</span>
+          <span className='text-sm font-medium text-ink'>{t('settings.templates.form.title')}</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className={FIELD}
-            placeholder='למשל: תזכורת פולואפ'
+            placeholder={t('settings.templates.form.titlePlaceholder')}
           />
         </label>
 
         <label className='grid gap-1.5'>
-          <span className='text-sm font-medium text-ink'>תוכן ההודעה</span>
+          <span className='text-sm font-medium text-ink'>{t('settings.templates.form.body')}</span>
           <textarea
             ref={bodyRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={5}
             className='min-h-24 w-full resize-none rounded-md border border-gray-200 bg-white p-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary'
-            placeholder='כתבו את ההודעה שתישלח ללידים...'
+            placeholder={t('settings.templates.form.bodyPlaceholder')}
           />
         </label>
 
         <div>
-          <p className='mb-2 text-sm text-gray-500'>הוספת פרטים אישיים</p>
+          <p className='mb-2 text-sm text-gray-500'>{t('settings.mobile.ready.personal')}</p>
           <div className='flex flex-wrap gap-2'>
             {TEMPLATE_VARIABLES.map((v) => (
               <button
@@ -133,14 +137,14 @@ export default function ReadyMessageEditorMobile({
                 onClick={() => insertToken(v.token)}
                 className='press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
               >
-                {v.token}
+                {variableLabel(v.token, t)}
               </button>
             ))}
           </div>
         </div>
 
         <fieldset className='grid gap-2'>
-          <legend className='text-sm font-medium text-ink'>מה מטרת ההודעה?</legend>
+          <legend className='text-sm font-medium text-ink'>{t('settings.templates.form.purpose')}</legend>
           {PURPOSES.map((p) => (
             <label
               key={p.value}
@@ -157,7 +161,7 @@ export default function ReadyMessageEditorMobile({
                 className='size-4'
               />
               <span className='text-sm text-ink'>
-                {p.label} <span className='text-gray-400'>({p.hint})</span>
+                {t(p.label)} <span className='text-gray-400'>({t(p.hint)})</span>
               </span>
             </label>
           ))}
@@ -165,7 +169,7 @@ export default function ReadyMessageEditorMobile({
 
         {variables.length > 0 && (
           <p className='text-sm text-gray-500'>
-            פרטים שיוחלפו בשליחה: {variables.map((v) => v.token).join(' · ')}
+            {t('settings.mobile.ready.replaced', { tokens: variables.map((v) => variableLabel(v.token, t)).join(' · ') })}
           </p>
         )}
 
@@ -178,8 +182,8 @@ export default function ReadyMessageEditorMobile({
         )}
 
         <div>
-          <p className='mb-1.5 text-sm text-gray-500'>כך הליד יראה את ההודעה</p>
-          <WhatsappMessagePreview bodyText={body} variables={variables} />
+          <p className='mb-1.5 text-sm text-gray-500'>{t('settings.templates.form.previewLabel')}</p>
+          <WhatsappMessagePreview bodyText={body} variables={variables} translated />
         </div>
 
         <button
@@ -194,7 +198,7 @@ export default function ReadyMessageEditorMobile({
           onClick={close}
           className='press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
         >
-          ביטול
+          {t('settings.templates.form.cancel')}
         </button>
       </form>
     </BottomSheet>
