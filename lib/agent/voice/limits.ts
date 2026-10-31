@@ -14,6 +14,13 @@
 export const VOICE_MAX_RECORDING_MS = 120_000
 
 /**
+ * Slack over the cap for a recording's DECLARED duration before the server
+ * refuses it (the recorder stops a moment after the cap). Server-side, the cap
+ * is checked against container metadata only — see `probeAudioDurationMs`.
+ */
+export const VOICE_DURATION_TOLERANCE_MS = 2_000
+
+/**
  * Largest upload the transcription route reads.
  *
  * Kept under Vercel's 4.5MB request-body ceiling so an oversized body is

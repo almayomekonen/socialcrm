@@ -43,8 +43,10 @@ const USD_PER_MINUTE = 0.006
  * What one transcription is charged against the agency's daily AI cap.
  *
  * The provider does not report the audio's duration for this model, so the
- * charge is the MAXIMUM a recording can be. Over-counting a short clip is the
- * safe direction for a spend cap; under-counting is not.
+ * charge is the recording cap. Over-counting a short clip is the safe
+ * direction for a spend cap. It is NOT a proven maximum: the server can only
+ * refuse uploads whose container metadata declares more than the cap
+ * (`probeAudioDurationMs`); a file without such metadata cannot be bounded.
  */
 export const VOICE_TRANSCRIPTION_CHARGE_USD = (VOICE_MAX_RECORDING_MS / 60_000) * USD_PER_MINUTE
 
@@ -60,13 +62,19 @@ export async function transcribeVoice(input: {
   abortSignal?: AbortSignal
   /** Usage-ledger attribution. Identifiers only. */
   ledger?: { agencyId: number; userId: number }
+  /** The duration the container's metadata declares, when it has one. Unverified. */
+  metadataDurationMs?: number | null
 }): Promise<{ text: string }> {
   const openai = getOpenAIProvider()
   if (!openai) throw new VoiceTranscriptionUnavailableError()
 
   const model = openai.transcription(VOICE_TRANSCRIPTION_MODEL)
   const startedAt = Date.now()
+  // One id for the ledger row and the reservation, so an unsettled reservation
+  // can be recovered from the row (and the two reconciled) without guessing.
+  const callId = newCallId()
   const base = {
+    callId,
     invocationId: newInvocationId(),
     feature: 'voice.transcribe',
     provider: 'openai',
@@ -75,14 +83,17 @@ export async function transcribeVoice(input: {
     userId: input.ledger?.userId ?? null,
     usage: null,
   }
-  // Budget SHADOW: bounded by the recording cap; never delays the request.
+  // Budget SHADOW: a PARTIAL estimate at the recording cap — the server cannot
+  // verify an upload's real duration (see estimateTranscription). Never delays the request.
   const shadow = startShadow({
-    callId: newCallId(),
+    callId,
     agencyId: input.ledger?.agencyId ?? null,
     feature: 'voice.transcribe',
     provider: 'openai',
     model: VOICE_TRANSCRIPTION_MODEL,
-    estimate: () => estimateTranscription(VOICE_MAX_RECORDING_MS),
+    invocationId: base.invocationId,
+    run: { kind: 'voice.transcribe', id: base.invocationId },
+    estimate: () => estimateTranscription(VOICE_MAX_RECORDING_MS, input.metadataDurationMs ?? null),
   })
   let result: Awaited<ReturnType<typeof model.doGenerate>>
   try {

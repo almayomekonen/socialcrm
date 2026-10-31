@@ -10,9 +10,17 @@ import { buildPrompt } from './router/promptBuilder'
 import { classifyError, isPermanentError } from './router/errorClassify'
 import { logAttemptFailure, logAttemptSuccess, logFallbackTrace } from './router/attemptLogger'
 import { attemptBudget, skipRetryOnTimeout } from './router/interactivePolicy'
-import { newInvocationId, recordProviderCalls, usageFromSdk } from './usage/record'
+import {
+  newInvocationId,
+  recordProviderCalls,
+  serviceTierFrom,
+  usageFromSdk,
+  verdictForCall,
+  type ProviderCall,
+} from './usage/record'
 import { newCallId, settleShadowAfter, startShadow } from './budget/shadow'
 import { estimateStructuredRequest } from './budget/estimate'
+import { schemaBytes } from './budget/requestSize'
 
 export { _resetDailySpendForTests } from './router/spend'
 
@@ -157,11 +165,17 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
         feature: opts.kind,
         provider: handle.provider,
         model: handle.modelId,
-        estimate: (policy) =>
+        invocationId,
+        // Every attempt and fallback of this call is one run (the ledger's operation too).
+        run: { kind: opts.kind, id: invocationId },
+        estimate: async (policy) =>
           estimateStructuredRequest({
             model: handle.modelId,
             system: opts.system,
             user: opts.user,
+            schemaBytes: await schemaBytes(opts.schema as FlexibleSchema<unknown>),
+            schemaName: opts.schemaName,
+            schemaDescription: opts.schemaDescription,
             imageCount: opts.images?.length ?? 0,
             maxOutputTokens: cfg.maxOutputTokens,
             unboundedReserveUsd: policy.unboundedReserveUsd,
@@ -193,22 +207,25 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
         logAttemptSuccess({ ...commonCtx, inputTokens, outputTokens, costUsd, latencyMs })
         const usage = usageFromSdk(result.usage)
         const responseModel = result.response?.modelId ?? null
-        await recordProviderCalls([
-          {
-            ...ledgerBase(chainIndex, attempt),
-            callId,
-            status: 'success',
-            usage,
-            responseModel,
-            providerRequestId: result.response?.id ?? null,
-            finishReason: result.finishReason ?? null,
-            latencyMs,
-          },
-        ])
+        const ledgerCall: ProviderCall = {
+          ...ledgerBase(chainIndex, attempt),
+          callId,
+          status: 'success',
+          usage,
+          responseModel,
+          providerRequestId: result.response?.id ?? null,
+          finishReason: result.finishReason ?? null,
+          serviceTier: serviceTierFrom(result.providerMetadata),
+          latencyMs,
+        }
+        await recordProviderCalls([ledgerCall])
         await settleShadowAfter(shadow, {
           outcome: 'success',
           usage,
           models: { requested: handle.modelId, response: responseModel },
+          verdict: verdictForCall(ledgerCall),
+          stepIndexFrom: 0,
+          stepCount: 1,
         })
 
         return {
@@ -236,23 +253,25 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
           finishReason?: string
         }
         const failedUsage = usageFromSdk(failed?.usage)
-        await recordProviderCalls([
-          {
-            ...ledgerBase(chainIndex, attempt),
-            callId,
-            status: errorCode === 'timeout' ? (opts.abortSignal?.aborted ? 'aborted' : 'timeout') : 'error',
-            errorCode,
-            usage: failedUsage,
-            responseModel: failed?.response?.modelId ?? null,
-            providerRequestId: failed?.response?.id ?? null,
-            finishReason: failed?.finishReason ?? null,
-            latencyMs: Date.now() - callStartedAt,
-          },
-        ])
+        const failedCall: ProviderCall = {
+          ...ledgerBase(chainIndex, attempt),
+          callId,
+          status: errorCode === 'timeout' ? (opts.abortSignal?.aborted ? 'aborted' : 'timeout') : 'error',
+          errorCode,
+          usage: failedUsage,
+          responseModel: failed?.response?.modelId ?? null,
+          providerRequestId: failed?.response?.id ?? null,
+          finishReason: failed?.finishReason ?? null,
+          latencyMs: Date.now() - callStartedAt,
+        }
+        await recordProviderCalls([failedCall])
         await settleShadowAfter(shadow, {
           outcome: 'error',
           usage: failedUsage,
-          models: { requested: handle.modelId, response: failed?.response?.modelId ?? null },
+          models: { requested: handle.modelId, response: failedCall.responseModel },
+          verdict: verdictForCall(failedCall),
+          stepIndexFrom: 0,
+          stepCount: 1,
         })
         if (isPermanentError(errorCode)) break
         if (skipRetryOnTimeout(cfg, errorCode)) break
