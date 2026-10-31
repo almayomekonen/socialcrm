@@ -52,6 +52,17 @@ export function renderAnswer(answer: AgentAnswer, opts: { note?: string | null }
 }
 
 /**
+ * The reply to one validated, answered investigation, and the headline kept as
+ * the next turn's history (`null` keeps none). The worker's only answer path,
+ * pure so the WhatsApp eval drives exactly what the owner receives.
+ */
+export function replyForAnswer(answer: AgentAnswer, opts: { note?: string | null } = {}): { text: string; headline: string | null } {
+  const rendered = renderAnswer(answer, opts)
+  const hasContent = (answer.claims?.length ?? 0) > 0 || !!answer.unknown
+  return hasContent ? rendered : { text: fitReply(COPY.noAnswer, opts.note), headline: null }
+}
+
+/**
  * Fixed replies. None carries CRM data, so each is safe to send even when the
  * reason is that the sender may no longer read that data.
  */
@@ -65,6 +76,11 @@ export const COPY = {
   failed: 'לא הצלחתי להשלים את הבדיקה הפעם. אפשר לנסות שוב בעוד רגע, או להמשיך ב-SocialCRM: ' + APP_LINK,
   noAnswer: 'לא מצאתי במערכת מספיק נתונים כדי לענות על זה בוודאות. אפשר לנסח אחרת, למשל עם שם הליד המלא.',
 } as const
+
+/** The reply when the investigation itself did not produce an answer. */
+export function failureReply(reason: string): string {
+  return reason === 'deadline' ? COPY.timeout : reason === 'gate_denied' ? COPY.notAvailable : COPY.failed
+}
 
 /** The model may propose actions; this phase never performs them, and says so instead of implying it. */
 export const NO_ACTIONS_NOTE = 'בשלב הזה אני רק עונה על שאלות ולא מבצע פעולות. אפשר לבצע את זה ב-SocialCRM: ' + APP_LINK
