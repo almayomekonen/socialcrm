@@ -36,7 +36,8 @@ export function I18nProvider({
   }, [locale, persistLocale])
 
   // The toast container renders outside this provider (root layout), so its
-  // no-message defaults are pushed to it. Hebrew is already its built-in text.
+  // no-message defaults — and the language its text declares — are pushed to
+  // it. Hebrew is already its built-in text (and declares nothing).
   useEffect(() => {
     if (locale === LEGACY_DEFAULT_LOCALE) return
     setToastDefaults({
@@ -46,7 +47,7 @@ export function I18nProvider({
       ban: t('common.toast.ban'),
       message: t('common.toast.message'),
       pro: t('common.toast.pro'),
-    })
+    }, locale)
     return resetToastDefaults
   }, [locale, t])
 

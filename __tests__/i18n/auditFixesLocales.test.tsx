@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { findHebrewLeaks } from './leakScan'
-import { alignment, iconButtons, iconPicker, readyMessageChevrons } from './auditFixesSurfaces'
+import { alignment, iconButtons, iconPicker, readyMessageChevrons, toastBodies } from './auditFixesSurfaces'
 
 /**
  * The final UI audit fixes in en / ar (Hebrew identity: auditFixesHebrewBaseline,
@@ -103,6 +103,26 @@ describe('E: icon-only buttons are named outside Hebrew; Hebrew stays unnamed', 
       expect(strip(out.goalButtons).replace(/>[^<]+</g, '><')).toBe(he.goalButtons.replace(/>[^<]+</g, '><'))
       expect(he.fileFormClose).not.toContain('aria-label')
       expect(he.goalButtons.split('\n').slice(0, 2).join('')).not.toContain('aria-label')
+    })
+  }
+})
+
+describe('G: a toast body declares the interface language; a verbatim Hebrew sentence stays Hebrew', () => {
+  const CASES = { en: { sentence: 'Changes saved', dir: 'ltr' }, ar: { sentence: 'تم حفظ التغييرات', dir: 'rtl' } }
+  for (const locale of ['en', 'ar'] as const) {
+    test(locale, async () => {
+      const { sentence, dir } = CASES[locale]
+      const out = await toastBodies(locale, sentence)
+      const body = (key: keyof typeof out) => parse(out[key]).querySelector('#popMsg > div')!
+      expect([body('sentence').getAttribute('lang'), body('sentence').getAttribute('dir')]).toEqual([locale, dir])
+      expect(body('sentence').textContent).toBe(sentence)
+      expect([body('verbatimHebrew').getAttribute('lang'), body('verbatimHebrew').getAttribute('dir')]).toEqual(['he', 'rtl'])
+      expect(body('verbatimHebrew').textContent).toBe('הליד נשמר בהצלחה')
+      expect([body('default').getAttribute('lang'), body('default').getAttribute('dir')]).toEqual([locale, dir])
+      expect(HEBREW.test(body('default').textContent!)).toBe(false)
+      // Nothing else changes: without the two attributes the body is the Hebrew-provider markup.
+      const he = await toastBodies('he', sentence)
+      expect(out.sentence.replace(/ lang="\w+" dir="\w+"/, '')).toBe(he.sentence)
     })
   }
 })
