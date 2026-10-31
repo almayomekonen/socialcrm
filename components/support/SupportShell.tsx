@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import SkipLink from '@/components/layout/SkipLink'
-import type { UiLocale } from '@/lib/i18n/config'
+import { customerTextAttrs, type UiLocale } from '@/lib/i18n/config'
 import { rtlOrRegionAttrs } from '@/lib/i18n/preLoginLocale'
 import { translatorFor } from '@/lib/i18n/translators'
 
@@ -58,7 +58,7 @@ export default function SupportShell({
           </Link>
 
           <div className='flex min-w-0 items-center gap-4'>
-            <span className='hidden truncate text-sm text-gray-500 desktop:inline'>
+            <span className='hidden truncate text-sm text-gray-500 desktop:inline' {...customerTextAttrs(locale)}>
               {displayName}
             </span>
             {/* No directional arrow: a "back" glyph has to flip under RTL, and
