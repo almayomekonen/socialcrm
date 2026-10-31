@@ -65,7 +65,7 @@ describe('A · autonomous wire contract', () => {
   it('sends every evidence tool', async () => {
     const b = await capture(true)
     const names = ((b.tools ?? []) as { name?: string }[]).map((t) => t.name).sort()
-    expect(names).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_today_state'])
+    expect(names).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_revenue', 'get_today_state'])
   })
 
   it('sends tool_choice "required" on the first step', async () => {
@@ -107,7 +107,7 @@ describe('B · interactive wire contract is unchanged', () => {
     // on size: the contract here is that the interactive path sends the WHOLE
     // surface, and the per-name check lives in run.test.ts and tools.test.ts
     // where the registry itself is in scope.
-    expect(((b.tools ?? []) as unknown[]).length).toBe(9)
+    expect(((b.tools ?? []) as unknown[]).length).toBe(10)
   })
 })
 

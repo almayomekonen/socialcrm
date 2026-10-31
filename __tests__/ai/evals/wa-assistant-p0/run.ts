@@ -26,6 +26,11 @@ import type { AgentAnswer, AgentScope } from '@/lib/agent/types'
 import { WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
 import { APP_LINK, COPY, NO_ACTIONS_NOTE, failureReply, replyForAnswer } from '@/lib/waAssistant/render'
 import { CASES, DOCUMENTED_FAILURES, type EvalCase } from './cases'
+import { REVENUE_CASES } from './revenueCases'
+
+/** EVAL_SET=revenue runs the P1 revenue set (revenueCases.ts) instead of the P0 set. */
+const SET = process.env.EVAL_SET === 'revenue' ? 'revenue' : 'p0'
+const SET_CASES = SET === 'revenue' ? REVENUE_CASES : CASES
 
 /** Tenant C of socialcrm-agent-40: an admin on a paid plan with no expiry (fixtures/ENTITLEMENT.md). */
 const TENANT = { agencyId: 41, userId: 183 }
@@ -46,7 +51,14 @@ type Result = {
   answer: unknown
   costUsd: number
   ms: number
-  checks: { fallback: boolean; refused: boolean; tooManyTools: boolean; notPlain: boolean; patternFailures: string[] }
+  checks: {
+    fallback: boolean
+    refused: boolean
+    tooManyTools: boolean
+    toolMissing: boolean
+    notPlain: boolean
+    patternFailures: string[]
+  }
   pass: boolean
 }
 
@@ -121,6 +133,7 @@ async function runCase(c: EvalCase, s: AgentScope): Promise<Result> {
     fallback: SURFACE === 'web' ? reply === WEB_FAILURE || !reply.trim() : FALLBACKS.some((t) => reply.startsWith(t)),
     refused: r.ok !== true && f.rejection === 'unsupported-claim',
     tooManyTools: c.maxTools !== undefined && tools.length > c.maxTools,
+    toolMissing: c.tool !== undefined && !tools.includes(c.tool),
     // The plain-message format is WhatsApp's; the web panel lays out its own answer.
     notPlain: SURFACE === 'whatsapp' && c.plain === true && !isPlain(reply),
     patternFailures,
@@ -141,7 +154,13 @@ async function runCase(c: EvalCase, s: AgentScope): Promise<Result> {
     costUsd: r.costUsd ?? 0,
     ms,
     checks,
-    pass: !checks.fallback && !checks.refused && !checks.tooManyTools && !checks.notPlain && patternFailures.length === 0,
+    pass:
+      !checks.fallback &&
+      !checks.refused &&
+      !checks.tooManyTools &&
+      !checks.toolMissing &&
+      !checks.notPlain &&
+      patternFailures.length === 0,
   }
 }
 
@@ -154,6 +173,7 @@ function report(label: string, results: Result[], startedAt: string): string {
       r.checks.fallback && 'FALLBACK',
       r.checks.refused && `REFUSED(${r.rejection})`,
       r.checks.tooManyTools && 'TOOLS',
+      r.checks.toolMissing && 'NO_TOOL',
       r.checks.notPlain && 'FORMAT',
       ...r.checks.patternFailures,
     ]
@@ -179,7 +199,8 @@ function report(label: string, results: Result[], startedAt: string): string {
     '| --- | --- |',
     ...kinds.map((k) => `| ${k} | ${n((r) => r.kind === k && r.pass)} / ${n((r) => r.kind === k)} |`),
     '',
-    `Documented failures: ${Object.entries(DOCUMENTED_FAILURES)
+    `${SET === 'revenue' ? 'Set: revenue (revenueCases.ts)' : ''}`,
+    `Documented failures: ${Object.entries(SET === 'revenue' ? {} : DOCUMENTED_FAILURES)
       .map(([k, id]) => `${k}=${id} ${results.find((r) => r.id === id)?.pass ? 'PASS' : 'FAIL'}`)
       .join(' · ')}`,
     '',
@@ -197,7 +218,7 @@ async function main() {
   const label = process.argv[2]
   if (!label) throw new Error('usage: run.ts <label> [caseId | kind]')
   const only = process.argv[3]
-  const cases = only ? CASES.filter((c) => c.id === only || c.kind === only) : CASES
+  const cases = only ? SET_CASES.filter((c) => c.id === only || c.kind === only) : SET_CASES
   if (!cases.length) throw new Error(`no such case: ${only}`)
 
   const admission = await admitAiRun({ kind: 'agent.investigate', agencyId: TENANT.agencyId })

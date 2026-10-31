@@ -76,3 +76,20 @@ clock with zero tool calls, against a 35 s deadline that aborts the model call.
 That is the process stalling (the run crossed midnight on a laptop), not the
 answer; the six re-checks completed in normal time. The `after` file is left as
 recorded.
+
+### P1 — get_revenue (2026-11-01; every run above is unchanged)
+
+`EVAL_SET=revenue` runs `revenueCases.ts` (8 revenue questions) instead of the P0
+set. Its expectations are exact figures from deals seeded in the eval tenant (local
+eval database only; listed in the file's header) and the absence of any
+conflated total (paid + pipeline, or a cancelled deal).
+
+| run | passed |
+| --- | --- |
+| `revenue-whatsapp` | 8 / 8 |
+| `revenue-web` | 8 / 8 |
+| `p1-regression-{social,product,business}` (P0 set, WhatsApp, after adding the tool) | 6 / 6 · 11 / 11 · 13 / 14 — the miss is B12, the deferred "hottest lead" refusal; no non-revenue question called get_revenue |
+
+P0's F1/F2 were written when the Agent could not read revenue (they require a
+pointer to «ביצועים»); with get_revenue they are superseded by R1/R7 and are left
+as recorded rather than rewritten.

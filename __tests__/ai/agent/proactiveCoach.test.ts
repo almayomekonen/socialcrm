@@ -200,7 +200,9 @@ describe('the prompt asks for a decision, not a report', () => {
   })
 
   it('forbids inventing financial outcomes', () => {
-    expect(AGENT_SYSTEM_PROMPT).toMatch(/אין לך נתוני הכנסה, שיעור המרה, ROI/)
+    // Revenue is now read (get_revenue); conversion, ROI and forecasts still are not.
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/אין לך שיעור המרה, ROI, שווי לקוח, תחזית הכנסות/)
+    expect(AGENT_SYSTEM_PROMPT).toMatch(/הכנסות — רק מ-get_revenue, ורק כפי שהוא החזיר/)
   })
 
   it('permits disagreeing with the owner', () => {

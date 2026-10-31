@@ -32,6 +32,8 @@ export type EvalCase = {
   prodId?: number
   question: string
   history?: Turn[]
+  /** A tool the answer must have called; omitted = not checked. */
+  tool?: string
   /** Upper bound on tool calls; omitted = not checked. */
   maxTools?: number
   /** A plain conversational reply: no bold report headline, no bullets, no app link. */
