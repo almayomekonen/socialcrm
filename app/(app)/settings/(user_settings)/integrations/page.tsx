@@ -47,7 +47,9 @@ export default async function IntegrationsSettingsPage({
   const activeSection = typeof section === 'string' ? section : null
 
   if (await isMobileWorkspaceRequest(user.agencyId)) {
-    return <IntegrationsMobile user={user} searchParams={sp} />
+    // The layout's request-memoised read: the phone screens are worded in it.
+    const { locale: mobileLocale } = await getUiLocaleState(user)
+    return <IntegrationsMobile user={user} searchParams={sp} locale={mobileLocale} />
   }
 
   /**

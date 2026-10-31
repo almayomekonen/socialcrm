@@ -2,11 +2,12 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from '@/lib/toast'
 import { AWARENESS_OWNED_CATEGORIES, MESSAGE_TYPES_TOASTED_BY_REGISTRY, feedSignature, selectToastable } from './surface'
 import type { NotificationFeedItem, NotificationFeedResponse, WhileYouWereAway } from './types'
 import type { Presence } from '@/lib/notifications/types'
 import NotificationPoller from './NotificationPoller'
+import { toastArrivals } from './arrivalToast'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * NotificationContext — the single client-side owner of notification state.
@@ -98,6 +99,7 @@ export function NotificationProvider({
   children: ReactNode
 }) {
   const router = useRouter()
+  const t = useT()
   const [state, setState] = useState<FeedState>({
     ...INITIAL,
     unreadCount: enabled ? initialUnread : 0,
@@ -260,21 +262,7 @@ export function NotificationProvider({
        */
       for (const item of fresh) toasted.current.add(item.id)
 
-      if (fresh.length === 1) {
-        const item = fresh[0]
-        toast('message', item.title, 6000, () => router.push(item.deepLink))
-      } else {
-        /**
-         * ONE summary, never N toasts: `toast()` is single-slot (a second call
-         * replaces the first), so surfacing several individually would show only
-         * the last one and flicker through the rest. Triage, never dump.
-         *
-         * It goes to the center rather than to any one of the notifications,
-         * because the summary is about all of them and picking one would be a
-         * guess. A single arrival still deep-links to its own entity above.
-         */
-        toast('message', `${fresh.length} התראות חדשות`, 6000, () => router.push('/notifications'))
-      }
+      toastArrivals(fresh, t, (href) => router.push(href))
 
       /**
        * seenAt is stamped HERE and only here in P2.2: the app has genuinely
@@ -284,7 +272,7 @@ export function NotificationProvider({
        */
       markSeen(fresh.map((i) => i.id))
     },
-    [markSeen, router],
+    [markSeen, router, t],
   )
 
   const value = useMemo<NotificationContextValue>(

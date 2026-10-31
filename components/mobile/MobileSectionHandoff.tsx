@@ -1,8 +1,12 @@
+'use client'
+
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon, { type IconNames } from '@/lib/Icon'
 import CopyDesktopLink from './CopyDesktopLink'
 import { DESKTOP_URL_LABEL } from '@/lib/activation/mobileHandoffCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { regionAttrs } from '@/lib/i18n/config'
 
 /**
  * "This section is not on the phone yet."
@@ -16,8 +20,14 @@ import { DESKTOP_URL_LABEL } from '@/lib/activation/mobileHandoffCopy'
  * Never apologises and never implies the user did something wrong. Terminology
  * is bound by ux-guidelines.md §6: `לידים`, never `לקוח`.
  *
- * Server Component. Temporary by construction — each phase deletes its own entry
- * here as the real screen lands (Leads → Phase 3).
+ * Temporary by construction — each phase deletes its own entry here as the
+ * real screen lands (Leads → Phase 3).
+ *
+ * LANGUAGE (i18n Phase F1): its one caller (`MobileDesktopOnly`) passes copy in
+ * the interface language, so this follows it too — the footer line, the copy
+ * action, and the root's `lang`/`dir` (it sits inside the shell's
+ * Hebrew-declared `<main>`). The address is not translated. Hebrew: unchanged.
+ * A Client Component only to read that language.
  */
 export default function MobileSectionHandoff({
   icon,
@@ -44,8 +54,9 @@ export default function MobileSectionHandoff({
    */
   desktopHandoff?: boolean
 }) {
+  const t = useT()
   return (
-    <div className='flex flex-col items-center gap-5 px-6 py-14 text-center'>
+    <div className='flex flex-col items-center gap-5 px-6 py-14 text-center' {...regionAttrs(t.locale)}>
       <span className='flex size-14 items-center justify-center rounded-2xl bg-primary-tint'>
         <Icon name={icon} type='sol' className='size-6 bg-primary' />
       </span>
@@ -69,7 +80,7 @@ export default function MobileSectionHandoff({
       <div className='flex w-full max-w-[320px] flex-col items-center gap-2'>
         <span aria-hidden='true' className='h-px w-full bg-gray-200' />
         <p className='text-[12px] text-gray-400'>
-          המסך המלא זמין במחשב · <span dir='ltr'>{DESKTOP_URL_LABEL}</span>
+          {t('mobileShell.desktopOnly.fullScreen')} · <span dir='ltr'>{DESKTOP_URL_LABEL}</span>
         </p>
       </div>
     </div>

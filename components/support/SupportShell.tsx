@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import SkipLink from '@/components/layout/SkipLink'
+import { customerTextAttrs, type UiLocale } from '@/lib/i18n/config'
+import { rtlOrRegionAttrs } from '@/lib/i18n/preLoginLocale'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The Support Center's chrome.
@@ -27,6 +30,7 @@ import SkipLink from '@/components/layout/SkipLink'
 export default function SupportShell({
   displayName,
   children,
+  locale = 'he',
 }: {
   /**
    * A resolved name, NOT the user record. The shell needs one string to greet
@@ -36,10 +40,13 @@ export default function SupportShell({
    */
   displayName: string
   children: ReactNode
+  /** Interface language (i18n Phase F5), resolved once by the layout; Hebrew by default. */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
-    <div dir='rtl' className='flex min-h-dvh flex-col bg-white'>
-      <SkipLink />
+    <div {...rtlOrRegionAttrs(locale)} className='flex min-h-dvh flex-col bg-white'>
+      <SkipLink {...(locale === 'he' ? {} : { label: t('shell.skipToContent') })} />
 
       <header className='sticky top-0 z-50 w-full border-b border-gray-100 bg-white/90 backdrop-blur-lg'>
         <div className='mx-auto flex h-14 max-w-3xl items-center justify-between gap-4 px-4'>
@@ -51,7 +58,7 @@ export default function SupportShell({
           </Link>
 
           <div className='flex min-w-0 items-center gap-4'>
-            <span className='hidden truncate text-sm text-gray-500 desktop:inline'>
+            <span className='hidden truncate text-sm text-gray-500 desktop:inline' {...customerTextAttrs(locale)}>
               {displayName}
             </span>
             {/* No directional arrow: a "back" glyph has to flip under RTL, and
@@ -60,7 +67,7 @@ export default function SupportShell({
               href='/dashboard'
               className='shrink-0 text-sm font-medium text-primary-text hover:underline'
             >
-              חזרה למערכת
+              {t('support.shell.back')}
             </Link>
           </div>
         </div>

@@ -10,6 +10,8 @@ import LeadOutcomeSheet from './LeadOutcomeSheet'
 import LeadOverflowSheet from './LeadOverflowSheet'
 import { recordFirstLeadEvent } from '@/actions/analytics/recordFirstLeadEvent'
 import { FIRST_LEAD_MOBILE } from '@/lib/activation/firstRunCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 
 type Sheet = 'status' | 'followup' | 'outcome' | null
 
@@ -39,7 +41,13 @@ export default function LeadDetailActions({
   /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
   whatsappConnected?: boolean
 }) {
+  const t = useT()
   const [sheet, setSheet] = useState<Sheet>(null)
+  // Hebrew: the constant itself (title = the desktop callout's `leadDetail.firstLead.title`).
+  const guide =
+    t.locale === 'he'
+      ? FIRST_LEAD_MOBILE
+      : { title: t('leadDetail.firstLead.title'), body: t('leads.mobile.detail.firstLeadBody'), cta: t('leads.mobile.detail.firstLeadCta') }
 
   /**
    * MOBILE FIRST-LEAD GUIDANCE — the phone half of the loop.
@@ -77,25 +85,25 @@ export default function LeadDetailActions({
         {guiding && (
           <div
             role='status'
-            dir='rtl'
+            dir={dirFor(t.locale)}
             className='mb-3 rounded-lg border border-gray-200 bg-primary-tint px-3 py-2.5'
           >
-            <p className='text-[13px] font-bold text-ink'>{FIRST_LEAD_MOBILE.title}</p>
-            <p className='mt-0.5 text-[13px] leading-relaxed text-gray-600'>{FIRST_LEAD_MOBILE.body}</p>
+            <p className='text-[13px] font-bold text-ink'>{guide.title}</p>
+            <p className='mt-0.5 text-[13px] leading-relaxed text-gray-600'>{guide.body}</p>
             <button
               type='button'
               onClick={() => setSheet('followup')}
               className='press mt-2.5 flex min-h-11 w-full items-center justify-center rounded-md bg-solid text-[14px] font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             >
-              {FIRST_LEAD_MOBILE.cta}
+              {guide.cta}
             </button>
           </div>
         )}
 
         <div className='grid grid-cols-3 gap-2'>
-          <ActionBtn label='סטטוס' icon='tag' onClick={() => setSheet('status')} />
-          <ActionBtn label='מעקב' icon='calendar' onClick={() => setSheet('followup')} />
-          <ActionBtn label='תוצאה' icon='comment-check' onClick={() => setSheet('outcome')} />
+          <ActionBtn label={t('leads.table.header.status')} icon='tag' onClick={() => setSheet('status')} />
+          <ActionBtn label={t('leads.mobile.detail.followUp')} icon='calendar' onClick={() => setSheet('followup')} />
+          <ActionBtn label={t('leads.mobile.detail.outcome')} icon='comment-check' onClick={() => setSheet('outcome')} />
         </div>
       </div>
 

@@ -1,0 +1,1375 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — magic-link form > sent, unknown user, suspended, send failure, network failure, link error 1`] = `
+{
+  "linkError": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+      [
+        "sendToken",
+        "dana@example.com",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_5_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_5_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">לינק לאימות נשלח למייל</p></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_5_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_5_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">הקישור אינו תקין או שפג תוקפו</p></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_5_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_5_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">לינק לאימות נשלח למייל</p></form>",
+  },
+  "network": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_4_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_4_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">אירעה שגיאה ברשת, נסה שוב</p></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_4_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_4_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_4_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_4_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">אירעה שגיאה ברשת, נסה שוב</p></form>",
+  },
+  "sendFailed": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+      [
+        "sendToken",
+        "dana@example.com",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_3_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_3_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">שליחת קישור ההתחברות נכשלה. נסה שוב בעוד רגע.</p></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_3_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_3_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_3_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_3_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">שליחת קישור ההתחברות נכשלה. נסה שוב בעוד רגע.</p></form>",
+  },
+  "sent": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+      [
+        "sendToken",
+        "dana@example.com",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_0_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_0_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">לינק לאימות נשלח למייל</p></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_0_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_0_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_0_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_0_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">לינק לאימות נשלח למייל</p></form>",
+  },
+  "suspended": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_2_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_2_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">המשתמש מושהה</p></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_2_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_2_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_2_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_2_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button><p class="text-destructive text-sm">המשתמש מושהה</p></form>",
+  },
+  "unknownUser": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+      [
+        "router.push",
+        "/auth/register?email=dana%40example.com",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_1_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_1_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_1_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_1_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_1_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_1_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></form>",
+  },
+}
+`;
+
+exports[`Hebrew baseline — magic-link form > slow and timed-out sends (the submitting label, both toasts) 1`] = `
+{
+  "slow": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+      [
+        "toast",
+        "loading",
+        "הפעולה לוקחת יותר זמן מהרגיל...",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_6_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_6_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_6_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_6_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_6_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_6_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></form>",
+  },
+  "timedOut": {
+    "calls": [
+      [
+        "isUserExists",
+        "dana@example.com",
+      ],
+      [
+        "toast",
+        "loading",
+        "הפעולה לוקחת יותר זמן מהרגיל...",
+      ],
+      [
+        "toast",
+        "error",
+        "לוקח זמן רב מהרגיל, נסה שוב",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_7_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_7_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "initial": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_7_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_7_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">התחל בחינם</button></form>",
+    "pending": "<form class="grid gap-4"><div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_7_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_7_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" type="email" name="email"></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="remember-me" type="checkbox"><label for="remember-me">זכור אותי</label></div><button type="button" class="text-sm font-medium hover:underline">שלח קישור שוב</button></div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></form>",
+  },
+}
+`;
+
+exports[`Hebrew baseline — registration form > every server refusal, network failure, submitted fields 1`] = `
+{
+  "accepted": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_8_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_8_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_9_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_9_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_a_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_a_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_b_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_b_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_8_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_8_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_9_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_9_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_a_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_a_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_b_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_b_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+  "network": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_s_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_s_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_t_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_t_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_u_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_u_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_v_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_v_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><p class="text-destructive text-sm">אירעה שגיאה ברשת, נסה שוב</p><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">צור חשבון</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_s_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_s_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_t_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_t_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_u_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_u_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_v_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_v_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+  "prefilled": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "google",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_10_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_10_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_11_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_11_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value="דנה" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_12_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_12_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_13_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_13_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" value="dana@example.com" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_10_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_10_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_11_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_11_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" value="דנה" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_12_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_12_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_13_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_13_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" value="dana@example.com" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+  "refused0": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_c_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_c_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_d_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_d_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_e_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_e_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_f_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_f_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><p class="text-destructive text-sm">כתובת האימייל לא תקינה. בדקו שהיא כתובה במלואה, למשל name@gmail.com</p><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">צור חשבון</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_c_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_c_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_d_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_d_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_e_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_e_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_f_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_f_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+  "refused1": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_g_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_g_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_h_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_h_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_i_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_i_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_j_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_j_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><p class="text-destructive text-sm">חשבון פייסבוק זה כבר מחובר למערכת. התחבר באמצעות Facebook.</p><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">צור חשבון</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_g_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_g_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_h_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_h_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_i_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_i_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_j_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_j_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+  "refused2": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_k_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_k_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_l_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_l_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_m_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_m_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_n_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_n_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><p class="text-destructive text-sm">כתובת האימייל הזו כבר רשומה במערכת</p><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">צור חשבון</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_k_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_k_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_l_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_l_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_m_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_m_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_n_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_n_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+  "refused3": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_o_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_o_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_p_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_p_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_q_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_q_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_r_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_r_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><p class="text-destructive text-sm">אירעה שגיאה, נסה שוב</p><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">צור חשבון</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_o_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_o_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_p_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_p_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_q_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_q_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_r_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_r_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+}
+`;
+
+exports[`Hebrew baseline — registration form > slow and timed-out registration 1`] = `
+{
+  "slow": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+      [
+        "toast",
+        "loading",
+        "הפעולה לוקחת יותר זמן מהרגיל...",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_14_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_14_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_15_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_15_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_16_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_16_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_17_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_17_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_14_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_14_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_15_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_15_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_16_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_16_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_17_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_17_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+  "timedOut": {
+    "calls": [
+      [
+        "addAgency",
+        {
+          "agency": {
+            "name": "סטודיו נועה",
+          },
+          "device": "desktop",
+          "provider": "email",
+          "user": {
+            "email": "noa@example.com",
+            "firstName": "נועה",
+            "lastName": "לוי",
+          },
+        },
+      ],
+      [
+        "toast",
+        "loading",
+        "הפעולה לוקחת יותר זמן מהרגיל...",
+      ],
+      [
+        "toast",
+        "error",
+        "לוקח זמן רב מהרגיל, נסה שוב",
+      ],
+    ],
+    "html": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_18_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_18_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_19_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_19_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_1a_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_1a_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_1b_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_1b_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit">צור חשבון</button></div></form>",
+    "pending": "<form class="grid gap-4"><div data-prefix="agency"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_18_" class="text-gray-600 text-sm font-medium ">שם העסק</label></div><input id="_r_18_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="name"></div></div><div data-prefix="user" class="grid grid-cols-2 gap-4"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_19_" class="text-gray-600 text-sm font-medium ">שם פרטי</label></div><input id="_r_19_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="firstName"></div><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_1a_" class="text-gray-600 text-sm font-medium ">שם משפחה</label></div><input id="_r_1a_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" name="lastName"></div><div class="col-span-2"><div class="block"><div class="flex justify-between mb-1 ms-1 items-end "><label for="_r_1b_" class="text-gray-600 text-sm font-medium ">אימייל</label></div><input id="_r_1b_" class="h-10 w-full rounded-md border bg-white focus:outline-2 focus:outline-offset-0 disabled:opacity-50 border-gray-200 focus:outline-primary px-2.5" required="" autocomplete="email" type="email" name="email"></div></div></div><div class="auth-control-row flex items-center justify-between"><div class="flex items-center gap-1.5"><input id="terms" required="" aria-required="true" type="checkbox"><label for="terms">אני מסכים לתנאי השימוש</label></div><a class="text-sm font-medium hover:underline" href="/terms">תנאי השימוש</a></div><div><button data-slot="button" class="inline-flex items-center cursor-pointer justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-98 bg-primary text-primary-foreground hover:bg-primary/90 hover:before:bg-primary/80 border-[0.8px] border-background/15 before:absolute relative before:-inset-0.25 before:content-[&quot;&quot;] before:bg-primary before:-z-1 after:absolute after:inset-0 after:content-[&quot;&quot;] after:bg-secondary hover:after:translate-y-full after:transition-all after:translate-y-[105%] after:blur-sm overflow-hidden h-9 px-4 py-2 has-[>svg]:px-3 mt-2 w-full shadow-none" type="submit" disabled="">טוען...</button></div></form>",
+  },
+}
+`;
+
+exports[`Hebrew baseline — social buttons > desktop / phone markup, GIS options, a signed-in line, Facebook SDK not ready 1`] = `
+{
+  "desktop": {
+    "calls": [
+      [
+        "script",
+        "https://accounts.google.com/gsi/client",
+      ],
+      [
+        "gis.initialize",
+        [
+          "callback",
+          "client_id",
+        ],
+      ],
+      [
+        "gis.renderButton",
+        {
+          "locale": "he",
+          "shape": "rectangular",
+          "size": "large",
+          "text": "signin_with",
+          "theme": "outline",
+          "width": 250,
+        },
+      ],
+      [
+        "script",
+        "https://connect.facebook.net/he_IL/sdk.js",
+      ],
+      [
+        "FB.init",
+        {
+          "appId": "42",
+          "cookie": true,
+          "version": "v19.0",
+          "xfbml": false,
+        },
+      ],
+      [
+        "FB.init",
+        {
+          "appId": "42",
+          "cookie": true,
+          "version": "v19.0",
+          "xfbml": false,
+        },
+      ],
+    ],
+    "html": "<div class="flex w-full flex-col items-center lg:items-start"><div id="gglBtn" class="flex w-full justify-center" dir="ltr"></div><button type="button" dir="ltr" class="relative mt-3 flex h-10 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50"><svg width="20" height="20" viewBox="0 0 24 24" class="absolute left-3 top-1/2 shrink-0 -translate-y-1/2" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#1877F2"></circle><path fill="#fff" d="M13.4 21v-6.5h2.2l.4-2.6h-2.6v-1.6c0-.7.2-1.2 1.3-1.2h1.4V6.8c-.2 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6v1.6H8.5v2.6h2.1V21h2.8z"></path></svg><span>כניסה באמצעות Facebook</span></button></div>",
+    "names": [
+      "כניסה באמצעות Facebook",
+    ],
+  },
+  "notReady": {
+    "calls": [
+      [
+        "script",
+        "https://accounts.google.com/gsi/client",
+      ],
+      [
+        "gis.initialize",
+        [
+          "callback",
+          "client_id",
+        ],
+      ],
+      [
+        "gis.renderButton",
+        {
+          "locale": "he",
+          "shape": "rectangular",
+          "size": "large",
+          "text": "signin_with",
+          "theme": "outline",
+          "width": 250,
+        },
+      ],
+      [
+        "script",
+        "https://connect.facebook.net/he_IL/sdk.js",
+      ],
+      [
+        "toast",
+        "error",
+        "ההתחברות נכשלה, נסה שוב",
+      ],
+    ],
+    "html": "<div class="flex w-full flex-col items-center lg:items-start"><div id="gglBtn" class="flex w-full justify-center" dir="ltr"></div><button type="button" dir="ltr" class="relative mt-3 flex h-10 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50"><svg width="20" height="20" viewBox="0 0 24 24" class="absolute left-3 top-1/2 shrink-0 -translate-y-1/2" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#1877F2"></circle><path fill="#fff" d="M13.4 21v-6.5h2.2l.4-2.6h-2.6v-1.6c0-.7.2-1.2 1.3-1.2h1.4V6.8c-.2 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6v1.6H8.5v2.6h2.1V21h2.8z"></path></svg><span>כניסה באמצעות Facebook</span></button></div>",
+    "names": [
+      "כניסה באמצעות Facebook",
+    ],
+  },
+  "phone": {
+    "calls": [
+      [
+        "script",
+        "https://accounts.google.com/gsi/client",
+      ],
+      [
+        "gis.initialize",
+        [
+          "callback",
+          "client_id",
+        ],
+      ],
+      [
+        "gis.renderButton",
+        {
+          "locale": "he",
+          "logo_alignment": "left",
+          "shape": "rectangular",
+          "size": "large",
+          "text": "signin_with",
+          "theme": "outline",
+          "width": 250,
+        },
+      ],
+      [
+        "script",
+        "https://connect.facebook.net/he_IL/sdk.js",
+      ],
+      [
+        "FB.init",
+        {
+          "appId": "42",
+          "cookie": true,
+          "version": "v19.0",
+          "xfbml": false,
+        },
+      ],
+      [
+        "FB.init",
+        {
+          "appId": "42",
+          "cookie": true,
+          "version": "v19.0",
+          "xfbml": false,
+        },
+      ],
+    ],
+    "html": "<div class="flex w-full flex-col items-center lg:items-start"><div class="flex w-full flex-col gap-3" dir="ltr" data-testid="social-auth-buttons"><div class="relative h-11 w-full"><div aria-hidden="true" class="relative flex h-11 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50"><svg width="20" height="20" viewBox="0 0 24 24" class="absolute left-3 top-1/2 shrink-0 -translate-y-1/2" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path></svg><span>כניסה באמצעות Google</span></div><div id="gglBtn" class="absolute inset-0 flex items-center overflow-hidden opacity-0" dir="ltr"></div></div><button type="button" dir="ltr" class="relative flex h-11 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50"><svg width="20" height="20" viewBox="0 0 24 24" class="absolute left-3 top-1/2 shrink-0 -translate-y-1/2" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#1877F2"></circle><path fill="#fff" d="M13.4 21v-6.5h2.2l.4-2.6h-2.6v-1.6c0-.7.2-1.2 1.3-1.2h1.4V6.8c-.2 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6v1.6H8.5v2.6h2.1V21h2.8z"></path></svg><span>כניסה באמצעות Facebook</span></button></div></div>",
+    "names": [
+      "כניסה באמצעות Facebook",
+    ],
+  },
+  "phoneNoFacebook": {
+    "calls": [
+      [
+        "script",
+        "https://accounts.google.com/gsi/client",
+      ],
+      [
+        "gis.initialize",
+        [
+          "callback",
+          "client_id",
+        ],
+      ],
+      [
+        "gis.renderButton",
+        {
+          "locale": "he",
+          "logo_alignment": "left",
+          "shape": "rectangular",
+          "size": "large",
+          "text": "signin_with",
+          "theme": "outline",
+          "width": 250,
+        },
+      ],
+    ],
+    "html": "<div class="flex w-full flex-col items-center lg:items-start"><div class="flex w-full flex-col gap-3" dir="ltr" data-testid="social-auth-buttons"><div class="relative h-11 w-full"><div aria-hidden="true" class="relative flex h-11 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50"><svg width="20" height="20" viewBox="0 0 24 24" class="absolute left-3 top-1/2 shrink-0 -translate-y-1/2" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"></path><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"></path><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"></path><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"></path></svg><span>כניסה באמצעות Google</span></div><div id="gglBtn" class="absolute inset-0 flex items-center overflow-hidden opacity-0" dir="ltr"></div></div></div></div>",
+    "names": [],
+  },
+  "signedIn": {
+    "calls": [
+      [
+        "script",
+        "https://accounts.google.com/gsi/client",
+      ],
+      [
+        "gis.initialize",
+        [
+          "callback",
+          "client_id",
+        ],
+      ],
+      [
+        "gis.renderButton",
+        {
+          "locale": "he",
+          "shape": "rectangular",
+          "size": "large",
+          "text": "signin_with",
+          "theme": "outline",
+          "width": 250,
+        },
+      ],
+      [
+        "script",
+        "https://connect.facebook.net/he_IL/sdk.js",
+      ],
+      [
+        "FB.init",
+        {
+          "appId": "42",
+          "cookie": true,
+          "version": "v19.0",
+          "xfbml": false,
+        },
+      ],
+      [
+        "FB.init",
+        {
+          "appId": "42",
+          "cookie": true,
+          "version": "v19.0",
+          "xfbml": false,
+        },
+      ],
+    ],
+    "html": "<div class="flex w-full flex-col items-center lg:items-start"><p class="text-sm text-gray-600 mb-1">כניסה בשם דנה כהן</p><div id="gglBtn" class="flex w-full justify-center" dir="ltr"></div><button type="button" dir="ltr" class="relative mt-3 flex h-10 w-full items-center justify-center rounded border border-input bg-white px-12 text-[14px] font-medium leading-none text-[#1f1f1f] hover:bg-gray-50"><svg width="20" height="20" viewBox="0 0 24 24" class="absolute left-3 top-1/2 shrink-0 -translate-y-1/2" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#1877F2"></circle><path fill="#fff" d="M13.4 21v-6.5h2.2l.4-2.6h-2.6v-1.6c0-.7.2-1.2 1.3-1.2h1.4V6.8c-.2 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6v1.6H8.5v2.6h2.1V21h2.8z"></path></svg><span>כניסה באמצעות Facebook</span></button></div>",
+    "names": [
+      "כניסה באמצעות Facebook",
+    ],
+  },
+}
+`;
+
+exports[`Hebrew baseline — social buttons > every Facebook outcome: success, register, each server sentence, a throw 1`] = `
+{
+  "msg0": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "פייסבוק לא החזיר אימייל. אפשר להתחבר עם גוגל או עם מייל.",
+    ],
+  ],
+  "msg1": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "חשבון פייסבוק זה כבר מחובר למערכת. התחבר באמצעות Facebook.",
+    ],
+  ],
+  "msg2": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "התחברות עם Facebook אינה זמינה לחשבון זה",
+    ],
+  ],
+  "msg3": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "ההתחברות נכשלה, נסה שוב",
+    ],
+  ],
+  "msg4": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "המשתמש מושהה",
+    ],
+  ],
+  "noMsg": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "ההתחברות נכשלה, נסה שוב",
+    ],
+  ],
+  "register": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "router.push",
+      "/auth/register?email=dana%40example.com&name=%D7%93%D7%A0%D7%94",
+    ],
+  ],
+  "success": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "router.push",
+      "/dashboard",
+    ],
+  ],
+  "throws": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.login",
+      {
+        "scope": "public_profile,email",
+      },
+    ],
+    [
+      "checkFacebookUser",
+      {
+        "accessToken": "tok",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "ההתחברות נכשלה, נסה שוב",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — social buttons > every Google outcome: success, register, suspended, a throw, slow and timed out 1`] = `
+{
+  "register": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "checkUser",
+      {
+        "credential": "cred",
+      },
+    ],
+    [
+      "router.push",
+      "/auth/register?email=dana%40example.com&name=%D7%93%D7%A0%D7%94",
+    ],
+  ],
+  "success": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "checkUser",
+      {
+        "credential": "cred",
+      },
+    ],
+    [
+      "router.push",
+      "/dashboard",
+    ],
+  ],
+  "suspended": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "checkUser",
+      {
+        "credential": "cred",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "המשתמש מושהה",
+    ],
+  ],
+  "throws": [
+    [
+      "script",
+      "https://accounts.google.com/gsi/client",
+    ],
+    [
+      "gis.initialize",
+      [
+        "callback",
+        "client_id",
+      ],
+    ],
+    [
+      "gis.renderButton",
+      {
+        "locale": "he",
+        "shape": "rectangular",
+        "size": "large",
+        "text": "signin_with",
+        "theme": "outline",
+        "width": 250,
+      },
+    ],
+    [
+      "script",
+      "https://connect.facebook.net/he_IL/sdk.js",
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "FB.init",
+      {
+        "appId": "42",
+        "cookie": true,
+        "version": "v19.0",
+        "xfbml": false,
+      },
+    ],
+    [
+      "checkUser",
+      {
+        "credential": "cred",
+      },
+    ],
+    [
+      "toast",
+      "error",
+      "ההתחברות נכשלה, נסה שוב",
+    ],
+  ],
+}
+`;

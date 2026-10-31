@@ -1,5 +1,8 @@
 import type { BuilderQuestionnaire } from '@/lib/inbox/autoresponse/questionnaire/builder/model'
-import { liveStatusText, type LiveRouting } from './builderCopy'
+import { type LiveRouting } from './builderCopy'
+import { liveStatusTextIn } from './copyIn'
+import { regionAttrs, type UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import QuestionnaireSimulator from './QuestionnaireSimulator'
 
 /**
@@ -18,24 +21,28 @@ export default function QuestionnaireMobile({
   published,
   hasDraft,
   routing,
+  locale = 'he',
 }: {
   liveRevision: number | null
   published: BuilderQuestionnaire | null
   hasDraft: boolean
   routing: LiveRouting
+  /** The interface language, resolved once by the page (Hebrew by default). */
+  locale?: UiLocale
 }) {
+  const t = translatorFor(locale)
   return (
-    <div className='flex flex-col gap-4 px-4 pb-8 pt-3'>
-      <h1 className='text-lg font-semibold text-ink'>שאלון וואטסאפ</h1>
+    <div className='flex flex-col gap-4 px-4 pb-8 pt-3' {...regionAttrs(locale)}>
+      <h1 className='text-lg font-semibold text-ink'>{t('admin.questionnaire.title')}</h1>
       <div className='grid gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-3'>
-        <p className='text-sm text-gray-800'>{liveStatusText(liveRevision, routing)}</p>
-        {hasDraft && <p className='text-sm text-gray-600'>יש טיוטה פתוחה שעוד לא פורסמה.</p>}
-        <p className='text-sm text-gray-600'>עריכת השאלון ופרסום גרסה חדשה זמינים במחשב.</p>
+        <p className='text-sm text-gray-800'>{liveStatusTextIn(liveRevision, routing, t)}</p>
+        {hasDraft && <p className='text-sm text-gray-600'>{t('admin.mobile.questionnaire.draft')}</p>}
+        <p className='text-sm text-gray-600'>{t('admin.mobile.questionnaire.desktop')}</p>
       </div>
       {published && liveRevision !== null ? (
-        <QuestionnaireSimulator model={published} target={{ revision: liveRevision }} />
+        <QuestionnaireSimulator model={published} target={{ revision: liveRevision }} translated={locale !== 'he'} />
       ) : (
-        <p className='text-sm text-gray-600'>אחרי שיפורסם שאלון, אפשר יהיה לבדוק אותו כאן.</p>
+        <p className='text-sm text-gray-600'>{t('admin.mobile.questionnaire.afterPublish')}</p>
       )}
     </div>
   )

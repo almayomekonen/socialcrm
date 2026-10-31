@@ -27,5 +27,8 @@ export const base: Pick<Messages['leads'], 'add' | 'outcome' | 'contact'> = {
     whatsappName: 'WhatsApp {name}',
     opening: 'Opening…',
     noValidPhone: "This lead doesn't have a valid WhatsApp phone number",
+    noConnection: 'Connect WhatsApp in Settings before opening a conversation',
+    noRecipient: "This lead doesn't have a valid phone number for a WhatsApp conversation",
+    unavailable: "Can't open a WhatsApp conversation with this lead right now",
   },
 }

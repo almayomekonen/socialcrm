@@ -11,6 +11,9 @@ import NotificationCenter from '@/components/notifications/NotificationCenter'
 import NotificationFilters from '@/components/notifications/NotificationFilters'
 import NotificationFiltersMobile from '@/components/notifications/mobile/NotificationFiltersMobile'
 import { isMobileWorkspaceRequest } from '@/lib/device'
+import { regionAttrs } from '@/lib/i18n/config'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The full notification center — P2.4, spec §13 and the P2 rollout list.
@@ -39,7 +42,10 @@ import { isMobileWorkspaceRequest } from '@/lib/device'
  * export appears anywhere in this repo.
  */
 
-export const metadata: Metadata = { title: 'התראות' }
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('shell.notifications.label') }
+}
 
 type SearchParams = { unread?: string | string[]; category?: string | string[] }
 
@@ -115,11 +121,17 @@ export default async function NotificationsPage({ searchParams }: { searchParams
    * user just tapped.
    */
   const mobile = await isMobileWorkspaceRequest(user.agencyId)
+  /**
+   * The interface language (the layout's memoised read). The page sits inside
+   * `<main>`, which declares Hebrew for untranslated content, so its root
+   * declares the language again (nothing for Hebrew).
+   */
+  const { locale } = await getUiLocaleState(user)
 
   if (mobile) {
     return (
-      <div className='flex flex-col gap-3 p-3'>
-        <NotificationFiltersMobile filters={filters} />
+      <div className='flex flex-col gap-3 p-3' {...regionAttrs(locale)}>
+        <NotificationFiltersMobile filters={filters} locale={locale} />
         <div className='overflow-hidden rounded-md border border-gray-200 bg-white'>
           <NotificationCenter
             key={centerHref(filters)}
@@ -134,12 +146,12 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   }
 
   return (
-    <div className='grid gap-3 p-3 sm:p-4'>
+    <div className='grid gap-3 p-3 sm:p-4' {...regionAttrs(locale)}>
       <header className='flex flex-wrap items-center justify-between gap-2'>
-        <h1 className='title'>התראות</h1>
+        <h1 className='title'>{translatorFor(locale)('shell.notifications.label')}</h1>
       </header>
 
-      <NotificationFilters filters={filters} />
+      <NotificationFilters filters={filters} locale={locale} />
 
       {/*
         Keyed on the filter so a filter change remounts the list with the

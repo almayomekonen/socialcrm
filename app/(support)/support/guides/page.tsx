@@ -1,13 +1,19 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
-import { searchArticles } from '@/lib/support/knowledgeBase'
-import { CATEGORY_COPY } from '@/lib/support/copy'
+import { categoryLabel, searchArticlesIn } from '@/lib/support/localizedCopy'
 import SupportSearch from '@/components/support/SupportSearch'
 import GuideCategoryGrid from '@/components/support/GuideCategoryGrid'
 import { Btn } from '@/lib/btns/Btn'
+import { getUser } from '@/db/auth'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'מדריכים' }
+/** Tab title in the interface language (Hebrew outside the rollout). */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('support.center.guides') }
+}
 
 /**
  * The knowledge base: a scanning surface, not a documentation portal.
@@ -21,16 +27,18 @@ export default async function GuidesPage({
 }: {
   searchParams: Promise<{ q?: string }>
 }) {
-  await requireAgencyUser()
+  const user = await requireAgencyUser()
   const { q } = await searchParams
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
   const query = (q ?? '').trim()
-  const results = query ? searchArticles(query) : []
+  const results = query ? searchArticlesIn(query, locale) : []
 
   return (
     <>
       <header className='mb-6'>
-        <h1 className='text-2xl font-bold text-ink'>מדריכים</h1>
-        <p className='mt-1.5 text-sm text-gray-500'>הסברים קצרים לפי נושא.</p>
+        <h1 className='text-2xl font-bold text-ink'>{t('support.center.guides')}</h1>
+        <p className='mt-1.5 text-sm text-gray-500'>{t('support.guides.intro')}</p>
       </header>
 
       <SupportSearch className='mb-8' initialQuery={query} />
@@ -42,32 +50,32 @@ export default async function GuidesPage({
               <li key={a.slug}>
                 <Link href={`/support/guides/${a.slug}`} className='block px-4 py-3 hover:bg-gray-50'>
                   <span className='block text-sm font-medium text-ink'>{a.title}</span>
-                  <span className='block text-xs text-gray-500'>{CATEGORY_COPY[a.category]}</span>
+                  <span className='block text-xs text-gray-500'>{categoryLabel(a.category, locale)}</span>
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
           <div className='rounded-2xl border border-gray-200 p-8 text-center'>
-            <p className='font-medium text-ink'>לא נמצאו מדריכים</p>
+            <p className='font-medium text-ink'>{t('support.guides.emptyTitle')}</p>
             <p className='mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-gray-500'>
-              אפשר לספר לנו מה קרה ואנחנו נעזור.
+              {t('support.guides.emptyBody')}
             </p>
             <Btn
               href={'/support/new?kind=problem' as any}
-              lbl='יש לי תקלה'
+              lbl={t('support.kind.problem.tileTitle')}
               className='mx-auto mt-5'
             />
           </div>
         )
       ) : (
         <>
-          <GuideCategoryGrid />
+          <GuideCategoryGrid locale={locale} />
           <div className='mt-10 border-t border-gray-100 pt-5'>
-            <p className='text-sm text-gray-500'>לא מצאתם מה שחיפשתם?</p>
+            <p className='text-sm text-gray-500'>{t('support.guides.notFound')}</p>
             <Btn
               href={'/support/new?kind=problem' as any}
-              lbl='יש לי תקלה'
+              lbl={t('support.kind.problem.tileTitle')}
               className='mt-3 w-full desktop:w-auto'
             />
           </div>

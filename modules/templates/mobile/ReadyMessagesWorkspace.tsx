@@ -1,18 +1,11 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
-import { toast } from '@/lib/toast'
 import { formatDate } from '@/lib/dates'
-import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
-import { applyTemplateUpdates } from '@/modules/templates/client/applyTemplateUpdates'
-import { createTemplate } from '@/actions/whatsapp/templates/createTemplate'
-import { retryTemplate } from '@/actions/whatsapp/templates/retryTemplate'
-import { archiveTemplate } from '@/actions/whatsapp/templates/archiveTemplate'
-import { discardTemplate } from '@/actions/whatsapp/templates/discardTemplate'
-import type { Template, TemplateInput, TemplateStatus } from '@/lib/whatsapp/templates/types'
+import type { Template, TemplateStatus } from '@/lib/whatsapp/templates/types'
 import { hasPositionalPlaceholder } from '@/lib/whatsapp/templates/parameters'
 import MobileListRow, { MobileList } from '@/components/mobile/MobileListRow'
 import ConfirmSheet from '@/components/mobile/ConfirmSheet'
@@ -21,6 +14,10 @@ import ReadyMessageEditorMobile from './ReadyMessageEditorMobile'
 import ReadyMessageDetailSheet from './ReadyMessageDetailSheet'
 import ReadyMessagesEmptyMobile from './ReadyMessagesEmptyMobile'
 import { readyMessageTitle } from './readyMessageTitle'
+import { useReadyMessages } from './useReadyMessages'
+import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 const SORT_ORDER: Record<TemplateStatus, number> = {
   rejected: 0,
@@ -30,13 +27,11 @@ const SORT_ORDER: Record<TemplateStatus, number> = {
   disabled: 4,
 }
 
-const PURPOSE_LABEL: Record<string, string> = {
-  UTILITY: 'עדכון',
-  MARKETING: 'מבצע',
+/** The row's purpose word, by stored category CODE. */
+const PURPOSE_LABEL: Record<string, MessageKey> = {
+  UTILITY: 'settings.mobile.ready.purposeShort.UTILITY',
+  MARKETING: 'settings.mobile.ready.purposeShort.MARKETING',
 }
-
-const EDIT_NOTE =
-  'יצירת גרסה חדשה לבדיקה. ההודעה הנוכחית תישאר פעילה עד שהגרסה החדשה תאושר — אפשר להעביר אותה לארכיון לאחר מכן.'
 
 /**
  * Phone Ready Messages workspace.
@@ -45,32 +40,13 @@ const EDIT_NOTE =
  * There is no in-place update — "עריכת הודעה" creates a new template, same as desktop.
  */
 export default function ReadyMessagesWorkspace({ initial }: { initial: Template[] }) {
-  const [templates, setTemplates] = useState(initial)
+  const tr = useT()
+  const region = useRegionAttrs()
   const [createOpen, setCreateOpen] = useState(false)
   const [retryTarget, setRetryTarget] = useState<Template | null>(null)
   const [editTarget, setEditTarget] = useState<Template | null>(null)
   const [detail, setDetail] = useState<Template | null>(null)
   const [confirm, setConfirm] = useState<null | { kind: 'archive' | 'discard'; template: Template }>(null)
-
-  const templatesRef = useRef(templates)
-  templatesRef.current = templates
-  const hasPending = templates.some((t) => t.status === 'pending')
-
-  const poll = useCallback(async () => {
-    try {
-      const res = await fetch('/api/whatsapp/templates', { cache: 'no-store' })
-      if (!res.ok) return { changed: false, failed: true }
-      const data = (await res.json()) as { templates: Template[] }
-      const before = templatesRef.current
-      const merged = applyTemplateUpdates(before, data.templates)
-      setTemplates((prev) => applyTemplateUpdates(prev, data.templates))
-      return { changed: merged !== before, failed: false }
-    } catch {
-      return { changed: false, failed: true }
-    }
-  }, [])
-
-  useAdaptivePoll(poll, { enabled: hasPending })
 
   const closeEditor = () => {
     setCreateOpen(false)
@@ -78,76 +54,33 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
     setEditTarget(null)
   }
 
-  const handleCreate = (input: TemplateInput) => {
-    const tempId = -Date.now()
-    const optimistic: Template = {
-      id: tempId,
-      displayTitle: input.displayTitle.trim(),
-      status: 'pending',
-      bodyText: input.bodyText.trim(),
-      variables: input.variables,
-      failureText: null,
-      archived: false,
-      createdAt: new Date().toISOString(),
-    }
-    const retryOf = retryTarget?.id ?? null
-    setTemplates((prev) => [optimistic, ...prev])
-    closeEditor()
-    setDetail(null)
-
-    const run = retryOf != null ? retryTemplate(retryOf, input) : createTemplate(input)
-    run.then((res) => {
-      if (res.ok) {
-        setTemplates((prev) =>
-          prev.filter((t) => t.id !== retryOf).map((t) => (t.id === tempId ? res.template : t)),
-        )
-        toast('success', 'ההודעה נוצרה ונשלחה לאישור וואטסאפ')
-      } else if ('error' in res) {
-        setTemplates((prev) => prev.filter((t) => t.id !== tempId))
-        toast('error', res.error)
-      }
-    })
-  }
-
-  const runArchive = async (id: number) => {
-    const res = await archiveTemplate(id)
-    if (res.ok) {
-      setTemplates((prev) => prev.filter((t) => t.id !== id))
-      setDetail((d) => (d?.id === id ? null : d))
-      toast('success', 'ההודעה הועברה לארכיון')
-    } else if ('error' in res) {
-      toast('error', res.error)
-    }
-  }
-
-  const runDiscard = async (id: number) => {
-    const res = await discardTemplate(id)
-    if (res.ok) {
-      setTemplates((prev) => prev.filter((t) => t.id !== id))
-      setDetail((d) => (d?.id === id ? null : d))
-      toast('success', 'ההודעה הוסרה')
-    } else if ('error' in res) {
-      toast('error', res.error)
-    }
-  }
+  const { templates, handleCreate, runArchive, runDiscard } = useReadyMessages({
+    initial,
+    retryOf: retryTarget?.id ?? null,
+    onCreating: () => {
+      closeEditor()
+      setDetail(null)
+    },
+    onRemoved: (id) => setDetail((d) => (d?.id === id ? null : d)),
+  })
 
   const sorted = [...templates].sort((a, b) => (SORT_ORDER[a.status] ?? 9) - (SORT_ORDER[b.status] ?? 9))
   const liveDetail = detail ? templates.find((t) => t.id === detail.id) ?? null : null
 
   return (
-    <div data-testid='ready-messages-mobile' className='px-4 pb-8 pt-4'>
+    <div data-testid='ready-messages-mobile' className='px-4 pb-8 pt-4' {...region}>
       <Link
         href={'/settings/integrations' as Route}
         className='press mb-3 flex min-h-11 w-fit items-center gap-1 text-sm font-medium text-primary-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
       >
-        <Icon name='angle-right' type='sol' className='size-3.5 bg-primary-text' />
-        חזרה לאינטגרציות
+        <Icon name='angle-right' type='sol' className='size-3.5 bg-primary-text' flip={dirFor(tr.locale) === 'ltr'} />
+        {tr('settings.mobile.landing.back')}
       </Link>
 
       <header className='mb-4'>
-        <h1 className='text-xl font-bold leading-tight text-ink'>הודעות מוכנות</h1>
+        <h1 className='text-xl font-bold leading-tight text-ink'>{tr('settings.mobile.landing.readyMessages')}</h1>
         <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>
-          הודעות וואטסאפ מאושרות שאפשר לשלוח לליד בכל רגע.
+          {tr('settings.mobile.ready.intro')}
         </p>
       </header>
 
@@ -161,7 +94,7 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
             className='press mb-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
             <Icon name='plus' type='sol' className='size-4 bg-white' />
-            הודעה מוכנה חדשה
+            {tr('settings.templates.newMessage')}
           </button>
 
           <div className='overflow-hidden rounded-xl border border-gray-200 bg-white'>
@@ -171,14 +104,14 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
                   key={t.id}
                   onClick={() => setDetail(t)}
                   className='press'
-                  title={readyMessageTitle(t.displayTitle)}
+                  title={readyMessageTitle(t.displayTitle, tr.locale)}
                   subtitle={t.bodyText || '—'}
                   meta={t.createdAt ? formatDate(t.createdAt) : undefined}
                   badges={
                     <>
                       <TemplateStatusBadge status={t.status} />
                       {t.category && (
-                        <span className='text-[11px] text-gray-500'>{PURPOSE_LABEL[t.category] ?? t.category}</span>
+                        <span className='text-[11px] text-gray-500'>{PURPOSE_LABEL[t.category] ? tr(PURPOSE_LABEL[t.category]) : t.category}</span>
                       )}
                     </>
                   }
@@ -234,9 +167,9 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
         open={createOpen}
         onClose={closeEditor}
         onCreate={handleCreate}
-        heading={editTarget ? 'עריכת הודעה' : 'הודעה מוכנה חדשה'}
-        submitLabel='שלח לבדיקה'
-        note={editTarget ? EDIT_NOTE : undefined}
+        heading={editTarget ? tr('settings.templates.editMessage') : tr('settings.templates.newMessage')}
+        submitLabel={tr('settings.templates.submit')}
+        note={editTarget ? tr('settings.templates.editNote') : undefined}
         initial={
           editTarget
             ? { displayTitle: editTarget.displayTitle, bodyText: editTarget.bodyText, purpose: editTarget.category }
@@ -249,13 +182,14 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
       <ConfirmSheet
         open={confirm?.kind === 'discard'}
         destructive
-        title='מחיקת הודעה'
+        title={tr('settings.mobile.ready.discardTitle')}
         msg={
           confirm
-            ? `למחוק את "${readyMessageTitle(confirm.template.displayTitle)}"?\nההודעה תוסר ולא תהיה זמינה לשליחה.`
+            ? tr('settings.mobile.ready.discardMsg', { title: readyMessageTitle(confirm.template.displayTitle, tr.locale) })
             : ''
         }
-        confirmLbl='מחק'
+        confirmLbl={tr('settings.mobile.ready.discardConfirm')}
+        translated
         onClose={() => setConfirm(null)}
         onConfirm={async () => {
           const id = confirm?.template.id
@@ -266,13 +200,14 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
       <ConfirmSheet
         open={confirm?.kind === 'archive'}
         destructive
-        title='העברה לארכיון'
+        title={tr('settings.mobile.ready.archiveTitle')}
         msg={
           confirm
-            ? `להעביר את "${readyMessageTitle(confirm.template.displayTitle)}" לארכיון?\nההודעה לא תופיע ברשימה ולא תהיה זמינה לשליחה.`
+            ? tr('settings.mobile.ready.archiveMsg', { title: readyMessageTitle(confirm.template.displayTitle, tr.locale) })
             : ''
         }
-        confirmLbl='העבר לארכיון'
+        confirmLbl={tr('settings.mobile.ready.archive')}
+        translated
         onClose={() => setConfirm(null)}
         onConfirm={async () => {
           const id = confirm?.template.id

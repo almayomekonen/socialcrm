@@ -10,17 +10,25 @@ import { checkConsentEligibility, type ConsentIneligibleReason } from '@/lib/oau
 import { CONSENT_EXPIRED, isPendingRequestUsed } from '@/lib/oauth/server/consentDecision'
 import ConsentCard from '@/components/oauth/ConsentCard'
 import ConsentMessage from '@/components/oauth/ConsentMessage'
+import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { getPreLoginLocale } from '@/lib/i18n/preLoginServer'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
-export const metadata: Metadata = { title: 'חיבור אפליקציה ל-SocialCRM' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: translatorFor(await getPreLoginLocale())('auth.oauth.title') }
+}
 
-// `client` is the validated clientName from the signed pending request.
-const UNAVAILABLE = (client: string) => `לא ניתן לחבר את ${client} לחשבון הזה כרגע.`
-const NEEDS_ACCESS = (client: string) => `כדי לחבר את ${client} צריך מנוי פעיל או תקופת ניסיון פעילה.`
-const INELIGIBLE: Record<ConsentIneligibleReason, { message: (client: string) => string; billing: boolean }> = {
+// The wording of each ineligible reason (`{client}` = the validated clientName
+// from the signed pending request); which reason applies and whether billing is
+// offered are unchanged. Hebrew: auth.oauth.message.* = the former sentences.
+const UNAVAILABLE: MessageKey = 'auth.oauth.message.unavailable'
+const NEEDS_ACCESS: MessageKey = 'auth.oauth.message.needsAccess'
+const INELIGIBLE: Record<ConsentIneligibleReason, { message: MessageKey; billing: boolean }> = {
   no_user: { message: UNAVAILABLE, billing: false },
   no_agency: { message: UNAVAILABLE, billing: false },
   suspended: { message: UNAVAILABLE, billing: false },
-  not_allowlisted: { message: (client) => `החיבור ל-${client} עדיין לא זמין בחשבון שלך.`, billing: false },
+  not_allowlisted: { message: 'auth.oauth.message.notAllowlisted', billing: false },
   trial_not_started: { message: NEEDS_ACCESS, billing: true },
   subscription_required: { message: NEEDS_ACCESS, billing: true },
 }
@@ -39,16 +47,27 @@ export default async function ConsentPage() {
   if (!user) redirect('/auth')
 
   const pending = await verifyPendingRequest((await cookies()).get(PENDING_COOKIE)?.value)
-  if (!pending || (await isPendingRequestUsed(pending.jti))) return <ConsentMessage message={CONSENT_EXPIRED} />
+  // Display only (Phase F4): the `ui_locale` hint. Hebrew shows CONSENT_EXPIRED itself.
+  const locale = await getPreLoginLocale()
+  const t = translatorFor(locale)
+  if (!pending || (await isPendingRequestUsed(pending.jti)))
+    return <ConsentMessage message={locale === 'he' ? CONSENT_EXPIRED : t('auth.oauth.message.expired')} locale={locale} />
 
   const eligible = await checkConsentEligibility(Number(user.id))
   if ('reason' in eligible) {
     const { message, billing } = INELIGIBLE[eligible.reason]
-    return <ConsentMessage message={message(pending.clientName)} showBilling={billing} clientName={pending.clientName} />
+    return (
+      <ConsentMessage
+        message={t(message, { client: pending.clientName })}
+        showBilling={billing}
+        clientName={pending.clientName}
+        locale={locale}
+      />
+    )
   }
 
   const agency = await db('agencies').where({ id: eligible.user.agencyId }).first('name')
-  return (
+  const card = (
     <ConsentCard
       clientName={pending.clientName}
       redirectHost={new URL(pending.redirectUri).host}
@@ -56,6 +75,14 @@ export default async function ConsentPage() {
       agencyName={typeof agency?.name === 'string' ? agency.name : ''}
       scopes={pending.scopes}
       csrf={pending.csrf}
+      {...(locale === 'he' ? {} : { locale })}
     />
+  )
+  // Hebrew returns the card itself with the same props as before (useT() and the card default to Hebrew).
+  if (locale === 'he') return card
+  return (
+    <I18nProvider locale={locale} persistLocale={false}>
+      {card}
+    </I18nProvider>
   )
 }

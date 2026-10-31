@@ -4,7 +4,8 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
 import BottomSheet from '@/components/mobile/BottomSheet'
-import { STATUS_STYLES } from '@/lib/leads/statusStyles'
+import { STATUS_STYLES, leadStatusLabel } from '@/lib/leads/statusStyles'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { LEAD_STATUSES, leadsHref, type LeadFilters } from '@/modules/leads/filters'
 
 /**
@@ -27,6 +28,9 @@ import { LEAD_STATUSES, leadsHref, type LeadFilters } from '@/modules/leads/filt
  */
 export default function LeadFilterBar({ filters, resultCount }: { filters: LeadFilters; resultCount: number }) {
   const router = useRouter()
+  const t = useT()
+  /** A status code's label in the interface language (Hebrew: the `STATUS_STYLES` label, as before). */
+  const statusText = (s: string) => (t.locale === 'he' ? STATUS_STYLES[s]?.label ?? s : leadStatusLabel(s, t.locale) ?? s)
   const [pending, startTransition] = useTransition()
   const [text, setText] = useState(filters.q)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -65,7 +69,7 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
       <div data-testid='lead-search-filter-row' className='flex items-center gap-2'>
         <form onSubmit={submitSearch} role='search' className='relative min-w-0 flex-1'>
           <label htmlFor='lead-search' className='sr-only'>
-            חיפוש לידים
+            {t('leads.mobile.filter.searchLabel')}
           </label>
           <input
             id='lead-search'
@@ -74,7 +78,7 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
             enterKeyHint='search'
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder='חיפוש לפי שם או טלפון'
+            placeholder={t('leads.mobile.filter.searchPlaceholder')}
             className='h-11 w-full rounded-lg border border-gray-200 bg-gray-50 ps-9 pe-3 text-base outline-none focus:border-primary focus:bg-white'
           />
           <Icon
@@ -88,7 +92,7 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
           type='button'
           onClick={() => setSheetOpen(true)}
           aria-haspopup='dialog'
-          aria-label={activeCount ? `סינון לפי סטטוס, ${activeCount} נבחרו` : 'סינון לפי סטטוס'}
+          aria-label={activeCount ? t('leads.mobile.filter.byStatusCount', { count: String(activeCount) }) : t('leads.mobile.filter.byStatus')}
           className={`relative flex size-11 shrink-0 items-center justify-center rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             activeCount ? 'border-primary bg-primary-tint' : 'border-gray-200 bg-white'
           }`}
@@ -111,15 +115,15 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
           className='mt-0.5 flex min-w-0 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
         >
           {filters.q && (
-            <ActiveFilter label={`"${filters.q}"`} onClear={() => go({ ...filters, q: '' })} clearLabel='נקה חיפוש' />
+            <ActiveFilter label={`"${filters.q}"`} onClear={() => go({ ...filters, q: '' })} clearLabel={t('leads.toolbar.clearSearch')} />
           )}
           {filters.status.map((s) => (
             <ActiveFilter
               key={s}
-              label={STATUS_STYLES[s]?.label ?? s}
+              label={statusText(s)}
               dot={STATUS_STYLES[s]?.dot}
               onClear={() => toggleStatus(s)}
-              clearLabel={`הסר ${STATUS_STYLES[s]?.label ?? s}`}
+              clearLabel={t('leads.mobile.filter.removeStatus', { status: statusText(s) })}
             />
           ))}
           <button
@@ -127,16 +131,16 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
             onClick={() => go({ q: '', status: [] })}
             className='flex h-11 shrink-0 items-center px-2 text-[12px] font-medium text-primary-text underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            נקה הכל
+            {t('leads.mobile.filter.clearAll')}
           </button>
         </div>
       )}
 
       <p aria-live='polite' className='mt-1 text-[11px] tabular-nums leading-none text-gray-400'>
-        {pending ? 'מעדכן…' : `${resultCount} לידים`}
+        {pending ? t('inbox.ownership.updating') : t('leads.mobile.list.count', { count: String(resultCount) })}
       </p>
 
-      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title='סינון לפי סטטוס'>
+      <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={t('leads.mobile.filter.byStatus')} translated>
         <div className='flex flex-col gap-2'>
           {LEAD_STATUSES.map((s) => {
             const on = filters.status.includes(s)
@@ -152,7 +156,7 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
                 }`}
               >
                 <span className={`size-2.5 rounded-full ${style?.dot ?? 'bg-gray-400'}`} />
-                <span className='flex-1 text-[15px] font-medium text-ink'>{style?.label ?? s}</span>
+                <span className='flex-1 text-[15px] font-medium text-ink'>{statusText(s)}</span>
                 {on && <Icon name='check' type='sol' className='size-4 bg-primary' />}
               </button>
             )
@@ -162,7 +166,7 @@ export default function LeadFilterBar({ filters, resultCount }: { filters: LeadF
             onClick={() => go({ ...filters, status: [] })}
             className='mt-1 min-h-11 rounded-lg px-4 text-[14px] font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            כל הסטטוסים
+            {t('leads.mobile.filter.allStatuses')}
           </button>
         </div>
       </BottomSheet>

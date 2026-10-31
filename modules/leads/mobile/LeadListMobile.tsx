@@ -1,7 +1,8 @@
 import { startOfBusinessDayMs } from '@/lib/today/time'
 import type { MobileLeadRow } from '@/modules/leads/queries'
 import { type LeadFilters } from '@/modules/leads/filters'
-import { relativeTimeHe } from '@/modules/inbox/mobile/relativeTime'
+import { relativeTime } from '@/modules/inbox/mobile/relativeTime'
+import type { UiLocale } from '@/lib/i18n/config'
 import { followUpBadge } from './followUpBadge'
 import LeadsFirstRunMobile from './LeadsFirstRunMobile'
 import FirstImportCallout from '@/components/clients/FirstImportCallout'
@@ -26,6 +27,7 @@ export default function LeadListMobile({
   firstImport = 0,
   firstLeadId,
   firstImportSkipped = 0,
+  locale = 'he',
 }: {
   rows: MobileLeadRow[]
   filters: LeadFilters
@@ -49,6 +51,8 @@ export default function LeadListMobile({
   firstImport?: number
   firstLeadId?: number
   firstImportSkipped?: number
+  /** The interface language, resolved once by the page (Hebrew by default). */
+  locale?: UiLocale
 }) {
   if (workspaceEmpty) {
     return <LeadsFirstRunMobile metaConnected={metaConnected} whatsappConnected={whatsappConnected ?? false} />
@@ -57,8 +61,8 @@ export default function LeadListMobile({
   const dayStart = startOfBusinessDayMs(nowMs)
   const cards = rows.map((lead) => ({
     ...lead,
-    followUp: followUpBadge(lead.nextFollowUpAt, nowMs, dayStart),
-    recency: relativeTimeHe(lead.lastActivityAt ?? lead.createdAt, nowMs),
+    followUp: followUpBadge(lead.nextFollowUpAt, nowMs, dayStart, locale),
+    recency: relativeTime(lead.lastActivityAt ?? lead.createdAt, nowMs, locale),
   }))
 
   return (

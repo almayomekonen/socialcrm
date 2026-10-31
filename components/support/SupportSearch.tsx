@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * A search field that ACTUALLY SEARCHES on day one.
@@ -28,6 +29,7 @@ export default function SupportSearch({
   initialQuery?: string
 }) {
   const router = useRouter()
+  const t = useT()
   const [q, setQ] = useState(initialQuery)
   const [pending, startTransition] = useTransition()
 
@@ -42,7 +44,7 @@ export default function SupportSearch({
   return (
     <form onSubmit={submit} className={className} role='search'>
       <label htmlFor='support-search' className='block text-sm font-medium text-gray-500'>
-        מחפש הסבר?
+        {t('support.search.label')}
       </label>
       <div className='mt-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 focus-within:border-primary'>
         <Icon name='magnifying-glass' type='reg' className='size-4 shrink-0 bg-gray-400' />
@@ -51,10 +53,10 @@ export default function SupportSearch({
           type='search'
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder='חיפוש במדריכים…'
+          placeholder={t('support.search.placeholder')}
           className='h-11 min-w-0 flex-1 bg-transparent text-sm outline-none'
         />
-        {pending && <span className='shrink-0 text-xs text-gray-400'>מחפש…</span>}
+        {pending && <span className='shrink-0 text-xs text-gray-400'>{t('support.search.searching')}</span>}
       </div>
     </form>
   )

@@ -7,8 +7,12 @@ import { addAgency } from '@/actions/agencies'
 import { useEffect, useRef, useState } from 'react'
 import { unstable_rethrow } from 'next/navigation'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { untranslatedAttrs } from '@/lib/i18n/config'
+import { authMessageText } from '@/components/auth/authMessageText'
 
 export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEmail?: string; defaultName?: string }) {
+  const t = useT()
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const reqIdRef = useRef(0)
@@ -34,11 +38,11 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
     const myId = ++reqIdRef.current
 
     timersRef.current.slow = setTimeout(() => {
-      if (reqIdRef.current === myId) toast('loading', 'הפעולה לוקחת יותר זמן מהרגיל...')
+      if (reqIdRef.current === myId) toast('loading', t('auth.wait.slow'))
     }, 10000)
     timersRef.current.retry = setTimeout(() => {
       if (reqIdRef.current === myId) {
-        toast('error', 'לוקח זמן רב מהרגיל, נסה שוב')
+        toast('error', t('auth.wait.timeout'))
         setSubmitting(false)
       }
     }, 20000)
@@ -74,11 +78,11 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
        for them, so the agency/user namespacing is unchanged. */
     <form onSubmit={onSubmit} className='grid gap-4'>
       <div data-prefix='agency'>
-        <Input name='name' lbl='שם העסק' />
+        <Input name='name' lbl={t('auth.register.businessName')} />
       </div>
       <div data-prefix='user' className='grid grid-cols-2 gap-4'>
-        <Input name='firstName' lbl='שם פרטי' defaultValue={defaultName} />
-        <Input name='lastName' lbl='שם משפחה' />
+        <Input name='firstName' lbl={t('auth.register.firstName')} defaultValue={defaultName} />
+        <Input name='lastName' lbl={t('auth.register.lastName')} />
         {/* Email keeps its own full row. The original `lg:col-span-1` was sized
             against the old `lg:max-w-none` container; inside Lumen's `max-w-sm`
             it measures 162px, too narrow for an address — and since email owns
@@ -87,24 +91,34 @@ export default function AddAgencyForm({ defaultEmail, defaultName }: { defaultEm
           {/* type='email' makes the browser refuse "natel" before submit and
               gives phones the @ keyboard; autoComplete='email' lets the phone
               offer the saved address, so most people never type it at all. */}
-          <Input name='email' lbl='אימייל' type='email' autoComplete='email' defaultValue={defaultEmail} />
+          <Input name='email' lbl={t('auth.magic.email')} type='email' autoComplete='email' defaultValue={defaultEmail} />
         </div>
       </div>
       {/* Same component, same row as `/auth` — Lumen fills this slot on signup
           with the terms checkbox + terms link. `/terms` is a real route. */}
       <AuthControlRow
         checkboxId='terms'
-        checkboxLabel='אני מסכים לתנאי השימוש'
-        actionLabel='תנאי השימוש'
+        checkboxLabel={t('auth.register.terms')}
+        actionLabel={t('auth.register.termsLink')}
         checkboxRequired
         href='/terms'
       />
-      {error && <p className='text-destructive text-sm'>{error}</p>}
+      {error && <ErrorLine error={error} t={t} />}
       <div>
         <Button type='submit' className='mt-2 w-full shadow-none' disabled={submitting}>
-          {submitting ? 'טוען...' : 'צור חשבון'}
+          {submitting ? t('auth.magic.submitting') : t('auth.register.submit')}
         </Button>
       </div>
     </form>
+  )
+}
+
+/** The server's refusal (Hebrew, no code) worded by exact sentence; anything else as received. */
+function ErrorLine({ error, t }: { error: string; t: ReturnType<typeof useT> }) {
+  const { text, known } = authMessageText(error, t)
+  return (
+    <p className='text-destructive text-sm' {...(known ? {} : untranslatedAttrs(t.locale))}>
+      {text}
+    </p>
   )
 }

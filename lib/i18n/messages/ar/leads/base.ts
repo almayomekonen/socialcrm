@@ -27,5 +27,8 @@ export const base: Pick<Messages['leads'], 'add' | 'outcome' | 'contact'> = {
     whatsappName: 'واتساب إلى {name}',
     opening: 'جارٍ الفتح…',
     noValidPhone: 'لا يوجد لدى العميل المحتمل رقم هاتف صالح لواتساب',
+    noConnection: 'يجب ربط واتساب في الإعدادات قبل فتح محادثة',
+    noRecipient: 'لا يوجد لدى العميل المحتمل رقم هاتف صالح لمحادثة واتساب',
+    unavailable: 'لا يمكن فتح محادثة واتساب مع هذا العميل المحتمل حاليًا',
   },
 }

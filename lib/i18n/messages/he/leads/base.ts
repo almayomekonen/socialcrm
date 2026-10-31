@@ -30,5 +30,8 @@ export const base = {
     whatsappName: 'וואטסאפ ל{name}',
     opening: 'פותח…',
     noValidPhone: 'לליד אין מספר טלפון תקין לוואטסאפ',
+    noConnection: 'יש לחבר WhatsApp בהגדרות לפני פתיחת שיחה',
+    noRecipient: 'לליד אין מספר טלפון תקין לשיחת WhatsApp',
+    unavailable: 'לא ניתן לפתוח שיחת WhatsApp לליד זה כרגע',
   },
 } as const

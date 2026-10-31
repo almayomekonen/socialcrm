@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { replyToSupportRequestAction } from '@/actions/support/requests'
-import { supportErrorMessage } from '@/lib/support/copy'
+import { supportErrorText } from '@/lib/support/localizedCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { Btn } from '@/lib/btns/Btn'
 
 /**
@@ -21,6 +22,7 @@ export default function SupportReplyBox({
   isResolved: boolean
 }) {
   const router = useRouter()
+  const t = useT()
   const [body, setBody] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -31,7 +33,7 @@ export default function SupportReplyBox({
     startTransition(async () => {
       const res = await replyToSupportRequestAction(requestId, body)
       if ('reason' in res) {
-        setError(supportErrorMessage(res.reason))
+        setError(supportErrorText(res.reason, t.locale))
         return
       }
       setBody('')
@@ -42,10 +44,10 @@ export default function SupportReplyBox({
   return (
     <form onSubmit={submit} className='mt-6 border-t border-gray-100 pt-5'>
       <label htmlFor='support-reply' className='block text-sm font-medium text-ink'>
-        מענה
+        {t('support.reply.label')}
       </label>
       {isResolved && (
-        <p className='mt-1 text-xs text-gray-500'>מענה יפתח את הפנייה מחדש.</p>
+        <p className='mt-1 text-xs text-gray-500'>{t('support.reply.reopens')}</p>
       )}
       <textarea
         id='support-reply'
@@ -54,7 +56,7 @@ export default function SupportReplyBox({
         maxLength={5000}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder='כתבו כאן…'
+        placeholder={t('support.reply.placeholder')}
         className='mt-2 w-full resize-y rounded-2xl border border-gray-200 p-3 text-sm leading-relaxed outline-none focus:border-primary'
       />
       {error && (
@@ -64,7 +66,7 @@ export default function SupportReplyBox({
       )}
       <Btn
         type='submit'
-        lbl={pending ? 'שולח…' : 'שליחת מענה'}
+        lbl={pending ? t('support.form.sending') : t('support.reply.send')}
         disabled={pending}
         className='mt-3 w-full desktop:w-auto'
       />

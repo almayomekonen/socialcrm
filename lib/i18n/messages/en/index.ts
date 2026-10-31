@@ -18,6 +18,11 @@ import { billing } from './billing'
 import { settings } from './settings'
 import { admin } from './admin'
 import { education } from './education'
+import { mobileShell } from './mobileShell'
+import { notifications } from './notifications'
+import { auth } from './auth'
+import { trial } from './trial'
+import { support } from './support'
 
 /** English — pilot draft; native review is recorded in lib/i18n/review.ts. */
-export const en: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education }
+export const en: Messages = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education, mobileShell, notifications, auth, trial, support }

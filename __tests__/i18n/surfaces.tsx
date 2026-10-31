@@ -20,6 +20,12 @@ import { ADMIN_SURFACES } from './adminSurfaces'
 import { AUTOMATIONS_SURFACES } from './automationsSurfaces'
 import { QUESTIONNAIRE_SURFACES } from './questionnaireSurfaces'
 import { SHARED_SURFACES } from './sharedSurfaces'
+import { MOBILE_SHELL_SURFACES } from './mobileShellSurfaces'
+import { PHONE_LEADS_SURFACES } from './phoneLeadsSurfaces'
+import { PHONE_SETTINGS_SURFACES } from './phoneSettingsSurfaces'
+import { NOTIFICATIONS_SURFACES } from './notificationsSurfaces'
+import { PRE_LOGIN_SURFACES } from './preLoginSurfaces'
+import { TRIAL_SUPPORT_SURFACES } from './trialSupportSurfaces'
 
 /**
  * COMPLETED screens. A screen is listed here only when every piece of
@@ -215,6 +221,12 @@ export const SURFACES: Surface[] = [
   ...AUTOMATIONS_SURFACES,
   ...QUESTIONNAIRE_SURFACES,
   ...SHARED_SURFACES,
+  ...MOBILE_SHELL_SURFACES,
+  ...PHONE_LEADS_SURFACES,
+  ...PHONE_SETTINGS_SURFACES,
+  ...NOTIFICATIONS_SURFACES,
+  ...PRE_LOGIN_SURFACES,
+  ...TRIAL_SUPPORT_SURFACES,
   ...(
     [
       ['desktop, Today brief v2 + analytics', { mobile: false, v2: true, stats: STATS }, ['דנה כהן', 'דנה', 'יוסי לוי', 'רונית', 'שיחת היכרות', 'יל', 'ר']],

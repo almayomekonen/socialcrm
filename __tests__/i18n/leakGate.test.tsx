@@ -30,6 +30,8 @@ vi.mock('@/components/notifications/NotificationBell', () => ({ default: () => n
 vi.mock('@/components/education/HelpTrigger', () => ({ default: () => null }))
 vi.mock('@/db/auth', async () => (await import('./leakGateAdminMocks')).authModule())
 vi.mock('@/db/uiLocale', () => ({ getUiLocalePrefs: async () => ({ userLocale: prefs.userLocale, agencyLocale: null }) }))
+vi.mock('@/lib/i18n/preLoginServer', () => ({ getPreLoginLocale: async () => prefs.userLocale ?? 'he' })) // the pre-login pages (F4)
+vi.mock('@/actions/agencies', async () => (await import('./preLoginMocks')).agenciesActionsModule()) // the registration form (F4)
 vi.mock('@/lib/device', async () => {
   const f = await import('./dashboardFixtures')
   // The Messenger / Comments phone branches (mobile Phase D) read their fixtures' `mobile` flag; false by default.
@@ -83,10 +85,7 @@ vi.mock('@/actions/leadOutcome', () => ({ logLeadOutcome: async () => ({}) }))
 vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({ recordLeadActionEvent: async () => {} }))
 vi.mock('@/modules/leads/contactLead', () => ({ contactLeadViaWhatsapp: () => {} }))
 vi.mock('@/modules/inbox/client/openLeadWhatsapp', () => ({ openLeadWhatsappInInbox: async () => {}, WHATSAPP_CONNECT_HREF: '/settings/integrations' }))
-vi.mock('@/components/mobile/MobileHeaderAction', () => ({ useSetMobileHeaderAction: () => () => {} }))
-vi.mock('@/modules/leads/mobile/LeadFormMobile', () => ({ default: () => null }))
-vi.mock('@/modules/leads/mobile/LeadImportMobile', () => ({ default: () => null }))
-vi.mock('@/modules/leads/mobile/LeadsAddSheet', () => ({ default: () => null }))
+vi.mock('@/components/mobile/MobileHeaderAction', async () => ({ useSetMobileHeaderAction: () => () => {}, MobileHeaderActionContext: (await import('react')).createContext(() => {}) })) // + the phone shell's provider (F1)
 
 // /clients/[clientId] layout + summary reads (I/O only; the layout, page, cards and producers run for real).
 vi.mock('@/lib/requireUser', async () => (await import('./leakGateQuestionnaireMocks')).requireUserModule()) // FIXTURE_USER; the Builder's access check (E5c)
@@ -120,9 +119,8 @@ vi.mock('@/actions/ai/leadIntelligence', async () => ({ getLeadIntelligence: asy
 vi.mock('@/actions/ai/leadIntelligenceRefresh', () => ({ refreshLeadIntelligence: async () => ({ ok: true }) }))
 vi.mock('@/actions/leadFollowUp', () => ({ setLeadFollowUp: async () => ({}), clearLeadFollowUp: async () => ({}) }))
 vi.mock('@/actions/whatsapp/templates/sendTemplateToLead', () => ({ sendTemplateToLead: async () => ({ ok: true }) }))
-// Out of this phase: the Copilot lead context, the deal form (Phase E), the mobile lead detail (Phase F).
+// Out of this phase: the Copilot lead context, the deal form (Phase E). The phone lead detail runs for real (F2).
 vi.mock('@/components/copilot/CopilotLeadContext', () => ({ default: () => null }))
-vi.mock('@/modules/leads/mobile/LeadDetailMobile', () => ({ default: () => null }))
 
 // /clients/[clientId]/{tasks,files,billing} reads (I/O only; the pages, tables, Drive section and list run for real).
 vi.mock('next/dynamic', async () => ({ default: (await import('./leadTabsHarness')).nextDynamicMock }))
@@ -260,7 +258,6 @@ vi.mock('@/actions/quotes/templates', async () => (await import('./adminMocks'))
 vi.mock('@/lib/flags/questionnaireBuilderFlags', async () => (await import('./leakGateQuestionnaireMocks')).builderFlagsModule())
 vi.mock('@/actions/autoResponse/updateSettings', async () => (await import('./adminMocks')).updateAutoResponseModule())
 vi.mock('@/actions/autoResponse/previewAgent', async () => (await import('./adminMocks')).previewAgentModule())
-vi.mock('@/modules/settings/mobile/AutoResponseMobile', async () => (await import('./adminMocks')).autoResponseMobileModule())
 // The automations screens (Phase E5b; I/O only — pages, panels, cards, the template and integration overviews run for real).
 vi.mock('@/lib/automations/flags', async () => (await import('./leakGateAutomationsMocks')).flagsModule())
 vi.mock('@/db/automations/definitions', async () => (await import('./automationsMocks')).definitionsDbModule())
@@ -276,6 +273,10 @@ vi.mock('@/lib/flags/whatsappQuestionnaireFlags', async () => (await import('./l
 vi.mock('@/lib/inbox/autoresponse/questionnaire/builder/service', async () => (await import('./leakGateQuestionnaireMocks')).serviceModule())
 vi.mock('@/actions/questionnaire/builderDraft', async () => (await import('./questionnaireMocks')).draftActionsModule())
 vi.mock('@/actions/questionnaire/builderPublish', async () => (await import('./questionnaireMocks')).publishActionsModule())
+// The support centre (Phase F5; I/O only — the layout, pages, presenters and the knowledge base run for real).
+vi.mock('@/db/support/requests', async () => (await import('./trialSupportMocks')).supportRequestsDbModule())
+vi.mock('@/db/support/messages', async () => (await import('./trialSupportMocks')).supportMessagesDbModule())
+vi.mock('@/actions/support/requests', async () => (await import('./trialSupportMocks')).supportActionsModule())
 
 const { SURFACES } = await import('./surfaces')
 

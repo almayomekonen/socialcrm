@@ -1,10 +1,10 @@
-import { Pulse, Status } from './Pulse'
+import { LoadingStatus, Pulse } from './Pulse'
 
 /** Mirrors IntegrationsLanding: title + status cards with a 44px CTA. */
 export default function IntegrationsSkeletonMobile() {
   return (
     <div className='px-4 pb-8 pt-4' aria-busy='true' data-testid='integrations-skeleton-mobile'>
-      <Status>טוען…</Status>
+      <LoadingStatus />
       <Pulse className='h-7 w-36 rounded' />
       <Pulse className='mt-2 h-4 w-56 max-w-full rounded' />
       <Pulse className='mt-5 h-3.5 w-24 rounded' />

@@ -27,7 +27,7 @@ export default function ConnectManageSheet({
   children: ReactNode
 }) {
   return (
-    <BottomSheet open={open} onClose={onClose} title={title} titleId={titleId}>
+    <BottomSheet open={open} onClose={onClose} title={title} titleId={titleId} translated>
       <div className={TOUCH}>{children}</div>
     </BottomSheet>
   )

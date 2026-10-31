@@ -1,10 +1,10 @@
-import { Pulse, Status } from './Pulse'
+import { LoadingStatus, Pulse } from './Pulse'
 
 /** Mirrors LeadDetailMobile: identity, info card, sticky contact bar. */
 export default function LeadDetailSkeletonMobile() {
   return (
     <div className='flex min-h-full flex-col' aria-busy='true' data-testid='lead-detail-skeleton-mobile'>
-      <Status>טוען…</Status>
+      <LoadingStatus />
       <div className='flex-1 px-4 pb-4 pt-4' aria-hidden>
         <Pulse className='h-7 w-40 rounded' />
         <Pulse className='mt-1.5 h-3.5 w-24 rounded' />

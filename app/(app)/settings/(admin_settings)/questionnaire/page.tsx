@@ -67,6 +67,7 @@ export default async function QuestionnaireBuilderPage() {
         published={state.published?.questionnaire ?? null}
         hasDraft={state.draft !== null}
         routing={routing}
+        locale={locale}
       />
     )
   }

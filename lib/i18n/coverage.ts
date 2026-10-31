@@ -24,6 +24,7 @@ const ALLOWED_SAME = new Set<string>([
   'common.source.facebook',
   'common.source.instagram',
   'today.analytics.source.whatsapp',
+  'support.category.whatsapp', // the support centre's WhatsApp category (Phase F5)
   // Pure punctuation pattern; the words come from other keys.
   'today.greetingWithName',
   // Pure placeholder pattern (document kind + its number); the kind comes from another key.
@@ -43,6 +44,14 @@ const ALLOWED_SAME = new Set<string>([
   // Marketing acronyms used as product names in every language (deal product list).
   'deals.product.seo',
   'deals.product.ppc',
+  // A developer tool's product name, shown in Latin letters in Hebrew too (its phone handoff, Phase F1).
+  'mobileShell.desktopOnly.title.aiInspector',
+  // Notifications (Phase F3): the WhatsApp brand in the stored-text wording; the
+  // away line's "{label} {count}" pattern and its list separator (a comma in
+  // Hebrew and English, the Arabic comma in Arabic) — the words come from other keys.
+  'notifications.content.provider.whatsapp',
+  'notifications.panel.away.category',
+  'notifications.panel.away.separator',
 ])
 
 type Leaf = string | Record<string, string>

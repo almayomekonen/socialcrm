@@ -6,6 +6,10 @@ import { getCardSetupStatus } from '@/actions/paymentMethod'
 import type { CardSetupState } from '@/lib/payments/cardTrial/setupStatus'
 import { formatBillingDate } from '@/lib/payments/cardTrial/firstCharge'
 import { CARD_TRIAL_AMOUNT } from '@/lib/payments/cardTrial/terms'
+import type { UiLocale } from '@/lib/i18n/config'
+import { rtlOrRegionAttrs } from '@/lib/i18n/preLoginLocale'
+import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * What the customer sees after Grow's page sends them back.
@@ -25,15 +29,21 @@ type Props = {
   purpose: 'card_trial' | 'card_update' | 'reactivate'
   /** Injected in tests. */
   poll?: () => Promise<CardSetupState>
+  /**
+   * Display language (i18n Phase F5) — the page's `ui_locale` hint. Words only:
+   * the polling, its bounds and every navigation are the same in every language.
+   */
+  locale?: UiLocale
 }
 
-const HEADLINE: Record<Props['purpose'], string> = {
-  card_trial: 'תקופת הניסיון הופעלה',
-  card_update: 'הכרטיס עודכן',
-  reactivate: 'המנוי חודש',
+const HEADLINE: Record<Props['purpose'], MessageKey> = {
+  card_trial: 'trial.verifier.headline.card_trial',
+  card_update: 'trial.verifier.headline.card_update',
+  reactivate: 'trial.verifier.headline.reactivate',
 }
 
-export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus }: Props) {
+export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, locale = 'he' }: Props) {
+  const t = translatorFor(locale)
   const [status, setStatus] = useState<CardSetupState>({ state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false })
   const [timedOut, setTimedOut] = useState(false)
 
@@ -61,58 +71,59 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus }
   }, [poll])
 
   const chargeDate = formatBillingDate(status.firstChargeAt)
+  const amount = String(CARD_TRIAL_AMOUNT)
 
   return (
-    <div dir='rtl' className='w-full max-w-md bg-white rounded-lg border border-gray-200 p-6 flex flex-col gap-4 text-center'>
+    <div {...rtlOrRegionAttrs(locale)} className='w-full max-w-md bg-white rounded-lg border border-gray-200 p-6 flex flex-col gap-4 text-center'>
       {status.state === 'confirmed' ? (
         <>
-          <h1 className='text-xl font-bold'>{HEADLINE[purpose]}</h1>
+          <h1 className='text-xl font-bold'>{t(HEADLINE[purpose])}</h1>
           {status.sandbox && (
             <p className='text-sm font-semibold text-amber-800' role='status'>
-              בדיקת סליקה בסביבת Sandbox — לא בוצעה עסקה אמיתית ולא נשמר כרטיס אמיתי.
+              {t('trial.verifier.sandbox')}
             </p>
           )}
           {purpose === 'card_trial' && chargeDate && (
             <p className='text-sm text-gray-600'>
               {status.chargesEnabled
-                ? `הכרטיס נשמר. החיוב הראשון, ₪${CARD_TRIAL_AMOUNT}, יתבצע ב־${chargeDate}. אפשר לבטל לפני כן בעמוד המנוי.`
-                : `הכרטיס נשמר. תקופת הניסיון מסתיימת ב־${chargeDate}; חיוב אוטומטי אינו פעיל כרגע, ולכן לא ייגבה תשלום במועד הזה.`}
+                ? t('trial.verifier.chargeOn', { amount, date: chargeDate })
+                : t('trial.verifier.chargeOff', { date: chargeDate })}
             </p>
           )}
-          {purpose !== 'card_trial' && <p className='text-sm text-gray-600'>הפרטים נשמרו. אפשר להמשיך לעבוד.</p>}
-          <Btn variant='solid' size='large' lbl='כניסה למערכת' className='w-full justify-center' onClick={() => window.location.assign('/dashboard')} />
+          {purpose !== 'card_trial' && <p className='text-sm text-gray-600'>{t('trial.verifier.saved')}</p>}
+          <Btn variant='solid' size='large' lbl={t('trial.verifier.enter')} className='w-full justify-center' onClick={() => window.location.assign('/dashboard')} />
         </>
       ) : status.state === 'failed' ? (
         <>
-          <h1 className='text-xl font-bold'>לא הצלחנו לאמת את הכרטיס</h1>
-          <p className='text-sm text-gray-600'>לא בוצע חיוב. אפשר לנסות שוב עם אותו כרטיס או עם כרטיס אחר.</p>
+          <h1 className='text-xl font-bold'>{t('trial.verifier.failedTitle')}</h1>
+          <p className='text-sm text-gray-600'>{t('trial.verifier.failedBody')}</p>
           <Btn
             variant='solid'
             size='large'
-            lbl='לעמוד המנוי'
+            lbl={t('trial.verifier.toBilling')}
             className='w-full justify-center'
             onClick={() => window.location.assign('/settings/update_payment')}
           />
         </>
       ) : timedOut ? (
         <>
-          <h1 className='text-xl font-bold'>האישור עדיין בבדיקה</h1>
+          <h1 className='text-xl font-bold'>{t('trial.verifier.timedOutTitle')}</h1>
           <p className='text-sm text-gray-600'>
             {status.callbackReceived
-              ? 'קיבלנו את פרטי הכרטיס ואנחנו מאמתים אותם מול Grow. עדיין לא בוצע חיוב.'
-              : 'טרם קיבלנו אישור מחברת הסליקה. עדיין לא בוצע חיוב.'}
+              ? t('trial.verifier.timedOutCallback')
+              : t('trial.verifier.timedOutNoCallback')}
           </p>
-          <p className='text-sm text-gray-600'>אין צורך להמתין כאן — נעדכן במייל ברגע שהאימות יסתיים, והסטטוס מופיע תמיד בעמוד המנוי.</p>
+          <p className='text-sm text-gray-600'>{t('trial.verifier.timedOutNote')}</p>
           <div className='flex flex-col gap-2'>
-            <Btn variant='solid' size='large' lbl='לעמוד המנוי' className='w-full justify-center' onClick={() => window.location.assign('/settings/update_payment')} />
-            <Btn variant='outline' size='large' lbl='חזרה למערכת' className='w-full justify-center' onClick={() => window.location.assign('/dashboard')} />
+            <Btn variant='solid' size='large' lbl={t('trial.verifier.toBilling')} className='w-full justify-center' onClick={() => window.location.assign('/settings/update_payment')} />
+            <Btn variant='outline' size='large' lbl={t('trial.verifier.back')} className='w-full justify-center' onClick={() => window.location.assign('/dashboard')} />
           </div>
         </>
       ) : (
         <>
-          <h1 className='text-xl font-bold'>רק רגע, מאמתים מול חברת הסליקה</h1>
+          <h1 className='text-xl font-bold'>{t('trial.verifier.verifyingTitle')}</h1>
           <p className='text-sm text-gray-600' role='status'>
-            הכרטיס נשמר בצד של Grow ואנחנו מאשרים אותו. לא מבוצע חיוב עבור המנוי בשלב הזה; תיתכן הקפאה זמנית של ₪1 לאימות; לפי Grow היא משתחררת בתוך עד 10 ימים.
+            {t('trial.verifier.verifyingBody')}
           </p>
         </>
       )}

@@ -3,6 +3,9 @@ import type { FacebookHealthStatus } from '@/lib/facebook/health'
 import { noticeForComposerHealth } from '@/lib/inbox/whatsappComposerDecision'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 import type { StatusRole } from '@/lib/StatusBadge'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { localizeFacebookNotice, localizeWhatsappNotice } from '@/lib/connections/localizedNotices'
 
 /**
  * Landing-card copy for Integrations on a phone.
@@ -11,6 +14,10 @@ import type { StatusRole } from '@/lib/StatusBadge'
  * use. This file only chooses which sentence belongs on the closed card so the
  * owner can see connected / not connected / needs attention without opening an
  * accordion.
+ *
+ * `locale` (Hebrew by default — the exact sentences as before) words every
+ * card; the state still decides WHICH sentence, by code. Notices come from the
+ * same registry, localized by their code (`localizedNotices.ts`).
  */
 
 export type IntegrationCardCopy = {
@@ -23,21 +30,22 @@ export type IntegrationCardCopy = {
 export function whatsappLandingCopy(input: {
   connected: boolean
   status: WhatsappHealthPrimary
-}): IntegrationCardCopy {
+}, locale: UiLocale = 'he'): IntegrationCardCopy {
+  const t = translatorFor(locale)
   if (!input.connected || input.status === 'disconnected') {
     return {
-      statusLabel: 'לא מחובר',
-      explanation: 'חברו את מספר הוואטסאפ העסקי כדי לקבל לידים אוטומטית.',
-      actionLabel: 'חבר וואטסאפ',
+      statusLabel: t('settings.integrations.card.notConnected'),
+      explanation: t('settings.mobile.status.wa.explain'),
+      actionLabel: t('settings.integrations.whatsapp.connectPhone'),
       role: 'neutral',
     }
   }
 
   if (input.status === 'operational') {
     return {
-      statusLabel: 'מחובר',
-      explanation: 'החיבור תקין — לידים מגיעים אוטומטית.',
-      actionLabel: 'ניהול',
+      statusLabel: t('settings.integrations.card.connected'),
+      explanation: t('settings.mobile.status.wa.healthy'),
+      actionLabel: t('settings.mobile.landing.manage'),
       role: 'success',
     }
   }
@@ -52,18 +60,20 @@ export function whatsappLandingCopy(input: {
    * works, only our status check is briefly limited, and it clears itself.
    */
   if (input.status === 'throttled') {
+    const throttled = localizeWhatsappNotice(WHATSAPP_NOTICES.throttled, locale) ?? WHATSAPP_NOTICES.throttled
     return {
-      statusLabel: WHATSAPP_NOTICES.throttled.title,
-      explanation: WHATSAPP_NOTICES.throttled.explanation,
+      statusLabel: throttled.title,
+      explanation: throttled.explanation,
       role: 'info',
     }
   }
 
-  const notice = noticeForComposerHealth(input.status) ?? WHATSAPP_NOTICES.needs_verification
+  const health = noticeForComposerHealth(input.status) ?? WHATSAPP_NOTICES.needs_verification
+  const notice = localizeWhatsappNotice(health, locale) ?? health
   return {
     statusLabel: notice.title,
     explanation: notice.explanation,
-    actionLabel: notice.action ?? 'ניהול',
+    actionLabel: notice.action ?? t('settings.mobile.landing.manage'),
     role: notice.tone === 'error' ? 'error' : 'warning',
   }
 }
@@ -71,12 +81,14 @@ export function whatsappLandingCopy(input: {
 export function facebookLandingCopy(input: {
   connection: { pageName: string } | null
   health: FacebookHealthStatus | null
-}): IntegrationCardCopy {
+}, locale: UiLocale = 'he'): IntegrationCardCopy {
+  const t = translatorFor(locale)
+  const fb = (notice: (typeof FACEBOOK_NOTICES)[string]) => localizeFacebookNotice(notice, locale) ?? notice
   if (!input.connection) {
     return {
-      statusLabel: 'לא מחובר',
-      explanation: 'חברו את דף הפייסבוק כדי לקבל לידים מפייסבוק ומאינסטגרם.',
-      actionLabel: 'חבר פייסבוק',
+      statusLabel: t('settings.integrations.card.notConnected'),
+      explanation: t('settings.mobile.status.fb.explain'),
+      actionLabel: t('settings.mobile.status.fb.connect'),
       role: 'neutral',
     }
   }
@@ -84,29 +96,29 @@ export function facebookLandingCopy(input: {
   const health = input.health
   if (health?.needsReconnect) {
     return {
-      statusLabel: FACEBOOK_NOTICES.expired.title,
-      explanation: FACEBOOK_NOTICES.expired.explanation,
-      actionLabel: FACEBOOK_NOTICES.expired.action ?? 'לחבר מחדש',
+      statusLabel: fb(FACEBOOK_NOTICES.expired).title,
+      explanation: fb(FACEBOOK_NOTICES.expired).explanation,
+      actionLabel: fb(FACEBOOK_NOTICES.expired).action ?? t('settings.mobile.status.fb.reconnect'),
       role: 'warning',
     }
   }
 
   if (health && !health.needsReconnect && !health.subscribed) {
     return {
-      statusLabel: FACEBOOK_NOTICES.repairing.title,
-      explanation: FACEBOOK_NOTICES.repairing.explanation,
-      actionLabel: 'ניהול',
+      statusLabel: fb(FACEBOOK_NOTICES.repairing).title,
+      explanation: fb(FACEBOOK_NOTICES.repairing).explanation,
+      actionLabel: t('settings.mobile.landing.manage'),
       role: 'warning',
     }
   }
 
   const healthy = !!(health && health.tokenValid && health.permissionsOk && health.subscribed)
   return {
-    statusLabel: 'מחובר',
+    statusLabel: t('settings.integrations.card.connected'),
     explanation: healthy
-      ? `מחובר לדף ${input.connection.pageName} — לידים מגיעים אוטומטית.`
-      : `מחובר לדף ${input.connection.pageName}.`,
-    actionLabel: 'ניהול',
+      ? t('settings.mobile.status.fb.healthyPage', { page: input.connection.pageName })
+      : t('settings.mobile.status.fb.page', { page: input.connection.pageName }),
+    actionLabel: t('settings.mobile.landing.manage'),
     role: healthy ? 'success' : 'warning',
   }
 }
@@ -118,43 +130,45 @@ export function readyMessagesLandingCopy(input: {
   total: number
   approved: number
   pending: number
-}): IntegrationCardCopy | null {
+}, locale: UiLocale = 'he'): IntegrationCardCopy | null {
   if (!input.enabled) return null
+  const t = translatorFor(locale)
 
   if (!input.connected) {
     return {
-      statusLabel: 'מחכה לחיבור',
-      explanation: 'כדי ליצור הודעות מוכנות, חברו קודם את מספר הוואטסאפ העסקי.',
-      actionLabel: 'חבר וואטסאפ קודם',
+      statusLabel: t('settings.mobile.status.rm.waiting'),
+      explanation: t('settings.mobile.status.rm.notConnected'),
+      actionLabel: t('settings.mobile.status.rm.connectFirst'),
       role: 'neutral',
     }
   }
 
   if (!input.messagingReady) {
     return {
-      statusLabel: 'החיבור עדיין לא מוכן',
-      explanation: 'לאחר שהחיבור יאומת, אפשר יהיה ליצור הודעות מוכנות.',
-      actionLabel: 'ניהול וואטסאפ',
+      statusLabel: t('settings.mobile.status.rm.notReady'),
+      explanation: t('settings.mobile.status.rm.notReadyExplain'),
+      actionLabel: t('settings.mobile.status.rm.manageWhatsapp'),
       role: 'warning',
     }
   }
 
   if (input.total === 0) {
     return {
-      statusLabel: 'אין הודעות',
-      explanation: 'הודעה מוכנה מאפשרת לפנות לליד גם אחרי שהשיחה נרגעה.',
-      actionLabel: 'צרו הודעה מוכנה',
+      statusLabel: t('settings.mobile.status.rm.none'),
+      explanation: t('settings.mobile.status.rm.noneExplain'),
+      actionLabel: t('settings.mobile.status.rm.create'),
       role: 'neutral',
     }
   }
 
   const parts: string[] = []
-  if (input.approved > 0) parts.push(`${input.approved} מוכנות לשליחה`)
-  if (input.pending > 0) parts.push(`${input.pending} בבדיקה`)
+  // Counts are passed as their digits, so Hebrew prints exactly what it printed.
+  if (input.approved > 0) parts.push(t('settings.mobile.status.rm.approved', { count: String(input.approved) }))
+  if (input.pending > 0) parts.push(t('settings.mobile.status.rm.pending', { count: String(input.pending) }))
   return {
-    statusLabel: `${input.total} הודעות`,
-    explanation: parts.join(' · ') || 'ניהול ההודעות המוכנות לשליחה בוואטסאפ.',
-    actionLabel: 'ניהול הודעות',
+    statusLabel: t('settings.mobile.status.rm.total', { count: String(input.total) }),
+    explanation: parts.join(' · ') || t('settings.mobile.status.rm.fallback'),
+    actionLabel: t('settings.mobile.status.rm.manage'),
     role: input.approved > 0 ? 'success' : 'warning',
   }
 }
@@ -162,29 +176,30 @@ export function readyMessagesLandingCopy(input: {
 export function calendarLandingCopy(input: {
   state: 'not_connected' | 'connected' | 'reauth_required'
   email: string | null
-}): IntegrationCardCopy {
+}, locale: UiLocale = 'he'): IntegrationCardCopy {
+  const t = translatorFor(locale)
   if (input.state === 'reauth_required') {
     return {
-      statusLabel: 'דורש חיבור מחדש',
-      explanation: 'החיבור ליומן פג. יש להתחבר מחדש כדי לסנכרן פגישות חדשות.',
-      actionLabel: 'חבר מחדש',
+      statusLabel: t('settings.integrations.calendar.needsReconnect'),
+      explanation: t('settings.mobile.status.cal.reauthExplain'),
+      actionLabel: t('settings.integrations.calendar.reconnect'),
       role: 'warning',
     }
   }
   if (input.state === 'connected') {
     return {
-      statusLabel: 'מחובר',
+      statusLabel: t('settings.integrations.card.connected'),
       explanation: input.email
-        ? `מחובר · ${input.email}`
-        : 'תזמון פגישות עם לידים ישירות מתוך המערכת.',
-      actionLabel: 'ניהול',
+        ? t('settings.mobile.status.connectedAs', { email: input.email })
+        : t('settings.mobile.status.cal.connectedExplain'),
+      actionLabel: t('settings.mobile.landing.manage'),
       role: 'success',
     }
   }
   return {
-    statusLabel: 'לא מחובר',
-    explanation: 'תזמון פגישות עם לידים וקישורי Google Meet אוטומטיים.',
-    actionLabel: 'חבר יומן',
+    statusLabel: t('settings.integrations.card.notConnected'),
+    explanation: t('settings.mobile.status.cal.explain'),
+    actionLabel: t('settings.mobile.status.cal.connect'),
     role: 'neutral',
   }
 }

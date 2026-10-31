@@ -7,7 +7,7 @@ import { getAllPropsUsers, getTeams } from '@/db/usersNTeams'
 import { isAgentOrMngr } from '@/types/roles'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import UsersListMobile from '@/components/settings/mobile/UsersListMobile'
-import { formatDate } from '@/lib/dates'
+import { formatLeadDate } from '@/lib/leads/leadDate'
 import { getUiLocaleState } from '@/lib/i18n/server'
 import { regionAttrs } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
@@ -29,6 +29,8 @@ export default async function EditAgentsPage() {
    * receive.
    */
   if (await isMobileWorkspaceRequest(viewer?.agencyId)) {
+    // The layout's request-memoised read: the invitation dates are formatted in it (Hebrew: as before).
+    const { locale: mobileLocale } = await getUiLocaleState(viewer)
     return (
       <UsersListMobile
         users={users.map((u) => ({
@@ -45,7 +47,7 @@ export default async function EditAgentsPage() {
           email: i.email ?? null,
           role: i.role ?? null,
           status: i.status ?? null,
-          expiresAt: i.expiresAt ? formatDate(i.expiresAt) : null,
+          expiresAt: i.expiresAt ? formatLeadDate(mobileLocale, i.expiresAt) : null,
         }))}
       />
     )

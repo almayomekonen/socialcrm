@@ -2,8 +2,11 @@
 
 import type { RefObject } from 'react'
 import Link from 'next/link'
-import { timeAgo } from '@/components/settings/connections/copy'
-import { CATEGORY_LABEL, hasMeaningfulAway } from '@/modules/notifications/dropdown'
+import { timeAgoIn } from '@/components/settings/connections/copy'
+import { hasMeaningfulAway } from '@/modules/notifications/dropdown'
+import { categoryLabelIn } from '@/modules/notifications/display'
+import { useT, useRegionAttrs } from '@/lib/i18n/I18nProvider'
+import type { Translator } from '@/lib/i18n/translate'
 import type { NotificationFeedItem, WhileYouWereAway } from '@/modules/notifications/types'
 import type { MenuPos } from '@/lib/useFloatingMenu'
 import NotificationRow from './NotificationRow'
@@ -23,6 +26,9 @@ import NotificationRow from './NotificationRow'
  * It is a floating anchored surface using the app's existing `useFloatingMenu`
  * mechanics — the same ones `OutcomeControl` uses — not a modal and not a page.
  * Escape closes it and light-dismiss closes it; neither is re-implemented here.
+ *
+ * Portaled to `document.body`, outside every language island, so it declares the
+ * interface language itself (nothing for Hebrew).
  */
 
 const HEADING_ID = 'notifPanelTitle'
@@ -46,6 +52,8 @@ export default function NotificationPanel({
   onMarkAllRead: () => void
   onClose: () => void
 }) {
+  const t = useT()
+  const region = useRegionAttrs()
   const away = hasMeaningfulAway(whileYouWereAway) ? whileYouWereAway : null
 
   return (
@@ -60,6 +68,7 @@ export default function NotificationPanel({
        */
       tabIndex={-1}
       aria-labelledby={HEADING_ID}
+      {...region}
       onKeyDown={(e) => {
         // Escape also reaches useFloatingMenu's document listener; closing twice is
         // idempotent, and going through onClose is what returns focus to the bell.
@@ -73,7 +82,7 @@ export default function NotificationPanel({
     >
       <div className='flex items-center justify-between gap-2 border-b px-3 py-2'>
         <h2 id={HEADING_ID} className='text-sm font-semibold text-gray-900'>
-          התראות
+          {t('shell.notifications.label')}
         </h2>
         {unreadCount > 0 && (
           <button
@@ -81,15 +90,15 @@ export default function NotificationPanel({
             onClick={onMarkAllRead}
             className='rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary'
           >
-            סימון הכל כנקרא
+            {t('notifications.panel.markAll')}
           </button>
         )}
       </div>
 
-      {away && <AwaySummary away={away} />}
+      {away && <AwaySummary away={away} t={t} />}
 
       {items.length === 0 ? (
-        <EmptyState />
+        <EmptyState t={t} />
       ) : (
         <ul className='max-h-80 divide-y overflow-y-auto'>
           {items.map((item) => (
@@ -113,7 +122,7 @@ export default function NotificationPanel({
           onClick={onClose}
           className='block rounded px-1 py-0.5 text-xs text-primary-text hover:underline focus:outline-none focus:ring-2 focus:ring-primary'
         >
-          כל ההתראות
+          {t('notifications.panel.viewAll')}
         </Link>
       </div>
     </div>
@@ -128,17 +137,21 @@ export default function NotificationPanel({
  * they can ignore, not a screen they must dismiss. It is also not recomputed
  * here — the totals are the server's.
  */
-function AwaySummary({ away }: { away: WhileYouWereAway }) {
-  const since = timeAgo(away.since)
+function AwaySummary({ away, t }: { away: WhileYouWereAway; t: Translator }) {
+  const since = timeAgoIn(away.since, t.locale)
+  const title = t('notifications.panel.away.title')
   return (
-    <section aria-label='בזמן שלא היית' className='border-b bg-gray-50 px-3 py-2'>
+    <section aria-label={title} className='border-b bg-gray-50 px-3 py-2'>
       <p className='text-xs font-semibold text-gray-700'>
-        בזמן שלא היית{since ? ` · ${since}` : ''}
+        {title}{since ? ` · ${since}` : ''}
       </p>
       <p className='mt-0.5 text-xs text-gray-500'>
-        {away.total === 1 ? 'התראה אחת חדשה' : `${away.total} התראות חדשות`}
+        {/* Counts as their digits, so Hebrew prints exactly what it printed before. */}
+        {t('notifications.panel.away.count', { count: String(away.total) })}
         {' · '}
-        {away.categories.map((c) => `${CATEGORY_LABEL[c.category]} ${c.count}`).join(', ')}
+        {away.categories
+          .map((c) => t('notifications.panel.away.category', { label: categoryLabelIn(c.category, t.locale), count: String(c.count) }))
+          .join(t('notifications.panel.away.separator'))}
       </p>
     </section>
   )
@@ -149,7 +162,7 @@ function AwaySummary({ away }: { away: WhileYouWereAway }) {
  * Compact, because this is a dropdown — a full-height empty panel would make
  * "nothing needs you" feel like a malfunction.
  */
-function EmptyState() {
+function EmptyState({ t }: { t: Translator }) {
   /*
     The feed is a Tier 1 read and now answers an expired customer normally, so
     an empty panel once again means exactly what it says. The lapsed-subscription
@@ -158,10 +171,8 @@ function EmptyState() {
   */
   return (
     <div className='px-4 py-8 text-center'>
-      <p className='text-sm text-gray-700'>אין התראות חדשות</p>
-      <p className='mt-1 text-xs leading-relaxed text-gray-500'>
-        כשליד חדש ייכנס או כשמשהו ידרוש טיפול, זה יופיע כאן.
-      </p>
+      <p className='text-sm text-gray-700'>{t('notifications.panel.empty.title')}</p>
+      <p className='mt-1 text-xs leading-relaxed text-gray-500'>{t('notifications.panel.empty.body')}</p>
     </div>
   )
 }

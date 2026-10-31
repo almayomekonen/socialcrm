@@ -1,10 +1,17 @@
 import type { Metadata } from 'next'
 import { requireAgencyUser } from '@/lib/requireUser'
 import { coerceSupportKind } from '@/lib/support/vocabulary'
-import { KIND_COPY } from '@/lib/support/copy'
+import { kindCopy } from '@/lib/support/localizedCopy'
 import SupportRequestForm from '@/components/support/SupportRequestForm'
+import { getUser } from '@/db/auth'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'פנייה חדשה' }
+/** Tab title in the interface language (Hebrew outside the rollout). */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('support.newRequest.title') }
+}
 
 /**
  * "Tell SocialCRM what happened" — not "create a support ticket".
@@ -33,26 +40,29 @@ export default async function NewSupportRequestPage({
 }: {
   searchParams: Promise<{ kind?: string; ctx?: string }>
 }) {
-  await requireAgencyUser()
+  const user = await requireAgencyUser()
   const params = await searchParams
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
 
   // Validated against the closed union; anything unknown becomes a question.
   // Selects COPY only — no authorization, routing or tenant decision reads it.
   const kind = coerceSupportKind(params.kind)
   void params.ctx
+  const copy = kindCopy(kind, locale)
 
   return (
     <>
       <header className='mb-2'>
-        <h1 className='text-2xl font-bold text-ink'>{KIND_COPY[kind].formTitle}</h1>
+        <h1 className='text-2xl font-bold text-ink'>{copy.formTitle}</h1>
         <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>
-          נחזור אליך כאן במרכז התמיכה וגם באימייל.
+          {t('support.newRequest.intro')}
         </p>
       </header>
 
       {/* Phase 4: SupportContextCard mounts here, above the form. */}
 
-      <SupportRequestForm kind={kind} fieldLabel={KIND_COPY[kind].formTitle} />
+      <SupportRequestForm kind={kind} fieldLabel={copy.formTitle} />
     </>
   )
 }

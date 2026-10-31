@@ -2,6 +2,8 @@
 
 import { toast } from '@/lib/toast'
 import { resolveLeadWhatsappConversation } from '@/modules/inbox/actions'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Canonical in-app Lead → WhatsApp navigation.
@@ -46,8 +48,10 @@ export type OpenLeadWhatsappOutcome =
 export async function openLeadWhatsappInInbox(
   leadId: number,
   push: (href: string) => void,
-  opts?: { onNoConnection?: () => void },
+  opts?: { onNoConnection?: () => void; locale?: UiLocale },
 ): Promise<OpenLeadWhatsappOutcome> {
+  // The toasts follow the caller's interface language; no locale = Hebrew (the catalog holds the original sentences).
+  const t = translatorFor(opts?.locale ?? 'he')
   const { conversationId, reason } = await resolveLeadWhatsappConversation(leadId)
   if (conversationId) {
     push(`/inbox?conversation=${conversationId}`)
@@ -59,13 +63,13 @@ export async function openLeadWhatsappInInbox(
       opts.onNoConnection()
       return { kind: 'no-connection' }
     }
-    toast('message', 'יש לחבר WhatsApp בהגדרות לפני פתיחת שיחה')
+    toast('message', t('leads.contact.noConnection'))
     return { kind: 'no-connection' }
   }
   if (reason === 'no-recipient') {
-    toast('message', 'לליד אין מספר טלפון תקין לשיחת WhatsApp')
+    toast('message', t('leads.contact.noRecipient'))
     return { kind: 'no-recipient' }
   }
-  toast('message', 'לא ניתן לפתוח שיחת WhatsApp לליד זה כרגע')
+  toast('message', t('leads.contact.unavailable'))
   return { kind: 'unavailable' }
 }

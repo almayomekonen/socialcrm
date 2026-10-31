@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Btn } from '@/lib/btns/Btn'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Decision = 'approve' | 'deny'
 // Visual busy state without the `disabled` attribute (see below).
@@ -31,6 +32,7 @@ type Props = { clientName: string; csrf: string; children: ReactNode }
  * is prevented and does not lock.
  */
 export default function ConsentDecisionForm({ clientName, csrf, children }: Props) {
+  const t = useT()
   const locked = useRef(false)
   const [pending, setPending] = useState<Decision | null>(null)
 
@@ -57,7 +59,7 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
       <input type='hidden' name='csrf' value={csrf} />
       {pending ? (
         <p role='status' className='text-sm text-gray-600'>
-          {pending === 'approve' ? `מחבר את ${clientName}…` : 'מבטל…'}
+          {pending === 'approve' ? t('auth.oauth.connecting', { client: clientName }) : t('auth.oauth.cancelling')}
         </p>
       ) : null}
       <div className='mt-auto flex items-center justify-end gap-3'>
@@ -66,7 +68,7 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
           name='decision'
           value='deny'
           data-decision='deny'
-          lbl='ביטול'
+          lbl={t('common.dialog.cancel')}
           variant='outline'
           icon='xmark'
           disabled={false}
@@ -78,7 +80,7 @@ export default function ConsentDecisionForm({ clientName, csrf, children }: Prop
           name='decision'
           value='approve'
           data-decision='approve'
-          lbl={`אשר חיבור ל-${clientName}`}
+          lbl={t('auth.oauth.approve', { client: clientName })}
           icon='check'
           disabled={false}
           aria-disabled={pending !== null ? true : undefined}

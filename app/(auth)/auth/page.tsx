@@ -6,8 +6,12 @@ import { canUseFacebookUserAuth, isFacebookUserAuthPubliclyAvailable } from '@/l
 import { Metadata } from 'next'
 import { isMobileRequest } from '@/lib/device'
 import Logo from '@/components/lumen/layout/logo'
+import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { getPreLoginLocale } from '@/lib/i18n/preLoginServer'
+import { rtlOrRegionAttrs } from '@/lib/i18n/preLoginLocale'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = {
+const METADATA: Metadata = {
   title: 'התחברות | SocialCRM — מערכת ניהול לידים',
   description:
     'התחבר ל-SocialCRM — מערכת ניהול הלידים לעסקים קטנים. כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.',
@@ -21,8 +25,16 @@ export const metadata: Metadata = {
   },
 }
 
+/** Hebrew is the page's SEO metadata, unchanged; another interface language only re-words the tab title. */
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getPreLoginLocale()
+  return locale === 'he' ? METADATA : { ...METADATA, title: translatorFor(locale)('auth.signIn.title') }
+}
+
 export default async function AuthPage({ searchParams }) {
   const { error } = await searchParams
+  const locale = await getPreLoginLocale()
+  const t = translatorFor(locale)
   const user = await getUser()
   const facebookLoginEnabled = user
     ? canUseFacebookUserAuth(user.agencyId)
@@ -30,7 +42,7 @@ export default async function AuthPage({ searchParams }) {
   const phoneLogin = await isMobileRequest()
 
   return (
-    <>
+    <I18nProvider locale={locale} persistLocale={false}>
       <div className='relative min-h-screen bg-white'>
         {/*
           Reproduces Lumen `/signin`
@@ -55,14 +67,14 @@ export default async function AuthPage({ searchParams }) {
           magic-link component owns its own <form> and forms cannot nest.
           `auth.jpg` replaces Lumen's gradient panel, untouched.
         */}
-        <div className='lumen auth-surface grid min-h-svh lg:grid-cols-2' dir='rtl'>
+        <div className='lumen auth-surface grid min-h-svh lg:grid-cols-2' {...rtlOrRegionAttrs(locale)}>
           <div className='container w-full max-w-sm self-center justify-self-center'>
             <div className='flex flex-col py-20 lg:py-0'>
               <div className='flex flex-col items-center gap-6 text-center'>
                 <Logo onlyLogo />
                 <div className='flex flex-col items-center gap-2'>
-                  <h1 className='text-2xl font-bold'>ברוך שובך</h1>
-                  <p className='text-muted-foreground text-sm'>ברוך שובך, הזן את הפרטים שלך כדי להמשיך</p>
+                  <h1 className='text-2xl font-bold'>{t('auth.signIn.heading')}</h1>
+                  <p className='text-muted-foreground text-sm'>{t('auth.signIn.subtitle')}</p>
                 </div>
               </div>
               <div className='mt-6 grid gap-4'>
@@ -73,20 +85,20 @@ export default async function AuthPage({ searchParams }) {
                     facebookAppId={facebookLoginEnabled ? process.env.AUTH_FACEBOOK_APP_ID : undefined}
                     matchSocialButtons={phoneLogin}
                   />
-                  <p className='text-muted-foreground text-center text-xs'>עובד עם וואטסאפ, אינסטגרם ופייסבוק</p>
+                  <p className='text-muted-foreground text-center text-xs'>{t('auth.signIn.worksWith')}</p>
                 </div>
               </div>
               <div className='mt-8 text-center text-sm'>
-                אין לך חשבון?{' '}
+                {t('auth.signIn.noAccount')}{' '}
                 <Link href='/auth/register' className='font-medium hover:underline'>
-                  הצטרף עכשיו
+                  {t('auth.signIn.join')}
                 </Link>
               </div>
             </div>
           </div>
-          <img src='/media/auth.jpg' alt='ניהול לידים לעסקים קטנים' className='w-full h-screen object-cover hidden lg:block' />
+          <img src='/media/auth.jpg' alt={t('auth.signIn.imageAlt')} className='w-full h-screen object-cover hidden lg:block' />
         </div>
       </div>
-    </>
+    </I18nProvider>
   )
 }

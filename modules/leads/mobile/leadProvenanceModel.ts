@@ -4,7 +4,9 @@ import {
   facebookFieldPresence,
   formatCaptureAt,
 } from '@/lib/leads/inboundLeadContextData'
-import { inboundChannelFromSource, type LeadSourceChannel } from '@/lib/leads/leadSourceLabel'
+import { inboundChannelFromSource, leadSourceLabel, type LeadSourceChannel } from '@/lib/leads/leadSourceLabel'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * Pure mapping from stored lead-source fields → the mobile provenance card.
@@ -61,18 +63,31 @@ export function provenanceVisual(
   return 'other'
 }
 
-export function buildMobileProvenanceModel(input: LeadProvenanceInput): MobileProvenanceModel {
+/**
+ * `locale` (Hebrew by default — the exact model as before) words the copy, the
+ * captured-field labels, the capture time and the source label. The visual is
+ * still decided from the STORED source and its Hebrew label.
+ */
+export function buildMobileProvenanceModel(input: LeadProvenanceInput, locale: UiLocale = 'he'): MobileProvenanceModel {
   const inbound = inboundChannelFromSource(input.leadSource)
   const visual = provenanceVisual(input.leadSource, input.sourceChannel, input.sourceLabel)
-  const capturedAt = formatCaptureAt(input.createdAt ?? null)
+  const capturedAt = formatCaptureAt(input.createdAt ?? null, locale)
+  const t = translatorFor(locale)
+  const copy = locale === 'he' ? INBOUND_LEAD_COPY : {
+    facebookHeadline: t('leadDetail.inbound.facebookHeadline'),
+    facebookBody: t('leadDetail.inbound.facebookBody'),
+    whatsappHeadline: t('leadDetail.inbound.whatsappHeadline'),
+    whatsappWithConversation: t('leadDetail.inbound.whatsappWithConversation'),
+    whatsappWithoutConversation: t('leadDetail.inbound.whatsappWithoutConversation'),
+  }
 
   if (inbound === 'facebook') {
     const presence = facebookFieldPresence(input)
     return {
       visual: 'facebook',
-      headline: INBOUND_LEAD_COPY.facebookHeadline,
-      body: INBOUND_LEAD_COPY.facebookBody,
-      capturedLabels: facebookCapturedFieldLabels(presence.hasName, presence.hasPhone, presence.hasEmail),
+      headline: copy.facebookHeadline,
+      body: copy.facebookBody,
+      capturedLabels: facebookCapturedFieldLabels(presence.hasName, presence.hasPhone, presence.hasEmail, locale),
       capturedAt,
       preview: null,
       conversationId: null,
@@ -84,10 +99,10 @@ export function buildMobileProvenanceModel(input: LeadProvenanceInput): MobilePr
     const preview = input.preview?.trim() ? input.preview.trim() : null
     return {
       visual: 'whatsapp',
-      headline: INBOUND_LEAD_COPY.whatsappHeadline,
+      headline: copy.whatsappHeadline,
       body: conversationId
-        ? INBOUND_LEAD_COPY.whatsappWithConversation
-        : INBOUND_LEAD_COPY.whatsappWithoutConversation,
+        ? copy.whatsappWithConversation
+        : copy.whatsappWithoutConversation,
       capturedLabels: [],
       capturedAt,
       preview,
@@ -97,7 +112,7 @@ export function buildMobileProvenanceModel(input: LeadProvenanceInput): MobilePr
 
   return {
     visual,
-    headline: input.sourceLabel,
+    headline: locale === 'he' ? input.sourceLabel : leadSourceLabel(input.leadSource, locale),
     body: null,
     capturedLabels: [],
     capturedAt,

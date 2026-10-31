@@ -111,6 +111,7 @@ export default function LeadContactActions({
            * `native` for them before the in-app path is ever taken.
            */
           onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
+          locale: t.locale,
         })
         if (outcome.kind === 'opened') contactSucceeded(leadId, 'mobile', 'whatsapp_api')
         else if (outcome.kind === 'no-connection') contactBlocked(leadId, 'mobile', 'no_connection')

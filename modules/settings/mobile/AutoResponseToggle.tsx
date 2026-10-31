@@ -5,6 +5,7 @@ import { Switch } from '@/lib/form'
 import { setAutoResponseMasterEnabled } from '@/actions/autoResponse/setMasterEnabled'
 import { proToast } from '@/lib/toast'
 import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The switch, and the one line that says what it currently means.
@@ -24,6 +25,7 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
  * control looks identical to the one on the desktop settings page.
  */
 export default function AutoResponseToggle({ initialEnabled }: { initialEnabled: boolean }) {
+  const t = useT()
   const [enabled, setEnabled] = useState(initialEnabled)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -36,8 +38,8 @@ export default function AutoResponseToggle({ initialEnabled }: { initialEnabled:
     if (expired) {
       // Nothing is optimistically flipped: the switch keeps the saved state.
       return proToast({
-        title: 'המענה האוטומטי זמין עם Pro',
-        body: 'חידוש המנוי יחזיר את המענה האוטומטי.',
+        title: t('admin.mobile.autoResponse.proTitle'),
+        body: t('admin.mobile.autoResponse.proBody'),
         source: 'auto_response_toggle_mobile',
       })
     }
@@ -53,8 +55,8 @@ export default function AutoResponseToggle({ initialEnabled }: { initialEnabled:
         setEnabled(previous)
         setError(
           res.reason === 'forbidden'
-            ? 'רק מנהל יכול לשנות את המענה האוטומטי.'
-            : 'לא הצלחנו לעדכן את המענה האוטומטי. נסו שוב.',
+            ? t('admin.mobile.autoResponse.forbidden')
+            : t('admin.mobile.autoResponse.failed'),
         )
       }
     })
@@ -64,15 +66,15 @@ export default function AutoResponseToggle({ initialEnabled }: { initialEnabled:
     <div data-testid='auto-response-toggle'>
       <div className='flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3.5 py-3'>
         <div className='min-w-0'>
-          <h1 className='text-[15px] font-semibold leading-tight text-ink'>מענה אוטומטי</h1>
+          <h1 className='text-[15px] font-semibold leading-tight text-ink'>{t('admin.autoResponse.title')}</h1>
           <p className='mt-0.5 text-[13px] leading-snug text-gray-500'>
-            {enabled ? 'פעיל · עונה אוטומטית בוואטסאפ' : 'כבוי · אין מענה אוטומטי'}
+            {enabled ? t('admin.mobile.autoResponse.on') : t('admin.mobile.autoResponse.off')}
           </p>
         </div>
 
         <span className='tap-44 flex shrink-0 items-center'>
           <Switch
-            aria-label='מענה אוטומטי בוואטסאפ'
+            aria-label={t('admin.autoResponse.master')}
             checked={enabled}
             disabled={pending}
             onChange={(e) => toggle(e.target.checked)}

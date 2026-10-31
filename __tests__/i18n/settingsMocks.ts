@@ -61,7 +61,12 @@ export const usersNteamsActionsModule = () => ({
 })
 export const filterActionsModule = () => ({ updateSavedFilters: record('updateSavedFilters', undefined), addSavedFilters: record('addSavedFilters', undefined) })
 export const linkFacebookModule = () => ({ linkFacebookAccount: record('linkFacebookAccount', { ok: true }) })
-export const facebookUserAuthFlagsModule = () => ({ canUseFacebookUserAuth: () => setEnv.facebookUserAuth })
+export const facebookUserAuthFlagsModule = () => ({
+  canUseFacebookUserAuth: () => setEnv.facebookUserAuth,
+  // The sign-in and registration pages (Phase F4 leak-gate surfaces) read these two.
+  isFacebookUserAuthPubliclyAvailable: () => setEnv.facebookUserAuth,
+  isFacebookUserAuthOpenToNewAgencies: () => setEnv.facebookUserAuth,
+})
 export const remindersFlagsModule = async () => ({
   ...(await vi.importActual<typeof import('@/lib/flags/ownerWhatsappReminderFlags')>('@/lib/flags/ownerWhatsappReminderFlags')),
   canUseOwnerWhatsappReminders: () => setEnv.remindersAudience,
@@ -88,7 +93,8 @@ export const availabilityModule = () => ({
   describeCardBillingAvailability: () => ({ ok: setEnv.billingAvailable, reason: setEnv.billingAvailable ? 'ok' : 'missing_env' }),
 })
 export const subscriptionActionsModule = () => ({ cancelRenewal: record('cancelRenewal', { ok: true }), resumeRenewal: record('resumeRenewal', { ok: true }) })
-export const paymentMethodActionsModule = () => ({ startCardSetup: record('startCardSetup', { url: 'https://grow.example.test/pay' }) })
+// `getCardSetupStatus`: the card return page in the leak gate (Phase F5) — it stays verifying.
+export const paymentMethodActionsModule = () => ({ startCardSetup: record('startCardSetup', { url: 'https://grow.example.test/pay' }), getCardSetupStatus: async () => ({ state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false }) })
 export const trialActionsModule = () => ({ trackTrialStartClicked: async () => {}, trackTrialStartFailed: async () => {} })
 
 /** `db(table)`: chainable + awaitable, answering from `setEnv` by table. */

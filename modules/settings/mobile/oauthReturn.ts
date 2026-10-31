@@ -1,5 +1,15 @@
 import { FACEBOOK_NOTICES, facebookNotice, whatsappNotice } from '@/lib/connections/messages'
 import type { IntegrationCardCopy } from './integrationStatus'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
+import { localizeFacebookNotice, localizeWhatsappNotice } from '@/lib/connections/localizedNotices'
+
+/*
+ * The *ReturnCopy producers take an optional `locale` (Hebrew by default: the
+ * exact sentences as before). The query CODES still decide which sentence;
+ * only its wording follows the language. Parsing, sheet routing and the
+ * auto-complete rules below are unchanged.
+ */
 
 /**
  * Query keys the existing OAuth callbacks already write. Mobile reads them
@@ -68,40 +78,42 @@ export function facebookReturnCopy(input: {
   error: string | null
   select: boolean
   completing: boolean
-}): IntegrationCardCopy | null {
+}, locale: UiLocale = 'he'): IntegrationCardCopy | null {
+  const t = translatorFor(locale)
   if (input.completing) {
     return {
-      statusLabel: 'משלים חיבור...',
-      explanation: 'פייסבוק אושר. משלימים את חיבור הדף.',
-      actionLabel: 'משלים חיבור...',
+      statusLabel: t('settings.mobile.landing.completing'),
+      explanation: t('settings.mobile.oauth.fbApproved'),
+      actionLabel: t('settings.mobile.landing.completing'),
       role: 'warning',
     }
   }
   if (input.error) {
-    const notice = facebookNotice(input.error) ?? FACEBOOK_NOTICES.token
+    const found = facebookNotice(input.error) ?? FACEBOOK_NOTICES.token
+    const notice = localizeFacebookNotice(found, locale) ?? found
     return {
       statusLabel: notice.title,
       explanation: notice.explanation,
-      actionLabel: notice.action ?? 'לנסות שוב',
+      actionLabel: notice.action ?? t('settings.mobile.oauth.retry'),
       role: notice.tone === 'attention' ? 'warning' : 'error',
     }
   }
   if (input.pendingPages && input.pendingPages.length > 0) {
     return {
-      statusLabel: 'בחירת דף',
+      statusLabel: t('settings.mobile.oauth.pickPage'),
       explanation:
         input.pendingPages.length === 1
-          ? 'פייסבוק אושר. משלימים את חיבור הדף.'
-          : 'פייסבוק אושר. בחרו את הדף כדי להשלים את החיבור.',
-      actionLabel: 'השלימו חיבור',
+          ? t('settings.mobile.oauth.fbApproved')
+          : t('settings.mobile.oauth.fbPick'),
+      actionLabel: t('settings.mobile.oauth.finish'),
       role: 'warning',
     }
   }
   if (input.select) {
     return {
-      statusLabel: 'החיבור לא הושלם',
-      explanation: 'חזרנו מפייסבוק, אבל אין דף שמחכה לחיבור. אפשר לנסות שוב.',
-      actionLabel: 'לנסות שוב',
+      statusLabel: t('settings.mobile.oauth.notCompleted'),
+      explanation: t('settings.mobile.oauth.fbNoPage'),
+      actionLabel: t('settings.mobile.oauth.retry'),
       role: 'error',
     }
   }
@@ -112,42 +124,43 @@ export function whatsappReturnCopy(input: {
   pendingPhones: unknown[] | null
   error: string | null
   completing: boolean
-}): IntegrationCardCopy | null {
+}, locale: UiLocale = 'he'): IntegrationCardCopy | null {
+  const t = translatorFor(locale)
   if (input.completing) {
     return {
-      statusLabel: 'משלים חיבור...',
-      explanation: 'וואטסאפ אושר. משלימים את חיבור המספר.',
-      actionLabel: 'משלים חיבור...',
+      statusLabel: t('settings.mobile.landing.completing'),
+      explanation: t('settings.mobile.oauth.waApproved'),
+      actionLabel: t('settings.mobile.landing.completing'),
       role: 'warning',
     }
   }
   if (input.error) {
     if (input.error === 'cancelled' || input.error === 'denied') {
       return {
-        statusLabel: 'החיבור לוואטסאפ לא הושלם',
-        explanation: 'התהליך נעצר לפני שלב האישור, ולא נשמר מידע.',
-        actionLabel: 'לנסות שוב',
+        statusLabel: t('settings.mobile.oauth.waNotCompleted'),
+        explanation: t('settings.mobile.oauth.waStopped'),
+        actionLabel: t('settings.mobile.oauth.retry'),
         role: 'error',
       }
     }
-    const notice = whatsappNotice(input.error)
+    const notice = localizeWhatsappNotice(whatsappNotice(input.error), locale)
     if (notice) {
       return {
         statusLabel: notice.title,
         explanation: notice.explanation,
-        actionLabel: notice.action ?? 'לנסות שוב',
+        actionLabel: notice.action ?? t('settings.mobile.oauth.retry'),
         role: notice.tone === 'attention' ? 'warning' : 'error',
       }
     }
   }
   if (input.pendingPhones && input.pendingPhones.length > 0) {
     return {
-      statusLabel: 'בחירת מספר',
+      statusLabel: t('settings.mobile.oauth.pickPhone'),
       explanation:
         input.pendingPhones.length === 1
-          ? 'וואטסאפ אושר. משלימים את חיבור המספר.'
-          : 'וואטסאפ אושר. בחרו את המספר כדי להשלים את החיבור.',
-      actionLabel: 'השלימו חיבור',
+          ? t('settings.mobile.oauth.waApproved')
+          : t('settings.mobile.oauth.waPick'),
+      actionLabel: t('settings.mobile.oauth.finish'),
       role: 'warning',
     }
   }
@@ -158,24 +171,25 @@ export function calendarReturnCopy(input: {
   connected: boolean
   error: string | null
   connecting: boolean
-}): IntegrationCardCopy | null {
+}, locale: UiLocale = 'he'): IntegrationCardCopy | null {
+  const t = translatorFor(locale)
   if (input.connected) return null
   if (input.error) {
     return {
-      statusLabel: input.error === 'denied' ? 'החיבור לא הושלם' : 'החיבור נכשל',
+      statusLabel: input.error === 'denied' ? t('settings.mobile.oauth.notCompleted') : t('settings.mobile.oauth.failed'),
       explanation:
         input.error === 'denied'
-          ? 'התהליך ביומן Google נעצר לפני האישור. אפשר לנסות שוב.'
-          : 'לא הצלחנו לחבר את Google Calendar. אפשר לנסות שוב.',
-      actionLabel: 'לנסות שוב',
+          ? t('settings.mobile.oauth.gcalDenied')
+          : t('settings.mobile.oauth.gcalFailed'),
+      actionLabel: t('settings.mobile.oauth.retry'),
       role: 'error',
     }
   }
   if (input.connecting) {
     return {
-      statusLabel: 'משלים חיבור...',
-      explanation: 'Google Calendar אושר. מעדכנים את מצב החיבור.',
-      actionLabel: 'משלים חיבור...',
+      statusLabel: t('settings.mobile.landing.completing'),
+      explanation: t('settings.mobile.oauth.gcalApproved'),
+      actionLabel: t('settings.mobile.landing.completing'),
       role: 'warning',
     }
   }
@@ -186,24 +200,25 @@ export function driveReturnCopy(input: {
   connected: boolean
   error: string | null
   connecting: boolean
-}): IntegrationCardCopy | null {
+}, locale: UiLocale = 'he'): IntegrationCardCopy | null {
+  const t = translatorFor(locale)
   if (input.connected) return null
   if (input.connecting) {
     return {
-      statusLabel: 'משלים חיבור...',
-      explanation: 'Google Drive אושר. מעדכנים את מצב החיבור.',
-      actionLabel: 'משלים חיבור...',
+      statusLabel: t('settings.mobile.landing.completing'),
+      explanation: t('settings.mobile.oauth.gdriveApproved'),
+      actionLabel: t('settings.mobile.landing.completing'),
       role: 'warning',
     }
   }
   if (input.error) {
     return {
-      statusLabel: input.error === 'denied' ? 'החיבור לא הושלם' : 'החיבור נכשל',
+      statusLabel: input.error === 'denied' ? t('settings.mobile.oauth.notCompleted') : t('settings.mobile.oauth.failed'),
       explanation:
         input.error === 'denied'
-          ? 'התהליך ב-Google Drive נעצר לפני האישור. אפשר לנסות שוב.'
-          : 'לא הצלחנו לחבר את Google Drive. אפשר לנסות שוב.',
-      actionLabel: 'לנסות שוב',
+          ? t('settings.mobile.oauth.gdriveDenied')
+          : t('settings.mobile.oauth.gdriveFailed'),
+      actionLabel: t('settings.mobile.oauth.retry'),
       role: 'error',
     }
   }

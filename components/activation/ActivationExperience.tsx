@@ -8,6 +8,9 @@ import ActivationHero from '@/components/activation/ActivationHero'
 import ActivationVideoPanel from '@/components/activation/ActivationVideoPanel'
 import Icon from '@/lib/Icon'
 import { completeOnboarding } from '@/actions/activation'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { rtlOrRegionAttrs } from '@/lib/i18n/preLoginLocale'
+import type { Translator } from '@/lib/i18n/translate'
 
 const DESKTOP_QUERY = '(min-width: 1000px)'
 const PANEL_LIGHT = 'linear-gradient(165deg, #ffffff 0%, #f7f5fc 55%, #f1edfb 100%)'
@@ -29,6 +32,7 @@ const KEYFRAMES = `
  */
 export default function ActivationExperience() {
   const router = useRouter()
+  const t = useT()
   const { machine, alreadyConnected, startOAuth, selectPage, retry, continueDesktop } = useActivationController()
   const navigatedRef = useRef(false)
 
@@ -53,11 +57,12 @@ export default function ActivationExperience() {
       onSelect={selectPage}
       onRetry={retry}
       onContinue={continueDesktop}
+      locale={t.locale}
     />
   )
 
   return (
-    <div dir='rtl' role='dialog' aria-label='הפעלת SocialCRM' className='relative min-h-dvh w-full overflow-hidden'>
+    <div {...rtlOrRegionAttrs(t.locale)} role='dialog' aria-label={t('auth.activation.dialog')} className='relative min-h-dvh w-full overflow-hidden'>
       <style>{KEYFRAMES}</style>
 
       {/* DESKTOP — light activation surface (leading/right in RTL) + full-bleed video (left).
@@ -75,7 +80,7 @@ export default function ActivationExperience() {
           }}
         >
           <ActivationHero />
-          <div className='flex w-full max-w-[440px] flex-col items-center gap-7 text-center'>{done ? <DesktopComplete /> : screen}</div>
+          <div className='flex w-full max-w-[440px] flex-col items-center gap-7 text-center'>{done ? <DesktopComplete t={t} /> : screen}</div>
         </section>
         <section className='relative basis-[52%]'>
           <ActivationVideoPanel className='absolute inset-0 h-full w-full' />
@@ -86,15 +91,15 @@ export default function ActivationExperience() {
   )
 }
 
-function DesktopComplete() {
+function DesktopComplete({ t }: { t: Translator }) {
   return (
     <div className='flex flex-col items-center gap-5 text-center'>
       <Icon name='spinner' className='size-8 animate-spin bg-[#3f20f5]' />
-      <h1 className='text-[24px] font-bold text-[#0f1024]'>סביבת העבודה שלך מוכנה 🎉</h1>
+      <h1 className='text-[24px] font-bold text-[#0f1024]'>{t('auth.activation.ready.heading')}</h1>
       <p className='max-w-[320px] text-[14px] leading-[1.7] text-gray-500'>
-        חשבון ה-Meta שלך חובר בהצלחה.
+        {t('auth.activation.ready.connected')}
         <br />
-        אנחנו מעבירים אותך למערכת...
+        {t('auth.activation.ready.moving')}
       </p>
     </div>
   )

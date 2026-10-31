@@ -1,10 +1,10 @@
-import { Pulse, Status } from './Pulse'
+import { LoadingStatus, Pulse } from './Pulse'
 
 /** Mirrors MobileToday: hero card + compact grouped rows. */
 export default function TodaySkeletonMobile() {
   return (
     <div className='flex flex-col gap-2 px-4 pb-5 pt-2' aria-busy='true' data-testid='today-skeleton-mobile'>
-      <Status>טוען…</Status>
+      <LoadingStatus />
       <div className='rounded-xl border border-gray-200 bg-white p-4' aria-hidden>
         <Pulse className='h-3.5 w-28 rounded' />
         <Pulse className='mt-2 h-7 w-40 rounded' />

@@ -3,6 +3,8 @@
 import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/lib/Icon'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { dirFor } from '@/lib/i18n/config'
 
 /**
  * The mobile screen header — one title, an optional back affordance, one
@@ -17,7 +19,11 @@ import Icon from '@/lib/Icon'
  * RTL: the back arrow points RIGHT. The document is `dir='rtl'`, so "where I
  * came from" is the right edge — `arrow-right` is authored correct here and must
  * NOT be flipped. (There is no global RTL icon-mirroring rule in the stylesheet;
- * the scattered `rtl:scale-x-100` classes are identity no-ops.)
+ * the scattered `rtl:scale-x-100` classes are identity no-ops.) In an LTR
+ * interface language (English) "back" is the LEFT edge, so the same glyph is
+ * mirrored there — Hebrew and Arabic markup are unchanged (i18n Phase F1).
+ * The label and the mirror follow the interface language: this header is only
+ * ever rendered by `MobileWorkspaceShell`, whose whole region is translated.
  *
  * Sticky, not fixed — a fixed header needs the scroll container to carry
  * matching padding, and every screen forgetting it is a clipped first row.
@@ -26,7 +32,7 @@ export default function MobileHeader({
   title,
   subtitle,
   onBack,
-  backLabel = 'חזרה',
+  backLabel,
   action,
 }: {
   title: string
@@ -42,6 +48,7 @@ export default function MobileHeader({
   action?: ReactNode
 }) {
   const router = useRouter()
+  const t = useT()
   const handleBack = onBack === true ? () => router.back() : onBack
 
   return (
@@ -54,10 +61,10 @@ export default function MobileHeader({
           <button
             type='button'
             onClick={handleBack}
-            aria-label={backLabel}
+            aria-label={backLabel ?? t('mobileShell.header.back')}
             className='flex size-11 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
           >
-            <Icon name='arrow-right' type='sol' className='size-5 bg-gray-600' />
+            <Icon name='arrow-right' type='sol' className='size-5 bg-gray-600' flip={dirFor(t.locale) === 'ltr'} />
           </button>
         )}
 

@@ -19,6 +19,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import type { MessageKey } from '@/lib/i18n/translate'
 import { translatorFor } from '@/lib/i18n/translators'
 import { untranslatedAttrs } from '@/lib/i18n/config'
+import { holderMessageText } from './cardHolderMessage'
 
 const HEBREW = translatorFor('he')
 
@@ -64,7 +65,7 @@ export type CardTrialSetupFormProps = {
   /**
    * Follow the interface language (settings → billing). The recorded terms (the
    * two consents and the disclosure lines) stay Hebrew either way, in a Hebrew
-   * region outside Hebrew. Default Hebrew: the trial screens are not translated yet.
+   * region outside Hebrew. Default Hebrew; every caller passes it since Phase F5.
    */
   translated?: boolean
 }
@@ -99,7 +100,6 @@ function SubscriptionConsentLabel() {
     </>
   )
 }
-
 
 /**
  * Bolds the trial length and the price WITHIN the approved disclosure lines.
@@ -149,7 +149,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
       if ('error' in res) {
         setError({
           field: res.error === 'invalid_holder' ? res.field : null,
-          message: res.error === 'invalid_holder' ? res.message : t(ERRORS[res.error] ?? 'settings.payment.form.error.generic'),
+          message: res.error === 'invalid_holder' ? holderMessageText(res.message, t) : t(ERRORS[res.error] ?? 'settings.payment.form.error.generic'),
         })
         trackTrialStartFailed(res.error === 'unauthorized' ? 'unauthorized' : 'unknown').catch(() => {})
         setPending(false)

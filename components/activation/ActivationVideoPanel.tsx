@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The onboarding explanation video on a clean dark stage. Same centered stage,
@@ -16,6 +17,7 @@ const SOURCES = [{ src: '/media/video/explanation.mp4', type: 'video/mp4' }]
 const POSTER = '/media/video/explanation-poster.jpg'
 
 export default function ActivationVideoPanel({ className = '' }: { className?: string }) {
+  const t = useT()
   const [failed, setFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -45,7 +47,7 @@ export default function ActivationVideoPanel({ className = '' }: { className?: s
           playsInline
           preload='auto'
           poster={POSTER}
-          aria-label='סרטון הסבר על SocialCRM'
+          aria-label={t('auth.activation.video')}
           onError={() => setFailed(true)}
         >
           {SOURCES.map((s) => (

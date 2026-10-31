@@ -1,10 +1,10 @@
-import { Pulse, Status } from './Pulse'
+import { LoadingStatus, Pulse } from './Pulse'
 
 /** Mirrors notifications mobile: segmented control + grouped rows. */
 export default function NotificationsSkeletonMobile() {
   return (
     <div className='flex flex-col gap-3 p-3' aria-busy='true' data-testid='notifications-skeleton-mobile'>
-      <Status>טוען…</Status>
+      <LoadingStatus />
       <div className='flex items-center gap-1 rounded-lg bg-gray-100 p-1' aria-hidden>
         {[0, 1, 2].map((i) => (
           <Pulse key={i} className='h-11 min-w-0 flex-1 rounded-md' />

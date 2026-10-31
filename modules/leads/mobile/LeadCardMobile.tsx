@@ -3,11 +3,20 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
-import { statusStyle } from '@/lib/leads/statusStyles'
+import { leadStatusLabel, statusStyle } from '@/lib/leads/statusStyles'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 import type { MobileLeadRow } from '@/modules/leads/queries'
 import useLongPress from '@/components/mobile/useLongPress'
 import LeadContactActions from './LeadContactActions'
 import { type FollowUpBadge } from './followUpBadge'
+
+/** The SQL `nextAction` sentence (db/clients.ts) → its catalog key; Hebrew shows the sentence itself. */
+const NEXT_ACTION_KEY: Record<string, MessageKey> = {
+  'התקשר עכשיו': 'leads.table.nextAction.new',
+  'עקוב אחרי': 'leads.table.nextAction.contacted',
+  'סגור עסקה': 'leads.table.nextAction.interested',
+}
 
 /**
  * One lead, as a phone row.
@@ -38,13 +47,17 @@ export default function LeadCardMobile({
   /** Workspace WhatsApp connection — decides in-app conversation vs native handoff. */
   whatsappConnected?: boolean
 }) {
+  const t = useT()
   const status = statusStyle(lead.status)
+  // An unknown code is drawn as `new` (statusStyle), so it is worded as `new` too.
+  const statusLabel = t.locale === 'he' ? status.label : leadStatusLabel(lead.status, t.locale) ?? leadStatusLabel('new', t.locale)
+  const nextAction = lead.nextAction && t.locale !== 'he' && NEXT_ACTION_KEY[lead.nextAction] ? t(NEXT_ACTION_KEY[lead.nextAction]) : lead.nextAction
   const longPress = useLongPress(onEnterSelection ?? (() => {}), Boolean(onEnterSelection) && !selecting)
 
   const urgency: { label: string; tone: 'error' | 'warning' } | null = followUp
     ? { label: followUp.label, tone: followUp.tone }
     : lead.severity != null && lead.severity >= 2
-      ? { label: 'ממתין זמן רב', tone: 'error' }
+      ? { label: t('leads.mobile.list.longWait'), tone: 'error' }
       : null
 
   const urgencyText = urgency?.tone === 'error' ? 'text-error-text' : 'text-warning-text'
@@ -63,7 +76,7 @@ export default function LeadCardMobile({
       <div className='mt-1 flex items-center gap-1.5'>
         <span className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-medium ${status.text}`}>
           <span aria-hidden className={`size-1 shrink-0 rounded-full ${status.dot}`} />
-          {status.label}
+          {statusLabel}
         </span>
 
         {urgency ? (
@@ -72,7 +85,7 @@ export default function LeadCardMobile({
             <span className='truncate'>{urgency.label}</span>
           </span>
         ) : (
-          lead.nextAction && <span className='truncate text-[11.5px] text-gray-500'>{lead.nextAction}</span>
+          nextAction && <span className='truncate text-[11.5px] text-gray-500'>{nextAction}</span>
         )}
       </div>
     </>

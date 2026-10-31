@@ -3,6 +3,7 @@
 import { PRICING, ANNUAL_MONTHLY_EQUIVALENT, ANNUAL_SAVINGS } from '@/lib/pricing'
 import BottomSheet from '@/components/mobile/BottomSheet'
 import type { QuotaPaywallState } from '@/components/quota/QuotaPaywallModal'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 type Props = {
   state: QuotaPaywallState | null
@@ -17,6 +18,7 @@ type Props = {
  * so this sheet is the mobile surface — the quota backend is untouched.
  */
 export default function QuotaPaywallMobile({ state, onClose }: Props) {
+  const t = useT()
   const isBulk = !!state && state.attempted > 1
   const canInsert = state ? Math.max(0, state.limit - state.current) : 0
 
@@ -24,29 +26,30 @@ export default function QuotaPaywallMobile({ state, onClose }: Props) {
     <BottomSheet
       open={!!state}
       onClose={onClose}
-      title='מכסת הלידים'
+      title={t('leads.quota.title')}
       titleId='quota-paywall-title'
       dismissOnScrim={false}
+      translated
     >
       {state ? (
       <div className='flex flex-col gap-4'>
         <div>
           <p className='text-base font-semibold leading-snug text-ink'>
             {isBulk
-              ? `הקובץ מכיל ${state.attempted} לידים, נותרו רק ${canInsert} במכסה החינמית.`
-              : `כבר ניהלת ${state.limit} לידים כאן.`}
+              ? t('leads.quota.bulk', { attempted: String(state.attempted), remaining: String(canInsert) })
+              : t('leads.quota.single', { limit: String(state.limit) })}
           </p>
           <p className='mt-2 text-sm text-gray-600'>
-            {isBulk ? 'שדרג לייבא את כולם ולהמשיך ללא הגבלה.' : 'אל תעצור עכשיו המשך ללא הגבלה.'}
+            {isBulk ? t('leads.quota.bulkHint') : t('leads.quota.singleHint')}
           </p>
         </div>
 
         <div className='rounded-lg border border-gray-200 bg-gray-50 px-4 py-3'>
-          <p className='text-base font-semibold'>{`Pro · ₪${PRICING.monthly} לחודש`}</p>
+          <p className='text-base font-semibold'>{t('leads.quota.plan', { price: String(PRICING.monthly) })}</p>
           <p className='mt-0.5 text-xs text-gray-600'>
-            {`או ₪${PRICING.annual} לשנה (₪${ANNUAL_MONTHLY_EQUIVALENT} לחודש בלבד) — חיסכון ₪${ANNUAL_SAVINGS} בשנה`}
+            {t('leads.mobile.quota.annual', { annual: String(PRICING.annual), monthly: String(ANNUAL_MONTHLY_EQUIVALENT), savings: String(ANNUAL_SAVINGS) })}
           </p>
-          <p className='mt-0.5 text-xs text-gray-600'>לידים ללא הגבלה</p>
+          <p className='mt-0.5 text-xs text-gray-600'>{t('leads.quota.unlimited')}</p>
         </div>
 
         <div className='flex flex-col gap-2'>
@@ -58,14 +61,14 @@ export default function QuotaPaywallMobile({ state, onClose }: Props) {
               onClose()
             }}
           >
-            שדרג עכשיו
+            {t('leads.banners.upgradeNow')}
           </button>
           <button
             type='button'
             className='press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
             onClick={onClose}
           >
-            מאוחר יותר
+            {t('leads.quota.later')}
           </button>
         </div>
       </div>

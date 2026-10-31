@@ -1,4 +1,5 @@
-import { timeAgo } from '@/components/settings/connections/copy'
+import { timeAgoIn } from '@/components/settings/connections/copy'
+import { customerTextAttrs, type UiLocale } from '@/lib/i18n/config'
 import type { ThreadMessageView } from '@/lib/support/presenters'
 
 /**
@@ -14,7 +15,7 @@ import type { ThreadMessageView } from '@/lib/support/presenters'
  * card and a start border — enough to tell at a glance who is speaking, without
  * pretending this is a messaging product.
  */
-export default function SupportThread({ messages }: { messages: ThreadMessageView[] }) {
+export default function SupportThread({ messages, locale = 'he' }: { messages: ThreadMessageView[]; locale?: UiLocale }) {
   return (
     <ol className='space-y-3'>
       {messages.map((m) => {
@@ -35,10 +36,10 @@ export default function SupportThread({ messages }: { messages: ThreadMessageVie
                 {m.authorLabel}
               </span>
               <span className='shrink-0 text-xs text-gray-400'>
-                {timeAgo(new Date(m.createdAt).toISOString())}
+                {timeAgoIn(new Date(m.createdAt).toISOString(), locale)}
               </span>
             </div>
-            <p className='whitespace-pre-line text-sm leading-relaxed text-gray-700'>{m.body}</p>
+            <p className='whitespace-pre-line text-sm leading-relaxed text-gray-700' {...customerTextAttrs(locale)}>{m.body}</p>
           </li>
         )
       })}

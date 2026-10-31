@@ -9,9 +9,9 @@ const HEBREW = translatorFor('he')
 
 /** Mirrors ConversationThreadMobile: identity header, bubbles, composer. */
 export default function InboxThreadSkeletonMobile({ translated = false }: { translated?: boolean }) {
-  // `translated`: the phone inbox's own loading boundaries (the shell-level
-  // MobileInnerSkeleton passes nothing and stays Hebrew). `inbox.page.loading`
-  // is the same "טוען…" in Hebrew.
+  // `translated`: every caller in the phone workspace — the phone inbox's own
+  // loading boundaries and, since Phase F1, the shell-level MobileInnerSkeleton.
+  // `inbox.page.loading` is the same "טוען…" in Hebrew.
   const ui = useT()
   const t = translated ? ui : HEBREW
   return (

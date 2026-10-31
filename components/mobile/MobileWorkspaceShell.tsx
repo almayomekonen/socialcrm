@@ -8,6 +8,10 @@ import { MobileHeaderActionContext } from './MobileHeaderAction'
 import { MobileWorkspaceContext } from './MobileWorkspaceContext'
 import { useMobileScrollRestoration } from './useMobileScrollRestoration'
 import { useVisibleViewportHeight } from './useVisibleViewportHeight'
+import { HEADER_TITLE_KEYS, tabLabel } from './shellCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { regionAttrs, untranslatedAttrs } from '@/lib/i18n/config'
+import type { Translator } from '@/lib/i18n/translate'
 
 /**
  * The mobile workspace chrome: header on top, page in the middle, tab bar below.
@@ -46,23 +50,30 @@ import { useVisibleViewportHeight } from './useVisibleViewportHeight'
  *
  * `MobileWorkspaceContext` tells synchronous `loading.tsx` files which entity
  * is already mounted, so they never await `headers()` (the stuck-skeleton bug).
+ *
+ * LANGUAGE (i18n Phase F1). The chrome — header title, back label and arrow,
+ * tab bar — follows the interface language on every phone route, and the root
+ * declares it (`regionAttrs`). `main` re-declares Hebrew (`untranslatedAttrs`)
+ * for the phone screens not translated yet, exactly like the desktop `<main>`;
+ * translated screens declare their own region inside it. Both spread nothing
+ * for Hebrew, so a Hebrew user's DOM is unchanged.
  */
 
 /** Routes with a real mobile presentation. Everything else gets a back arrow. */
 const TAB_HREFS = new Set(MOBILE_TABS.map((t) => t.href as string))
 
-function titleFor(pathname: string): { title: string; isTab: boolean } {
+function titleFor(pathname: string, t: Translator): { title: string; isTab: boolean } {
   // Lead detail is a stack screen, not a tab. The page itself shows the name;
   // the header only has to say which kind of record this is.
-  if (pathname.startsWith('/clients/')) return { title: 'ליד', isTab: false }
+  if (pathname.startsWith('/clients/')) return { title: t(HEADER_TITLE_KEYS.lead), isTab: false }
   // Reached from "עוד", so it is a stack screen and keeps its back arrow.
-  if (pathname.startsWith('/agent')) return { title: 'הסוכן שלך', isTab: false }
-  const tab = MOBILE_TABS.find((t) => isTabActive(pathname, t.href))
+  if (pathname.startsWith('/agent')) return { title: t(HEADER_TITLE_KEYS.agent), isTab: false }
+  const tab = MOBILE_TABS.find((candidate) => isTabActive(pathname, candidate.href))
   if (tab && TAB_HREFS.has(tab.href as string)) {
     // A tab screen is a destination, not a stack — no back arrow.
-    return { title: tab.title, isTab: isTabActive(pathname, tab.href) && pathname.split('/').length <= 2 }
+    return { title: tabLabel(tab, t), isTab: isTabActive(pathname, tab.href) && pathname.split('/').length <= 2 }
   }
-  return { title: tab?.title ?? 'SocialCRM', isTab: false }
+  return { title: tab ? tabLabel(tab, t) : 'SocialCRM', isTab: false }
 }
 
 export default function MobileWorkspaceShell({
@@ -77,7 +88,8 @@ export default function MobileWorkspaceShell({
   conversationCount?: number
 }) {
   const pathname = usePathname()
-  const { title, isTab } = titleFor(pathname)
+  const t = useT()
+  const { title, isTab } = titleFor(pathname, t)
   const [headerAction, setHeaderAction] = useState<ReactNode>(null)
 
   /**
@@ -103,6 +115,7 @@ export default function MobileWorkspaceShell({
            neutralisation in main.css — see the rule there for why it is needed. */}
         <div
           data-mobile-workspace
+          {...regionAttrs(t.locale)}
           className='flex min-h-0 flex-1 flex-col overflow-hidden bg-bg has-[[data-wa-thread-chrome]]:[&_[data-mobile-header]]:hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overflow-hidden has-[[data-wa-thread-chrome]]:[&_#main-content]:overscroll-auto has-[[data-mobile-scroll-owner]]:[&_#main-content]:overflow-hidden has-[[data-mobile-scroll-owner]]:[&_#main-content]:overscroll-auto'
         >
           <MobileHeader title={title} onBack={isTab ? undefined : true} action={headerAction} />
@@ -115,6 +128,7 @@ export default function MobileWorkspaceShell({
             ref={scrollerRef}
             tabIndex={-1}
             className='flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain focus:outline-none'
+            {...untranslatedAttrs(t.locale)}
           >
             {children}
           </main>

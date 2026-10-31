@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
 import { shouldAutoCompleteFacebook, shouldAutoCompleteWhatsapp } from './oauthReturn'
 
 type FacebookPage = { id: string; name: string }
@@ -22,6 +23,10 @@ export function useIntegrationReturnContinuation(input: {
   calendarConnected: boolean
 }) {
   const router = useRouter()
+  const t = useT()
+  /** The toasts in the interface language, read inside the effects without re-running them. */
+  const tRef = useRef(t)
+  tRef.current = t
   const [facebookCompleting, setFacebookCompleting] = useState(
     shouldAutoCompleteFacebook(input.pendingPages, input.facebookConnected),
   )
@@ -57,15 +62,15 @@ export function useIntegrationReturnContinuation(input: {
         })
         if (ac.signal.aborted) return
         if (!res.ok) {
-          toast('error', 'לא הצלחנו להשלים את חיבור פייסבוק. אפשר לבחור דף ידנית.')
+          toast('error', tRef.current('settings.mobile.oauth.fbCompleteFailed'))
           setFacebookCompleting(false)
           return
         }
-        toast('success', `הדף "${fbPage.name}" חובר בהצלחה`)
+        toast('success', tRef.current('settings.integrations.facebook.connected', { name: fbPage.name }))
         router.refresh()
       } catch (err) {
         if (ac.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) return
-        toast('error', 'לא הצלחנו להשלים את חיבור פייסבוק. אפשר לבחור דף ידנית.')
+        toast('error', tRef.current('settings.mobile.oauth.fbCompleteFailed'))
         setFacebookCompleting(false)
       }
     })()
@@ -89,15 +94,15 @@ export function useIntegrationReturnContinuation(input: {
         })
         if (ac.signal.aborted) return
         if (!res.ok) {
-          toast('error', 'לא הצלחנו להשלים את חיבור הוואטסאפ. אפשר לבחור מספר ידנית.')
+          toast('error', tRef.current('settings.mobile.oauth.waCompleteFailed'))
           setWhatsappCompleting(false)
           return
         }
-        toast('success', 'וואטסאפ חובר בהצלחה')
+        toast('success', tRef.current('settings.mobile.oauth.waConnected'))
         router.refresh()
       } catch (err) {
         if (ac.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) return
-        toast('error', 'לא הצלחנו להשלים את חיבור הוואטסאפ. אפשר לבחור מספר ידנית.')
+        toast('error', tRef.current('settings.mobile.oauth.waCompleteFailed'))
         setWhatsappCompleting(false)
       }
     })()

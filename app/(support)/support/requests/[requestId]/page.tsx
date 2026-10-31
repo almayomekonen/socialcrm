@@ -7,6 +7,10 @@ import { listSupportMessagesSystem } from '@/db/support/messages'
 import { canViewSupportRequest } from '@/lib/support/permissions'
 import { toThreadMessages } from '@/lib/support/presenters'
 import { STATUS_COPY } from '@/lib/support/copy'
+import { statusLabel, subjectText } from '@/lib/support/localizedCopy'
+import { customerTextAttrs } from '@/lib/i18n/config'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { translatorFor } from '@/lib/i18n/translators'
 import { StatusBadge } from '@/lib/StatusBadge'
 import SupportThread from '@/components/support/SupportThread'
 import SupportReplyBox from '@/components/support/SupportReplyBox'
@@ -33,25 +37,27 @@ async function ThreadContent({ requestId }: { requestId: number }) {
 
   // The projection drops authorUserId and filters empty bodies. A context-only
   // opening message therefore never renders as a blank card.
-  const messages = toThreadMessages(rows, user.id, request.requesterNameSnapshot)
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
+  const messages = toThreadMessages(rows, user.id, request.requesterNameSnapshot, locale)
   const status = STATUS_COPY[request.status]
 
   return (
     <>
       <Link href='/support/requests' className='text-sm text-gray-500 hover:underline'>
-        הפניות שלי
+        {t('support.center.mine')}
       </Link>
 
       <header className='mb-6 mt-3'>
         <div className='flex flex-wrap items-center gap-3'>
-          <h1 className='text-2xl font-bold text-ink'>{request.subject}</h1>
-          <StatusBadge role={status.role} label={status.label} />
+          <h1 className='text-2xl font-bold text-ink' {...customerTextAttrs(locale)}>{subjectText(request.subject, locale)}</h1>
+          <StatusBadge role={status.role} label={statusLabel(request.status, locale)} />
         </div>
       </header>
 
       {/* PHASE 4: <SupportContextCard facts={request.context?.facts ?? []} collapsed /> */}
 
-      <SupportThread messages={messages} />
+      <SupportThread messages={messages} locale={locale} />
       <SupportReplyBox requestId={request.id} isResolved={request.status === 'resolved'} />
     </>
   )

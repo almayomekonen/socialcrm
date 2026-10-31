@@ -8,8 +8,13 @@ import { Button } from '@/components/lumen/ui/button'
 import AuthControlRow from './AuthControlRow'
 import { getFormData2 } from '@/lib/form/funcs'
 import { toast } from '@/lib/toast'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { untranslatedAttrs } from '@/lib/i18n/config'
+import { authMessageText } from './authMessageText'
 
 export default function LoginMagicLink({ error }) {
+  const t = useT()
+  // The status line keeps the Hebrew sentence (the suspended check compares it); it is worded at render.
   if (error) error = 'הקישור אינו תקין או שפג תוקפו'
   const [msg, setMsg] = useState(error)
   const [submitting, setSubmitting] = useState(false)
@@ -33,11 +38,11 @@ export default function LoginMagicLink({ error }) {
     const myId = ++reqIdRef.current
 
     timersRef.current.slow = setTimeout(() => {
-      if (reqIdRef.current === myId) toast('loading', 'הפעולה לוקחת יותר זמן מהרגיל...')
+      if (reqIdRef.current === myId) toast('loading', t('auth.wait.slow'))
     }, 10000)
     timersRef.current.retry = setTimeout(() => {
       if (reqIdRef.current === myId) {
-        toast('error', 'לוקח זמן רב מהרגיל, נסה שוב')
+        toast('error', t('auth.wait.timeout'))
         setSubmitting(false)
       }
     }, 20000)
@@ -83,20 +88,29 @@ export default function LoginMagicLink({ error }) {
        handler above is untouched. */
     <form ref={formRef} onSubmit={handleSubmit} className='grid gap-4'>
       <div>
-        <Input name='email' lbl='אימייל' type='email' />
+        <Input name='email' lbl={t('auth.magic.email')} type='email' />
       </div>
       {/* Lumen's signin control row. The action re-submits THIS form, i.e. the
           existing send-token path — no new auth logic, no new route. */}
       <AuthControlRow
         checkboxId='remember-me'
-        checkboxLabel='זכור אותי'
-        actionLabel='שלח קישור שוב'
+        checkboxLabel={t('auth.magic.remember')}
+        actionLabel={t('auth.magic.resend')}
         onAction={() => formRef.current?.requestSubmit()}
       />
       <Button type='submit' className='mt-2 w-full shadow-none' disabled={submitting}>
-        {submitting ? 'טוען...' : 'התחל בחינם'}
+        {submitting ? t('auth.magic.submitting') : t('auth.magic.submit')}
       </Button>
-      {msg && <p className='text-destructive text-sm'>{msg}</p>}
+      {msg && <StatusLine msg={msg} t={t} />}
     </form>
+  )
+}
+
+function StatusLine({ msg, t }: { msg: string; t: ReturnType<typeof useT> }) {
+  const { text, known } = authMessageText(msg, t)
+  return (
+    <p className='text-destructive text-sm' {...(known ? {} : untranslatedAttrs(t.locale))}>
+      {text}
+    </p>
   )
 }

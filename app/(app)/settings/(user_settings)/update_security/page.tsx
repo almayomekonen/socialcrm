@@ -11,7 +11,7 @@ import { canUseFacebookUserAuth } from '@/lib/auth/facebookUserAuthFlags'
 import { isMobileWorkspaceRequest } from '@/lib/device'
 import LoginActivityMobile from '@/components/settings/mobile/LoginActivityMobile'
 import { getUiLocaleState } from '@/lib/i18n/server'
-import { regionAttrs, untranslatedAttrs } from '@/lib/i18n/config'
+import { regionAttrs } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 
 export default async function page() {
@@ -72,8 +72,8 @@ export default async function page() {
           {ipData.length === 0 ? (
             <p className='text-sm text-gray-500'>{t('settings.account.security.noActivity')}</p>
           ) : mobile ? (
-            // The phone's activity list is not translated yet (Phase F): a Hebrew region outside Hebrew.
-            locale === 'he' ? <LoginActivityMobile rows={ipData} /> : <div {...untranslatedAttrs(locale)}><LoginActivityMobile rows={ipData} /></div>
+            // Device names and IP addresses are data; the dates follow the interface language (Phase F2).
+            <LoginActivityMobile rows={ipData} locale={locale} />
           ) : (
             <IpsTable data={ipData} />
           )}
