@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
+import { expectStickyEdges } from './stickyActionsEdge'
 import { act } from 'react'
 import { renderToString } from 'react-dom/server'
 import { hydrateRoot } from 'react-dom/client'
@@ -308,4 +309,16 @@ describe('hydration — server and client agree in every language', () => {
       })
     }
   }
+})
+
+describe('the actions column pins to the end of the row (final UI audit)', () => {
+  test('he / ar pinned left as before, en pinned right', async () => {
+    const seen = {} as Record<'he' | 'en' | 'ar', HTMLElement>
+    for (const l of ['he', 'en', 'ar'] as const) {
+      const { container } = render(await deals(l))
+      seen[l] = container.cloneNode(true) as HTMLElement
+      cleanup()
+    }
+    expectStickyEdges(seen)
+  })
 })

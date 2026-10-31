@@ -12,6 +12,7 @@ import { deleteFile } from '../../actions/files'
 import { Select } from '@/lib/form'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { actionsColumnEdge } from '@/lib/table/funcs'
 import { translatorFor } from '@/lib/i18n/translators'
 import type { UiLocale } from '@/lib/i18n/config'
 import { useLocalizedColumns } from '@/components/clients/table/useLocalizedColumns'
@@ -72,7 +73,7 @@ export default function FilesTable({ data, tasks, clients, fillHeight = false })
   function moreRows(file) {
     return (
       <>
-        <td className='sticky left-0 z-10 bg-white'>
+        <td className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-white`}>
           {/* Icon-only: named outside Hebrew (Phase E6); Hebrew markup is unchanged. */}
           <Btn
             variant='outline'
@@ -88,7 +89,7 @@ export default function FilesTable({ data, tasks, clients, fillHeight = false })
   function moreHeads() {
     return (
       <>
-        <th className='sticky left-0 z-10 bg-gray-100'>{t('leadTabs.files.deleteColumn')}</th>
+        <th className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-gray-100`}>{t('leadTabs.files.deleteColumn')}</th>
       </>
     )
   }

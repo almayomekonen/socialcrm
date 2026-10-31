@@ -1,5 +1,14 @@
 import { formatDate, formatDateTime } from '../dates'
 import { formatCurrency, formatPrecent, formatRoundCurrency, formatShortCurrency } from '../funcs'
+import { dirFor, type UiLocale } from '../i18n/config'
+
+/**
+ * Edge for a table's sticky actions column (`moreHeads` / `moreRows`), the row's LAST cell: the left edge in RTL
+ * (Hebrew and Arabic, as before), the right edge in LTR.
+ */
+export function actionsColumnEdge(locale: UiLocale): 'left-0' | 'right-0' {
+  return dirFor(locale) === 'ltr' ? 'right-0' : 'left-0'
+}
 
 export function checkedIds(container?: HTMLElement | Document | null) {
   const root: ParentNode = container ?? document

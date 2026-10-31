@@ -18,7 +18,7 @@ import SalesTableDialogs from './SalesTableDialogs'
 import SalesEmptyState from './SalesEmptyState'
 import SalesTableToolbar from './SalesTableToolbar'
 import Table, { ConfigT } from '@/lib/table'
-import { checkedIds } from '@/lib/table/funcs'
+import { actionsColumnEdge, checkedIds } from '@/lib/table/funcs'
 
 /** Columns showing a STORED Hebrew value → the display-only formatter used outside Hebrew. */
 const STORED_VALUE_FORMAT: Record<string, string> = { company: 'dealCompany', prdct: 'dealProduct', action: 'dealAction', leadSource: 'dealSource' }
@@ -164,7 +164,7 @@ export default function SalesTable({ props }: SaleTableProps) {
   function moreRows(sale) {
     return (
       <>
-        <td className='sticky left-0 z-10 bg-white'>
+        <td className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-white`}>
           <DotsMenu id='saleActions' onClick={() => setCurSale(sale)} />
         </td>
       </>
@@ -172,7 +172,7 @@ export default function SalesTable({ props }: SaleTableProps) {
   }
 
   function moreHeads() {
-    return <th className='sticky left-0 z-10 bg-gray-100'>{t('deals.table.actions')}</th>
+    return <th className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-gray-100`}>{t('deals.table.actions')}</th>
   }
 
   const config = {

@@ -11,6 +11,7 @@ import { Select } from '@/lib/form'
 import { Btn } from '@/lib/btns/Btn'
 import ExportTable from '@/lib/table/export'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { actionsColumnEdge } from '@/lib/table/funcs'
 import { useLocalizedColumns } from '@/components/clients/table/useLocalizedColumns'
 import { formatLeadDate } from '@/lib/leads/leadDate'
 import { adminRoleLabel, adminRoleOptions, userColumnLabel } from './adminLabels'
@@ -29,7 +30,7 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
   function moreRows(user) {
     return (
       <>
-        <td className='sticky left-0 z-10 bg-white'>
+        <td className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-white`}>
           <Btn variant='outline' size='icon' icon='pen' aria-label={t('admin.users.editRep')} popoverTarget='editUserForm' onClick={() => setCurUser({ ...user })} />
         </td>
       </>
@@ -39,7 +40,7 @@ export default function UsersTable({ users, agnts, tblPref, teams }) {
   function moreHeads() {
     return (
       <>
-        <th className='sticky left-0 z-10 bg-gray-100'>{t('admin.users.col.edit')}</th>
+        <th className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-gray-100`}>{t('admin.users.col.edit')}</th>
       </>
     )
   }
