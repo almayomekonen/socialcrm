@@ -60,8 +60,12 @@ export function daysFromNow(days: number) {
   return date
 }
 
-export function getDateRange(period: Period): { start: Date; end: Date } | false {
-  const today = new Date()
+/**
+ * The Performance and Deals filter's period bounds, in the process's local time
+ * (UTC on Vercel). `today` defaults to now; the Agent's revenue reader passes its
+ * injected clock so it computes exactly this window (db/agentRevenue.ts).
+ */
+export function getDateRange(period: Period, today: Date = new Date()): { start: Date; end: Date } | false {
   let start: Date, end: Date
 
   switch (period) {

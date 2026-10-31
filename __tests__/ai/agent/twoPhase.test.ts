@@ -95,7 +95,7 @@ describe('1 · Phase 1 wire contract — evidence', () => {
     generateTextSpy.mockImplementation(twoPhaseModel())
     await autonomous()
     const p1 = call(0)
-    expect(Object.keys(p1.tools as object).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_today_state'])
+    expect(Object.keys(p1.tools as object).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_revenue', 'get_today_state'])
     // prepareStep is present and is what forces the first tool. Its required→auto
     // sequence is asserted in the next test, sampled DURING the run — sampling it
     // afterwards would read 'auto', because by then a tool has already executed.

@@ -156,6 +156,7 @@ describe('invariant · no unguarded session-derived agency resolution in the rea
     { file: 'db/agentConversation.ts', fn: 'findLatestLeadConversation' },
     { file: 'db/agentConversation.ts', fn: 'listAgentConversationMessages' },
     { file: 'lib/today/service.ts', fn: 'buildTodayBrief' },
+    { file: 'db/agentRevenue.ts', fn: 'getRevenueTotals' },
   ]
 
   function body(file: string, fn: string): string {
@@ -203,7 +204,7 @@ describe('invariant · no unguarded session-derived agency resolution in the rea
   })
 
   it('the four tool modules build their reader scope through readerScope()', () => {
-    for (const t of ['findLead', 'getLead', 'getConversation', 'getTodayState']) {
+    for (const t of ['findLead', 'getLead', 'getConversation', 'getTodayState', 'getRevenue']) {
       const src = readFileSync(path.join(ROOT, `lib/agent/tools/${t}.ts`), 'utf8')
       expect(src, `${t}.ts must build its reader scope through readerScope()`).toContain('readerScope(deps.scope)')
       expect(src).not.toMatch(/\{\s*user:\s*\{\s*role:\s*deps\.scope\.role\s*\}\s*,\s*gotPermIds:\s*deps\.scope\.gotPermIds\s*\}/)

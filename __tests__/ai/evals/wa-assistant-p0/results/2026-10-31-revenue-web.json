@@ -1,0 +1,412 @@
+{
+ "label": "revenue-web",
+ "startedAt": "2026-10-31T22:46:12.682Z",
+ "results": [
+  {
+   "id": "R1",
+   "kind": "financial",
+   "question": "כמה העסק שלי עשה השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "השנה העסק הכניס 20,500 ₪ מ־2 עסקאות ששולמו, לפי תאריך הפנייה.\nההכנסה שנרשמה השנה היא 20,500 ₪ מ־2 עסקאות בסטטוס שולם, לפי תאריך הפנייה במסך «ביצועים».\nבנפרד, שווי העסקאות הפתוחות הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.",
+   "answer": {
+    "headline": "השנה העסק הכניס 20,500 ₪ מ־2 עסקאות ששולמו, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסה שנרשמה השנה היא 20,500 ₪ מ־2 עסקאות בסטטוס שולם, לפי תאריך הפנייה במסך «ביצועים».",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בנפרד, שווי העסקאות הפתוחות הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.",
+      "metricEvidence": [
+       "revenue.pipeline"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.117955,
+   "ms": 5146,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס בחודש שעבר?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "בחודש שעבר נכנסו 8,500 ₪ מעסקה אחת ששולמה, לפי תאריך הפנייה כפי שנרשם במסך «ביצועים».\nההכנסה ששולמה בחודש שעבר הייתה 8,500 ₪.\nהסכום הגיע מעסקה אחת בסטטוס שולם.",
+   "answer": {
+    "headline": "בחודש שעבר נכנסו 8,500 ₪ מעסקה אחת ששולמה, לפי תאריך הפנייה כפי שנרשם במסך «ביצועים».",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסה ששולמה בחודש שעבר הייתה 8,500 ₪.",
+      "metricEvidence": [
+       "revenue.paid"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "הסכום הגיע מעסקה אחת בסטטוס שולם.",
+      "metricEvidence": [
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.116425,
+   "ms": 5656,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R3",
+   "kind": "financial",
+   "question": "כמה הכנסתי בשנה שעברה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "בשנה שעברה נרשמו הכנסות של 3,000 ₪, לפי תאריך הפנייה.\nההכנסה שנרשמה בשנת 2025 היא 3,000 ₪ מעסקה אחת ששולמה.",
+   "answer": {
+    "headline": "בשנה שעברה נרשמו הכנסות של 3,000 ₪, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסה שנרשמה בשנת 2025 היא 3,000 ₪ מעסקה אחת ששולמה.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.116195,
+   "ms": 5014,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R4",
+   "kind": "financial",
+   "question": "כמה יש לי בפייפליין השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "בפייפליין השנה יש 7,500 ₪, לפי תאריך הפנייה במסך «ביצועים»; זה שווי עסקאות פתוחות ולא תחזית הכנסה.\nשווי הפייפליין השנה הוא 7,500 ₪.",
+   "answer": {
+    "headline": "בפייפליין השנה יש 7,500 ₪, לפי תאריך הפנייה במסך «ביצועים»; זה שווי עסקאות פתוחות ולא תחזית הכנסה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "שווי הפייפליין השנה הוא 7,500 ₪.",
+      "metricEvidence": [
+       "revenue.pipeline"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.115235,
+   "ms": 5136,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R5",
+   "kind": "financial",
+   "question": "מה היו ההכנסות בין 1 במרץ ל-31 במרץ 2026?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "ההכנסות שנרשמו במערכת במרץ 2026 היו 12,000 ₪, מעסקה אחת ששולמה, לפי תאריך הפנייה.\nבין 1 ל-31 במרץ 2026 נרשמו 12,000 ₪ בהכנסות מעסקה אחת ששולמה, לפי תאריך הפנייה.",
+   "answer": {
+    "headline": "ההכנסות שנרשמו במערכת במרץ 2026 היו 12,000 ₪, מעסקה אחת ששולמה, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בין 1 ל-31 במרץ 2026 נרשמו 12,000 ₪ בהכנסות מעסקה אחת ששולמה, לפי תאריך הפנייה.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.11713,
+   "ms": 5579,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R6",
+   "kind": "financial",
+   "question": "כמה אני צפוי להכניס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "PRODUCT",
+    "RECOMMENDATION"
+   ],
+   "businessState": null,
+   "reply": "אין כרגע בסיס לתחזית הכנסה לחודש: לא רשומות עסקאות ששולמו או עסקאות פתוחות בתקופה.\nההכנסה שנרשמה החודש היא 0 ₪, לפי תאריך הפנייה.\nשווי הפייפליין הפתוח החודש הוא 0 ₪, ומספר העסקאות בתקופה הוא 0.\nSocialCRM אינה מספקת תחזית הכנסות; שווי הפייפליין אינו תחזית.\nאם יש עסקאות פעילות שלא הוזנו, כדאי לרשום ולעדכן אותן כדי לקבל תמונת הכנסות ופייפליין שימושית.\nאי אפשר לחשב כמה צפוי להיכנס החודש מהנתונים הקיימים, משום שאין תחזית הכנסות ואין עסקאות רשומות בתקופה.",
+   "answer": {
+    "headline": "אין כרגע בסיס לתחזית הכנסה לחודש: לא רשומות עסקאות ששולמו או עסקאות פתוחות בתקופה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסה שנרשמה החודש היא 0 ₪, לפי תאריך הפנייה.",
+      "metricEvidence": [
+       "revenue.paid"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "שווי הפייפליין הפתוח החודש הוא 0 ₪, ומספר העסקאות בתקופה הוא 0.",
+      "metricEvidence": [
+       "revenue.pipeline",
+       "revenue.deals_in_period"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "SocialCRM אינה מספקת תחזית הכנסות; שווי הפייפליין אינו תחזית.",
+      "productEvidence": [
+       "not_supported"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "אם יש עסקאות פעילות שלא הוזנו, כדאי לרשום ולעדכן אותן כדי לקבל תמונת הכנסות ופייפליין שימושית.",
+      "evidence": [
+       "revenue.deals_in_period"
+      ]
+     }
+    ],
+    "unknown": "אי אפשר לחשב כמה צפוי להיכנס החודש מהנתונים הקיימים, משום שאין תחזית הכנסות ואין עסקאות רשומות בתקופה.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.124065,
+   "ms": 9062,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R7",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "החודש נרשמו במערכת 0 ₪ הכנסות מעסקאות ששולמו, לפי תאריך הפנייה.\nלא נרשמו החודש עסקאות ששולמו.",
+   "answer": {
+    "headline": "החודש נרשמו במערכת 0 ₪ הכנסות מעסקאות ששולמו, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "לא נרשמו החודש עסקאות ששולמו.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.11811,
+   "ms": 6018,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R8",
+   "kind": "financial",
+   "question": "תן לי את ההכנסות והפייפליין של השנה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "השנה נרשמו הכנסות של 20,500 ₪ ופייפליין פתוח של 7,500 ₪, לפי תאריך הפנייה.\nההכנסות ששולמו השנה הן 20,500 ₪ מ־2 עסקאות.\nשווי העסקאות הפתוחות הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.",
+   "answer": {
+    "headline": "השנה נרשמו הכנסות של 20,500 ₪ ופייפליין פתוח של 7,500 ₪, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסות ששולמו השנה הן 20,500 ₪ מ־2 עסקאות.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "שווי העסקאות הפתוחות הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.",
+      "metricEvidence": [
+       "revenue.pipeline"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.118555,
+   "ms": 4870,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

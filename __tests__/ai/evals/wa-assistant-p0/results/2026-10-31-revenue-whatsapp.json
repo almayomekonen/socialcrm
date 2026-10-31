@@ -1,0 +1,397 @@
+{
+ "label": "revenue-whatsapp",
+ "startedAt": "2026-10-31T22:45:19.955Z",
+ "results": [
+  {
+   "id": "R1",
+   "kind": "financial",
+   "question": "כמה העסק שלי עשה השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*השנה העסק רשם הכנסות של 20,500 ₪, לפי תאריך הפנייה במסך «ביצועים».*\n\n• ההכנסות ששולמו השנה הן 20,500 ₪ מתוך 2 עסקאות ששולמו.\n• בנפרד, שווי העסקאות הפתוחות הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "השנה העסק רשם הכנסות של 20,500 ₪, לפי תאריך הפנייה במסך «ביצועים».",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסות ששולמו השנה הן 20,500 ₪ מתוך 2 עסקאות ששולמו.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בנפרד, שווי העסקאות הפתוחות הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.",
+      "metricEvidence": [
+       "revenue.pipeline"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.117505,
+   "ms": 9534,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס בחודש שעבר?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*בחודש שעבר נכנסו 8,500 ₪ מעסקאות ששולמו, לפי תאריך הפנייה.*\n\n• ההכנסה שנרשמה באוקטובר 2026 היא 8,500 ₪ מעסקה אחת ששולמה.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "בחודש שעבר נכנסו 8,500 ₪ מעסקאות ששולמו, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסה שנרשמה באוקטובר 2026 היא 8,500 ₪ מעסקה אחת ששולמה.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.11543,
+   "ms": 5633,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R3",
+   "kind": "financial",
+   "question": "כמה הכנסתי בשנה שעברה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*בשנת 2025 נרשמו הכנסות של 3,000 ₪ מעסקה אחת ששולמה, לפי תאריך הפנייה.*\n\n• בשנה שעברה נרשמו הכנסות בסך 3,000 ₪ מעסקה אחת בסטטוס שולם, לפי תאריך הפנייה כפי שמחושב במסך «ביצועים».\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "בשנת 2025 נרשמו הכנסות של 3,000 ₪ מעסקה אחת ששולמה, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בשנה שעברה נרשמו הכנסות בסך 3,000 ₪ מעסקה אחת בסטטוס שולם, לפי תאריך הפנייה כפי שמחושב במסך «ביצועים».",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.11595,
+   "ms": 4512,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R4",
+   "kind": "financial",
+   "question": "כמה יש לי בפייפליין השנה?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*בפייפליין השנה רשומים 7,500 ₪, לפי תאריך הפנייה.*\n\n• שווי העסקאות הפתוחות השנה הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "בפייפליין השנה רשומים 7,500 ₪, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "שווי העסקאות הפתוחות השנה הוא 7,500 ₪; זהו פייפליין ולא הכנסה או תחזית.",
+      "metricEvidence": [
+       "revenue.pipeline"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.115365,
+   "ms": 4146,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R5",
+   "kind": "financial",
+   "question": "מה היו ההכנסות בין 1 במרץ ל-31 במרץ 2026?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*ההכנסות שנרשמו בין 1 ל־31 במרץ 2026 היו 12,000 ₪, לפי תאריך הפנייה.*\n\n• בתקופה נרשמה עסקה אחת בסטטוס שולם, בסך 12,000 ₪.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "ההכנסות שנרשמו בין 1 ל־31 במרץ 2026 היו 12,000 ₪, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בתקופה נרשמה עסקה אחת בסטטוס שולם, בסך 12,000 ₪.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.116495,
+   "ms": 6428,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R6",
+   "kind": "financial",
+   "question": "כמה אני צפוי להכניס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "OBSERVATION",
+    "RECOMMENDATION"
+   ],
+   "businessState": null,
+   "reply": "*אי אפשר לחשב תחזית הכנסה; כרגע לא נרשמו החודש הכנסות או עסקאות פתוחות.*\n\n• SocialCRM אינה מספקת חיזוי הכנסות; היא מציגה רק הכנסות ששולמו ושווי פייפליין שנרשמו במערכת.\n• החודש נרשמו 0 ₪ הכנסות ששולמו ו-0 ₪ בפייפליין, לפי תאריך הפנייה.\n• כדי לקבל תמונה שימושית יותר, כדאי לרשום ולעדכן במערכת את העסקאות הפעילות והסכומים שלהן.\n\nאין במערכת תחזית שמאפשרת לקבוע כמה צפוי להיכנס החודש.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "אי אפשר לחשב תחזית הכנסה; כרגע לא נרשמו החודש הכנסות או עסקאות פתוחות.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "SocialCRM אינה מספקת חיזוי הכנסות; היא מציגה רק הכנסות ששולמו ושווי פייפליין שנרשמו במערכת.",
+      "productEvidence": [
+       "not_supported"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "החודש נרשמו 0 ₪ הכנסות ששולמו ו-0 ₪ בפייפליין, לפי תאריך הפנייה.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.pipeline"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "כדי לקבל תמונה שימושית יותר, כדאי לרשום ולעדכן במערכת את העסקאות הפעילות והסכומים שלהן.",
+      "evidence": [
+       "revenue.deals_in_period"
+      ]
+     }
+    ],
+    "unknown": "אין במערכת תחזית שמאפשרת לקבוע כמה צפוי להיכנס החודש.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.12284,
+   "ms": 6646,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R7",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*החודש נכנסו 0 ₪ לפי העסקאות שנרשמו כשולמו ולפי תאריך הפנייה.*\n\n• ההכנסה ששולמה החודש היא 0 ₪, ואין עסקאות ששולמו בתקופה.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "החודש נכנסו 0 ₪ לפי העסקאות שנרשמו כשולמו ולפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסה ששולמה החודש היא 0 ₪, ואין עסקאות ששולמו בתקופה.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.116085,
+   "ms": 7229,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "R8",
+   "kind": "financial",
+   "question": "תן לי את ההכנסות והפייפליין של השנה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_revenue"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*השנה נרשמו הכנסות של 20,500 ₪ ופייפליין פתוח של 7,500 ₪, לפי תאריך הפנייה.*\n\n• ההכנסות מעסקאות ששולמו השנה הן 20,500 ₪, מ־2 עסקאות.\n• שווי העסקאות הפתוחות בפייפליין הוא 7,500 ₪; זה אינו הכנסה או תחזית.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "השנה נרשמו הכנסות של 20,500 ₪ ופייפליין פתוח של 7,500 ₪, לפי תאריך הפנייה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "ההכנסות מעסקאות ששולמו השנה הן 20,500 ₪, מ־2 עסקאות.",
+      "metricEvidence": [
+       "revenue.paid",
+       "revenue.paid_deals"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "שווי העסקאות הפתוחות בפייפליין הוא 7,500 ₪; זה אינו הכנסה או תחזית.",
+      "metricEvidence": [
+       "revenue.pipeline"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.11896,
+   "ms": 6803,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

@@ -242,10 +242,10 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     id: 'deals_and_performance',
     title: 'עסקאות, ביצועים והכנסות',
     summary:
-      'עסקה שייכת לליד ויש לה סכום וסטטוס (חדש, בהצעה, במו"מ, ממתין לתשלום, שולם, בוטל). מסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו, את מספר העסקאות שנסגרו ואת שווי העסקאות שעדיין בתהליך, לפי תקופה שבוחרים (החודש, השנה, השנה הקודמת ועוד). שם רואים כמה העסק הכניס — לפי העסקאות שנרשמו במערכת. מסך «עסקאות» מציג את העסקאות עצמן. שני המסכים זמינים במחשב.',
+      'עסקה שייכת לליד ויש לה סכום וסטטוס (חדש, בהצעה, במו"מ, ממתין לתשלום, שולם, בוטל). מסך «ביצועים» מציג את סך ההכנסות מעסקאות ששולמו, את מספר העסקאות שנסגרו ואת שווי העסקאות שעדיין בתהליך, לפי תקופה שבוחרים (החודש, השנה, השנה הקודמת ועוד). שם רואים כמה העסק הכניס — לפי העסקאות שנרשמו במערכת ולפי תאריך הפנייה שלהן; תשובה בצ׳אט על הכנסות מגיעה מאותם מספרים בדיוק. מסך «עסקאות» מציג את העסקאות עצמן. שני המסכים זמינים במחשב.',
     routes: ['/sum_sales', '/deals'],
     link: '/sum_sales',
-    source: 'db/helpers/sum_helpers.ts (saleStats: totalRevenue = status שולם, pipelineValue) · components/sumSales/AllNumbox.tsx · types/lists.ts (statuses) · components/filter/SelectDateRange.tsx',
+    source: 'db/helpers/sum_helpers.ts (saleStats: totalRevenue = status שולם, pipelineValue) · db/agentRevenue.ts + lib/agent/tools/getRevenue.ts (the same numbers) · components/sumSales/AllNumbox.tsx · types/lists.ts (statuses) · components/filter/SelectDateRange.tsx',
   },
   {
     id: 'lead_import',
@@ -276,8 +276,8 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     id: 'not_supported',
     title: 'מה המערכת לא עושה',
     summary:
-      'SocialCRM היא לא מערכת ביטוח, לא ERP ולא CRM ארגוני עם תהליכים מרובי שלבים. אין דוח של שיעור המרה, ואין חיזוי הכנסות. את ההכנסות מעסקאות ששולמו רואים במסך «ביצועים» — אבל הסוכן עצמו עדיין לא קורא את נתוני העסקאות וההכנסות, ולכן לא יכול לומר סכום. אין מענה אוטומטי ואין תיבת הודעות להודעות פרטיות באינסטגרם. הסוכן לא מבצע מחקר שוק ולא בודק מתחרים.',
-    source: 'claude/product.md §9 · lib/agent/tools/index.ts (no revenue tool) · db/helpers/sum_helpers.ts (revenue lives in Performance) · lib/product/capabilities.ts (no Instagram DM)',
+      'SocialCRM היא לא מערכת ביטוח, לא ERP ולא CRM ארגוני עם תהליכים מרובי שלבים. אין דוח של שיעור המרה, ואין חיזוי הכנסות: הכנסה היא רק מה שנרשם כשולם, כפי שמסך «ביצועים» מציג, ושווי הפייפליין אינו תחזית. אין מענה אוטומטי ואין תיבת הודעות להודעות פרטיות באינסטגרם. הסוכן לא מבצע מחקר שוק ולא בודק מתחרים.',
+    source: 'claude/product.md §9 · db/agentRevenue.ts (paid revenue and pipeline only, never a forecast) · db/helpers/sum_helpers.ts · lib/product/capabilities.ts (no Instagram DM)',
   },
 ]
 

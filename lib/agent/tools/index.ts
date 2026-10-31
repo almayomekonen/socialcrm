@@ -9,11 +9,13 @@ import { makeGetBusinessSummary } from './getBusinessSummary'
 import { makeGetLeadHealth } from './getLeadHealth'
 import { makeGetFollowUpHealth } from './getFollowUpHealth'
 import { makeGetActivityTrends } from './getActivityTrends'
+import { makeGetRevenue } from './getRevenue'
 export { LEAD_HEALTH_METRIC_IDS } from './getLeadHealth'
 export { FOLLOW_UP_METRIC_IDS } from './getFollowUpHealth'
 export { ACTIVITY_METRIC_IDS } from './getActivityTrends'
 export { LEAD_SEGMENT_IDS, SEGMENT_METRIC_IDS } from './getLeadSegment'
 export { BUSINESS_SUMMARY_METRIC_IDS } from './getBusinessSummary'
+export { REVENUE_METRIC_IDS } from './getRevenue'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
 import type { EvidenceCollector } from '../evidence'
@@ -21,7 +23,7 @@ import type { EvidenceCollector } from '../evidence'
 /**
  * The ENTIRE Agent tool surface.
  *
- * Nine read-only business capabilities, each built per investigation and each
+ * Ten read-only business capabilities, each built per investigation and each
  * closing over the server-resolved scope.
  *
  * THEY DIVIDE BY QUESTION SHAPE, not by table:
@@ -34,12 +36,14 @@ import type { EvidenceCollector } from '../evidence'
  *   get_lead_health        the shape of the book       (BI — every category)
  *   get_follow_up_health   who am I failing to chase   (BI — the callback loop)
  *   get_activity_trends    busier or quieter           (BI — two windows)
+ *   get_revenue            what did the business earn  (Performance's paid revenue + pipeline)
  *
  * THE THREE BI TOOLS RETURN BUSINESS-SHAPED EVIDENCE, never rows: named states
  * with a stated reason, true totals beside capped samples, and — where the
  * product has no such measure — an explicit refusal to supply one. There is no
- * lead score and no revenue metric, so neither appears; a tool that invented one
- * would be the most convincing thing the agent could get wrong.
+ * lead score, so none appears; a tool that invented one would be the most
+ * convincing thing the agent could get wrong. Revenue exists only as the
+ * Performance screen defines it (get_revenue) — never forecast, never estimated.
  *
  * Still read-only. Nothing here writes, sends, or schedules; an action surface
  * would need its own confirmation boundary and does not exist yet. Adding a capability means adding an
@@ -74,5 +78,6 @@ export function buildAgentTools(deps: ToolDeps) {
     get_lead_health: makeGetLeadHealth(deps),
     get_follow_up_health: makeGetFollowUpHealth(deps),
     get_activity_trends: makeGetActivityTrends(deps),
+    get_revenue: makeGetRevenue(deps),
   }
 }

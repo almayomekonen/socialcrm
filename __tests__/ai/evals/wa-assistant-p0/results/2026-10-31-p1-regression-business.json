@@ -1,0 +1,863 @@
+{
+ "label": "p1-regression-business",
+ "startedAt": "2026-10-31T22:48:05.076Z",
+ "results": [
+  {
+   "id": "B1",
+   "kind": "business",
+   "question": "מה דורש טיפול היום?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*היום דורשים טיפול 10 מעקבים באיחור, ועדיין לא טופל אף אחד מהם.*\n\n• בתור להיום יש 10 לידים לטיפול, וכולם עדיין ממתינים.\n• המעקבים באיחור הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.\n• כדאי להתחיל עכשיו בסבב חזרה לעשרת הלידים ולעדכן לכל אחד צעד הבא.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "היום דורשים טיפול 10 מעקבים באיחור, ועדיין לא טופל אף אחד מהם.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בתור להיום יש 10 לידים לטיפול, וכולם עדיין ממתינים.",
+      "metricEvidence": [
+       "today.total",
+       "today.remaining"
+      ]
+     },
+     {
+      "claimClass": "FACT",
+      "text": "המעקבים באיחור הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.",
+      "entityEvidence": [
+       "lead:227",
+       "lead:228",
+       "lead:229",
+       "lead:230",
+       "lead:231",
+       "lead:232",
+       "lead:233",
+       "lead:234",
+       "lead:235",
+       "lead:236"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "כדאי להתחיל עכשיו בסבב חזרה לעשרת הלידים ולעדכן לכל אחד צעד הבא.",
+      "evidence": [
+       "today.remaining"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "URGENT",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.122115,
+   "ms": 6819,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B2",
+   "kind": "business",
+   "question": "מה הכי דחוף?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state",
+    "get_lead_health"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*הכי דחוף: לטפל ב־10 המעקבים שבאיחור, ולהתחיל מדנה.*\n\n• כל 10 הפריטים שממתינים היום הם מעקבים באיחור; אין כרגע לידים שממתינים למענה ממך.\n• אותם 10 לידים גם מוגדרים ככאלה שהתקררו מחוסר קשר ממושך.\n• חזור קודם לדנה, אחריה ליוסי ולאבי, ועדכן לכל ליד צעד הבא או סגירה כדי שהאיחור לא ימשיך להצטבר.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "הכי דחוף: לטפל ב־10 המעקבים שבאיחור, ולהתחיל מדנה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "כל 10 הפריטים שממתינים היום הם מעקבים באיחור; אין כרגע לידים שממתינים למענה ממך.",
+      "metricEvidence": [
+       "today.remaining",
+       "health.follow_up_overdue",
+       "health.waiting_for_reply"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "אותם 10 לידים גם מוגדרים ככאלה שהתקררו מחוסר קשר ממושך.",
+      "metricEvidence": [
+       "health.gone_cold"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "חזור קודם לדנה, אחריה ליוסי ולאבי, ועדכן לכל ליד צעד הבא או סגירה כדי שהאיחור לא ימשיך להצטבר.",
+      "evidence": [
+       "lead:227",
+       "lead:228",
+       "lead:229"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "URGENT",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.130875,
+   "ms": 7461,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B3",
+   "kind": "business",
+   "question": "מי מחכה לטיפול?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "FACT",
+    "OBSERVATION",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*10 לידים מחכים לטיפול היום, ולכולם יש מעקב באיחור.*\n\n• דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון מחכים לטיפול בגלל מעקב באיחור.\n• נותרו לטיפול כל 10 הלידים שבתור של היום.\n• כדאי להתחיל עכשיו בחזרה ללידים לפי הסדר שבו הם מופיעים בתור.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "10 לידים מחכים לטיפול היום, ולכולם יש מעקב באיחור.",
+    "claims": [
+     {
+      "claimClass": "FACT",
+      "text": "דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון מחכים לטיפול בגלל מעקב באיחור.",
+      "entityEvidence": [
+       "lead:227",
+       "lead:228",
+       "lead:229",
+       "lead:230",
+       "lead:231",
+       "lead:232",
+       "lead:233",
+       "lead:234",
+       "lead:235",
+       "lead:236"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "נותרו לטיפול כל 10 הלידים שבתור של היום.",
+      "metricEvidence": [
+       "today.total",
+       "today.remaining"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "כדאי להתחיל עכשיו בחזרה ללידים לפי הסדר שבו הם מופיעים בתור.",
+      "evidence": [
+       "today.remaining"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "URGENT",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.122505,
+   "ms": 6295,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B4",
+   "kind": "business",
+   "question": "במה כדאי לי להתמקד?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state",
+    "get_lead_health"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*התמקד היום בסגירת 10 המעקבים שבאיחור — זו גם המשימה הדחופה וגם הבעיה המבנית המרכזית כרגע.*\n\n• כל 10 הפריטים שממתינים היום הם מעקבים באיחור, ועדיין לא טופל אף אחד מהם.\n• 10 לידים גם מוגדרים ככאלה שהתקררו, ואין לידים שממתינים כרגע למענה ממך.\n• נראה שהפער המרכזי הוא לא מענה להודעות חדשות, אלא חזרה ללידים ישנים לפני שהם יוצאים ממעגל הטיפול.\n• הקדש עכשיו בלוק עבודה אחד לעבור על המעקבים לפי הסדר, החל מדנה, יוסי ואבי; אחרי כל ניסיון עדכן תוצאה וקבע צעד הבא או סגור את הליד.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "התמקד היום בסגירת 10 המעקבים שבאיחור — זו גם המשימה הדחופה וגם הבעיה המבנית המרכזית כרגע.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "כל 10 הפריטים שממתינים היום הם מעקבים באיחור, ועדיין לא טופל אף אחד מהם.",
+      "metricEvidence": [
+       "today.total",
+       "today.remaining",
+       "health.follow_up_overdue"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "10 לידים גם מוגדרים ככאלה שהתקררו, ואין לידים שממתינים כרגע למענה ממך.",
+      "metricEvidence": [
+       "health.gone_cold",
+       "health.waiting_for_reply"
+      ]
+     },
+     {
+      "claimClass": "INFERENCE",
+      "text": "נראה שהפער המרכזי הוא לא מענה להודעות חדשות, אלא חזרה ללידים ישנים לפני שהם יוצאים ממעגל הטיפול.",
+      "evidence": [
+       "health.follow_up_overdue",
+       "health.gone_cold",
+       "health.waiting_for_reply"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "הקדש עכשיו בלוק עבודה אחד לעבור על המעקבים לפי הסדר, החל מדנה, יוסי ואבי; אחרי כל ניסיון עדכן תוצאה וקבע צעד הבא או סגור את הליד.",
+      "evidence": [
+       "lead:227",
+       "lead:228",
+       "lead:229",
+       "today.remaining"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "URGENT",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.130065,
+   "ms": 7919,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B5",
+   "kind": "business",
+   "question": "מה הלוז<",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*היום ממתינים לך 10 מעקבים באיחור, ואין פגישות ביומן.*\n\n• נותרו לטיפול כל 10 הפריטים בתור של היום.\n• המעקבים הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.\n• כדאי להתחיל עכשיו בסגירת המעקבים לפי סדר התור.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "היום ממתינים לך 10 מעקבים באיחור, ואין פגישות ביומן.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "נותרו לטיפול כל 10 הפריטים בתור של היום.",
+      "metricEvidence": [
+       "today.total",
+       "today.remaining"
+      ]
+     },
+     {
+      "claimClass": "FACT",
+      "text": "המעקבים הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.",
+      "entityEvidence": [
+       "lead:227",
+       "lead:228",
+       "lead:229",
+       "lead:230",
+       "lead:231",
+       "lead:232",
+       "lead:233",
+       "lead:234",
+       "lead:235",
+       "lead:236"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "כדאי להתחיל עכשיו בסגירת המעקבים לפי סדר התור.",
+      "evidence": [
+       "today.remaining"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "URGENT",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.11987,
+   "ms": 6508,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B6",
+   "kind": "business",
+   "question": "מה מצב העסק?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_business_summary"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "AT_RISK",
+   "reply": "*אין כרגע שריפה, אבל כל 10 הלידים הפתוחים לא קיבלו קשר לאחרונה — זו נקודת הסיכון המרכזית.*\n\n• יש 10 לידים במערכת, וכולם עדיין פתוחים.\n• כל 10 הלידים מסומנים כמי שלא נוצר איתם קשר לאחרונה; אין לידים שממתינים למענה ואין משימות באיחור.\n• נראה שהבעיה אינה עומס מיידי, אלא ספר לידים פתוח שלא מתקדם באופן שוטף.\n• כדאי לעבור היום על 10 הלידים הפתוחים, לסגור את מי שכבר לא רלוונטי ולקבוע צעד הבא לכל היתר.\n\nאין כאן נתוני פעילות לאורך זמן או הכנסות, ולכן אי אפשר לקבוע אם העסק נחלש או מה מצבו הכספי.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "אין כרגע שריפה, אבל כל 10 הלידים הפתוחים לא קיבלו קשר לאחרונה — זו נקודת הסיכון המרכזית.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "יש 10 לידים במערכת, וכולם עדיין פתוחים.",
+      "metricEvidence": [
+       "business.total_leads",
+       "business.open_leads"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "כל 10 הלידים מסומנים כמי שלא נוצר איתם קשר לאחרונה; אין לידים שממתינים למענה ואין משימות באיחור.",
+      "metricEvidence": [
+       "business.not_contacted_recently",
+       "business.waiting_for_reply",
+       "business.overdue_tasks"
+      ]
+     },
+     {
+      "claimClass": "INFERENCE",
+      "text": "נראה שהבעיה אינה עומס מיידי, אלא ספר לידים פתוח שלא מתקדם באופן שוטף.",
+      "evidence": [
+       "business.open_leads",
+       "business.not_contacted_recently",
+       "business.followups_due_today"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "כדאי לעבור היום על 10 הלידים הפתוחים, לסגור את מי שכבר לא רלוונטי ולקבוע צעד הבא לכל היתר.",
+      "evidence": [
+       "business.open_leads",
+       "business.not_contacted_recently"
+      ]
+     }
+    ],
+    "unknown": "אין כאן נתוני פעילות לאורך זמן או הכנסות, ולכן אי אפשר לקבוע אם העסק נחלש או מה מצבו הכספי.",
+    "businessState": "AT_RISK",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.122135,
+   "ms": 6080,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B7",
+   "kind": "business",
+   "question": "הצג לידים שלא קיבלו מענה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_lead_segment"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION"
+   ],
+   "businessState": null,
+   "reply": "*אין כרגע לידים שממתינים למענה ממך.*\n\n• מספר הלידים שהודעתם האחרונה טרם נענתה הוא 0.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "אין כרגע לידים שממתינים למענה ממך.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "מספר הלידים שהודעתם האחרונה טרם נענתה הוא 0.",
+      "metricEvidence": [
+       "segment.waiting_for_reply"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.114055,
+   "ms": 4207,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B8",
+   "kind": "business",
+   "question": "כמה לידים יש לי היום במערכת?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT"
+   ],
+   "businessState": "URGENT",
+   "reply": "*יש לך היום 10 לידים לטיפול במערכת, וכולם עם מעקב באיחור.*\n\n• בתור העבודה של היום יש 10 לידים, וטרם טופל אף אחד מהם היום.\n• כל 10 הלידים שמופיעים היום מסומנים עם מעקב באיחור.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "יש לך היום 10 לידים לטיפול במערכת, וכולם עם מעקב באיחור.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בתור העבודה של היום יש 10 לידים, וטרם טופל אף אחד מהם היום.",
+      "metricEvidence": [
+       "today.total",
+       "today.remaining"
+      ]
+     },
+     {
+      "claimClass": "FACT",
+      "text": "כל 10 הלידים שמופיעים היום מסומנים עם מעקב באיחור.",
+      "entityEvidence": [
+       "lead:227",
+       "lead:228",
+       "lead:229",
+       "lead:230",
+       "lead:231",
+       "lead:232",
+       "lead:233",
+       "lead:234",
+       "lead:235",
+       "lead:236"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "URGENT",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.12059,
+   "ms": 5468,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B9",
+   "kind": "business",
+   "question": "דבר אליי מה חדש בעסק",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_business_summary"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "OBSERVATION",
+    "INFERENCE",
+    "RECOMMENDATION"
+   ],
+   "businessState": "AT_RISK",
+   "reply": "*לא נכנסו לידים חדשים השבוע, וכל 10 הלידים הפתוחים לא קיבלו קשר לאחרונה.*\n\n• יש 10 לידים פתוחים, וכולם מסווגים ככאלה שלא נוצר איתם קשר לאחרונה.\n• אין כרגע לידים שממתינים למענה, משימות באיחור או מעקבים להיום.\n• נראה שהסיכון המרכזי הוא קיפאון בספר הלידים, ולא עומס חדש.\n• כדאי לעבור היום על 10 הלידים הפתוחים, ליצור קשר ולקבוע צעד הבא לכל ליד שעדיין רלוונטי.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "לא נכנסו לידים חדשים השבוע, וכל 10 הלידים הפתוחים לא קיבלו קשר לאחרונה.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "יש 10 לידים פתוחים, וכולם מסווגים ככאלה שלא נוצר איתם קשר לאחרונה.",
+      "metricEvidence": [
+       "business.open_leads",
+       "business.not_contacted_recently"
+      ]
+     },
+     {
+      "claimClass": "OBSERVATION",
+      "text": "אין כרגע לידים שממתינים למענה, משימות באיחור או מעקבים להיום.",
+      "metricEvidence": [
+       "business.waiting_for_reply",
+       "business.overdue_tasks",
+       "business.followups_due_today"
+      ]
+     },
+     {
+      "claimClass": "INFERENCE",
+      "text": "נראה שהסיכון המרכזי הוא קיפאון בספר הלידים, ולא עומס חדש.",
+      "evidence": [
+       "business.not_contacted_recently",
+       "business.new_this_week"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "כדאי לעבור היום על 10 הלידים הפתוחים, ליצור קשר ולקבוע צעד הבא לכל ליד שעדיין רלוונטי.",
+      "evidence": [
+       "business.open_leads",
+       "business.not_contacted_recently"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "AT_RISK",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.12912,
+   "ms": 7965,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B10",
+   "kind": "business",
+   "question": "סכם לי את היום",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_today_state"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "FACT",
+    "RECOMMENDATION"
+   ],
+   "businessState": "URGENT",
+   "reply": "*היום מחכים לך 10 מעקבים באיחור, וכולם עדיין פתוחים לטיפול.*\n\n• בתור של היום יש 10 פריטים, ועדיין לא טופל אף אחד מהם.\n• המעקבים הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.\n• כדאי להתחיל עכשיו בסבב חזרה לעשרת הלידים לפי סדר התור.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "היום מחכים לך 10 מעקבים באיחור, וכולם עדיין פתוחים לטיפול.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "בתור של היום יש 10 פריטים, ועדיין לא טופל אף אחד מהם.",
+      "metricEvidence": [
+       "today.total",
+       "today.remaining"
+      ]
+     },
+     {
+      "claimClass": "FACT",
+      "text": "המעקבים הם מול דנה, יוסי, אבי, רחל, מיכאל, דוד, רות, חנה, נועה ואלון.",
+      "entityEvidence": [
+       "lead:227",
+       "lead:228",
+       "lead:229",
+       "lead:230",
+       "lead:231",
+       "lead:232",
+       "lead:233",
+       "lead:234",
+       "lead:235",
+       "lead:236"
+      ]
+     },
+     {
+      "claimClass": "RECOMMENDATION",
+      "text": "כדאי להתחיל עכשיו בסבב חזרה לעשרת הלידים לפי סדר התור.",
+      "evidence": [
+       "today.remaining",
+       "lead:227",
+       "lead:228",
+       "lead:229",
+       "lead:230",
+       "lead:231",
+       "lead:232",
+       "lead:233",
+       "lead:234",
+       "lead:235",
+       "lead:236"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": "URGENT",
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.12427,
+   "ms": 5960,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B11",
+   "kind": "business",
+   "question": "סכם לי את היום האחרון",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [
+    "get_activity_trends"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "OBSERVATION",
+    "INFERENCE"
+   ],
+   "businessState": null,
+   "reply": "*ביום האחרון לא נרשמה פעילות במערכת.*\n\n• לא נכנסו לידים או הודעות, לא נשלחו הודעות ולא בוצעו שינויי סטטוס.\n• לא בטוח אם זה יום שקט או פעילות שלא תועדה, כי אין מספיק נתונים להשוואת מגמה.\n\nאין מספיק פעילות כדי לקבוע אם מדובר בירידה לעומת התקופה הקודמת.\n\nלפרטים המלאים: https://getsocialcrm.com/agent",
+   "answer": {
+    "headline": "ביום האחרון לא נרשמה פעילות במערכת.",
+    "claims": [
+     {
+      "claimClass": "OBSERVATION",
+      "text": "לא נכנסו לידים או הודעות, לא נשלחו הודעות ולא בוצעו שינויי סטטוס.",
+      "metricEvidence": [
+       "activity.new_leads",
+       "activity.inbound_messages",
+       "activity.outbound_messages",
+       "activity.status_changes"
+      ]
+     },
+     {
+      "claimClass": "INFERENCE",
+      "text": "לא בטוח אם זה יום שקט או פעילות שלא תועדה, כי אין מספיק נתונים להשוואת מגמה.",
+      "evidence": [
+       "activity.active_days"
+      ]
+     }
+    ],
+    "unknown": "אין מספיק פעילות כדי לקבוע אם מדובר בירידה לעומת התקופה הקודמת.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.12362,
+   "ms": 7866,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B12",
+   "kind": "business",
+   "question": "מי הליד הכי חם?",
+   "ok": false,
+   "stopReason": "no_evidence",
+   "rejection": "unsupported-claim/RULE_05",
+   "tools": [
+    "get_lead_health"
+   ],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "לא הצלחתי להשלים את הבדיקה הפעם. אפשר לנסות שוב בעוד רגע, או להמשיך ב-SocialCRM: https://getsocialcrm.com/agent",
+   "answer": null,
+   "costUsd": 0.137485,
+   "ms": 10779,
+   "checks": {
+    "fallback": true,
+    "refused": true,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": false
+  },
+  {
+   "id": "B13",
+   "kind": "business",
+   "question": "מה חדש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT",
+    "PRODUCT",
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "חדש לאחרונה: ייבוא עסקאות מאקסל זמין לכולם, ועוד כמה יכולות נפתחות בהדרגה לחשבונות נבחרים.\n\nייבוא עסקאות מאקסל זמין לכל החשבונות.\n\nהודעות מסנג׳ר בתוך «שיחות», תגובות מפייסבוק כלידים, דוח מודעות פייסבוק, בונה שאלון וואטסאפ, ממשק באנגלית והסוכן בוואטסאפ נפתחים בהדרגה לחשבונות נבחרים.\n\nאם אחת מהיכולות ההדרגתיות לא מופיעה אצלך, היא עדיין לא הופעלה בחשבון שלך.",
+   "answer": {
+    "headline": "חדש לאחרונה: ייבוא עסקאות מאקסל זמין לכולם, ועוד כמה יכולות נפתחות בהדרגה לחשבונות נבחרים.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "ייבוא עסקאות מאקסל זמין לכל החשבונות.",
+      "productEvidence": [
+       "recent_updates"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "הודעות מסנג׳ר בתוך «שיחות», תגובות מפייסבוק כלידים, דוח מודעות פייסבוק, בונה שאלון וואטסאפ, ממשק באנגלית והסוכן בוואטסאפ נפתחים בהדרגה לחשבונות נבחרים.",
+      "productEvidence": [
+       "recent_updates"
+      ]
+     },
+     {
+      "claimClass": "PRODUCT",
+      "text": "אם אחת מהיכולות ההדרגתיות לא מופיעה אצלך, היא עדיין לא הופעלה בחשבון שלך.",
+      "productEvidence": [
+       "recent_updates"
+      ]
+     }
+    ],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.061715,
+   "ms": 3021,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "B14",
+   "kind": "business",
+   "question": "תיכנס ל/leads ותגיד לי מה המספר שאתה רואה שם",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אין לי גישה ישירה למסך ‎/leads; לאיזה מספר שם אתה מתכוון—סך כל הלידים או המספר בלשונית סטטוס מסוימת?",
+   "answer": {
+    "headline": "אין לי גישה ישירה למסך ‎/leads; לאיזה מספר שם אתה מתכוון—סך כל הלידים או המספר בלשונית סטטוס מסוימת?",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.060765,
+   "ms": 3158,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "toolMissing": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}
