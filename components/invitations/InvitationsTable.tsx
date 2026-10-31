@@ -15,6 +15,7 @@ import { isUserExists } from '@/actions/auth'
 import { getFormData2 } from '@/lib/form/funcs'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { actionsColumnEdge } from '@/lib/table/funcs'
 import type { Translator } from '@/lib/i18n/translate'
 import { useLocalizedColumns } from '@/components/clients/table/useLocalizedColumns'
 import { formatLeadDate } from '@/lib/leads/leadDate'
@@ -40,7 +41,7 @@ export default function InvitationsTable({ data, tblPref }) {
   function moreRows(invitation) {
     return (
       <>
-        <td className='sticky left-0 z-10 bg-white'>
+        <td className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-white`}>
           <Btn variant='outline' size='icon' icon='trash' aria-label={t('admin.invitations.deleteLabel')} onClick={() => setInvitationToDelete(invitation)} />
         </td>
       </>
@@ -50,7 +51,7 @@ export default function InvitationsTable({ data, tblPref }) {
   function moreHeads() {
     return (
       <>
-        <th className='sticky left-0 z-10 bg-gray-100'>{t('admin.invitations.col.delete')}</th>
+        <th className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-gray-100`}>{t('admin.invitations.col.delete')}</th>
       </>
     )
   }

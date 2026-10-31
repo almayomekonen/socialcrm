@@ -29,6 +29,19 @@ export const emoji = {
   loading: 'טוען אימוג׳ים…',
   dialog: 'בחירת אימוג׳י',
   search: 'חיפוש אימוג׳י',
+  /** The picker library's own Clear button and category headers. Passed to the library outside Hebrew only, so Hebrew keeps the library's built-in text. */
+  clear: 'ניקוי',
+  categories: {
+    suggested: 'בשימוש תדיר',
+    smileysPeople: 'פרצופים ואנשים',
+    animalsNature: 'חיות וטבע',
+    foodDrink: 'אוכל ושתייה',
+    travelPlaces: 'טיולים ומקומות',
+    activities: 'פעילויות',
+    objects: 'חפצים',
+    symbols: 'סמלים',
+    flags: 'דגלים',
+  },
 }
 
 export const serviceWindow = {

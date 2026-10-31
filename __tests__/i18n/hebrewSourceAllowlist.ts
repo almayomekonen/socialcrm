@@ -124,8 +124,8 @@ export const HEBREW_SOURCE_FILES: Record<string, HebrewSourceReason> = {
   'modules/inbox/mobile/relativeTime.ts': 'hebrew-source',
   'modules/notifications/dropdown.ts': 'hebrew-source',
   'modules/templates/mobile/ReadyMessagesScreen.tsx': 'hebrew-source',
+  'components/files/funcs.tsx': 'hebrew-source', // uploadS3's thrown sentences, worded by exact sentence in FileUploader
   'components/files/Glry.tsx': 'hebrew-default',
-  'components/files/funcs.tsx': 'hebrew-default',
   'components/layout/SkipLink.tsx': 'hebrew-default',
   'components/settings/connections/SetupGuidePanel.tsx': 'hebrew-default',
   'components/settings/payment/UpgradeBtn.tsx': 'hebrew-default',

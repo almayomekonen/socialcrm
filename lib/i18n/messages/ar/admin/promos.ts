@@ -26,6 +26,8 @@ export const promos: Messages['admin']['promos'] = {
     goalPrize: 'الهدف والجائزة {n}',
     goal: 'الهدف {n}',
     prize: 'جائزة الهدف {n}',
+    addGoal: 'إضافة هدف',
+    removeGoal: 'إزالة الهدف الأخير',
   },
   product: {
     pickBranch: 'اختر فئة',

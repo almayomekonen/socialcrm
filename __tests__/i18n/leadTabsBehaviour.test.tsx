@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
+import { expectStickyEdges } from './stickyActionsEdge'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { DRIVE_SUGGESTIONS, FILE_ROWS, NOW, TASK_DETAIL, TASK_STATUSES, resetTabsEnv, tabsEnv } from './leadTabsEnv'
 import { tabsSpies as S, resetTabsSpies } from './leadTabsMocks'
@@ -290,5 +291,17 @@ describe.each(LOCALES)('%s', (locale) => {
     cleanup()
     r = await mount(locale, 'billing', { invoices: [] })
     expect(r.container.querySelector('.py-4 button')?.textContent).toBe(c.createDoc)
+  })
+})
+
+describe('the actions column pins to the end of the row (final UI audit)', () => {
+  test('he / ar pinned left as before, en pinned right', async () => {
+    const seen = {} as Record<'he' | 'en' | 'ar', HTMLElement>
+    for (const l of ['he', 'en', 'ar'] as const) {
+      const { container } = await mount(l, 'files')
+      seen[l] = container.cloneNode(true) as HTMLElement
+      cleanup()
+    }
+    expectStickyEdges(seen)
   })
 })

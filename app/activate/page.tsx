@@ -8,7 +8,7 @@ import MobileHandoff from '@/components/activation/mobile/MobileHandoff'
 import RegistrationPixel from '@/components/activation/RegistrationPixel'
 import RegistrationConversion from '@/components/analytics/RegistrationConversion'
 import { I18nProvider } from '@/lib/i18n/I18nProvider'
-import { getPreLoginLocale } from '@/lib/i18n/preLoginServer'
+import { getUiLocaleState } from '@/lib/i18n/server'
 
 export default async function ActivatePage() {
   const user = await getUser()
@@ -21,8 +21,9 @@ export default async function ActivatePage() {
   // page previously never consulted the allowlist, so a phone parked on
   // /activate (registration, bookmark, or the onboarding bounce) stayed closed.
   if (mobile && onboarded && canEnterMobileWorkspace(user.agencyId)) redirect('/dashboard')
-  // Display only (Phase F4): the `ui_locale` hint, read after every redirect decision.
-  const locale = await getPreLoginLocale()
+  // Display only, read after every redirect decision: the signed-in user's interface language
+  // (UI_LOCALE_ENABLED + the pilot allow-list + the stored preference), never the `ui_locale` cookie.
+  const { locale } = await getUiLocaleState(user)
   return (
     <I18nProvider locale={locale} persistLocale={false}>
       {/* Mobile registration attribution. Registration sends phones here (not to

@@ -33,6 +33,8 @@ export const files: L['files'] = {
     expired: 'Renew your subscription to upload files again',
     gallery: 'Choose from gallery',
     unavailable: 'Cannot be displayed',
+    tooLarge: 'the file is too large',
+    noneSelected: 'no files were selected',
   },
 }
 

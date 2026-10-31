@@ -100,7 +100,7 @@ export default function IconChooser({
               <button type='button' onClick={() => setMore(true)} className='text-gray-600 underline underline-offset-2'>
                 {t('admin.questionnaire.icon.more')}
               </button>
-              <EmojiPicker open={more} onClose={() => setMore(false)} onPick={(e) => choose(e)} triggerRef={trigger} />
+              <EmojiPicker open={more} onClose={() => setMore(false)} onPick={(e) => choose(e)} triggerRef={trigger} translated />
             </div>
           </div>
         </div>

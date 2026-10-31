@@ -43,6 +43,8 @@ export default function AdsResultsTable({
   locale?: UiLocale
 }) {
   const t = translatorFor(locale)
+  // The shared TableHead aligns right; outside Hebrew the headers follow the reading start (Hebrew passes nothing).
+  const head = locale === 'he' ? undefined : 'text-start'
   return (
     <section aria-label={title} className='rounded-lg border border-gray-200 bg-white'>
       <h2 className='border-b border-gray-100 px-4 py-3 text-base font-semibold text-gray-900'>{title}</h2>
@@ -52,14 +54,14 @@ export default function AdsResultsTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{nameHeader}</TableHead>
-              <TableHead>{t('performance.ads.table.spend')}</TableHead>
-              <TableHead>{t('performance.ads.table.results')}</TableHead>
-              <TableHead>{t('performance.ads.table.costPerResult')}</TableHead>
-              <TableHead>{t('performance.ads.table.linkClicks')}</TableHead>
-              <TableHead>{t('performance.ads.table.linkCtr')}</TableHead>
-              <TableHead>{t('performance.ads.table.reach')}</TableHead>
-              {drill && <TableHead><span className='sr-only'>{t('performance.ads.table.drill')}</span></TableHead>}
+              <TableHead className={head}>{nameHeader}</TableHead>
+              <TableHead className={head}>{t('performance.ads.table.spend')}</TableHead>
+              <TableHead className={head}>{t('performance.ads.table.results')}</TableHead>
+              <TableHead className={head}>{t('performance.ads.table.costPerResult')}</TableHead>
+              <TableHead className={head}>{t('performance.ads.table.linkClicks')}</TableHead>
+              <TableHead className={head}>{t('performance.ads.table.linkCtr')}</TableHead>
+              <TableHead className={head}>{t('performance.ads.table.reach')}</TableHead>
+              {drill && <TableHead className={head}><span className='sr-only'>{t('performance.ads.table.drill')}</span></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>

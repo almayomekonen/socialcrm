@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Icon from './Icon'
 import { upgradeHref } from './entitlement/upgradeHref'
 import { proToastChrome } from './toastChrome'
+import { regionAttrs, untranslatedAttrs, type RegionAttrs, type UiLocale } from './i18n/config'
 
 /**
  * `pro` is a SUBSCRIPTION ACTION, not an application error.
@@ -55,12 +56,27 @@ let defaultMsg: { [key in PopIcon]: string } = { ...HEBREW_DEFAULTS }
 
 export type ToastDefaults = Partial<Record<Exclude<PopIcon, 'hide'>, string>>
 
-export function setToastDefaults(msgs: ToastDefaults) {
+/** The interface language pushed with the defaults; `null` = Hebrew (no attributes, exactly as before). */
+let toastLocale: UiLocale | null = null
+
+export function setToastDefaults(msgs: ToastDefaults, locale?: UiLocale) {
   defaultMsg = { ...HEBREW_DEFAULTS, ...msgs }
+  toastLocale = locale ?? null
 }
 
 export function resetToastDefaults() {
   defaultMsg = { ...HEBREW_DEFAULTS }
+  toastLocale = null
+}
+
+/**
+ * `lang`/`dir` for a toast's text: the toast renders under `<html dir="rtl">`, so outside Hebrew the body declares
+ * the interface language — unless the sentence itself is Hebrew (a verbatim server sentence, a Hebrew caller), which
+ * keeps Hebrew right-to-left. Decided by the text's first letter. Hebrew: nothing.
+ */
+function textAttrs(text: string): RegionAttrs {
+  if (!toastLocale) return {}
+  return /[\u0590-\u05FF]/.test(text.match(/\p{L}/u)?.[0] ?? '') ? untranslatedAttrs(toastLocale) : regionAttrs(toastLocale)
 }
 
 export default function ToastMsg() {
@@ -101,7 +117,7 @@ export default function ToastMsg() {
   const proLang = pop.pro ? proToastChrome() : null
 
   const body = (
-    <div className='flex items-center gap-4 ps-6 pe-9 py-3 font-medium text-white'>
+    <div className='flex items-center gap-4 ps-6 pe-9 py-3 font-medium text-white' {...textAttrs(pop.msg)}>
       {icons[pop.icon]}
       <h3 className='font-medium whitespace-pre-line leading-snug'>{pop.msg}</h3>
     </div>
@@ -109,7 +125,7 @@ export default function ToastMsg() {
 
   return (
     <>
-      <div role='status' aria-live='polite' aria-atomic='true' className='sr-only'>
+      <div role='status' aria-live='polite' aria-atomic='true' className='sr-only' {...textAttrs(live)}>
         {live}
       </div>
       <div className={pop.icon === 'pro' ? 'toast toast-pro' : 'toast'} popover='auto' id='popMsg'>

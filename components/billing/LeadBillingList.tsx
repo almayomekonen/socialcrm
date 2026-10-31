@@ -42,7 +42,7 @@ export default function LeadBillingList({
         <div className='border rounded-md bg-white overflow-x-auto'>
           <table className='w-full text-sm'>
             <thead className='bg-gray-50'>
-              <tr className='text-right'>
+              <tr className={locale === 'he' ? 'text-right' : 'text-start'}>
                 <th className='px-3 py-2 font-semibold'>{t('leadTabs.billing.header.document')}</th>
                 <th className='px-3 py-2 font-semibold'>{t('leadTabs.billing.header.status')}</th>
                 <th className='px-3 py-2 font-semibold'>{t('leadTabs.billing.header.amount')}</th>

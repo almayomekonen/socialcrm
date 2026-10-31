@@ -22,6 +22,7 @@ import { getHeaders, initialColumns } from './table/headers'
 import { CustomerBadge, formatLastContact, formatLeadSource, formatLeadStatus, formatNextAction, formatState } from './table/cells'
 import { useLocalizedColumns } from './table/useLocalizedColumns'
 import { useT } from '@/lib/i18n/I18nProvider'
+import { actionsColumnEdge } from '@/lib/table/funcs'
 import { useLeadSearch, useSearchTabFollow } from './table/useLeadSearch'
 import { useLeadDelete } from './table/useLeadDelete'
 import LeadsToolbar, { type SortMode } from './table/LeadsToolbar'
@@ -127,9 +128,9 @@ export default function ClientsTable({ data, user, leads = false, globalLatestUp
     setColumns: shown.setColumns,
     state: filteredData,
     setState: setLiveLeads,
-    moreHeads: () => <th className='sticky left-0 z-10 bg-gray-100 text-center'>{t('leads.table.actions')}</th>,
+    moreHeads: () => <th className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-gray-100 text-center`}>{t('leads.table.actions')}</th>,
     moreRows: (client) => (
-      <td className='sticky left-0 z-10 bg-white'>
+      <td className={`sticky ${actionsColumnEdge(t.locale)} z-10 bg-white`}>
         <DotsMenu id='clientActions' onClick={() => setCurClient(client)} />
       </td>
     ),

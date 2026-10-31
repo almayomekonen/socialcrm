@@ -23,6 +23,18 @@ export const emoji: I['emoji'] = {
   loading: 'Loading emoji…',
   dialog: 'Choose an emoji',
   search: 'Search emoji',
+  clear: 'Clear',
+  categories: {
+    suggested: 'Frequently used',
+    smileysPeople: 'Smileys & people',
+    animalsNature: 'Animals & nature',
+    foodDrink: 'Food & drink',
+    travelPlaces: 'Travel & places',
+    activities: 'Activities',
+    objects: 'Objects',
+    symbols: 'Symbols',
+    flags: 'Flags',
+  },
 }
 
 export const serviceWindow: I['serviceWindow'] = {

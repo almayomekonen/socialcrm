@@ -41,7 +41,7 @@ export default function AdsDailyTrend({
       <div className='overflow-x-auto border-t border-gray-100'>
         <table className='w-full text-sm'>
           <thead>
-            <tr className='text-right text-gray-500'>
+            <tr className={`${locale === 'he' ? 'text-right' : 'text-start'} text-gray-500`}>
               <th className='px-4 py-2 font-medium'>{t('performance.ads.trend.day')}</th>
               <th className='px-4 py-2 font-medium'>{t('performance.ads.trend.spend')}</th>
               <th className='px-4 py-2 font-medium'>{t('performance.ads.trend.linkClicks')}</th>

@@ -5,6 +5,7 @@ import { hydrateRoot } from 'react-dom/client'
 import { act, cleanup, render } from '@testing-library/react'
 import { findHebrewLeaks } from './leakScan'
 import { ADMIN_CUSTOMER_DATA, NOW, resetAdminEnv } from './adminEnv'
+import { expectStickyEdges } from './stickyActionsEdge'
 
 /**
  * Admin settings pages (Phase E5a) in en / ar: every registered page state (the
@@ -175,4 +176,18 @@ describe('tab titles, language switch, hydration', () => {
       })
     }
   }
+})
+
+describe('the users and invitations actions columns pin to the end of the row (final UI audit)', () => {
+  test('he / ar pinned left as before, en pinned right', async () => {
+    const seen = {} as Record<'he' | 'en' | 'ar', HTMLElement>
+    for (const l of ['he', 'en', 'ar'] as const) {
+      H.prefs.userLocale = l
+      const { container } = render(await adminShell(l, await withAdminEnv({}, () => adminPage('editUsers'))))
+      expect(container.querySelectorAll('table').length, l).toBe(2)
+      seen[l] = container.cloneNode(true) as HTMLElement
+      cleanup()
+    }
+    expectStickyEdges(seen)
+  })
 })

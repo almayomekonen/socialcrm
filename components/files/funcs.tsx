@@ -97,6 +97,10 @@ export function ImgTooltip({ src, className = '' }) {
   )
 }
 
+/** `uploadS3`'s own refusals (thrown text, returned as `msg`). FileUploader words them for translated callers by these exact sentences. */
+export const UPLOAD_NONE_SELECTED = 'לא נבחרו קבצים'
+export const UPLOAD_TOO_LARGE = 'קובץ גדול מדי'
+
 function trunc(s: unknown, n = 200): string {
   const v = typeof s === 'string' ? s : String(s ?? '')
   return v.length > n ? v.slice(0, n) + '…' : v
@@ -105,7 +109,7 @@ function trunc(s: unknown, n = 200): string {
 export async function uploadS3(e, folderPath, taskId, clientId) {
   try {
     const fileList = e.target.files
-    if (fileList.length == 0) throw new Error('לא נבחרו קבצים')
+    if (fileList.length == 0) throw new Error(UPLOAD_NONE_SELECTED)
 
     const uploadedFiles = Array.from(fileList) as any[]
 
@@ -113,7 +117,7 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
       uploadedFiles.map((f) => {
         if (f.size > 10000000) {
           console.warn('[upload] s3.prepare.fail', JSON.stringify({ reason: 'file-too-large', size: f.size }))
-          throw new Error('קובץ גדול מדי')
+          throw new Error(UPLOAD_TOO_LARGE)
         }
         return f.type.startsWith('image') ? convertToWebP(f) : f
       })

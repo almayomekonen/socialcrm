@@ -33,6 +33,8 @@ export const files: L['files'] = {
     expired: 'تجديد الاشتراك يعيد إمكانية رفع الملفات',
     gallery: 'الاختيار من المعرض',
     unavailable: 'لا يمكن العرض',
+    tooLarge: 'الملف كبير جدًا',
+    noneSelected: 'لم يتم اختيار أي ملف',
   },
 }
 

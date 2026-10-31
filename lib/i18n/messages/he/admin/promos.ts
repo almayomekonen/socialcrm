@@ -30,6 +30,9 @@ export const promos = {
     goalPrize: 'יעד ופרס {n}',
     goal: 'יעד {n}',
     prize: 'פרס יעד {n}',
+    /** The goal row's icon-only +/- buttons. Named outside Hebrew only: Hebrew markup is unchanged (final UI audit). */
+    addGoal: 'הוספת יעד',
+    removeGoal: 'הסרת היעד האחרון',
   },
   product: {
     pickBranch: 'בחר ענף',
