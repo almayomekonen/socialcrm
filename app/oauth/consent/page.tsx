@@ -11,12 +11,13 @@ import { CONSENT_EXPIRED, isPendingRequestUsed } from '@/lib/oauth/server/consen
 import ConsentCard from '@/components/oauth/ConsentCard'
 import ConsentMessage from '@/components/oauth/ConsentMessage'
 import { I18nProvider } from '@/lib/i18n/I18nProvider'
-import { getPreLoginLocale } from '@/lib/i18n/preLoginServer'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
 import { translatorFor } from '@/lib/i18n/translators'
 import type { MessageKey } from '@/lib/i18n/translate'
 
+/** The signed-in user's interface language (Hebrew when signed out — the page then redirects to sign-in). */
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: translatorFor(await getPreLoginLocale())('auth.oauth.title') }
+  return { title: (await getServerT(await getUser()))('auth.oauth.title') }
 }
 
 // The wording of each ineligible reason (`{client}` = the validated clientName
@@ -47,8 +48,9 @@ export default async function ConsentPage() {
   if (!user) redirect('/auth')
 
   const pending = await verifyPendingRequest((await cookies()).get(PENDING_COOKIE)?.value)
-  // Display only (Phase F4): the `ui_locale` hint. Hebrew shows CONSENT_EXPIRED itself.
-  const locale = await getPreLoginLocale()
+  // Display only: the signed-in user's interface language (flag + pilot allow-list + stored preference),
+  // never the `ui_locale` cookie. Hebrew shows CONSENT_EXPIRED itself.
+  const { locale } = await getUiLocaleState(user)
   const t = translatorFor(locale)
   if (!pending || (await isPendingRequestUsed(pending.jti)))
     return <ConsentMessage message={locale === 'he' ? CONSENT_EXPIRED : t('auth.oauth.message.expired')} locale={locale} />
