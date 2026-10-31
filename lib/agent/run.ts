@@ -17,6 +17,8 @@ import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
 import { callsFromSteps, errorCodeOf, newInvocationId, recordProviderCalls, usageFromSdk } from '@/lib/ai/usage/record'
+import { newCallId, settleShadowAfter, startShadow, type ShadowHandle } from '@/lib/ai/budget/shadow'
+import { estimateAgentCall } from '@/lib/ai/budget/estimate'
 import type { AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentAnswer, AgentResult, AgentScope, StopReason } from './types'
 
@@ -370,6 +372,42 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
     await recordProviderCalls(calls)
   }
   /**
+   * Budget SHADOW: one reservation per generateText call (each may run several
+   * steps). Started, not awaited, immediately before the call; settled after
+   * it with the call's total usage. The bound is PARTIAL — later tool results
+   * are unknown in advance. Never delays, blocks or changes the call.
+   */
+  let pendingShadow: ShadowHandle | null = null
+  const reserveCall = (messages: unknown, steps: number): ShadowHandle =>
+    startShadow({
+      callId: newCallId(),
+      agencyId: scope.agencyId,
+      feature: AGENT_TASK_KIND,
+      provider: handle.provider,
+      model: handle.modelId,
+      estimate: (policy) =>
+        estimateAgentCall({
+          model: handle.modelId,
+          system: systemPrompt,
+          messages,
+          maxSteps: steps,
+          maxOutputTokens: cfg.maxOutputTokens ?? 0,
+          maxSearchCalls: researchAdmitted ? 7 * steps : 0,
+          unboundedReserveUsd: policy.unboundedReserveUsd,
+        }),
+    })
+  const settleCall = async (outcome: 'success' | 'error', usage: unknown, steps?: readonly { response?: { modelId?: string }; toolCalls?: { providerExecuted?: boolean }[] }[]) => {
+    if (!pendingShadow) return
+    const h = pendingShadow
+    pendingShadow = null
+    await settleShadowAfter(h, {
+      outcome,
+      usage: usageFromSdk(usage as Parameters<typeof usageFromSdk>[0]),
+      models: { requested: handle.modelId, response: steps?.at(-1)?.response?.modelId ?? null },
+      webSearchCalls: (steps ?? []).reduce((n, st) => n + (st.toolCalls ?? []).filter((c) => c.providerExecuted === true).length, 0),
+    })
+  }
+  /**
    * PROVIDER-RESOURCE ACCOUNTING, kept deliberately apart from `Budget`.
    *
    * The Budget counts calls that ran our code; none of these did. Every number
@@ -426,6 +464,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       // The hosted search runs INSIDE this call, so this span is the research
       // wall clock — there is no narrower boundary we can observe.
       const phase1StartedAt = now()
+      pendingShadow = reserveCall(conversation, maxSteps)
       const evidencePhase = await generateText({
         model: handle.model,
         system: systemPrompt,
@@ -455,6 +494,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       evidenceUsage = evidencePhase.totalUsage
       toolRoundTrips = countToolRoundTrips(evidencePhase.steps)
       await recordSteps(evidencePhase.steps)
+      await settleCall('success', evidencePhase.totalUsage, evidencePhase.steps)
 
       /**
        * ── THE HARVEST SEAM ──────────────────────────────────────────────────
@@ -537,18 +577,22 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
        */
 
       // ── PHASE 2 · answer. Structured output, NO tools, no forced choice. ──
+      const answerMessages = [...conversation, ...evidencePhase.response.messages, ...sourceManifest(evidence)]
+      pendingShadow = reserveCall(answerMessages, 1)
       result = await generateText({
         model: handle.model,
         system: systemPrompt,
-        messages: [...conversation, ...evidencePhase.response.messages, ...sourceManifest(evidence)],
+        messages: answerMessages,
         output: Output.object({ schema: agentAnswerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
         abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
       await recordSteps(result.steps)
+      await settleCall('success', result.totalUsage, result.steps)
     } else {
       // ── INTERACTIVE · unchanged: one call, tools, structured output. ──
+      pendingShadow = reserveCall(conversation, maxSteps)
       result = await generateText({
         model: handle.model,
         system: systemPrompt,
@@ -562,8 +606,10 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       })
       toolRoundTrips = countToolRoundTrips(result.steps)
       await recordSteps(result.steps)
+      await settleCall('success', result.totalUsage, result.steps)
     }
   } catch (err) {
+    await settleCall('error', (err as { usage?: unknown })?.usage)
     // The request that threw: its steps are unknown, so its usage is unknown —
     // recorded as such, never as zero.
     await recordProviderCalls([
