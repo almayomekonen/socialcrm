@@ -86,7 +86,10 @@ describe('first-run copy — no readiness claim before the user has לידים',
  * dialog/portal machinery; the claim under test is the copy, not the render.
  */
 describe('welcome trial modal — the highest-traffic first-run surface', () => {
-  const source = readFileSync(join(process.cwd(), 'components/trial/WelcomeTrialModal.tsx'), 'utf8')
+  // The headline / sentence table moved to welcomeTrialCopy.ts (i18n Phase F5 refactor); both are read.
+  const source = ['components/trial/WelcomeTrialModal.tsx', 'components/trial/welcomeTrialCopy.ts']
+    .map((f) => readFileSync(join(process.cwd(), f), 'utf8'))
+    .join('\n')
   /** Only the visible copy: JSX text and quoted title/sub strings. */
   const visible = source.match(/[^\n]*['>][^<'"]*[֐-׿][^<'"]*/g) ?? []
 
