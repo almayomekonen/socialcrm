@@ -1,5 +1,7 @@
 import 'server-only'
 import { getOpenAIProvider } from '@/lib/ai/providers'
+import { errorCodeOf, newInvocationId, recordProviderCalls } from '@/lib/ai/usage/record'
+import { TRANSCRIPTION_USD_PER_MINUTE } from '@/lib/ai/usage/pricing'
 import { VOICE_CONTAINER_MEDIA_TYPE, VOICE_MAX_RECORDING_MS, type VoiceContainer } from './limits'
 
 /**
@@ -54,16 +56,54 @@ export async function transcribeVoice(input: {
   audio: Uint8Array
   container: VoiceContainer
   abortSignal?: AbortSignal
+  /** Usage-ledger attribution. Identifiers only. */
+  ledger?: { agencyId: number; userId: number }
 }): Promise<{ text: string }> {
   const openai = getOpenAIProvider()
   if (!openai) throw new VoiceTranscriptionUnavailableError()
 
   const model = openai.transcription(VOICE_TRANSCRIPTION_MODEL)
-  const result = await model.doGenerate({
-    audio: input.audio,
-    mediaType: VOICE_CONTAINER_MEDIA_TYPE[input.container],
-    providerOptions: { openai: { prompt: TRANSCRIPTION_PROMPT } },
-    abortSignal: input.abortSignal,
-  })
+  const startedAt = Date.now()
+  const base = {
+    invocationId: newInvocationId(),
+    feature: 'voice.transcribe',
+    provider: 'openai',
+    requestedModel: VOICE_TRANSCRIPTION_MODEL,
+    agencyId: input.ledger?.agencyId ?? null,
+    userId: input.ledger?.userId ?? null,
+    usage: null,
+  }
+  let result: Awaited<ReturnType<typeof model.doGenerate>>
+  try {
+    result = await model.doGenerate({
+      audio: input.audio,
+      mediaType: VOICE_CONTAINER_MEDIA_TYPE[input.container],
+      providerOptions: { openai: { prompt: TRANSCRIPTION_PROMPT } },
+      abortSignal: input.abortSignal,
+    })
+  } catch (err) {
+    await recordProviderCalls([
+      {
+        ...base,
+        status: input.abortSignal?.aborted ? 'aborted' : 'error',
+        errorCode: errorCodeOf(err),
+        latencyMs: Date.now() - startedAt,
+      },
+    ])
+    throw err
+  }
+  // Billed per audio minute. The reported duration prices it as an estimate;
+  // without one the cost is unknown (never the flat 120 s cap-charge, never 0).
+  const seconds = typeof result.durationInSeconds === 'number' && result.durationInSeconds >= 0 ? result.durationInSeconds : null
+  await recordProviderCalls([
+    {
+      ...base,
+      status: 'success',
+      responseModel: result.response?.modelId ?? null,
+      audioSeconds: seconds,
+      estimatedCostUsd: seconds == null ? null : (seconds / 60) * TRANSCRIPTION_USD_PER_MINUTE,
+      latencyMs: Date.now() - startedAt,
+    },
+  ])
   return { text: String(result.text ?? '').trim() }
 }

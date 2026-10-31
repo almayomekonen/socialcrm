@@ -129,7 +129,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const signal = AbortSignal.any([req.signal, AbortSignal.timeout(VOICE_TRANSCRIBE_TIMEOUT_MS)])
     let text: string
     try {
-      ;({ text } = await transcribeVoice({ audio: bytes, container: actual, abortSignal: signal }))
+      ;({ text } = await transcribeVoice({ audio: bytes, container: actual, abortSignal: signal, ledger: { agencyId: user.agencyId, userId: user.id } }))
     } catch (err) {
       if (err instanceof VoiceTranscriptionUnavailableError) return reply({ error: 'ai-unavailable' }, 503)
       const timedOut = signal.aborted && !req.signal.aborted

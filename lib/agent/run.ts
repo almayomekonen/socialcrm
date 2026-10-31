@@ -16,6 +16,7 @@ import { buildAgentSystemPrompt } from './prompt'
 import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
+import { callsFromSteps, errorCodeOf, newInvocationId, recordProviderCalls, usageFromSdk } from '@/lib/ai/usage/record'
 import type { AgentInvestigationInput } from '@/db/agentInvestigation'
 import type { AgentAnswer, AgentResult, AgentScope, StopReason } from './types'
 
@@ -350,6 +351,25 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   /** Phase 1's token usage, folded into the cost so a two-phase run bills honestly. */
   let evidenceUsage: { inputTokens?: number; outputTokens?: number } | undefined
   /**
+   * Usage ledger: every generateText STEP is its own provider request, so each
+   * is one row; both phases share one invocation. Write-only, never throws.
+   */
+  const ledger = {
+    invocationId: newInvocationId(),
+    feature: AGENT_TASK_KIND,
+    provider: handle.provider,
+    requestedModel: handle.modelId,
+    agencyId: scope.agencyId,
+    userId: scope.userId,
+    fallbackOperation: { kind: 'agent_investigation', id: investigationId },
+  }
+  let ledgerSteps = 0
+  const recordSteps = async (steps: Parameters<typeof callsFromSteps>[0]) => {
+    const calls = callsFromSteps(steps, ledger).map((c) => ({ ...c, stepIndex: ledgerSteps + (c.stepIndex ?? 0) }))
+    ledgerSteps += calls.length
+    await recordProviderCalls(calls)
+  }
+  /**
    * PROVIDER-RESOURCE ACCOUNTING, kept deliberately apart from `Budget`.
    *
    * The Budget counts calls that ran our code; none of these did. Every number
@@ -434,6 +454,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       })
       evidenceUsage = evidencePhase.totalUsage
       toolRoundTrips = countToolRoundTrips(evidencePhase.steps)
+      await recordSteps(evidencePhase.steps)
 
       /**
        * ── THE HARVEST SEAM ──────────────────────────────────────────────────
@@ -525,6 +546,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
+      await recordSteps(result.steps)
     } else {
       // ── INTERACTIVE · unchanged: one call, tools, structured output. ──
       result = await generateText({
@@ -539,8 +561,20 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
       })
       toolRoundTrips = countToolRoundTrips(result.steps)
+      await recordSteps(result.steps)
     }
   } catch (err) {
+    // The request that threw: its steps are unknown, so its usage is unknown —
+    // recorded as such, never as zero.
+    await recordProviderCalls([
+      {
+        ...ledger,
+        stepIndex: ledgerSteps,
+        status: timedOut ? 'timeout' : callerSignal?.aborted ? 'aborted' : 'error',
+        errorCode: timedOut ? 'deadline' : errorCodeOf(err),
+        usage: usageFromSdk((err as { usage?: Parameters<typeof usageFromSdk>[0] })?.usage),
+      },
+    ])
     // A deadline abort and a provider failure arrive through the same throw, so
     // the flag set by the timer is what tells them apart — the error's own
     // message cannot, and would carry provider text into a durable record.
