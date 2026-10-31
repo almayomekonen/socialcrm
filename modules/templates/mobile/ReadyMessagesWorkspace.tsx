@@ -104,6 +104,7 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
                   key={t.id}
                   onClick={() => setDetail(t)}
                   className='press'
+                  translated
                   title={readyMessageTitle(t.displayTitle, tr.locale)}
                   subtitle={t.bodyText || '—'}
                   meta={t.createdAt ? formatDate(t.createdAt) : undefined}

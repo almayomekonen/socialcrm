@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { findHebrewLeaks } from './leakScan'
-import { iconPicker } from './auditFixesSurfaces'
+import { iconPicker, readyMessageChevrons } from './auditFixesSurfaces'
 
 /**
  * The final UI audit fixes in en / ar (Hebrew identity: auditFixesHebrewBaseline,
@@ -12,6 +12,11 @@ vi.mock('next/dynamic', async () => ({ default: (await import('./auditFixesSurfa
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push() {}, refresh() {} }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }))
 vi.mock('@/actions/files', () => ({ getUserImgs: async () => [], addFiles: async () => [], getPresigned: async () => [], addFilesToTask: async () => {} }))
 vi.mock('@/actions/promos', () => ({ upsertPromo: async () => {} }))
+vi.mock('@/actions/whatsapp/templates/archiveTemplate', () => ({ archiveTemplate: async () => ({ ok: true }) }))
+vi.mock('@/actions/whatsapp/templates/discardTemplate', () => ({ discardTemplate: async () => ({ ok: true }) }))
+vi.mock('@/actions/whatsapp/templates/retryTemplate', () => ({ retryTemplate: async () => ({ ok: true }) }))
+vi.mock('@/actions/whatsapp/templates/createTemplate', () => ({ createTemplate: async () => ({ ok: true }) }))
+vi.mock('@/modules/inbox/client/useAdaptivePoll', () => ({ useAdaptivePoll: () => {} }))
 
 beforeAll(() => {
   Object.assign(HTMLElement.prototype, { showPopover() {}, hidePopover() {}, togglePopover() {} })
@@ -43,4 +48,17 @@ describe('A: the questionnaire icon chooser opens the emoji picker in the interf
       expect(HEBREW.test(panel.outerHTML)).toBe(false)
     })
   }
+})
+
+describe('C: the phone ready-messages rows mirror their chevron in LTR', () => {
+  test('en mirrored; he / ar / no provider unchanged', async () => {
+    const none = await readyMessageChevrons(null)
+    expect(none).toHaveLength(2)
+    expect(none.every((c) => !c.includes('-scale-x-100'))).toBe(true)
+    expect(await readyMessageChevrons('he')).toEqual(none)
+    expect(await readyMessageChevrons('ar')).toEqual(none)
+    const en = await readyMessageChevrons('en')
+    expect(en.every((c) => c.includes('-scale-x-100'))).toBe(true)
+    expect(en.map((c) => c.replace(' -scale-x-100', ' '))).toEqual(none)
+  })
 })

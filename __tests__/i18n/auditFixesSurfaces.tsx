@@ -136,3 +136,14 @@ export async function toastBodies(locale: UiLocale | null, sentence: string): Pr
   cleanup()
   return out
 }
+
+/** C: the phone ready-messages rows' trailing chevron (class of each row's last icon). */
+export async function readyMessageChevrons(locale: UiLocale | null): Promise<string[]> {
+  const { default: ReadyMessagesWorkspace } = await import('@/modules/templates/mobile/ReadyMessagesWorkspace')
+  const tpl = (id: number, status: string) => ({ id, displayTitle: 'תזכורת', status, bodyText: 'תוכן', variables: [], failureText: null, archived: false, createdAt: '2026-07-23T00:00:00Z' })
+  const v = render(await wrap(locale, <ReadyMessagesWorkspace initial={[tpl(1, 'approved'), tpl(2, 'pending')] as never} />))
+  const rows = [...v.container.querySelectorAll('.divide-y > button')]
+  const out = rows.map((r) => [...r.querySelectorAll('[aria-hidden="true"]')].pop()!.getAttribute('class')!)
+  cleanup()
+  return out
+}
