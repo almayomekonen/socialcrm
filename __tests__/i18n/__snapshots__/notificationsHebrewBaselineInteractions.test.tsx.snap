@@ -1,0 +1,334 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — notification interactions > arrival toasts 1`] = `
+{
+  "calls": {
+    "fetch": [],
+    "push": [
+      [
+        "/clients/55/summary",
+      ],
+      [
+        "/clients/55/summary",
+      ],
+      [
+        "/notifications",
+      ],
+    ],
+    "toast": [
+      [
+        "message",
+        "ליד חדש — יוסי לוי",
+        6000,
+        "function",
+      ],
+      [
+        "message",
+        "ליד חדש: יוסי לוי",
+        6000,
+        "function",
+      ],
+      [
+        "message",
+        "3 התראות חדשות",
+        6000,
+        "function",
+      ],
+    ],
+  },
+  "seen": {
+    "several": "3 התראות חדשות",
+    "single": "ליד חדש — יוסי לוי",
+    "singleLegacy": "ליד חדש: יוסי לוי",
+  },
+}
+`;
+
+exports[`Hebrew baseline — notification interactions > phone selection and mark read 1`] = `
+{
+  "calls": {
+    "fetch": [
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?visible=1",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+            101,
+            102,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/seen",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+            101,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+            101,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+            101,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+    ],
+    "push": [],
+    "toast": [
+      [
+        "error",
+        "לא הצלחנו לסמן כנקרא. נסה שוב.",
+        undefined,
+        "undefined",
+      ],
+    ],
+  },
+  "seen": {
+    "actions": [
+      "<button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">סמן כנקרא</button>",
+      "<button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button>",
+    ],
+    "afterCancel": true,
+    "afterFailure": "<div class="bg-white"><div data-testid="notifications-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 2</p></div><ul class="divide-y"><li><button type="button" data-testid="notification-row" data-notification-id="100" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-primary-tint" aria-pressed="true"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חדש — יוסי לוי</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני רגע · לידים</span></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="101" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-primary-tint" aria-pressed="true"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חדש</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 3 דקות · לידים</span></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="102" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary" aria-pressed="false"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חם — מיכל אברהם</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 12 דקות · לידים</span></span><span class="sr-only">לא נקרא</span></button></li></ul><div data-mobile-sticky-actions="true" class="sticky bottom-0 z-30 shrink-0 border-t border-gray-200 bg-white px-4 pt-3 pb-3 "><div class="flex items-center gap-2"><div class="flex w-full flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">סמן כנקרא</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div></div></div>",
+    "afterMarkRead": "<div class="bg-white"><div data-testid="notifications-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 2</p></div><ul class="divide-y"><li><button type="button" data-testid="notification-row" data-notification-id="100" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-primary-tint" aria-pressed="true"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חדש — יוסי לוי</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני רגע · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="101" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary bg-primary-tint" aria-pressed="true"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חדש</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 3 דקות · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="102" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary" aria-pressed="false"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חם — מיכל אברהם</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 12 דקות · לידים</span></span><span class="sr-only">לא נקרא</span></button></li></ul><div data-mobile-sticky-actions="true" class="sticky bottom-0 z-30 shrink-0 border-t border-gray-200 bg-white px-4 pt-3 pb-3 "><div class="flex items-center gap-2"><div class="flex w-full flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div></div></div>",
+    "bar": "<div data-testid="notifications-selection-bar" class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-gray-200 bg-white px-2"><button type="button" class="flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button><p class="min-w-0 flex-1 truncate text-base font-bold text-ink">נבחרו 2</p></div>",
+  },
+}
+`;
+
+exports[`Hebrew baseline — notification interactions > the bell and its panel 1`] = `
+{
+  "calls": {
+    "fetch": [
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?visible=1",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+            101,
+            102,
+            103,
+            104,
+            900,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/seen",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+      {
+        "body": {
+          "all": true,
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+    ],
+    "push": [
+      [
+        "/clients/55/summary",
+      ],
+    ],
+    "toast": [],
+  },
+  "seen": {
+    "bellName": "התראות, 5 חדשות",
+    "bellNameAfterMarkAll": "התראות",
+    "bellTitle": "התראות",
+    "closedAfterOpen": true,
+    "closedOnEscape": true,
+    "focusInPanel": true,
+    "focusOnBellAfterEscape": true,
+    "focusOnBellAfterOpen": true,
+    "markAllText": "סימון הכל כנקרא",
+    "panel": "<div tabindex="-1" aria-labelledby="notifPanelTitle" style="position: fixed; top: 8px; left: 8px; width: 340px; z-index: 100000;" class="flex flex-col rounded-lg border border-gray-200 bg-white shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] focus:outline-none"><div class="flex items-center justify-between gap-2 border-b px-3 py-2"><h2 id="notifPanelTitle" class="text-sm font-semibold text-gray-900">התראות</h2><button type="button" class="rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">סימון הכל כנקרא</button></div><ul class="max-h-80 divide-y overflow-y-auto"><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חדש — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני רגע</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חדש</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 דקות</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חם — מיכל אברהם</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 12 דקות</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">שאלון הושלם — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 40 דקות</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">פנייה ממתינה לנציג — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 55 דקות</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד שויך אליך — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 1 שעות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חדש: יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 ימים</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li></ul><div class="border-t px-3 py-2"><a class="block rounded px-1 py-0.5 text-xs text-primary-text hover:underline focus:outline-none focus:ring-2 focus:ring-primary" href="/notifications">כל ההתראות</a></div></div>",
+    "panelAfterMarkAll": "<div tabindex="-1" aria-labelledby="notifPanelTitle" style="position: fixed; top: 8px; left: 8px; width: 340px; z-index: 100000;" class="flex flex-col rounded-lg border border-gray-200 bg-white shadow-[0_8px_24px_-8px_rgba(15,23,42,0.12)] focus:outline-none"><div class="flex items-center justify-between gap-2 border-b px-3 py-2"><h2 id="notifPanelTitle" class="text-sm font-semibold text-gray-900">התראות</h2></div><ul class="max-h-80 divide-y overflow-y-auto"><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חדש — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני רגע</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חדש</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 דקות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חם — מיכל אברהם</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 12 דקות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">שאלון הושלם — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 40 דקות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">פנייה ממתינה לנציג — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 55 דקות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד שויך אליך — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 1 שעות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חדש: יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 ימים</span></span></button></li></ul><div class="border-t px-3 py-2"><a class="block rounded px-1 py-0.5 text-xs text-primary-text hover:underline focus:outline-none focus:ring-2 focus:ring-primary" href="/notifications">כל ההתראות</a></div></div>",
+  },
+}
+`;
+
+exports[`Hebrew baseline — notification interactions > the center, desktop rows 1`] = `
+{
+  "calls": {
+    "fetch": [
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?visible=1",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+            101,
+            102,
+            103,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/seen",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?cursor=2026-10-30T08%3A20%3A00.000Z_103&limit=25&visible=1&unread=1&category=leads",
+      },
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?cursor=2026-10-30T08%3A20%3A00.000Z_103&limit=25&visible=1&unread=1&category=leads",
+      },
+      {
+        "body": {
+          "ids": [
+            900,
+            901,
+            902,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/seen",
+      },
+      {
+        "body": {
+          "all": true,
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+    ],
+    "push": [
+      [
+        "/clients/55/summary",
+      ],
+    ],
+    "toast": [],
+  },
+  "seen": {
+    "afterLoad": "<div class="rounded-lg border border-gray-200 bg-white"><div class="flex items-center justify-end border-b px-3 py-2"><button type="button" class="rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">סימון הכל כנקרא</button></div><ul class="divide-y"><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חדש — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני רגע</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חדש</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 דקות</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חם — מיכל אברהם</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 12 דקות</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">שאלון הושלם — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 40 דקות</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חדש: יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 ימים</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">הודעה חדשה ב-Messenger — רונית</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 4 ימים</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-gray-900">ליד חם</span><span class="mt-0.5 block text-xs leading-snug text-gray-500">שלוש פניות בשבוע</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 5 ימים</span></span><span aria-hidden="true" class="mt-1.5 size-1.5 shrink-0 rounded-full bg-red-500"></span><span class="sr-only">לא נקרא</span></button></li></ul></div>",
+    "afterMarkAll": "<div class="rounded-lg border border-gray-200 bg-white"><ul class="divide-y"><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חדש — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני רגע</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חדש</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 דקות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חם — מיכל אברהם</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 12 דקות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">שאלון הושלם — יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 40 דקות</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חדש: יוסי לוי</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 3 ימים</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">הודעה חדשה ב-Messenger — רונית</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 4 ימים</span></span></button></li><li><button type="button" class="flex w-full items-start gap-2.5 px-3 py-2.5 text-start hover:bg-gray-50 focus:outline-none focus:bg-gray-50 focus:ring-2 focus:ring-inset focus:ring-primary"><span class="mt-0.5 shrink-0"><div aria-hidden="true" class="dark:bg-white size-4 bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="block truncate text-sm text-gray-600">ליד חם</span><span class="mt-0.5 block text-xs leading-snug text-gray-500">שלוש פניות בשבוע</span><span class="mt-0.5 block text-[11px] text-gray-400">לפני 5 ימים</span></span></button></li></ul></div>",
+    "failed": "לא הצלחנו לטעון — נסה שוב",
+    "loading": "טוען...",
+    "markAllText": "סימון הכל כנקרא",
+  },
+}
+`;
+
+exports[`Hebrew baseline — notification interactions > the center, phone rows 1`] = `
+{
+  "calls": {
+    "fetch": [
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?visible=1",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+            101,
+            102,
+            103,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/seen",
+      },
+      {
+        "body": {
+          "ids": [
+            100,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?cursor=2026-10-30T08%3A20%3A00.000Z_103&limit=25&visible=1&unread=1&category=leads",
+      },
+      {
+        "body": null,
+        "method": "GET",
+        "url": "/api/notifications/feed?cursor=2026-10-30T08%3A20%3A00.000Z_103&limit=25&visible=1&unread=1&category=leads",
+      },
+      {
+        "body": {
+          "ids": [
+            900,
+            901,
+            902,
+          ],
+        },
+        "method": "POST",
+        "url": "/api/notifications/seen",
+      },
+      {
+        "body": {
+          "all": true,
+        },
+        "method": "POST",
+        "url": "/api/notifications/read",
+      },
+    ],
+    "push": [
+      [
+        "/clients/55/summary",
+      ],
+    ],
+    "toast": [],
+  },
+  "seen": {
+    "afterLoad": "<div class="bg-white"><div class="flex items-center justify-end border-b px-3 py-2"><button type="button" class="flex min-h-11 items-center rounded px-3 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">סימון הכל כנקרא</button></div><ul class="divide-y"><li><button type="button" data-testid="notification-row" data-notification-id="100" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חדש — יוסי לוי</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני רגע · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="101" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חדש</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 3 דקות · לידים</span></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="102" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חם — מיכל אברהם</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 12 דקות · לידים</span></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="103" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">שאלון הושלם — יוסי לוי</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 40 דקות · לידים</span></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="900" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חדש: יוסי לוי</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 3 ימים · לידים</span></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="901" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">הודעה חדשה ב-Messenger — רונית</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 4 ימים · שיחות</span></span><span class="sr-only">לא נקרא</span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="902" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary border-s-2 border-s-primary"><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-primary " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-semibold text-ink">ליד חם</span><span aria-hidden="true" class="ms-auto size-1.5 shrink-0 rounded-full bg-primary"></span></span><span class="mt-0.5 block truncate text-[13px] leading-snug text-gray-500">שלוש פניות בשבוע</span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 5 ימים · לידים</span></span><span class="sr-only">לא נקרא</span></button></li></ul></div>",
+    "afterMarkAll": "<div class="bg-white"><ul class="divide-y"><li><button type="button" data-testid="notification-row" data-notification-id="100" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חדש — יוסי לוי</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני רגע · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="101" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חדש</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 3 דקות · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="102" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חם — מיכל אברהם</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 12 דקות · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="103" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">שאלון הושלם — יוסי לוי</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 40 דקות · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="900" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חדש: יוסי לוי</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 3 ימים · לידים</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="901" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comments.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">הודעה חדשה ב-Messenger — רונית</span></span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 4 ימים · שיחות</span></span></button></li><li><button type="button" data-testid="notification-row" data-notification-id="902" class="press flex min-h-11 w-full items-start gap-3 px-3.5 py-2.5 text-start select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary "><span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50"><div aria-hidden="true" class="dark:bg-white size-[18px] bg-gray-400 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/image-polaroid-user.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span><span class="min-w-0 flex-1"><span class="flex items-center gap-2"><span class="truncate text-[15px] leading-tight font-medium text-gray-600">ליד חם</span></span><span class="mt-0.5 block truncate text-[13px] leading-snug text-gray-500">שלוש פניות בשבוע</span><span class="mt-1 block text-[11px] leading-none text-gray-400">לפני 5 ימים · לידים</span></span></button></li></ul></div>",
+    "failed": "לא הצלחנו לטעון — נסה שוב",
+    "loading": "טוען...",
+    "markAllText": "סימון הכל כנקרא",
+  },
+}
+`;
