@@ -1,18 +1,11 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
 import Icon from '@/lib/Icon'
-import { toast } from '@/lib/toast'
 import { formatDate } from '@/lib/dates'
-import { useAdaptivePoll } from '@/modules/inbox/client/useAdaptivePoll'
-import { applyTemplateUpdates } from '@/modules/templates/client/applyTemplateUpdates'
-import { createTemplate } from '@/actions/whatsapp/templates/createTemplate'
-import { retryTemplate } from '@/actions/whatsapp/templates/retryTemplate'
-import { archiveTemplate } from '@/actions/whatsapp/templates/archiveTemplate'
-import { discardTemplate } from '@/actions/whatsapp/templates/discardTemplate'
-import type { Template, TemplateInput, TemplateStatus } from '@/lib/whatsapp/templates/types'
+import type { Template, TemplateStatus } from '@/lib/whatsapp/templates/types'
 import { hasPositionalPlaceholder } from '@/lib/whatsapp/templates/parameters'
 import MobileListRow, { MobileList } from '@/components/mobile/MobileListRow'
 import ConfirmSheet from '@/components/mobile/ConfirmSheet'
@@ -21,6 +14,7 @@ import ReadyMessageEditorMobile from './ReadyMessageEditorMobile'
 import ReadyMessageDetailSheet from './ReadyMessageDetailSheet'
 import ReadyMessagesEmptyMobile from './ReadyMessagesEmptyMobile'
 import { readyMessageTitle } from './readyMessageTitle'
+import { useReadyMessages } from './useReadyMessages'
 
 const SORT_ORDER: Record<TemplateStatus, number> = {
   rejected: 0,
@@ -45,32 +39,11 @@ const EDIT_NOTE =
  * There is no in-place update — "עריכת הודעה" creates a new template, same as desktop.
  */
 export default function ReadyMessagesWorkspace({ initial }: { initial: Template[] }) {
-  const [templates, setTemplates] = useState(initial)
   const [createOpen, setCreateOpen] = useState(false)
   const [retryTarget, setRetryTarget] = useState<Template | null>(null)
   const [editTarget, setEditTarget] = useState<Template | null>(null)
   const [detail, setDetail] = useState<Template | null>(null)
   const [confirm, setConfirm] = useState<null | { kind: 'archive' | 'discard'; template: Template }>(null)
-
-  const templatesRef = useRef(templates)
-  templatesRef.current = templates
-  const hasPending = templates.some((t) => t.status === 'pending')
-
-  const poll = useCallback(async () => {
-    try {
-      const res = await fetch('/api/whatsapp/templates', { cache: 'no-store' })
-      if (!res.ok) return { changed: false, failed: true }
-      const data = (await res.json()) as { templates: Template[] }
-      const before = templatesRef.current
-      const merged = applyTemplateUpdates(before, data.templates)
-      setTemplates((prev) => applyTemplateUpdates(prev, data.templates))
-      return { changed: merged !== before, failed: false }
-    } catch {
-      return { changed: false, failed: true }
-    }
-  }, [])
-
-  useAdaptivePoll(poll, { enabled: hasPending })
 
   const closeEditor = () => {
     setCreateOpen(false)
@@ -78,58 +51,15 @@ export default function ReadyMessagesWorkspace({ initial }: { initial: Template[
     setEditTarget(null)
   }
 
-  const handleCreate = (input: TemplateInput) => {
-    const tempId = -Date.now()
-    const optimistic: Template = {
-      id: tempId,
-      displayTitle: input.displayTitle.trim(),
-      status: 'pending',
-      bodyText: input.bodyText.trim(),
-      variables: input.variables,
-      failureText: null,
-      archived: false,
-      createdAt: new Date().toISOString(),
-    }
-    const retryOf = retryTarget?.id ?? null
-    setTemplates((prev) => [optimistic, ...prev])
-    closeEditor()
-    setDetail(null)
-
-    const run = retryOf != null ? retryTemplate(retryOf, input) : createTemplate(input)
-    run.then((res) => {
-      if (res.ok) {
-        setTemplates((prev) =>
-          prev.filter((t) => t.id !== retryOf).map((t) => (t.id === tempId ? res.template : t)),
-        )
-        toast('success', 'ההודעה נוצרה ונשלחה לאישור וואטסאפ')
-      } else if ('error' in res) {
-        setTemplates((prev) => prev.filter((t) => t.id !== tempId))
-        toast('error', res.error)
-      }
-    })
-  }
-
-  const runArchive = async (id: number) => {
-    const res = await archiveTemplate(id)
-    if (res.ok) {
-      setTemplates((prev) => prev.filter((t) => t.id !== id))
-      setDetail((d) => (d?.id === id ? null : d))
-      toast('success', 'ההודעה הועברה לארכיון')
-    } else if ('error' in res) {
-      toast('error', res.error)
-    }
-  }
-
-  const runDiscard = async (id: number) => {
-    const res = await discardTemplate(id)
-    if (res.ok) {
-      setTemplates((prev) => prev.filter((t) => t.id !== id))
-      setDetail((d) => (d?.id === id ? null : d))
-      toast('success', 'ההודעה הוסרה')
-    } else if ('error' in res) {
-      toast('error', res.error)
-    }
-  }
+  const { templates, handleCreate, runArchive, runDiscard } = useReadyMessages({
+    initial,
+    retryOf: retryTarget?.id ?? null,
+    onCreating: () => {
+      closeEditor()
+      setDetail(null)
+    },
+    onRemoved: (id) => setDetail((d) => (d?.id === id ? null : d)),
+  })
 
   const sorted = [...templates].sort((a, b) => (SORT_ORDER[a.status] ?? 9) - (SORT_ORDER[b.status] ?? 9))
   const liveDetail = detail ? templates.find((t) => t.id === detail.id) ?? null : null

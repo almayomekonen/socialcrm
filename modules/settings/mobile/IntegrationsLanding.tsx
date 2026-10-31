@@ -1,30 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import CalendarConnect from '@/components/settings/CalendarConnect'
-import FacebookConnect from '@/components/settings/FacebookConnect'
-import WhatsappConnect from '@/components/settings/WhatsappConnect'
-import IntegrationCard from '@/components/settings/integrations/IntegrationCard'
 import { INTEGRATIONS } from '@/components/settings/integrations/catalog'
 import { MetaLeadAdsBadge, WhatsappBadge } from '@/components/ui/MetaLeadAdsBadge'
 import Icon from '@/lib/Icon'
 import type { FacebookHealthStatus } from '@/lib/facebook/health'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
-import ConnectManageSheet from './ConnectManageSheet'
 import DriveCardMobile from './DriveCardMobile'
+import IntegrationsSheets from './IntegrationsSheets'
 import IntegrationCardMobile from './IntegrationCardMobile'
-import {
-  calendarLandingCopy,
-  facebookLandingCopy,
-  readyMessagesLandingCopy,
-  whatsappLandingCopy,
-} from './integrationStatus'
-import {
-  calendarReturnCopy,
-  facebookReturnCopy,
-  whatsappReturnCopy,
-  type OAuthReturnQuery,
-} from './oauthReturn'
+import { calendarLandingCopy, facebookLandingCopy, readyMessagesLandingCopy, whatsappLandingCopy } from './integrationStatus'
+import { calendarReturnCopy, facebookReturnCopy, whatsappReturnCopy, type OAuthReturnQuery } from './oauthReturn'
 import { useIntegrationReturnContinuation } from './useIntegrationReturn'
 import type { InAppBrowser } from '@/lib/connections/useInAppWarning'
 
@@ -62,7 +48,7 @@ export type IntegrationsLandingProps = {
   websiteVisible: boolean
 }
 
-type Sheet = 'whatsapp' | 'facebook' | 'calendar' | 'drive' | null
+export type Sheet = 'whatsapp' | 'facebook' | 'calendar' | 'drive' | null
 
 /**
  * Phone Integrations landing — status cards, not the desktop accordion.
@@ -95,24 +81,22 @@ export default function IntegrationsLanding({
     setSheet(initialSheet)
   }, [initialSheet])
 
-  const waCopy =
-    whatsapp.connection
-      ? whatsappLandingCopy({ connected: true, status: whatsapp.status })
-      : whatsappReturnCopy({
-          pendingPhones: whatsapp.pendingPhones,
-          error: oauthQuery.wa_error ?? null,
-          completing: whatsappCompleting,
-        }) ?? whatsappLandingCopy({ connected: false, status: whatsapp.status })
+  const waCopy = whatsapp.connection
+    ? whatsappLandingCopy({ connected: true, status: whatsapp.status })
+    : (whatsappReturnCopy({
+        pendingPhones: whatsapp.pendingPhones,
+        error: oauthQuery.wa_error ?? null,
+        completing: whatsappCompleting,
+      }) ?? whatsappLandingCopy({ connected: false, status: whatsapp.status }))
 
-  const fbCopy =
-    facebook.connection
-      ? facebookLandingCopy({ connection: facebook.connection, health: facebook.health })
-      : facebookReturnCopy({
-          pendingPages: facebook.pendingPages,
-          error: oauthQuery.error ?? null,
-          select: oauthQuery.select === '1',
-          completing: facebookCompleting,
-        }) ?? facebookLandingCopy({ connection: null, health: facebook.health })
+  const fbCopy = facebook.connection
+    ? facebookLandingCopy({ connection: facebook.connection, health: facebook.health })
+    : (facebookReturnCopy({
+        pendingPages: facebook.pendingPages,
+        error: oauthQuery.error ?? null,
+        select: oauthQuery.select === '1',
+        completing: facebookCompleting,
+      }) ?? facebookLandingCopy({ connection: null, health: facebook.health }))
 
   const rmCopy = readyMessagesLandingCopy(templates)
   const calCopy =
@@ -123,19 +107,14 @@ export default function IntegrationsLanding({
     }) ?? calendarLandingCopy({ state: calendar.state, email: calendar.email })
   const drive = INTEGRATIONS.find((i) => i.id === 'google-drive')
 
-  const rmHref =
-    !templates.connected || !templates.messagingReady
-      ? undefined
-      : '/settings/integrations?section=templates'
+  const rmHref = !templates.connected || !templates.messagingReady ? undefined : '/settings/integrations?section=templates'
   const rmOpensWhatsapp = !templates.connected || !templates.messagingReady
 
   return (
     <div data-testid='integrations-mobile' className='px-4 pb-8 pt-4'>
       <header className='mb-5'>
         <h1 className='text-xl font-bold leading-tight text-ink'>אינטגרציות</h1>
-        <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>
-          מה מחובר, מה לא, ומה הצעד הבא — במקום אחד.
-        </p>
+        <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>מה מחובר, מה לא, ומה הצעד הבא — במקום אחד.</p>
       </header>
 
       <section className='flex flex-col gap-3' aria-label='מקורות לידים'>
@@ -228,77 +207,17 @@ export default function IntegrationsLanding({
         )}
       </section>
 
-      {/*
-        MOBILE ONLY. The rep usually arrives here by tapping WhatsApp on a lead,
-        so in the not-connected state the sheet names the blocker instead of the
-        channel. Conditional on purpose: this is a connect AND manage sheet, and
-        titling it "connection required" while a connection exists would be a lie.
-        `!connection && !pendingPhones` is exactly WhatsappConnect's State A.
-      */}
-      <ConnectManageSheet
-        open={sheet === 'whatsapp'}
+      <IntegrationsSheets
+        sheet={sheet}
         onClose={() => setSheet(null)}
-        title={!whatsapp.connection && !whatsapp.pendingPhones ? 'חיבור WhatsApp נדרש' : 'וואטסאפ'}
-        titleId='wa-manage-title'
-      >
-        {whatsappCompleting ? (
-          <p data-testid='integration-completing' className='text-sm text-gray-600'>
-            משלים חיבור...
-          </p>
-        ) : (
-          <WhatsappConnect
-            connection={whatsapp.connection}
-            pendingPhones={whatsapp.pendingPhones}
-            appId={whatsapp.appId}
-            configId={whatsapp.configId}
-            graphVersion={whatsapp.graphVersion}
-            status={whatsapp.status}
-            description='כדי לשלוח הודעות ללידים ישירות מ־SocialCRM, חבר את ה־WhatsApp העסקי שלך.'
-            connectLabel='חבר WhatsApp עסקי'
-            inAppBrowser={inAppBrowser}
-          />
-        )}
-      </ConnectManageSheet>
-
-      <ConnectManageSheet
-        open={sheet === 'facebook'}
-        onClose={() => setSheet(null)}
-        title='פייסבוק ואינסטגרם'
-        titleId='fb-manage-title'
-      >
-        {facebookCompleting ? (
-          <p data-testid='integration-completing' className='text-sm text-gray-600'>
-            משלים חיבור...
-          </p>
-        ) : (
-          <FacebookConnect
-            connection={facebook.connection}
-            pendingPages={facebook.pendingPages}
-            health={facebook.health}
-            inAppBrowser={inAppBrowser}
-          />
-        )}
-      </ConnectManageSheet>
-
-      <ConnectManageSheet
-        open={sheet === 'calendar'}
-        onClose={() => setSheet(null)}
-        title='Google Calendar'
-        titleId='cal-manage-title'
-      >
-        <CalendarConnect state={calendar.state} email={calendar.email} lastError={calendar.lastError} />
-      </ConnectManageSheet>
-
-      {drive && (
-        <ConnectManageSheet
-          open={sheet === 'drive'}
-          onClose={() => setSheet(null)}
-          title={drive.name}
-          titleId='drive-manage-title'
-        >
-          <IntegrationCard integration={drive} />
-        </ConnectManageSheet>
-      )}
+        inAppBrowser={inAppBrowser}
+        whatsapp={whatsapp}
+        facebook={facebook}
+        calendar={calendar}
+        drive={drive}
+        whatsappCompleting={whatsappCompleting}
+        facebookCompleting={facebookCompleting}
+      />
     </div>
   )
 }
