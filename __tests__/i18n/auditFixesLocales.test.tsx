@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { findHebrewLeaks } from './leakScan'
-import { alignment, iconPicker, readyMessageChevrons } from './auditFixesSurfaces'
+import { alignment, iconButtons, iconPicker, readyMessageChevrons } from './auditFixesSurfaces'
 
 /**
  * The final UI audit fixes in en / ar (Hebrew identity: auditFixesHebrewBaseline,
@@ -83,6 +83,26 @@ describe('D: header rows and option buttons start at the reading edge outside He
         expect(he[key], key).toContain('text-right')
         expect(he[key], key).not.toContain('text-start')
       }
+    })
+  }
+})
+
+describe('E: icon-only buttons are named outside Hebrew; Hebrew stays unnamed', () => {
+  const NAMES = { en: ['Close', 'Add a goal', 'Remove the last goal'], ar: ['إغلاق', 'إضافة هدف', 'إزالة الهدف الأخير'] }
+  for (const locale of ['en', 'ar'] as const) {
+    test(locale, async () => {
+      const he = await iconButtons(null)
+      const out = await iconButtons(locale)
+      const [close, add, remove] = NAMES[locale]
+      expect(parse(out.fileFormClose).querySelector('button')!.getAttribute('aria-label')).toBe(close)
+      const goal = [...parse(out.goalButtons).querySelectorAll('button')]
+      expect(goal.slice(0, 2).map((b) => b.getAttribute('aria-label'))).toEqual([add, remove])
+      // Same markup otherwise: removing the name gives back the Hebrew button exactly.
+      const strip = (h: string) => h.replace(/ aria-label="[^"]*"/g, '')
+      expect(strip(out.fileFormClose)).toBe(he.fileFormClose)
+      expect(strip(out.goalButtons).replace(/>[^<]+</g, '><')).toBe(he.goalButtons.replace(/>[^<]+</g, '><'))
+      expect(he.fileFormClose).not.toContain('aria-label')
+      expect(he.goalButtons.split('\n').slice(0, 2).join('')).not.toContain('aria-label')
     })
   }
 })

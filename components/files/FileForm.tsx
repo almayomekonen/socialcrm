@@ -26,7 +26,15 @@ export default function FileForm({ clientId, tasks }) {
 
   return (
     <div popover='manual' id='filePopover' className='pop overflow-hidden w-[450px] relative'>
-      <Btn variant='sign' size='sign' className='absolute top-4 left-4' icon='circle-x' popoverTarget='filePopover' />
+      {/* Icon-only: named outside Hebrew (final UI audit, E6 pattern); Hebrew markup is unchanged. */}
+      <Btn
+        variant='sign'
+        size='sign'
+        className='absolute top-4 left-4'
+        icon='circle-x'
+        popoverTarget='filePopover'
+        {...(t.locale === 'he' ? {} : { 'aria-label': t('common.dialog.close') })}
+      />
       <form onSubmit={onSubmit} className='space-y-4'>
         <Title lbl={t('leadTabs.files.form.title')} />
         <p className='col-span-2 pt-4 py-1'>{t('leadTabs.files.form.taskLink')}</p>
