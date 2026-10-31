@@ -138,19 +138,44 @@ export async function claimAutoResponseJobs(workerId: string, limit: number): Pr
   }))
 }
 
+/**
+ * A `processing` job whose lease expired: its worker died or stalled. Every
+ * claim already counted one attempt, so a job that has used all of them is
+ * dead-lettered here instead of going back to `pending` — without this, a turn
+ * that always outlives its lease was re-claimed (and re-generated) forever.
+ */
 export async function reclaimStaleAutoResponseJobs(leaseMs: number): Promise<number> {
   const cutoff = new Date(Date.now() - leaseMs)
   const res = await db.raw(
     `
     UPDATE auto_response_jobs
-       SET status = 'pending', "lockedAt" = NULL, "lockedBy" = NULL,
-           "lastError" = 'lease-expired-reclaimed', "updatedAt" = now()
+       SET status = CASE WHEN attempts >= "maxAttempts" THEN 'dead' ELSE 'pending' END,
+           "lastError" = CASE WHEN attempts >= "maxAttempts" THEN 'lease-expired-max-attempts' ELSE 'lease-expired-reclaimed' END,
+           "lockedAt" = NULL, "lockedBy" = NULL, "updatedAt" = now()
      WHERE status = 'processing' AND "lockedAt" < ?
      RETURNING id
   `,
     [cutoff],
   )
   return res.rows?.length ?? 0
+}
+
+/**
+ * Heartbeat: the claiming worker keeps its lease alive while it runs, so a
+ * slow but healthy turn is never re-claimed. Only the owner can renew.
+ * False means this worker no longer owns the job.
+ */
+export async function renewAutoResponseJobLease(id: number, workerId: string): Promise<boolean> {
+  const n = await db('auto_response_jobs')
+    .where({ id, status: 'processing', lockedBy: workerId })
+    .update({ lockedAt: db.fn.now(), updatedAt: db.fn.now() })
+  return Number(n) > 0
+}
+
+/** The fence before an external side effect (a WhatsApp send). */
+export async function ownsAutoResponseJob(id: number, workerId: string): Promise<boolean> {
+  const row = await db('auto_response_jobs').where({ id, status: 'processing', lockedBy: workerId }).first('id')
+  return !!row
 }
 
 /** Complete only while still claimed. Inbound may have already set skipped. */
@@ -222,8 +247,12 @@ export async function deadLetterAutoResponseJob(id: number, error: string): Prom
   })
 }
 
-/** Retry with backoff; dead-letter once attempts reach maxAttempts. */
-export async function failAutoResponseJob(id: number, error: string): Promise<void> {
+/**
+ * Retry with backoff; dead-letter once attempts reach maxAttempts.
+ * With `ownerWorkerId`, only while that worker still owns the claim, so a
+ * worker that lost its lease can never reset another worker's run.
+ */
+export async function failAutoResponseJob(id: number, error: string, ownerWorkerId?: string): Promise<void> {
   await db.raw(
     `
     UPDATE auto_response_jobs
@@ -231,9 +260,9 @@ export async function failAutoResponseJob(id: number, error: string): Promise<vo
            "lastError" = ?, "lockedAt" = NULL, "lockedBy" = NULL,
            "notBefore" = now() + (LEAST(attempts, 5) * interval '30 seconds'),
            "updatedAt" = now()
-     WHERE id = ?
+     WHERE id = ? ${ownerWorkerId ? `AND status = 'processing' AND "lockedBy" = ?` : ''}
   `,
-    [error, id],
+    ownerWorkerId ? [error, id, ownerWorkerId] : [error, id],
   )
 }
 

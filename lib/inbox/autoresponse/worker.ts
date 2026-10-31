@@ -15,6 +15,7 @@ import {
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import { isPositiveLeadId } from './contactJob'
+import { LeaseLostError, fencedSend, keepJobLease } from './jobLease'
 import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
 import { generateQualifyTurn } from './qualify'
@@ -330,11 +331,17 @@ export async function runAutoResponseWorker(
   await reclaimStaleAutoResponseJobs(leaseMs)
   const jobs = await claimAutoResponseJobs(workerId, limit)
   if (jobs.length) console.log(`[IRE] worker start id=${workerId} claimed=${jobs.length}`)
+  // Renew EVERY claimed lease from the moment of the claim: jobs run one after
+  // another, so the last one would otherwise expire while the first ones run.
+  const leases = new Map(jobs.map((j) => [j.id, keepJobLease(j.id, workerId, leaseMs)]))
 
   let sent = 0
   let skipped = 0
   let failed = 0
   for (const job of jobs) {
+    const lease = leases.get(job.id)!
+    let leaseLost = false
+    const jobDeps: WorkerDeps = { ...deps, send: fencedSend(deps.send, job.id, workerId) }
     const startedAt = Date.now()
     const traceCtx = {
       conversationId: job.conversationId,
@@ -345,15 +352,24 @@ export async function runAutoResponseWorker(
     waTrace('WORKER_STARTED', traceCtx, { jobId: job.id, attempt: job.attempts, maxAttempts: job.maxAttempts })
     let outcome: Outcome | 'error' = 'error'
     try {
-      const r = await processJob(job, deps)
+      const r = await processJob(job, jobDeps)
       outcome = r
       if (r === 'sent') sent++
       else if (r === 'skipped') skipped++
       else if (r === 'failed') failed++
     } catch (err) {
-      await failAutoResponseJob(job.id, String(err))
+      if (err instanceof LeaseLostError) {
+        // Another worker owns this job now; it decides the outcome. Nothing was sent.
+        leaseLost = true
+        console.warn('[IRE] lease lost before send; not sending', { jobId: job.id, conversationId: job.conversationId })
+      } else {
+        await failAutoResponseJob(job.id, String(err), workerId)
+      }
       failed++
     } finally {
+      lease.stop()
+      // A lost job belongs to its new owner, follow-up turn included.
+      if (!leaseLost) {
       try {
         const fin = await db('auto_response_jobs')
           .where({ id: job.id })
@@ -407,7 +423,9 @@ export async function runAutoResponseWorker(
       } catch {
         // logging only
       }
+      }
     }
   }
+  for (const l of leases.values()) l.stop()
   return { claimed: jobs.length, sent, skipped, failed }
 }

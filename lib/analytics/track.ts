@@ -258,6 +258,12 @@ export type AnalyticsEventName =
    * Never the question, the answer, a phone number or a lead name.
    */
   | 'wa_assistant_turn'
+  /**
+   * A platform owner granted Pro without payment (actions/quota.ts
+   * upgradeAgencyToPro). Recorded on the TARGET agency. Props: reason,
+   * actorAgencyId.
+   */
+  | 'admin_plan_grant'
 
 type TrackInput = {
   agencyId: number
