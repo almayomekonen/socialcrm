@@ -1,0 +1,683 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hebrew baseline — landing-copy producers (as data) > integrationStatus and oauthReturn for every input 1`] = `
+{
+  "cal_connected": {
+    "actionLabel": "ניהול",
+    "explanation": "מחובר · dana@gmail.test",
+    "role": "success",
+    "statusLabel": "מחובר",
+  },
+  "cal_connected_noEmail": {
+    "actionLabel": "ניהול",
+    "explanation": "תזמון פגישות עם לידים ישירות מתוך המערכת.",
+    "role": "success",
+    "statusLabel": "מחובר",
+  },
+  "cal_not_connected": {
+    "actionLabel": "חבר יומן",
+    "explanation": "תזמון פגישות עם לידים וקישורי Google Meet אוטומטיים.",
+    "role": "neutral",
+    "statusLabel": "לא מחובר",
+  },
+  "cal_not_connected_noEmail": {
+    "actionLabel": "חבר יומן",
+    "explanation": "תזמון פגישות עם לידים וקישורי Google Meet אוטומטיים.",
+    "role": "neutral",
+    "statusLabel": "לא מחובר",
+  },
+  "cal_reauth_required": {
+    "actionLabel": "חבר מחדש",
+    "explanation": "החיבור ליומן פג. יש להתחבר מחדש כדי לסנכרן פגישות חדשות.",
+    "role": "warning",
+    "statusLabel": "דורש חיבור מחדש",
+  },
+  "cal_reauth_required_noEmail": {
+    "actionLabel": "חבר מחדש",
+    "explanation": "החיבור ליומן פג. יש להתחבר מחדש כדי לסנכרן פגישות חדשות.",
+    "role": "warning",
+    "statusLabel": "דורש חיבור מחדש",
+  },
+  "calendarReturnCopy_false_denied_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך ביומן Google נעצר לפני האישור. אפשר לנסות שוב.",
+    "role": "error",
+    "statusLabel": "החיבור לא הושלם",
+  },
+  "calendarReturnCopy_false_denied_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך ביומן Google נעצר לפני האישור. אפשר לנסות שוב.",
+    "role": "error",
+    "statusLabel": "החיבור לא הושלם",
+  },
+  "calendarReturnCopy_false_null_false": null,
+  "calendarReturnCopy_false_null_true": {
+    "actionLabel": "משלים חיבור...",
+    "explanation": "Google Calendar אושר. מעדכנים את מצב החיבור.",
+    "role": "warning",
+    "statusLabel": "משלים חיבור...",
+  },
+  "calendarReturnCopy_false_x_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "לא הצלחנו לחבר את Google Calendar. אפשר לנסות שוב.",
+    "role": "error",
+    "statusLabel": "החיבור נכשל",
+  },
+  "calendarReturnCopy_false_x_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "לא הצלחנו לחבר את Google Calendar. אפשר לנסות שוב.",
+    "role": "error",
+    "statusLabel": "החיבור נכשל",
+  },
+  "calendarReturnCopy_true_denied_false": null,
+  "calendarReturnCopy_true_denied_true": null,
+  "calendarReturnCopy_true_null_false": null,
+  "calendarReturnCopy_true_null_true": null,
+  "calendarReturnCopy_true_x_false": null,
+  "calendarReturnCopy_true_x_true": null,
+  "driveReturnCopy_false_denied_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך ב-Google Drive נעצר לפני האישור. אפשר לנסות שוב.",
+    "role": "error",
+    "statusLabel": "החיבור לא הושלם",
+  },
+  "driveReturnCopy_false_denied_true": {
+    "actionLabel": "משלים חיבור...",
+    "explanation": "Google Drive אושר. מעדכנים את מצב החיבור.",
+    "role": "warning",
+    "statusLabel": "משלים חיבור...",
+  },
+  "driveReturnCopy_false_null_false": null,
+  "driveReturnCopy_false_null_true": {
+    "actionLabel": "משלים חיבור...",
+    "explanation": "Google Drive אושר. מעדכנים את מצב החיבור.",
+    "role": "warning",
+    "statusLabel": "משלים חיבור...",
+  },
+  "driveReturnCopy_false_x_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "לא הצלחנו לחבר את Google Drive. אפשר לנסות שוב.",
+    "role": "error",
+    "statusLabel": "החיבור נכשל",
+  },
+  "driveReturnCopy_false_x_true": {
+    "actionLabel": "משלים חיבור...",
+    "explanation": "Google Drive אושר. מעדכנים את מצב החיבור.",
+    "role": "warning",
+    "statusLabel": "משלים חיבור...",
+  },
+  "driveReturnCopy_true_denied_false": null,
+  "driveReturnCopy_true_denied_true": null,
+  "driveReturnCopy_true_null_false": null,
+  "driveReturnCopy_true_null_true": null,
+  "driveReturnCopy_true_x_false": null,
+  "driveReturnCopy_true_x_true": null,
+  "fbNoHealth": {
+    "actionLabel": "ניהול",
+    "explanation": "מחובר לדף סטודיו דנה.",
+    "role": "warning",
+    "statusLabel": "מחובר",
+  },
+  "fbNone": {
+    "actionLabel": "חבר פייסבוק",
+    "explanation": "חברו את דף הפייסבוק כדי לקבל לידים מפייסבוק ומאינסטגרם.",
+    "role": "neutral",
+    "statusLabel": "לא מחובר",
+  },
+  "fbR_completing": {
+    "actionLabel": "משלים חיבור...",
+    "explanation": "פייסבוק אושר. משלימים את חיבור הדף.",
+    "role": "warning",
+    "statusLabel": "משלים חיבור...",
+  },
+  "fbR_denied_0_false": {
+    "actionLabel": "להתחבר לפייסבוק",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לפייסבוק לא הושלם",
+  },
+  "fbR_denied_0_true": {
+    "actionLabel": "להתחבר לפייסבוק",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לפייסבוק לא הושלם",
+  },
+  "fbR_denied_1_false": {
+    "actionLabel": "להתחבר לפייסבוק",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לפייסבוק לא הושלם",
+  },
+  "fbR_denied_1_true": {
+    "actionLabel": "להתחבר לפייסבוק",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לפייסבוק לא הושלם",
+  },
+  "fbR_denied_2_false": {
+    "actionLabel": "להתחבר לפייסבוק",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לפייסבוק לא הושלם",
+  },
+  "fbR_denied_2_true": {
+    "actionLabel": "להתחבר לפייסבוק",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לפייסבוק לא הושלם",
+  },
+  "fbR_no_pages_0_false": {
+    "actionLabel": "בדקתי את הדף והגישה, לנסות להתחבר שוב",
+    "explanation": "התחברנו לחשבון Facebook, אבל לא קיבלנו ממנו דף שאפשר לחבר ל-SocialCRM.",
+    "role": "error",
+    "statusLabel": "לא מצאנו דף Facebook שאפשר לחבר",
+  },
+  "fbR_no_pages_0_true": {
+    "actionLabel": "בדקתי את הדף והגישה, לנסות להתחבר שוב",
+    "explanation": "התחברנו לחשבון Facebook, אבל לא קיבלנו ממנו דף שאפשר לחבר ל-SocialCRM.",
+    "role": "error",
+    "statusLabel": "לא מצאנו דף Facebook שאפשר לחבר",
+  },
+  "fbR_no_pages_1_false": {
+    "actionLabel": "בדקתי את הדף והגישה, לנסות להתחבר שוב",
+    "explanation": "התחברנו לחשבון Facebook, אבל לא קיבלנו ממנו דף שאפשר לחבר ל-SocialCRM.",
+    "role": "error",
+    "statusLabel": "לא מצאנו דף Facebook שאפשר לחבר",
+  },
+  "fbR_no_pages_1_true": {
+    "actionLabel": "בדקתי את הדף והגישה, לנסות להתחבר שוב",
+    "explanation": "התחברנו לחשבון Facebook, אבל לא קיבלנו ממנו דף שאפשר לחבר ל-SocialCRM.",
+    "role": "error",
+    "statusLabel": "לא מצאנו דף Facebook שאפשר לחבר",
+  },
+  "fbR_no_pages_2_false": {
+    "actionLabel": "בדקתי את הדף והגישה, לנסות להתחבר שוב",
+    "explanation": "התחברנו לחשבון Facebook, אבל לא קיבלנו ממנו דף שאפשר לחבר ל-SocialCRM.",
+    "role": "error",
+    "statusLabel": "לא מצאנו דף Facebook שאפשר לחבר",
+  },
+  "fbR_no_pages_2_true": {
+    "actionLabel": "בדקתי את הדף והגישה, לנסות להתחבר שוב",
+    "explanation": "התחברנו לחשבון Facebook, אבל לא קיבלנו ממנו דף שאפשר לחבר ל-SocialCRM.",
+    "role": "error",
+    "statusLabel": "לא מצאנו דף Facebook שאפשר לחבר",
+  },
+  "fbR_null_0_false": null,
+  "fbR_null_0_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "חזרנו מפייסבוק, אבל אין דף שמחכה לחיבור. אפשר לנסות שוב.",
+    "role": "error",
+    "statusLabel": "החיבור לא הושלם",
+  },
+  "fbR_null_1_false": {
+    "actionLabel": "השלימו חיבור",
+    "explanation": "פייסבוק אושר. משלימים את חיבור הדף.",
+    "role": "warning",
+    "statusLabel": "בחירת דף",
+  },
+  "fbR_null_1_true": {
+    "actionLabel": "השלימו חיבור",
+    "explanation": "פייסבוק אושר. משלימים את חיבור הדף.",
+    "role": "warning",
+    "statusLabel": "בחירת דף",
+  },
+  "fbR_null_2_false": {
+    "actionLabel": "השלימו חיבור",
+    "explanation": "פייסבוק אושר. בחרו את הדף כדי להשלים את החיבור.",
+    "role": "warning",
+    "statusLabel": "בחירת דף",
+  },
+  "fbR_null_2_true": {
+    "actionLabel": "השלימו חיבור",
+    "explanation": "פייסבוק אושר. בחרו את הדף כדי להשלים את החיבור.",
+    "role": "warning",
+    "statusLabel": "בחירת דף",
+  },
+  "fbR_token_0_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_token_0_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_token_1_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_token_1_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_token_2_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_token_2_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_x_0_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_x_0_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_x_1_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_x_1_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_x_2_false": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fbR_x_2_true": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מפייסבוק התקבל, אך החיבור לא הושלם ולא נשמר מידע חלקי.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "fb_bad": {
+    "actionLabel": "ניהול",
+    "explanation": "מחובר לדף סטודיו דנה.",
+    "role": "warning",
+    "statusLabel": "מחובר",
+  },
+  "fb_expired": {
+    "actionLabel": "לחבר מחדש",
+    "explanation": "לידים חדשים אינם נכנסים כרגע. כל המידע הקיים במערכת נשמר במלואו.",
+    "role": "warning",
+    "statusLabel": "החיבור לפייסבוק פג",
+  },
+  "fb_healthy": {
+    "actionLabel": "ניהול",
+    "explanation": "מחובר לדף סטודיו דנה — לידים מגיעים אוטומטית.",
+    "role": "success",
+    "statusLabel": "מחובר",
+  },
+  "fb_repairing": {
+    "actionLabel": "ניהול",
+    "explanation": "קבלת הלידים מהדף הופסקה, והמערכת מחדשת אותה אוטומטית.",
+    "role": "warning",
+    "statusLabel": "החיבור מתעדכן — לא נדרשת פעולה",
+  },
+  "rm_approvedOnly": {
+    "actionLabel": "ניהול הודעות",
+    "explanation": "2 מוכנות לשליחה",
+    "role": "success",
+    "statusLabel": "3 הודעות",
+  },
+  "rm_both": {
+    "actionLabel": "ניהול הודעות",
+    "explanation": "2 מוכנות לשליחה · 1 בבדיקה",
+    "role": "success",
+    "statusLabel": "3 הודעות",
+  },
+  "rm_empty": {
+    "actionLabel": "צרו הודעה מוכנה",
+    "explanation": "הודעה מוכנה מאפשרת לפנות לליד גם אחרי שהשיחה נרגעה.",
+    "role": "neutral",
+    "statusLabel": "אין הודעות",
+  },
+  "rm_neither": {
+    "actionLabel": "ניהול הודעות",
+    "explanation": "ניהול ההודעות המוכנות לשליחה בוואטסאפ.",
+    "role": "warning",
+    "statusLabel": "3 הודעות",
+  },
+  "rm_notConnected": {
+    "actionLabel": "חבר וואטסאפ קודם",
+    "explanation": "כדי ליצור הודעות מוכנות, חברו קודם את מספר הוואטסאפ העסקי.",
+    "role": "neutral",
+    "statusLabel": "מחכה לחיבור",
+  },
+  "rm_notReady": {
+    "actionLabel": "ניהול וואטסאפ",
+    "explanation": "לאחר שהחיבור יאומת, אפשר יהיה ליצור הודעות מוכנות.",
+    "role": "warning",
+    "statusLabel": "החיבור עדיין לא מוכן",
+  },
+  "rm_off": null,
+  "rm_pendingOnly": {
+    "actionLabel": "ניהול הודעות",
+    "explanation": "1 בבדיקה",
+    "role": "warning",
+    "statusLabel": "3 הודעות",
+  },
+  "waOff": {
+    "actionLabel": "חבר וואטסאפ",
+    "explanation": "חברו את מספר הוואטסאפ העסקי כדי לקבל לידים אוטומטית.",
+    "role": "neutral",
+    "statusLabel": "לא מחובר",
+  },
+  "waR_cancelled_0": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לוואטסאפ לא הושלם",
+  },
+  "waR_cancelled_1": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לוואטסאפ לא הושלם",
+  },
+  "waR_cancelled_2": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לוואטסאפ לא הושלם",
+  },
+  "waR_completing": {
+    "actionLabel": "משלים חיבור...",
+    "explanation": "וואטסאפ אושר. משלימים את חיבור המספר.",
+    "role": "warning",
+    "statusLabel": "משלים חיבור...",
+  },
+  "waR_denied_0": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לוואטסאפ לא הושלם",
+  },
+  "waR_denied_1": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לוואטסאפ לא הושלם",
+  },
+  "waR_denied_2": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "התהליך נעצר לפני שלב האישור, ולא נשמר מידע.",
+    "role": "error",
+    "statusLabel": "החיבור לוואטסאפ לא הושלם",
+  },
+  "waR_network_0": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "הפעולה לא הושלמה. לא נשמר ולא השתנה מידע כלשהו.",
+    "role": "error",
+    "statusLabel": "החיבור לאינטרנט נקטע",
+  },
+  "waR_network_1": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "הפעולה לא הושלמה. לא נשמר ולא השתנה מידע כלשהו.",
+    "role": "error",
+    "statusLabel": "החיבור לאינטרנט נקטע",
+  },
+  "waR_network_2": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "הפעולה לא הושלמה. לא נשמר ולא השתנה מידע כלשהו.",
+    "role": "error",
+    "statusLabel": "החיבור לאינטרנט נקטע",
+  },
+  "waR_no_phones_0": {
+    "actionLabel": "להמשיך בהגדרה",
+    "explanation": "קיים חשבון עסקי, אך טרם שויך אליו מספר טלפון.",
+    "role": "error",
+    "statusLabel": "לא שויך מספר לחשבון העסקי",
+  },
+  "waR_no_phones_1": {
+    "actionLabel": "להמשיך בהגדרה",
+    "explanation": "קיים חשבון עסקי, אך טרם שויך אליו מספר טלפון.",
+    "role": "error",
+    "statusLabel": "לא שויך מספר לחשבון העסקי",
+  },
+  "waR_no_phones_2": {
+    "actionLabel": "להמשיך בהגדרה",
+    "explanation": "קיים חשבון עסקי, אך טרם שויך אליו מספר טלפון.",
+    "role": "error",
+    "statusLabel": "לא שויך מספר לחשבון העסקי",
+  },
+  "waR_null_0": null,
+  "waR_null_1": {
+    "actionLabel": "השלימו חיבור",
+    "explanation": "וואטסאפ אושר. משלימים את חיבור המספר.",
+    "role": "warning",
+    "statusLabel": "בחירת מספר",
+  },
+  "waR_null_2": {
+    "actionLabel": "השלימו חיבור",
+    "explanation": "וואטסאפ אושר. בחרו את המספר כדי להשלים את החיבור.",
+    "role": "warning",
+    "statusLabel": "בחירת מספר",
+  },
+  "waR_x_0": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מ-Meta התקבל, אך החיבור לא הושלם.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "waR_x_1": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מ-Meta התקבל, אך החיבור לא הושלם.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "waR_x_2": {
+    "actionLabel": "לנסות שוב",
+    "explanation": "האישור מ-Meta התקבל, אך החיבור לא הושלם.",
+    "role": "error",
+    "statusLabel": "החיבור נקטע לפני השלמתו",
+  },
+  "wa_disconnected": {
+    "actionLabel": "חבר וואטסאפ",
+    "explanation": "חברו את מספר הוואטסאפ העסקי כדי לקבל לידים אוטומטית.",
+    "role": "neutral",
+    "statusLabel": "לא מחובר",
+  },
+  "wa_operational": {
+    "actionLabel": "ניהול",
+    "explanation": "החיבור תקין — לידים מגיעים אוטומטית.",
+    "role": "success",
+    "statusLabel": "מחובר",
+  },
+  "wa_registration_pending": {
+    "actionLabel": "מעבר ל-WhatsApp Manager",
+    "explanation": "עד להשלמת ההגדרה, SocialCRM לא יכול לקבל הודעות ולידים דרך החיבור הזה.",
+    "role": "warning",
+    "statusLabel": "הגדרת מספר ה-WhatsApp עדיין לא הושלמה",
+  },
+  "wa_restricted": {
+    "actionLabel": "ניהול",
+    "explanation": "WhatsApp לא מאפשרת כרגע לשלוח הודעות מהחשבון המחובר.",
+    "role": "error",
+    "statusLabel": "לא ניתן לשלוח הודעות כרגע",
+  },
+  "wa_throttled": {
+    "explanation": "מטא הגבילה זמנית את בדיקות הסטטוס. ההודעות והלידים ממשיכים לעבוד כרגיל.",
+    "role": "info",
+    "statusLabel": "החיבור תקין — בדיקת הסטטוס מוגבלת זמנית",
+  },
+  "wa_token": {
+    "actionLabel": "לחבר מחדש",
+    "explanation": "הודעות ולידים חדשים אינם נכנסים כרגע. כל המידע הקיים במערכת נשמר במלואו.",
+    "role": "error",
+    "statusLabel": "החיבור לוואטסאפ פג",
+  },
+  "wa_unknown": {
+    "actionLabel": "לחבר מחדש ולאמת",
+    "explanation": "החיבור קיים, אבל עדיין לא הצלחנו לוודא שהודעות ולידים נכנסים אליו. עד לאימות, ייתכן שהודעות לא יגיעו.",
+    "role": "warning",
+    "statusLabel": "צריך לאמת את חיבור ה-WhatsApp",
+  },
+  "wa_webhook": {
+    "actionLabel": "להריץ את ההגדרה שוב",
+    "explanation": "לא הצלחנו לוודא שהודעות ולידים מגיעים ל-SocialCRM.",
+    "role": "warning",
+    "statusLabel": "החיבור ל-WhatsApp עדיין לא הושלם",
+  },
+}
+`;
+
+exports[`Hebrew baseline — phone Integrations sheets and returns > each manage sheet; the not-connected WhatsApp sheet title; Drive connected / disconnected 1`] = `
+{
+  "landing": "<div data-testid="integrations-mobile" class="px-4 pb-8 pt-4"><header class="mb-5"><h1 class="text-xl font-bold leading-tight text-ink">אינטגרציות</h1><p class="mt-1.5 text-sm leading-relaxed text-gray-500">מה מחובר, מה לא, ומה הצעד הבא — במקום אחד.</p></header><section class="flex flex-col gap-3" aria-label="מקורות לידים"><h2 class="text-sm font-semibold text-gray-500">מקורות לידים</h2><article class="rounded-xl border border-gray-200 bg-white p-4"><div class="flex items-start gap-3"><div class="shrink-0"><div class="relative flex shrink-0 items-center " aria-hidden="true"><div class="flex size-7 rounded-lg items-center justify-center shadow-sm ring-1 ring-white bg-[#25D366] "><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div></div></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><h2 class="text-[15px] font-semibold leading-tight text-ink">וואטסאפ</h2><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-success-dot);"></span>מחובר</span></div><p class="mt-1.5 text-sm leading-relaxed text-gray-600">החיבור תקין — לידים מגיעים אוטומטית.</p></div></div><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 mt-4">ניהול</button></article><article class="rounded-xl border border-gray-200 bg-white p-4"><div class="flex items-start gap-3"><div class="shrink-0"><div class="relative flex shrink-0 items-center " aria-hidden="true"><div class="flex size-7 rounded-lg items-center justify-center shadow-sm ring-1 ring-white bg-[#1877F2] "><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/facebook-f.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/facebook-f.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><div class="flex size-7 rounded-lg items-center justify-center shadow-sm ring-1 ring-white bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] -ms-2.5"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/instagram.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/instagram.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div></div></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><h2 class="text-[15px] font-semibold leading-tight text-ink">פייסבוק ואינסטגרם</h2><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-success-dot);"></span>מחובר</span></div><p class="mt-1.5 text-sm leading-relaxed text-gray-600">מחובר לדף סטודיו דנה — לידים מגיעים אוטומטית.</p></div></div><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 mt-4">ניהול</button></article><article class="rounded-xl border border-gray-200 bg-white p-4"><div class="flex items-start gap-3"><div class="shrink-0"><span class="flex size-7 items-center justify-center rounded-lg bg-[#25D366]/15 ring-1 ring-white"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-[#25D366] " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comment-dots.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/comment-dots.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></span></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><h2 class="text-[15px] font-semibold leading-tight text-ink">הודעות מוכנות</h2><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-success-dot);"></span>3 הודעות</span></div><p class="mt-1.5 text-sm leading-relaxed text-gray-600">1 מוכנות לשליחה · 1 בבדיקה</p></div></div><a href="/settings/integrations?section=templates" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 mt-4">ניהול הודעות</a></article></section><section class="mt-8 flex flex-col gap-3" aria-label="כלים מחוברים"><h2 class="text-sm font-semibold text-gray-500">כלים מחוברים</h2><article class="rounded-xl border border-gray-200 bg-white p-4"><div class="flex items-start gap-3"><div class="shrink-0"><img alt="" aria-hidden="true" class="size-7 shrink-0 object-contain" src="/media/social-icons/google-calendar-color.svg"></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><h2 class="text-[15px] font-semibold leading-tight text-ink">Google Calendar</h2><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-success-dot);"></span>מחובר</span></div><p class="mt-1.5 text-sm leading-relaxed text-gray-600">מחובר · dana@gmail.test</p></div></div><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 mt-4">ניהול</button></article><article class="rounded-xl border border-gray-200 bg-white p-4"><div class="flex items-start gap-3"><div class="shrink-0"><img alt="" aria-hidden="true" class="size-7 shrink-0 object-contain" src="/media/social-icons/google-drive-color.svg"></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><h2 class="text-[15px] font-semibold leading-tight text-ink">Google Drive</h2><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-success-dot);"></span>מחובר</span></div><p class="mt-1.5 text-sm leading-relaxed text-gray-600">מחובר · dana@gmail.test</p></div></div><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 mt-4">ניהול</button></article></section></div>",
+  "sheet_calendar": "<div role="dialog" aria-modal="true" aria-labelledby="drive-manage-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="drive-manage-title" class="text-lg font-bold text-ink">Google Drive</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="[&amp;_button]:min-h-11 [&amp;_button]:w-full [&amp;_select]:h-11 [&amp;_select]:text-base [&amp;_input]:h-11 [&amp;_input]:text-base [&amp;_textarea]:text-base"><div class="rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4"><div class="flex items-center gap-2.5"><img alt="" aria-hidden="true" class="size-7 shrink-0 object-contain" src="/media/social-icons/google-drive-color.svg"><h3 class="text-lg font-bold text-dark">Google Drive</h3><div aria-hidden="true" class="dark:bg-white size-4 bg-green-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><p class="text-sm text-gray-600 leading-relaxed">חיפוש, צירוף וניתוח של קבצים מ-Drive ישירות בתוך הלידים ובעוזר החכם.</p><div class="mt-auto flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm text-gray-600">מחובר · <span class="font-medium text-gray-800">dana@gmail.test</span></span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>נתק חשבון</span></button></div></div></div></div>",
+  "sheet_facebook": "<div role="dialog" aria-modal="true" aria-labelledby="fb-manage-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="fb-manage-title" class="text-lg font-bold text-ink">פייסבוק ואינסטגרם</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="[&amp;_button]:min-h-11 [&amp;_button]:w-full [&amp;_select]:h-11 [&amp;_select]:text-base [&amp;_input]:h-11 [&amp;_input]:text-base [&amp;_textarea]:text-base"><div class="grid gap-4"><p class="text-sm text-gray-600" data-edu="facebook-connect">מחובר לדף: <strong>סטודיו דנה</strong></p><p class="text-sm text-green-600">החיבור תקין  לידים מגיעים אוטומטית</p><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap bg-red-600 text-white hover:bg-red-700 h-9 px-3 gap-3 text-[15px] w-fit"><span>נתק דף</span></button></div></div></div>",
+  "sheet_templates": "<div role="dialog" aria-modal="true" aria-labelledby="cal-manage-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="cal-manage-title" class="text-lg font-bold text-ink">Google Calendar</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="[&amp;_button]:min-h-11 [&amp;_button]:w-full [&amp;_select]:h-11 [&amp;_select]:text-base [&amp;_input]:h-11 [&amp;_input]:text-base [&amp;_textarea]:text-base"><div class="rounded-lg border border-gray-200 bg-white p-6 flex flex-col gap-4"><div class="flex items-center gap-2.5"><img alt="" aria-hidden="true" class="size-7 shrink-0 object-contain" src="/media/social-icons/google-calendar-color.svg"><h3 class="text-lg font-bold">Google Calendar</h3><div aria-hidden="true" class="dark:bg-white size-4 bg-green-600 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/check.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/reg/check.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><p class="text-gray-600 text-sm leading-relaxed">תזמון פגישות עם לידים וקישורי Google Meet אוטומטיים, ישירות מתוך ה-CRM.</p><div class="mt-auto flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm text-gray-600">מחובר · <span class="font-medium text-gray-800">dana@gmail.test</span></span><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border text-black border-gray-200 bg-white hover:bg-gray-100/60 h-10 px-4 gap-3"><span>נתק חשבון</span></button></div></div></div></div>",
+  "sheet_whatsapp": "<div role="dialog" aria-modal="true" aria-labelledby="wa-manage-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="wa-manage-title" class="text-lg font-bold text-ink">וואטסאפ</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="[&amp;_button]:min-h-11 [&amp;_button]:w-full [&amp;_select]:h-11 [&amp;_select]:text-base [&amp;_input]:h-11 [&amp;_input]:text-base [&amp;_textarea]:text-base"><div class="grid gap-4" data-edu="whatsapp-connect"><p class="text-sm text-green-600">החיבור תקין — לידים מגיעים אוטומטית</p><div class="flex flex-wrap items-center gap-3"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap border bg-white h-9 px-3 gap-3 text-[15px] w-fit border-red-200 text-red-600 hover:bg-red-50"><span>נתק וואטסאפ</span></button></div></div></div></div>",
+  "toasts": [],
+  "waNotConnectedSheet": "<div role="dialog" aria-modal="true" aria-labelledby="wa-manage-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="wa-manage-title" class="text-lg font-bold text-ink">חיבור WhatsApp נדרש</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="[&amp;_button]:min-h-11 [&amp;_button]:w-full [&amp;_select]:h-11 [&amp;_select]:text-base [&amp;_input]:h-11 [&amp;_input]:text-base [&amp;_textarea]:text-base"><div class="grid gap-4"><p class="text-sm text-gray-500">כדי לשלוח הודעות ללידים ישירות מ־SocialCRM, חבר את ה־WhatsApp העסקי שלך.</p><div data-edu="whatsapp-connect" class="w-fit"><button class="flex items-center min-w-fit justify-center font-medium rounded-md flex-nowrap text-white hover:bg-solid/85 h-10 px-4 gap-3 w-fit bg-green-600"><div aria-hidden="true" class="dark:bg-white bg-white size-4 " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/whatsapp.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div><span>חבר WhatsApp עסקי</span></button></div></div></div></div>",
+}
+`;
+
+exports[`Hebrew baseline — phone Integrations sheets and returns > one-tap completion after a return: Facebook and WhatsApp, success and failure 1`] = `
+{
+  "fbCompleting_false": "<article class="rounded-xl border border-gray-200 bg-white p-4"><div class="flex items-start gap-3"><div class="shrink-0"><div class="relative flex shrink-0 items-center " aria-hidden="true"><div class="flex size-7 rounded-lg items-center justify-center shadow-sm ring-1 ring-white bg-[#1877F2] "><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/facebook-f.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/facebook-f.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><div class="flex size-7 rounded-lg items-center justify-center shadow-sm ring-1 ring-white bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] -ms-2.5"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/instagram.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/instagram.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div></div></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><h2 class="text-[15px] font-semibold leading-tight text-ink">פייסבוק ואינסטגרם</h2><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-warning-bg); color: var(--color-warning-text); border-color: var(--color-warning-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-warning-dot);"></span>משלים חיבור...</span></div><p class="mt-1.5 text-sm leading-relaxed text-gray-600">פייסבוק אושר. משלימים את חיבור הדף.</p></div></div><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 mt-4" disabled="" aria-busy="true">משלים חיבור...</button></article>",
+  "fbCompleting_true": "<article class="rounded-xl border border-gray-200 bg-white p-4"><div class="flex items-start gap-3"><div class="shrink-0"><div class="relative flex shrink-0 items-center " aria-hidden="true"><div class="flex size-7 rounded-lg items-center justify-center shadow-sm ring-1 ring-white bg-[#1877F2] "><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/facebook-f.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/facebook-f.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div><div class="flex size-7 rounded-lg items-center justify-center shadow-sm ring-1 ring-white bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] -ms-2.5"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/instagram.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/instagram.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div></div></div></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><h2 class="text-[15px] font-semibold leading-tight text-ink">פייסבוק ואינסטגרם</h2><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1 px-1.5 py-0.5 text-[10px] leading-tight " style="background-color: var(--color-warning-bg); color: var(--color-warning-text); border-color: var(--color-warning-border);"><span class="shrink-0 rounded-full size-1 " style="background-color: var(--color-warning-dot);"></span>משלים חיבור...</span></div><p class="mt-1.5 text-sm leading-relaxed text-gray-600">פייסבוק אושר. משלימים את חיבור הדף.</p></div></div><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 mt-4" disabled="" aria-busy="true">משלים חיבור...</button></article>",
+  "fbToasts_false": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו להשלים את חיבור פייסבוק. אפשר לבחור דף ידנית.",
+    ],
+  ],
+  "fbToasts_true": [
+    [
+      "toast",
+      "success",
+      "הדף "סטודיו דנה" חובר בהצלחה",
+    ],
+  ],
+  "waCompleting_false": "<div role="dialog" aria-modal="true" aria-labelledby="wa-manage-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="wa-manage-title" class="text-lg font-bold text-ink">וואטסאפ</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="[&amp;_button]:min-h-11 [&amp;_button]:w-full [&amp;_select]:h-11 [&amp;_select]:text-base [&amp;_input]:h-11 [&amp;_input]:text-base [&amp;_textarea]:text-base"><p data-testid="integration-completing" class="text-sm text-gray-600">משלים חיבור...</p></div></div>",
+  "waCompleting_true": "<div role="dialog" aria-modal="true" aria-labelledby="wa-manage-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="wa-manage-title" class="text-lg font-bold text-ink">וואטסאפ</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="[&amp;_button]:min-h-11 [&amp;_button]:w-full [&amp;_select]:h-11 [&amp;_select]:text-base [&amp;_input]:h-11 [&amp;_input]:text-base [&amp;_textarea]:text-base"><p data-testid="integration-completing" class="text-sm text-gray-600">משלים חיבור...</p></div></div>",
+  "waToasts_false": [
+    [
+      "toast",
+      "error",
+      "לא הצלחנו להשלים את חיבור הוואטסאפ. אפשר לבחור מספר ידנית.",
+    ],
+  ],
+  "waToasts_true": [
+    [
+      "toast",
+      "success",
+      "וואטסאפ חובר בהצלחה",
+    ],
+  ],
+}
+`;
+
+exports[`Hebrew baseline — phone ready messages > detail sheet per status, editor and validation, every action and toast 1`] = `
+{
+  "archiveConfirm": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">העברה לארכיון</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="text-sm leading-relaxed whitespace-pre-line text-gray-600">להעביר את "תזכורת פגישה" לארכיון?
+ההודעה לא תופיע ברשימה ולא תהיה זמינה לשליחה.</p><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">העבר לארכיון</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "archiveFailed": [
+    [
+      "toast",
+      "error",
+      "אין הרשאה לנהל הודעות WhatsApp מוכנות.",
+    ],
+  ],
+  "archived": [
+    [
+      "toast",
+      "success",
+      "ההודעה הועברה לארכיון",
+    ],
+  ],
+  "calls": [
+    [
+      "createTemplate",
+      {
+        "bodyText": "שלוםשם הליד",
+        "displayTitle": "תזכורת",
+        "purpose": "UTILITY",
+        "variables": [
+          {
+            "sample": "דוד",
+            "token": "שם הליד",
+          },
+        ],
+      },
+    ],
+    [
+      "createTemplate",
+      {
+        "bodyText": "טקסט",
+        "displayTitle": "עוד",
+        "purpose": "MARKETING",
+        "variables": [],
+      },
+    ],
+    [
+      "archiveTemplate",
+      1,
+    ],
+    [
+      "archiveTemplate",
+      1,
+    ],
+    [
+      "discardTemplate",
+      2,
+    ],
+  ],
+  "createFailed": [
+    [
+      "toast",
+      "error",
+      "יצרתם היום את מכסת ההודעות המוכנות. נסו שוב מחר.",
+    ],
+  ],
+  "created": [
+    [
+      "toast",
+      "success",
+      "ההודעה נוצרה ונשלחה לאישור וואטסאפ",
+    ],
+  ],
+  "detail_הצעה אחרונה": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-detail" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-detail" class="text-lg font-bold text-ink">הצעה אחרונה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-4"><div class="flex flex-wrap items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-error-bg); color: var(--color-error-text); border-color: var(--color-error-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-error-dot);"></span>נדחתה</span><span class="text-sm text-gray-500">מבצע או הצעה</span></div><div role="status" class="rounded-md border p-3 border-red-200 bg-red-50"><p class="text-sm font-medium text-red-800">ההודעה לא אושרה</p><p class="mt-1 text-sm text-red-700">ההודעה לא אושרה — התוכן נוגד את מדיניות וואטסאפ. כדאי לנסח מחדש בלי תוכן שיווקי אגרסיבי.</p></div><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">קנו עכשיו!!!</p></div></div></div></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ערוך ונסה שוב</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-red-200 bg-white font-medium text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק הודעה</button></div></div></div>",
+  "detail_מבצע חגים": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-detail" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-detail" class="text-lg font-bold text-ink">מבצע חגים</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-4"><div class="flex flex-wrap items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-warning-bg); color: var(--color-warning-text); border-color: var(--color-warning-border);"><span class="shrink-0 rounded-full size-1.5 animate-pulse" style="background-color: var(--color-warning-dot);"></span>בבדיקת וואטסאפ</span><span class="text-sm text-gray-500">מבצע או הצעה</span></div><div role="status" class="rounded-md border p-3 border-amber-300 bg-amber-50"><p class="text-sm font-medium text-amber-800">ההודעה נשלחה לאישור וואטסאפ</p><p class="mt-1 text-sm text-amber-700">אין צורך לעשות דבר — ברגע שתאושר, היא תהיה מוכנה לשליחה.</p></div><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">מבצע מיוחד לחגים!</p></div></div></div></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-red-200 bg-white font-medium text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק הודעה</button></div></div></div>",
+  "detail_תזכורת פגישה": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-detail" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-detail" class="text-lg font-bold text-ink">תזכורת פגישה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><div class="flex flex-col gap-4"><div class="flex flex-wrap items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border font-medium tabular-nums gap-1.5 px-2 py-0.5 text-xs " style="background-color: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border);"><span class="shrink-0 rounded-full size-1.5 " style="background-color: var(--color-success-dot);"></span>מוכנה לשליחה</span><span class="text-sm text-gray-500">עדכון או תזכורת</span></div><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">היי {{שם הליד}}, מזכירים את הפגישה מחר.</p></div></div></div></div><div class="flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">עריכת הודעה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">העבר לארכיון</button></div></div></div>",
+  "discardConfirm": "<div role="dialog" aria-modal="true" aria-labelledby="bottom-sheet-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="bottom-sheet-title" class="text-lg font-bold text-ink">מחיקת הודעה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><p class="text-sm leading-relaxed whitespace-pre-line text-gray-600">למחוק את "מבצע חגים"?
+ההודעה תוסר ולא תהיה זמינה לשליחה.</p><div class="mt-4 flex flex-col gap-2"><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-red-600 font-medium text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">מחק</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></div></div>",
+  "discarded": [
+    [
+      "toast",
+      "success",
+      "ההודעה הוסרה",
+    ],
+  ],
+  "editEditor": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-editor-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-editor-title" class="text-lg font-bold text-ink">עריכת הודעה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><form class="flex flex-col gap-4" aria-labelledby="ready-message-editor-title"><p class="text-sm leading-relaxed text-gray-500">יצירת גרסה חדשה לבדיקה. ההודעה הנוכחית תישאר פעילה עד שהגרסה החדשה תאושר — אפשר להעביר אותה לארכיון לאחר מכן.</p><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">שם ההודעה</span><input class="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="למשל: תזכורת פולואפ" value="תזכורת פגישה"></label><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">תוכן ההודעה</span><textarea rows="5" class="min-h-24 w-full resize-none rounded-md border border-gray-200 bg-white p-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="כתבו את ההודעה שתישלח ללידים...">היי {{שם הליד}}, מזכירים את הפגישה מחר.</textarea></label><div><p class="mb-2 text-sm text-gray-500">הוספת פרטים אישיים</p><div class="flex flex-wrap gap-2"><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם הליד</button><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם העסק</button></div></div><fieldset class="grid gap-2"><legend class="text-sm font-medium text-ink">מה מטרת ההודעה?</legend><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-primary bg-primary-tint/40"><input class="size-4" type="radio" value="UTILITY" checked="" name="template-purpose"><span class="text-sm text-ink">עדכון או תזכורת לליד <span class="text-gray-400">(סטטוס, תזכורת, מענה)</span></span></label><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="MARKETING" name="template-purpose"><span class="text-sm text-ink">מבצע או הצעה שיווקית <span class="text-gray-400">(קופון, מבצע, השקה)</span></span></label></fieldset><p class="text-sm text-gray-500">פרטים שיוחלפו בשליחה: שם הליד</p><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">היי {{דוד}}, מזכירים את הפגישה מחר.</p></div></div></div></div><button type="submit" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שלח לבדיקה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></form></div>",
+  "editorEmpty": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-editor-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-editor-title" class="text-lg font-bold text-ink">הודעה מוכנה חדשה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><form class="flex flex-col gap-4" aria-labelledby="ready-message-editor-title"><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">שם ההודעה</span><input class="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="למשל: תזכורת פולואפ" value=""></label><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">תוכן ההודעה</span><textarea rows="5" class="min-h-24 w-full resize-none rounded-md border border-gray-200 bg-white p-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="כתבו את ההודעה שתישלח ללידים..."></textarea></label><div><p class="mb-2 text-sm text-gray-500">הוספת פרטים אישיים</p><div class="flex flex-wrap gap-2"><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם הליד</button><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם העסק</button></div></div><fieldset class="grid gap-2"><legend class="text-sm font-medium text-ink">מה מטרת ההודעה?</legend><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="UTILITY" name="template-purpose"><span class="text-sm text-ink">עדכון או תזכורת לליד <span class="text-gray-400">(סטטוס, תזכורת, מענה)</span></span></label><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="MARKETING" name="template-purpose"><span class="text-sm text-ink">מבצע או הצעה שיווקית <span class="text-gray-400">(קופון, מבצע, השקה)</span></span></label></fieldset><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">תצוגה מקדימה של ההודעה</p></div></div></div></div><button type="submit" disabled="" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שלח לבדיקה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></form></div>",
+  "retryEditor": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-editor-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-editor-title" class="text-lg font-bold text-ink">הודעה מוכנה חדשה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><form class="flex flex-col gap-4" aria-labelledby="ready-message-editor-title"><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">שם ההודעה</span><input class="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="למשל: תזכורת פולואפ" value="הצעה אחרונה"></label><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">תוכן ההודעה</span><textarea rows="5" class="min-h-24 w-full resize-none rounded-md border border-gray-200 bg-white p-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="כתבו את ההודעה שתישלח ללידים...">קנו עכשיו!!!</textarea></label><div><p class="mb-2 text-sm text-gray-500">הוספת פרטים אישיים</p><div class="flex flex-wrap gap-2"><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם הליד</button><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם העסק</button></div></div><fieldset class="grid gap-2"><legend class="text-sm font-medium text-ink">מה מטרת ההודעה?</legend><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="UTILITY" name="template-purpose"><span class="text-sm text-ink">עדכון או תזכורת לליד <span class="text-gray-400">(סטטוס, תזכורת, מענה)</span></span></label><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="MARKETING" name="template-purpose"><span class="text-sm text-ink">מבצע או הצעה שיווקית <span class="text-gray-400">(קופון, מבצע, השקה)</span></span></label></fieldset><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">קנו עכשיו!!!</p></div></div></div></div><button type="submit" disabled="" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שלח לבדיקה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></form></div>",
+  "validation": "<ul class="list-disc ps-5 text-sm text-error-text" role="alert"><li>שם ההודעה ארוך מדי.</li><li>אין להקליד סוגריים מסולסלים ({{ }}) בהודעה. להוספת פרטים אישיים השתמשו בכפתורי הפרטים.</li></ul>",
+  "withToken": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-editor-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-editor-title" class="text-lg font-bold text-ink">הודעה מוכנה חדשה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><form class="flex flex-col gap-4" aria-labelledby="ready-message-editor-title"><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">שם ההודעה</span><input class="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="למשל: תזכורת פולואפ" value="תזכורת"></label><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">תוכן ההודעה</span><textarea rows="5" class="min-h-24 w-full resize-none rounded-md border border-gray-200 bg-white p-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="כתבו את ההודעה שתישלח ללידים...">שלוםשם הליד</textarea></label><div><p class="mb-2 text-sm text-gray-500">הוספת פרטים אישיים</p><div class="flex flex-wrap gap-2"><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם הליד</button><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם העסק</button></div></div><fieldset class="grid gap-2"><legend class="text-sm font-medium text-ink">מה מטרת ההודעה?</legend><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-primary bg-primary-tint/40"><input class="size-4" type="radio" value="UTILITY" name="template-purpose"><span class="text-sm text-ink">עדכון או תזכורת לליד <span class="text-gray-400">(סטטוס, תזכורת, מענה)</span></span></label><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="MARKETING" name="template-purpose"><span class="text-sm text-ink">מבצע או הצעה שיווקית <span class="text-gray-400">(קופון, מבצע, השקה)</span></span></label></fieldset><p class="text-sm text-gray-500">פרטים שיוחלפו בשליחה: שם הליד</p><ul class="list-disc ps-5 text-sm text-error-text" role="alert"><li>שם ההודעה ארוך מדי.</li><li>אין להקליד סוגריים מסולסלים ({{ }}) בהודעה. להוספת פרטים אישיים השתמשו בכפתורי הפרטים.</li></ul><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">שלוםדוד</p></div></div></div></div><button type="submit" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שלח לבדיקה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></form></div>",
+}
+`;
+
+exports[`Hebrew baseline — phone ready messages > the empty workspace and its create button 1`] = `
+{
+  "editor": "<div role="dialog" aria-modal="true" aria-labelledby="ready-message-editor-title" tabindex="-1" class="overflow-y-auto bg-white shadow-2xl relative popin overflow-x-hidden scrollbar-slim outline-none p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] w-full max-w-[640px] max-h-[85dvh] rounded-t-2xl anim-slide-down motion-reduce:animation-none"><div aria-hidden="true" class="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-300"></div><div class="mb-4 flex items-center justify-between gap-3"><h2 id="ready-message-editor-title" class="text-lg font-bold text-ink">הודעה מוכנה חדשה</h2><button type="button" aria-label="סגירה" class="-me-1 flex size-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span aria-hidden="true" class="text-2xl leading-none">×</span></button></div><form class="flex flex-col gap-4" aria-labelledby="ready-message-editor-title"><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">שם ההודעה</span><input class="h-11 w-full rounded-md border border-gray-200 bg-white px-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="למשל: תזכורת פולואפ" value=""></label><label class="grid gap-1.5"><span class="text-sm font-medium text-ink">תוכן ההודעה</span><textarea rows="5" class="min-h-24 w-full resize-none rounded-md border border-gray-200 bg-white p-3 text-base focus:outline-2 focus:outline-offset-0 focus:outline-primary" placeholder="כתבו את ההודעה שתישלח ללידים..."></textarea></label><div><p class="mb-2 text-sm text-gray-500">הוספת פרטים אישיים</p><div class="flex flex-wrap gap-2"><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם הליד</button><button type="button" class="press flex min-h-11 items-center rounded-full border border-primary/30 bg-primary-tint px-4 text-sm text-primary-text hover:bg-primary-tint/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שם העסק</button></div></div><fieldset class="grid gap-2"><legend class="text-sm font-medium text-ink">מה מטרת ההודעה?</legend><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="UTILITY" name="template-purpose"><span class="text-sm text-ink">עדכון או תזכורת לליד <span class="text-gray-400">(סטטוס, תזכורת, מענה)</span></span></label><label class="flex min-h-11 items-center gap-3 rounded-md border px-3 border-gray-200 bg-white"><input class="size-4" type="radio" value="MARKETING" name="template-purpose"><span class="text-sm text-ink">מבצע או הצעה שיווקית <span class="text-gray-400">(קופון, מבצע, השקה)</span></span></label></fieldset><div><p class="mb-1.5 text-sm text-gray-500">כך הליד יראה את ההודעה</p><div class="rounded-lg p-3 bg-bg bg-[radial-gradient(var(--color-primary-soft)_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true"><div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-se-none border border-success-border bg-success-bg px-3 py-1.5"><p class="min-w-0 text-sm leading-normal whitespace-pre-wrap wrap-break-word text-gray-800">תצוגה מקדימה של ההודעה</p></div></div></div></div><button type="submit" disabled="" class="press flex min-h-11 w-full items-center justify-center rounded-md bg-solid font-medium text-white hover:bg-solid/85 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">שלח לבדיקה</button><button type="button" class="press flex min-h-11 w-full items-center justify-center rounded-md border border-gray-200 bg-white font-medium text-ink hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">ביטול</button></form></div>",
+  "empty": "<div data-testid="ready-messages-mobile" class="px-4 pb-8 pt-4"><a class="press mb-3 flex min-h-11 w-fit items-center gap-1 text-sm font-medium text-primary-text focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" href="/settings/integrations"><div aria-hidden="true" class="dark:bg-white size-3.5 bg-primary-text " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/angle-right.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/angle-right.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>חזרה לאינטגרציות</a><header class="mb-4"><h1 class="text-xl font-bold leading-tight text-ink">הודעות מוכנות</h1><p class="mt-1.5 text-sm leading-relaxed text-gray-500">הודעות וואטסאפ מאושרות שאפשר לשלוח לליד בכל רגע.</p></header><div class="rounded-xl border border-gray-200 bg-white p-5"><p class="text-base font-semibold text-ink">אין עדיין הודעות מוכנות</p><p class="mt-1.5 text-sm leading-relaxed text-gray-500">הודעה מוכנה מאפשרת לפנות לליד גם אחרי שהשיחה נרגעה — תזכורת, מבצע או עדכון.</p><button type="button" class="press mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-solid font-medium text-white hover:bg-solid/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div aria-hidden="true" class="dark:bg-white size-4 bg-white " style="mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); -webkit-mask-image: url(&quot;https://res.cloudinary.com/dfletli2x/image/upload/icons/sol/plus.svg&quot;); mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center; mask-size: contain; -webkit-mask-size: contain; mask-type: alpha;"></div>צרו הודעה מוכנה</button></div></div>",
+}
+`;
