@@ -129,6 +129,7 @@ export default function LeadListMobileClient({
     contactLeadViaWhatsapp(actionLead, whatsappConnected, (href) => router.push(href), 'mobile', {
       // Unchanged for callers that do not know the connection state.
       onNoConnection: () => router.push(WHATSAPP_CONNECT_HREF),
+      locale: t.locale,
     })
   }
 

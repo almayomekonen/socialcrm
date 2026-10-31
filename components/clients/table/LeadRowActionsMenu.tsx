@@ -53,7 +53,7 @@ export default function LeadRowActionsMenu({
               variant='simple'
               size='simple'
               lbl='WhatsApp'
-              onClick={() => contactLeadViaWhatsapp(client, whatsappConnected, router.push, 'desktop')}
+              onClick={() => contactLeadViaWhatsapp(client, whatsappConnected, router.push, 'desktop', { locale: t.locale })}
             />
           </div>
         </>

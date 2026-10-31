@@ -56,7 +56,7 @@ export default function LeadQuickActions({ id, phone, quiet = false, onCompleted
                   className='text-start rounded-md px-3 py-2 text-sm hover:bg-gray-50'
                   onClick={() => {
                     menu.close()
-                    contactLeadViaWhatsapp({ id, phone }, whatsappConnected, router.push, 'desktop')
+                    contactLeadViaWhatsapp({ id, phone }, whatsappConnected, router.push, 'desktop', { locale: t.locale })
                   }}
                 >
                   {t('today.actions.whatsapp')}

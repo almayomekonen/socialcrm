@@ -1,6 +1,8 @@
 'use client'
 
 import { toast } from '@/lib/toast'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 import { openLeadWhatsappInInbox } from '@/modules/inbox/client/openLeadWhatsapp'
 import { resolveLeadContactPlan } from '@/modules/leads/contactPlan'
 import { contactBlocked, contactClicked, contactSucceeded } from '@/modules/leads/contactEvents'
@@ -33,7 +35,7 @@ export function contactLeadViaWhatsapp(
   whatsappConnected: boolean | undefined,
   push: (href: string) => void,
   surface: LeadContactSurface,
-  opts?: { onNoConnection?: () => void },
+  opts?: { onNoConnection?: () => void; locale?: UiLocale },
 ): void {
   if (!lead?.id) return
   const leadId = lead.id
@@ -51,7 +53,7 @@ export function contactLeadViaWhatsapp(
   if (plan.kind === 'blocked') {
     contactClicked(leadId, surface, 'whatsapp_native')
     contactBlocked(leadId, surface, 'no_phone')
-    toast('message', 'לליד אין מספר טלפון תקין לוואטסאפ')
+    toast('message', translatorFor(opts?.locale ?? 'he')('leads.contact.noValidPhone'))
     return
   }
 
