@@ -67,17 +67,22 @@ export default async function ConsentPage() {
   }
 
   const agency = await db('agencies').where({ id: eligible.user.agencyId }).first('name')
+  const card = (
+    <ConsentCard
+      clientName={pending.clientName}
+      redirectHost={new URL(pending.redirectUri).host}
+      userName={eligible.user.firstName ?? ''}
+      agencyName={typeof agency?.name === 'string' ? agency.name : ''}
+      scopes={pending.scopes}
+      csrf={pending.csrf}
+      {...(locale === 'he' ? {} : { locale })}
+    />
+  )
+  // Hebrew returns the card itself with the same props as before (useT() and the card default to Hebrew).
+  if (locale === 'he') return card
   return (
     <I18nProvider locale={locale} persistLocale={false}>
-      <ConsentCard
-        clientName={pending.clientName}
-        redirectHost={new URL(pending.redirectUri).host}
-        userName={eligible.user.firstName ?? ''}
-        agencyName={typeof agency?.name === 'string' ? agency.name : ''}
-        scopes={pending.scopes}
-        csrf={pending.csrf}
-        locale={locale}
-      />
+      {card}
     </I18nProvider>
   )
 }
