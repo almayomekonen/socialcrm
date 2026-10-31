@@ -15,6 +15,8 @@ import {
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import { isPositiveLeadId } from './contactJob'
+import { LeaseLostError, fencedSend, keepJobLease, leaseGuard } from './jobLease'
+import { withAiOperation } from '@/lib/ai/usage/context'
 import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
 import { generateQualifyTurn } from './qualify'
@@ -317,7 +319,7 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
 
 export async function runAutoResponseWorker(
   opts: { limit?: number; leaseMs?: number; workerId?: string; deps?: Partial<WorkerDeps> } = {},
-): Promise<{ claimed: number; sent: number; skipped: number; failed: number }> {
+): Promise<{ claimed: number; sent: number; skipped: number; failed: number; leaseLost: number }> {
   const limit = opts.limit ?? 5
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS
   const workerId = opts.workerId ?? `arw-${process.pid}-${Date.now()}`
@@ -330,11 +332,22 @@ export async function runAutoResponseWorker(
   await reclaimStaleAutoResponseJobs(leaseMs)
   const jobs = await claimAutoResponseJobs(workerId, limit)
   if (jobs.length) console.log(`[IRE] worker start id=${workerId} claimed=${jobs.length}`)
+  // Renew EVERY claimed lease from the moment of the claim: jobs run one after
+  // another, so the last one would otherwise expire while the first ones run.
+  const leases = new Map(jobs.map((j) => [j.id, keepJobLease(j.id, workerId, leaseMs)]))
 
   let sent = 0
   let skipped = 0
   let failed = 0
+  let leaseLostCount = 0
   for (const job of jobs) {
+    const lease = leases.get(job.id)!
+    let leaseLost = false
+    const jobDeps: WorkerDeps = {
+      send: fencedSend(deps.send, job.id, workerId),
+      generate: leaseGuard(deps.generate, job.id, lease.lost),
+      generateQualify: leaseGuard(deps.generateQualify, job.id, lease.lost),
+    }
     const startedAt = Date.now()
     const traceCtx = {
       conversationId: job.conversationId,
@@ -345,15 +358,30 @@ export async function runAutoResponseWorker(
     waTrace('WORKER_STARTED', traceCtx, { jobId: job.id, attempt: job.attempts, maxAttempts: job.maxAttempts })
     let outcome: Outcome | 'error' = 'error'
     try {
-      const r = await processJob(job, deps)
+      // Usage ledger: every provider request made for this job is recorded under it.
+      const r = await withAiOperation(
+        { kind: 'auto_response_job', id: String(job.id), agencyId: job.agencyId, conversationId: job.conversationId, leadId: job.leadId },
+        () => processJob(job, jobDeps),
+      )
       outcome = r
       if (r === 'sent') sent++
       else if (r === 'skipped') skipped++
       else if (r === 'failed') failed++
     } catch (err) {
-      await failAutoResponseJob(job.id, String(err))
-      failed++
+      if (err instanceof LeaseLostError) {
+        // Another worker owns this job now; it decides the outcome. Nothing was sent.
+        // Counted on its own: not a failure of this job, which another worker now runs.
+        leaseLost = true
+        leaseLostCount++
+        console.warn('[IRE] lease lost; stopped without sending', { jobId: job.id, conversationId: job.conversationId })
+      } else {
+        await failAutoResponseJob(job.id, String(err), workerId)
+        failed++
+      }
     } finally {
+      lease.stop()
+      // A lost job belongs to its new owner, follow-up turn included.
+      if (!leaseLost) {
       try {
         const fin = await db('auto_response_jobs')
           .where({ id: job.id })
@@ -407,7 +435,9 @@ export async function runAutoResponseWorker(
       } catch {
         // logging only
       }
+      }
     }
   }
-  return { claimed: jobs.length, sent, skipped, failed }
+  for (const l of leases.values()) l.stop()
+  return { claimed: jobs.length, sent, skipped, failed, leaseLost: leaseLostCount }
 }

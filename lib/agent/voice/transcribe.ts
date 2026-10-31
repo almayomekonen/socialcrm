@@ -1,5 +1,9 @@
 import 'server-only'
 import { getOpenAIProvider } from '@/lib/ai/providers'
+import { errorCodeOf, newInvocationId, recordProviderCalls } from '@/lib/ai/usage/record'
+import { TRANSCRIPTION_USD_PER_MINUTE } from '@/lib/ai/usage/pricing'
+import { newCallId, settleShadowAfter, startShadow } from '@/lib/ai/budget/shadow'
+import { estimateTranscription } from '@/lib/ai/budget/estimate'
 import { VOICE_CONTAINER_MEDIA_TYPE, VOICE_MAX_RECORDING_MS, type VoiceContainer } from './limits'
 
 /**
@@ -39,8 +43,10 @@ const USD_PER_MINUTE = 0.006
  * What one transcription is charged against the agency's daily AI cap.
  *
  * The provider does not report the audio's duration for this model, so the
- * charge is the MAXIMUM a recording can be. Over-counting a short clip is the
- * safe direction for a spend cap; under-counting is not.
+ * charge is the recording cap. Over-counting a short clip is the safe
+ * direction for a spend cap. It is NOT a proven maximum: the server can only
+ * refuse uploads whose container metadata declares more than the cap
+ * (`probeAudioDurationMs`); a file without such metadata cannot be bounded.
  */
 export const VOICE_TRANSCRIPTION_CHARGE_USD = (VOICE_MAX_RECORDING_MS / 60_000) * USD_PER_MINUTE
 
@@ -54,16 +60,84 @@ export async function transcribeVoice(input: {
   audio: Uint8Array
   container: VoiceContainer
   abortSignal?: AbortSignal
+  /** Usage-ledger attribution. Identifiers only. */
+  ledger?: { agencyId: number; userId: number }
+  /** The duration the container's metadata declares, when it has one. Unverified. */
+  metadataDurationMs?: number | null
 }): Promise<{ text: string }> {
   const openai = getOpenAIProvider()
   if (!openai) throw new VoiceTranscriptionUnavailableError()
 
   const model = openai.transcription(VOICE_TRANSCRIPTION_MODEL)
-  const result = await model.doGenerate({
-    audio: input.audio,
-    mediaType: VOICE_CONTAINER_MEDIA_TYPE[input.container],
-    providerOptions: { openai: { prompt: TRANSCRIPTION_PROMPT } },
-    abortSignal: input.abortSignal,
+  const startedAt = Date.now()
+  // One id for the ledger row and the reservation, so an unsettled reservation
+  // can be recovered from the row (and the two reconciled) without guessing.
+  const callId = newCallId()
+  const base = {
+    callId,
+    invocationId: newInvocationId(),
+    feature: 'voice.transcribe',
+    provider: 'openai',
+    requestedModel: VOICE_TRANSCRIPTION_MODEL,
+    agencyId: input.ledger?.agencyId ?? null,
+    userId: input.ledger?.userId ?? null,
+    usage: null,
+  }
+  // Budget SHADOW: a PARTIAL estimate at the recording cap — the server cannot
+  // verify an upload's real duration (see estimateTranscription). Never delays the request.
+  const shadow = startShadow({
+    callId,
+    agencyId: input.ledger?.agencyId ?? null,
+    feature: 'voice.transcribe',
+    provider: 'openai',
+    model: VOICE_TRANSCRIPTION_MODEL,
+    invocationId: base.invocationId,
+    run: { kind: 'voice.transcribe', id: base.invocationId },
+    estimate: () => estimateTranscription(VOICE_MAX_RECORDING_MS, input.metadataDurationMs ?? null),
+  })
+  let result: Awaited<ReturnType<typeof model.doGenerate>>
+  try {
+    result = await model.doGenerate({
+      audio: input.audio,
+      mediaType: VOICE_CONTAINER_MEDIA_TYPE[input.container],
+      providerOptions: { openai: { prompt: TRANSCRIPTION_PROMPT } },
+      abortSignal: input.abortSignal,
+    })
+  } catch (err) {
+    await recordProviderCalls([
+      {
+        ...base,
+        status: input.abortSignal?.aborted ? 'aborted' : 'error',
+        errorCode: errorCodeOf(err),
+        latencyMs: Date.now() - startedAt,
+      },
+    ])
+    await settleShadowAfter(shadow, {
+      outcome: 'error',
+      usage: null,
+      models: { requested: VOICE_TRANSCRIPTION_MODEL },
+      knownCostUsd: null,
+    })
+    throw err
+  }
+  // Billed per audio minute. The reported duration prices it as an estimate;
+  // without one the cost is unknown (never the flat 120 s cap-charge, never 0).
+  const seconds = typeof result.durationInSeconds === 'number' && result.durationInSeconds >= 0 ? result.durationInSeconds : null
+  await recordProviderCalls([
+    {
+      ...base,
+      status: 'success',
+      responseModel: result.response?.modelId ?? null,
+      audioSeconds: seconds,
+      estimatedCostUsd: seconds == null ? null : (seconds / 60) * TRANSCRIPTION_USD_PER_MINUTE,
+      latencyMs: Date.now() - startedAt,
+    },
+  ])
+  await settleShadowAfter(shadow, {
+    outcome: 'success',
+    usage: null,
+    models: { requested: VOICE_TRANSCRIPTION_MODEL },
+    knownCostUsd: seconds == null ? null : (seconds / 60) * TRANSCRIPTION_USD_PER_MINUTE,
   })
   return { text: String(result.text ?? '').trim() }
 }

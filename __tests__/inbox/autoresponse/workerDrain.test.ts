@@ -39,6 +39,9 @@ vi.mock('@/db/autoResponseJobs', () => ({
   enqueueAutoResponse: vi.fn(),
   deferAutoResponseJob: vi.fn(),
   skipPendingNoResponseJobs: vi.fn(),
+  // The worker's lease heartbeat and pre-send fence: this worker still owns its jobs.
+  renewAutoResponseJobLease: vi.fn(async () => true),
+  ownsAutoResponseJob: vi.fn(async () => true),
 }))
 vi.mock('@/db/autoResponseSettings', () => ({
   getMasterEnabled,
@@ -133,7 +136,7 @@ describe('IRE worker drain', () => {
     claimAutoResponseJobs.mockResolvedValue([])
     const send = vi.fn()
     const summary = await runAutoResponseWorker({ deps: { send } as never })
-    expect(summary).toEqual({ claimed: 0, sent: 0, skipped: 0, failed: 0 })
+    expect(summary).toEqual({ claimed: 0, sent: 0, skipped: 0, failed: 0, leaseLost: 0 })
     expect(send).not.toHaveBeenCalled()
     expect(completeAutoResponseJob).not.toHaveBeenCalled()
   })
@@ -156,7 +159,7 @@ describe('IRE worker drain', () => {
     const second = await runAutoResponseWorker({ deps: { send } as never })
 
     expect(first.sent).toBe(1)
-    expect(second).toEqual({ claimed: 0, sent: 0, skipped: 0, failed: 0 })
+    expect(second).toEqual({ claimed: 0, sent: 0, skipped: 0, failed: 0, leaseLost: 0 })
     expect(send).toHaveBeenCalledTimes(1)
     expect(completeAutoResponseJob).toHaveBeenCalledTimes(1)
   })
@@ -179,7 +182,7 @@ describe('IRE worker drain', () => {
     const send = vi.fn()
     const generate = vi.fn(async () => ({ ok: false as const, skipReason: 'ai_unavailable' as const }))
     const summary = await runAutoResponseWorker({ deps: { send, generate } as never })
-    expect(summary).toEqual({ claimed: 1, sent: 0, skipped: 0, failed: 1 })
+    expect(summary).toEqual({ claimed: 1, sent: 0, skipped: 0, failed: 1, leaseLost: 0 })
     expect(failAutoResponseJob).toHaveBeenCalledWith(39, 'ai_unavailable')
     expect(skipAutoResponseJob).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()

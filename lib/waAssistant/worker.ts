@@ -1,4 +1,5 @@
 import 'server-only'
+import { withAiOperation } from '@/lib/ai/usage/context'
 import { recordAgentInvestigation } from '@/db/agentInvestigation'
 import {
   claimWaAssistantJobs,
@@ -75,7 +76,10 @@ export async function runWaAssistantWorker(opts: { limit?: number } = {}, deps: 
   for (const job of jobs) {
     let status = 'failed'
     try {
-      status = await processJob(job, { phoneNumberId, accessToken }, deps, now)
+      // Usage ledger: the Agent's provider requests for this owner message are recorded under it.
+      status = await withAiOperation({ kind: 'wa_assistant_job', id: String(job.id), agencyId: job.agencyId, userId: job.userId }, () =>
+        processJob(job, { phoneNumberId, accessToken }, deps, now),
+      )
     } catch (err) {
       console.error('[WaAssistant][job] failed', { jobId: job.id, name: (err as Error)?.name ?? null })
       await finishWaAssistantJob(job.id, { status: 'failed', stopReason: 'exception' }).catch(() => undefined)
