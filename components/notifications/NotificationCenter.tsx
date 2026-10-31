@@ -24,6 +24,8 @@ import {
   selectedUnreadNotificationIds,
 } from '@/modules/notifications/mobile/notificationSelection'
 import NotificationRow from './NotificationRow'
+import NotificationCenterEmpty from './center/NotificationCenterEmpty'
+import { LoadMoreButton, MarkAllReadBar } from './center/NotificationCenterControls'
 import NotificationRowMobile from './mobile/NotificationRowMobile'
 import {
   NotificationSelectionActions,
@@ -182,22 +184,12 @@ export default function NotificationCenter({
     setBusy(false)
   }
 
-  if (items.length === 0) return <EmptyState filters={filters} />
+  if (items.length === 0) return <NotificationCenterEmpty filters={filters} />
 
   if (!isMobile) {
     return (
       <div className='rounded-lg border border-gray-200 bg-white'>
-        {unreadCount > 0 && (
-          <div className='flex items-center justify-end border-b px-3 py-2'>
-            <button
-              type='button'
-              onClick={readEverything}
-              className='rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary'
-            >
-              סימון הכל כנקרא
-            </button>
-          </div>
-        )}
+        {unreadCount > 0 && <MarkAllReadBar onClick={readEverything} />}
 
         <ul className='divide-y'>
           {items.map((item) => (
@@ -207,18 +199,7 @@ export default function NotificationCenter({
           ))}
         </ul>
 
-        {cursor && (
-          <div className='border-t px-3 py-2 text-center'>
-            <button
-              type='button'
-              onClick={loadMore}
-              disabled={loading}
-              className='rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary'
-            >
-              {loading ? 'טוען...' : failed ? 'לא הצלחנו לטעון — נסה שוב' : 'הצג עוד'}
-            </button>
-          </div>
-        )}
+        {cursor && <LoadMoreButton onClick={loadMore} loading={loading} failed={failed} />}
       </div>
     )
   }
@@ -228,15 +209,7 @@ export default function NotificationCenter({
       {selecting ? (
         <NotificationSelectionHeader count={sel.ids.size} busy={busy} onCancel={exit} />
       ) : unreadCount > 0 ? (
-        <div className='flex items-center justify-end border-b px-3 py-2'>
-          <button
-            type='button'
-            onClick={readEverything}
-            className='flex min-h-11 items-center rounded px-3 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary'
-          >
-            סימון הכל כנקרא
-          </button>
-        </div>
+        <MarkAllReadBar onClick={readEverything} mobile />
       ) : null}
 
       <ul className='divide-y'>
@@ -254,18 +227,7 @@ export default function NotificationCenter({
         ))}
       </ul>
 
-      {!selecting && cursor && (
-        <div className='border-t px-3 py-2 text-center'>
-          <button
-            type='button'
-            onClick={loadMore}
-            disabled={loading}
-            className='flex min-h-11 w-full items-center justify-center rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary'
-          >
-            {loading ? 'טוען...' : failed ? 'לא הצלחנו לטעון — נסה שוב' : 'הצג עוד'}
-          </button>
-        </div>
-      )}
+      {!selecting && cursor && <LoadMoreButton onClick={loadMore} loading={loading} failed={failed} mobile />}
 
       {selecting && (
         <NotificationSelectionActions
@@ -276,25 +238,6 @@ export default function NotificationCenter({
           onMarkRead={runMarkRead}
         />
       )}
-    </div>
-  )
-}
-
-/**
- * The calm empty state (ux-guidelines §4). Which sentence depends on WHY the list
- * is empty: nothing has arrived, or a filter is hiding what has. Telling someone
- * with a filter on that they have no notifications would simply be false.
- */
-function EmptyState({ filters }: { filters: CenterFilters }) {
-  const filtered = filters.unreadOnly || filters.category !== null
-  return (
-    <div className='rounded-lg border border-gray-200 bg-white px-4 py-12 text-center'>
-      <p className='text-sm text-gray-700'>{filtered ? 'אין התראות שתואמות לסינון' : 'אין התראות'}</p>
-      <p className='mx-auto mt-1 max-w-sm text-xs leading-relaxed text-gray-500'>
-        {filtered
-          ? 'אפשר להסיר את הסינון ולראות את כל ההתראות.'
-          : 'כשליד חדש ייכנס או כשמשהו ידרוש טיפול, זה יופיע כאן.'}
-      </p>
     </div>
   )
 }
