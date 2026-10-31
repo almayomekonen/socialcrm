@@ -4,12 +4,15 @@ import { isAgentEnabled } from '@/lib/ai/flags'
 import { admitAiRun } from '@/lib/ai/gate'
 import { addDailySpend } from '@/lib/ai/router/spend'
 import {
+  VOICE_DURATION_TOLERANCE_MS,
+  VOICE_MAX_RECORDING_MS,
   VOICE_MAX_UPLOAD_BYTES,
   VOICE_MIN_UPLOAD_BYTES,
   VOICE_TRANSCRIBE_TIMEOUT_MS,
   containerFromMimeType,
   sniffContainer,
 } from '@/lib/agent/voice/limits'
+import { probeAudioDurationMs } from '@/lib/agent/voice/audioDuration'
 import {
   VOICE_TRANSCRIPTION_CHARGE_USD,
   VoiceTranscriptionUnavailableError,
@@ -125,11 +128,25 @@ export async function POST(req: NextRequest): Promise<Response> {
     const actual = sniffContainer(bytes)
     if (!actual || actual !== declared) return reply({ error: 'unsupported-audio' }, 415)
 
+    // ── 6b. What the container claims about its length. A declared duration over
+    // the cap is refused before the provider is paid for it. The browser's
+    // recorder limit is never relied on; metadata that is absent proves nothing.
+    const metadataDurationMs = probeAudioDurationMs(bytes, actual)
+    if (metadataDurationMs != null && metadataDurationMs > VOICE_MAX_RECORDING_MS + VOICE_DURATION_TOLERANCE_MS) {
+      return reply({ error: 'too-large' }, 413)
+    }
+
     // ── 7. The provider, bounded by its own timeout AND by the client leaving.
     const signal = AbortSignal.any([req.signal, AbortSignal.timeout(VOICE_TRANSCRIBE_TIMEOUT_MS)])
     let text: string
     try {
-      ;({ text } = await transcribeVoice({ audio: bytes, container: actual, abortSignal: signal }))
+      ;({ text } = await transcribeVoice({
+        audio: bytes,
+        container: actual,
+        abortSignal: signal,
+        ledger: { agencyId: user.agencyId, userId: user.id },
+        metadataDurationMs,
+      }))
     } catch (err) {
       if (err instanceof VoiceTranscriptionUnavailableError) return reply({ error: 'ai-unavailable' }, 503)
       const timedOut = signal.aborted && !req.signal.aborted

@@ -63,3 +63,20 @@ export function fencedSend<A, R>(
     return send(args)
   }
 }
+
+/**
+ * Stops further AI work once the heartbeat has seen the lease lost (no
+ * database read: `lost()` is the heartbeat's own flag). The job belongs to
+ * another worker; generating for it would only spend a provider call whose
+ * reply the send fence would then refuse to deliver.
+ */
+export function leaseGuard<Args extends unknown[], R>(
+  fn: (...args: Args) => Promise<R>,
+  jobId: number,
+  lost: () => boolean,
+): (...args: Args) => Promise<R> {
+  return (...args: Args) => {
+    if (lost()) return Promise.reject(new LeaseLostError(jobId))
+    return fn(...args)
+  }
+}

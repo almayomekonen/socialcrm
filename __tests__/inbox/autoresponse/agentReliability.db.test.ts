@@ -196,6 +196,23 @@ afterAll(async () => {
   await db('agencies').whereIn('id', agencies).del()
 })
 
+describe('an exclusive job lease', () => {
+  it('a job taken over mid-turn sends nothing and is counted as leaseLost, not failed', async () => {
+    const t = await makeTenant('lease-lost')
+    await agentAlreadySpoke(t)
+    await says(t, 'אפשר להזיז לשעה אחרת?')
+    // While this worker generates, another worker takes the job over.
+    const thief = (async (args: { transcript: Array<{ direction: string; text: string }> }) => {
+      await db('auto_response_jobs').where({ conversationId: t.conversationId, status: 'processing' }).update({ lockedBy: 'another-worker' })
+      return (generateQualify as unknown as (a: typeof args) => Promise<QualifyGenResult>)(args)
+    }) as never
+    const r = await runAutoResponseWorker({ deps: { send, generate, generateQualify: thief }, workerId: `rel-${Math.random()}` })
+    expect(r).toMatchObject({ claimed: 1, sent: 0, failed: 0, leaseLost: 1 })
+    expect(sent).toHaveLength(0) // the fence refused the send
+    expect(await lastJob(t)).toMatchObject({ status: 'processing', lockedBy: 'another-worker' }) // untouched: the new owner decides
+  })
+})
+
 describe('what counts as a human taking over', () => {
   it('an automation template is NOT a takeover (1)', async () => {
     const t = await makeTenant('auto')

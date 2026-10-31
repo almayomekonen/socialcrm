@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { withAiOperation } from '@/lib/ai/usage/context'
 import {
   INTEL_KIND_ACTION,
   INTEL_KIND_INTENT,
@@ -93,7 +94,11 @@ export async function runConversationAnalysisWorker(opts: WorkerOptions = {}): P
 
   for (const job of jobs) {
     try {
-      await processJob(job, result, revalidate)
+      // Usage ledger: the analysis call(s) for this job are recorded under it.
+      await withAiOperation(
+        { kind: 'conversation_analysis_job', id: String(job.id), agencyId: job.agencyId, conversationId: job.conversationId },
+        () => processJob(job, result, revalidate),
+      )
     } catch (err) {
       // Last-resort guard: an unexpected error must never crash the drain loop.
       const msg = (err as Error)?.message ?? 'unknown-worker-error'

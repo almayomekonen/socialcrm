@@ -42,6 +42,7 @@ import { AuthError, ProductAccessError } from '@/lib/requireUser'
 import { VoiceTranscriptionUnavailableError, VOICE_TRANSCRIPTION_CHARGE_USD } from '@/lib/agent/voice/transcribe'
 import { VOICE_MAX_UPLOAD_BYTES, VOICE_TRANSCRIBE_TIMEOUT_MS } from '@/lib/agent/voice/limits'
 import { POST, maxDuration } from '@/app/api/ai/agent/transcribe/route'
+import { mp4, oggOpus, webm } from './audioFixtures'
 
 const USER = { id: 11, agencyId: 22, role: 'ADMIN' }
 
@@ -197,6 +198,44 @@ describe('what the route refuses', () => {
     expect((await first).status).toBe(200)
     // …and the slot is released afterwards.
     expect((await call(post(WEBM))).status).toBe(200)
+  })
+})
+
+describe('duration is checked on the SERVER, never trusted from the browser recorder', () => {
+  it('declared duration over the cap → 413 too-large, the provider is never called or charged', async () => {
+    for (const [body, type] of [
+      [webm(30 * 60_000), 'audio/webm;codecs=opus'],
+      [mp4(10 * 60_000), 'audio/mp4'],
+      [oggOpus(5 * 60_000), 'audio/ogg;codecs=opus'],
+    ] as const) {
+      const r = await call(post(body, type))
+      expect(r).toMatchObject({ status: 413, json: { error: 'too-large' } })
+    }
+    expect(transcribeVoice).not.toHaveBeenCalled()
+    expect(addDailySpend).not.toHaveBeenCalled()
+  })
+
+  it('a LOW-BITRATE file: small, far under the byte cap, but declaring 30 minutes → still refused', async () => {
+    const r = await call(post(webm(30 * 60_000, 2_048)))
+    expect(r.status).toBe(413)
+    expect(transcribeVoice).not.toHaveBeenCalled()
+  })
+
+  it('declared duration within the cap (plus the small tolerance) → transcribed, the duration passed along', async () => {
+    const r = await call(post(webm(121_500)))
+    expect(r.status).toBe(200)
+    expect(transcribeVoice).toHaveBeenCalledWith(expect.objectContaining({ metadataDurationMs: 121_500 }))
+  })
+
+  it('no metadata or malformed metadata cannot be bounded: transcribed, recorded as unverified (null)', async () => {
+    const malformed = webm(61_500)
+    malformed.fill(0xff, 4, 40) // corrupt the header sizes
+    for (const body of [webm(null), malformed]) {
+      transcribeVoice.mockClear()
+      const r = await call(post(body))
+      expect(r.status).toBe(200)
+      expect(transcribeVoice).toHaveBeenCalledWith(expect.objectContaining({ metadataDurationMs: null }))
+    }
   })
 })
 

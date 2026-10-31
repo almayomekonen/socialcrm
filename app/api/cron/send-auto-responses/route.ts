@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAutomationSecret, isAutomationAuthorized } from '@/lib/automation/apiAuth'
 import { runAutoResponseWorker } from '@/lib/inbox/autoresponse/worker'
+import { expireStaleShadowReservations } from '@/db/aiBudget'
+import { budgetPolicyFor, isAiBudgetShadowEnabled } from '@/lib/ai/budget/policy'
+import { emitBudgetEvent, failureReason } from '@/lib/ai/budget/events'
 import { runQuestionnaireWorker } from '@/lib/inbox/autoresponse/questionnaire/worker'
 
 export const maxDuration = 60
@@ -24,6 +27,13 @@ async function handle(req: NextRequest) {
   }
 
   const result = await runAutoResponseWorker()
+  // Budget SHADOW recovery: reservations nobody settled (a worker died) are
+  // charged their estimate. Simulation only; never touches a reply.
+  if (isAiBudgetShadowEnabled()) {
+    await expireStaleShadowReservations(new Date(), budgetPolicyFor(null).reservationTtlMinutes).catch((err) =>
+      emitBudgetEvent('expiry_sweep_failed', { stage: 'database', reason: failureReason(err, 'database'), error: err }),
+    )
+  }
   // The second drain for the same table. Its claim takes only questionnaire
   // work, so the two never compete for a job. Isolated: a failure here must not
   // turn a successful agent drain into a 500 that the cron will retry.
