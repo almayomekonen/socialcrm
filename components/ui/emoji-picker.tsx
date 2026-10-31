@@ -43,7 +43,7 @@ function EmojiPicker({
   onClose: (reason: 'escape' | 'outside') => void
   onPick: (emoji: string) => void
   triggerRef: RefObject<HTMLElement | null>
-  /** The caller's screen follows the interface language (the inbox composer). Off: Hebrew, as before (questionnaire settings). */
+  /** The caller's screen follows the interface language (the inbox composer, the questionnaire icon chooser). Off: Hebrew, as before. */
   translated?: boolean
 }) {
   const ui = useT()
