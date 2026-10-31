@@ -26,6 +26,8 @@ vi.mock('@/lib/auth/facebookUserAuthFlags', async () => (await import('./preLogi
 vi.mock('@/actions/auth', async () => (await import('./preLoginMocks')).authActionsModule())
 vi.mock('@/actions/agencies', async () => (await import('./preLoginMocks')).agenciesActionsModule())
 vi.mock('@/lib/toast', async () => (await import('./preLoginMocks')).toastModule())
+const READS = vi.hoisted(() => ({ prefs: 0 }))
+vi.mock('@/db/uiLocale', () => ({ getUiLocalePrefs: async () => (READS.prefs++, { userLocale: null, agencyLocale: null }) }))
 
 const renderToString = (node: ReactNode) => renderRaw(<>{node}</>).replaceAll('<!-- -->', '')
 const saved = { ...process.env }
@@ -198,5 +200,44 @@ describe('ChunkReloader', () => {
     const ar = await overlay('ar')
     expect([ar.getAttribute('lang'), ar.getAttribute('dir')]).toEqual(['ar', 'rtl'])
     expect(findHebrewLeaks(ar, [])).toEqual([])
+  })
+})
+
+describe('a hand-set cookie on the public sign-in pages is display only (final UI audit, approved)', () => {
+  /** Every control and link with what it does — never its words. */
+  const controls = (root: ParentNode) =>
+    [...root.querySelectorAll('form, input, button, a, select, textarea')].map((el) =>
+      ['tagName', 'name', 'type', 'href', 'action', 'method', 'required', 'disabled'].map((a) => (a === 'tagName' ? el.tagName : el.getAttribute(a))),
+    )
+
+  test('signed out and signed in outside the pilot: translated, the same controls and links as Hebrew, nothing read or written', async () => {
+    for (const env of [{ user: null }, { user: SIGNED_IN }]) {
+      const seen: Record<string, unknown> = {}
+      for (const locale of [null, 'en', 'ar'] as const) {
+        resetPreLoginEnv()
+        Object.assign(preLoginEnv, env)
+        as(locale)
+        process.env.UI_LOCALE_AGENCY_ALLOWLIST = '999' // the signed-in user's agency (103) is NOT in the pilot
+        document.cookie = 'ui_locale=; Path=/; Max-Age=0'
+        const auth = render(<>{await authTree()}</>)
+        await act(async () => {})
+        const grid = auth.container.querySelector('.auth-surface')!
+        expect(grid.getAttribute('lang'), `${locale}`).toBe(locale)
+        seen[`auth ${locale}`] = controls(auth.container)
+        cleanup()
+        const reg = render(<>{await registerTree()}</>)
+        await act(async () => {})
+        seen[`register ${locale}`] = controls(reg.container)
+        cleanup()
+        // The pages never write the hint (persistLocale={false}) and never read a stored preference.
+        expect(document.cookie, `${locale}`).toBe('')
+      }
+      expect(seen['auth en']).toEqual(seen['auth null'])
+      expect(seen['auth ar']).toEqual(seen['auth null'])
+      expect(seen['register en']).toEqual(seen['register null'])
+      expect(seen['register ar']).toEqual(seen['register null'])
+      expect((seen['auth null'] as unknown[]).length).toBeGreaterThan(2)
+    }
+    expect(READS.prefs).toBe(0)
   })
 })
