@@ -56,7 +56,53 @@ function parseAgencyAllowlist(raw: string | undefined): number[] | 'all' {
     .filter((n) => Number.isFinite(n) && n > 0)
 }
 
+/** Model providers the AI_PROVIDERS allowlist can name. */
+export const ALLOWLISTABLE_PROVIDERS = ['openai', 'anthropic', 'google'] as const
+export type AllowlistableProvider = (typeof ALLOWLISTABLE_PROVIDERS)[number]
+
+/**
+ * AI_PROVIDERS — an explicit provider allowlist, e.g. `openai` or
+ * `openai,anthropic` (comma or whitespace separated, case-insensitive).
+ *
+ *   unset or empty   every provider whose API key is set may be used (the
+ *                    behaviour before this variable existed);
+ *   set              ONLY the named providers may be used. A provider that is
+ *                    not named is treated exactly as if its key were absent,
+ *                    so it enters no chain, no lead model and no other AI
+ *                    surface. Its key stays stored and untouched.
+ *
+ * FAILS CLOSED. An unknown name never enables anything: it is ignored and
+ * reported. If no valid name remains (e.g. a typo such as `opnai`), NO
+ * provider is allowed and every AI task reports `no-providers` — rather than
+ * silently falling back to all providers.
+ */
+export function parseProviderAllowlist(raw: string | undefined): {
+  allowed: ReadonlySet<AllowlistableProvider> | 'all'
+  unknown: string[]
+} {
+  const tokens = (raw ?? '')
+    .split(/[\s,]+/)
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+  if (!tokens.length) return { allowed: 'all', unknown: [] }
+  const known = new Set<string>(ALLOWLISTABLE_PROVIDERS)
+  return {
+    allowed: new Set(tokens.filter((t): t is AllowlistableProvider => known.has(t))),
+    unknown: [...new Set(tokens.filter((t) => !known.has(t)))],
+  }
+}
+
 function loadEnv(): AiEnv {
+  const providers = parseProviderAllowlist(process.env.AI_PROVIDERS)
+  if (providers.unknown.length) {
+    // Names only; never a key. An unknown name enables nothing.
+    console.warn(
+      '[ai] AI_PROVIDERS: ignoring unknown provider name(s)',
+      providers.unknown.map((n) => n.slice(0, 32)),
+    )
+  }
+  const permitted = (p: AllowlistableProvider) => providers.allowed === 'all' || providers.allowed.has(p)
+
   const enabled = process.env.AI_ENABLED === 'true' || process.env.AI_ENABLED === '1'
   const copilotEnabled = process.env.AI_COPILOT_ENABLED === 'true' || process.env.AI_COPILOT_ENABLED === '1'
   const copilotPersistenceEnabled = process.env.AI_COPILOT_PERSIST === 'true' || process.env.AI_COPILOT_PERSIST === '1'
@@ -65,9 +111,10 @@ function loadEnv(): AiEnv {
   const dailyUsdCap = Number(process.env.AI_DAILY_USD_CAP)
   const cap = Number.isFinite(dailyUsdCap) && dailyUsdCap > 0 ? dailyUsdCap : 20
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim() || ''
-  const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || ''
-  const openaiKey = process.env.OPENAI_API_KEY?.trim() || ''
+  // A provider outside AI_PROVIDERS is treated as unconfigured; its key stays stored and unused.
+  const anthropicKey = permitted('anthropic') ? process.env.ANTHROPIC_API_KEY?.trim() || '' : ''
+  const googleKey = permitted('google') ? process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() || '' : ''
+  const openaiKey = permitted('openai') ? process.env.OPENAI_API_KEY?.trim() || '' : ''
 
   return {
     enabled,
