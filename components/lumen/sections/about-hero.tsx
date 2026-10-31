@@ -1,17 +1,21 @@
 import Image from 'next/image';
 
 import Noise from '@/components/lumen/noise';
+import { PRICING } from '@/lib/pricing';
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial';
 
 // Facts from the product, not audience statistics: channel count, the status
-// vocabulary in lib/leads/statusStyles, the 7-day trial in db/trial, the free
-// ceiling in lib/quota and the price in lib/pricing.
+// vocabulary in lib/leads/statusStyles, the trial length in lib/trial, the
+// price in lib/pricing and the 24-hour waiting rule the page describes below.
+// There is no free plan and the trial needs a saved card, so neither a free
+// lead ceiling nor "0 credit card" belongs here.
 const stats = [
   { number: '3', label: 'ערוצים מחוברים למערכת אחת' },
   { number: '1', label: 'רשימה אחת לכל הפניות' },
   { number: '5', label: 'סטטוסים לאורך המכירה' },
-  { number: '7', label: 'ימי התנסות במערכת המלאה' },
-  { number: '50', label: 'לידים בתוכנית החינמית' },
-  { number: '0', label: 'כרטיס אשראי כדי להתחיל' },
+  { number: String(TRIAL_LENGTH_DAYS), label: 'ימי ניסיון במערכת המלאה' },
+  { number: `${PRICING.currency}${PRICING.monthly}`, label: 'לחודש בתום הניסיון, עד לביטול' },
+  { number: '24', label: 'שעות המתנה לתשובה, והליד חוזר לרשימת היום' },
 ];
 
 export default function AboutHero() {
@@ -25,7 +29,7 @@ export default function AboutHero() {
             כל הערוצים במקום אחד
           </h1>
           <p className="text-muted-foreground mx-auto mt-3 hidden max-w-3xl text-lg leading-relaxed md:block lg:mt-4">
-            פייסבוק, אינסטגרם ווואטסאפ הם המקומות שבהם הפניות שלכם נמצאות.
+            פייסבוק, אינסטגרם ווואטסאפ הם המקומות שאליהם מגיעות הפניות שלכם.
             SocialCRM מחברת את שלושתם לרשימה אחת, ומוסיפה לכל פנייה שיחה,
             סטטוס, נציג ותאריך לחזור אליה.
           </p>

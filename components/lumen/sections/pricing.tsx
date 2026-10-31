@@ -13,7 +13,8 @@ import { Switch } from '@/components/lumen/ui/switch';
 import { cn } from '@/components/lumen/utils';
 
 import Logo from '../layout/logo';
-import { PRICING } from '@/lib/pricing';
+import { PRICING, TRIAL_CTA_LABEL } from '@/lib/pricing';
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial';
 
 /**
  * Two columns, one product. The left column is the seven-day trial, not a free
@@ -28,13 +29,13 @@ import { PRICING } from '@/lib/pricing';
  */
 const pricingPlans = {
   individual: {
-    title: 'שבעה ימי התנסות',
+    title: `${TRIAL_LENGTH_DAYS} ימי ניסיון`,
     subtitle: 'המערכת המלאה',
-    description: 'נדרש כרטיס אשראי · לא מתבצע חיוב',
+    description: 'נדרש כרטיס אשראי · ללא חיוב בתקופת הניסיון',
     monthlyPrice: 0,
     popular: false,
     features: [
-      { name: 'כל מה שיש ב-Pro, שבעה ימים', included: true },
+      { name: `כל מה שיש ב-Pro, ${TRIAL_LENGTH_DAYS} ימים`, included: true },
       { name: 'לידים ללא הגבלה', included: true },
       { name: 'חיבור לפייסבוק, אינסטגרם ווואטסאפ', included: true },
       { name: 'סטטוסים, נציגים ותאריכי מעקב', included: true },
@@ -43,7 +44,7 @@ const pricingPlans = {
       { name: 'טיוטות להודעות מעקב', included: true },
       { name: 'שאלות חופשיות על הליד', included: true },
     ],
-    cta: { text: `בתום שבעה ימים ${PRICING.currency}${PRICING.monthly} לחודש · אפשר לבטל לפני החיוב הראשון`, button: 'להתחיל התנסות' },
+    cta: { text: `בתום ${TRIAL_LENGTH_DAYS} הימים ${PRICING.currency}${PRICING.monthly} לחודש · אפשר לבטל לפני החיוב הראשון`, button: TRIAL_CTA_LABEL },
   },
   team: {
     title: 'Pro',
@@ -109,12 +110,12 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
           {/* Left side - Title and subtitle */}
           <div className="">
             <Heading className="text-center text-4xl font-semibold tracking-tighter md:text-start md:text-6xl md:leading-none lg:text-7xl">
-              מתנסים שבוע במערכת המלאה, <br className="hidden md:block" />
-              וממשיכים רק אם זה עובד לכם.
+              נסו את המערכת המלאה שבוע שלם, <br className="hidden md:block" />
+              והחליטו לפני החיוב הראשון.
             </Heading>
             <p className="text-muted-foreground/70 mt-3 hidden text-lg leading-relaxed md:block lg:mt-4">
-              שבעה ימים עם כל מה שיש במערכת, כולל ה-AI המלא. נדרש כרטיס אשראי
-              כדי להתחיל, ולא מתבצע חיוב במהלך ההתנסות.
+              {TRIAL_LENGTH_DAYS} ימים עם כל מה שיש במערכת, כולל ה-AI המלא. כדי להתחיל שומרים
+              כרטיס אשראי, והוא לא מחויב בתקופת הניסיון.
             </p>
           </div>
 

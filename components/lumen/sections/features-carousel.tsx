@@ -30,14 +30,14 @@ const features = [
     id: 1,
     icon: Inbox,
     title: 'כל הלידים נוחתים ברשימה אחת',
-    description: 'פייסבוק, אינסטגרם ווואטסאפ נכנסים יחד, כל אחד עם מקור וסטטוס.',
+    description: 'לידים מפייסבוק, מאינסטגרם ומוואטסאפ נכנסים יחד, כל אחד עם מקור וסטטוס.',
     Surface: UnifiedInflow,
   },
   {
     id: 2,
     icon: MessageCircle,
     title: 'השיחה והליד הם אותו דבר',
-    description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ומתי היא נקראה.',
+    description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ומתי נקראה.',
     Surface: ConversationWorkspace,
   },
   {
@@ -51,7 +51,7 @@ const features = [
     id: 4,
     icon: Sparkles,
     title: 'AI שמכיר את כל ההיסטוריה',
-    description: 'תקציר קצר, שתי נקודות מפתח והצעד הבא המומלץ על כל ליד.',
+    description: 'לכל ליד: תקציר קצר, שתי נקודות מפתח והצעד הבא המומלץ.',
     Surface: CopilotPanel,
   },
 ];
@@ -169,7 +169,7 @@ export default function FeaturesCarousel() {
               </span>
             </h2>
             <p className="text-muted-foreground text-lg leading-snug">
-              ארבעה דברים שקורים על כל ליד אוטומטית, בלי שתצטרך לזכור אותם.
+              ארבעה דברים שקורים אוטומטית בכל ליד, בלי שתצטרכו לזכור אותם.
             </p>
           </motion.div>
 

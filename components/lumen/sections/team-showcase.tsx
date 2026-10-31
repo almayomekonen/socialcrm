@@ -20,7 +20,7 @@ export default function TeamShowcase() {
       <div className="bigger-container">
         <div className="flex flex-col items-center gap-6 lg:flex-row lg:justify-between lg:gap-12">
           <p className="max-w-sm text-center text-2xl leading-tight lg:text-start">
-            הערוצים שמביאים לכם פניות, מחוברים לרשימה אחת שאפשר לעבוד ממנה.
+            הערוצים שמביאים לכם פניות, מחוברים לרשימה אחת שעובדים ממנה.
           </p>
 
           {/* Right Side - Tech Stack Logos */}

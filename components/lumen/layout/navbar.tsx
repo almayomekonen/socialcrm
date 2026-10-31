@@ -19,6 +19,7 @@ import {
 } from '@/components/lumen/ui/navigation-menu'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { cn } from '@/components/lumen/utils'
+import { TRIAL_CTA_LABEL } from '@/lib/pricing'
 
 export const NAV_LINKS = [
   {
@@ -34,7 +35,7 @@ export const NAV_LINKS = [
       {
         label: 'שיחות שמחוברות לליד',
         href: '/#features-grid',
-        description: 'עונים מהמערכת ורואים מתי נמסר ונקרא',
+        description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ונקראה',
         icon: MessageCircle,
       },
       {
@@ -54,7 +55,7 @@ export const NAV_LINKS = [
 
 const ACTION_BUTTONS = [
   { label: 'כניסה', href: '/auth', variant: 'ghost' as const },
-  { label: 'התחל בחינם', href: '/auth', variant: 'default' as const },
+  { label: TRIAL_CTA_LABEL, href: '/auth', variant: 'default' as const },
 ]
 const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolean }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -122,7 +123,7 @@ const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolea
       >
         <Logo className='[&_span]:font-bold' />
 
-        {/* `flex-row-reverse`: puts the action group (התחל בחינם / כניסה /
+        {/* `flex-row-reverse`: puts the action group (the trial CTA / כניסה /
             theme toggle) at the inline-start edge of this group — the right,
             in RTL — so it is read first, with the navigation links after it.
             DOM order is unchanged, so tab order still reaches the links first. */}
@@ -189,8 +190,8 @@ const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolea
           </NavigationMenu>
 
           {/* `flex-row-reverse`: RTL puts the first child on the right, which read
-              sun → כניסה → התחל בחינם. Reversing the row gives the intended
-              reading order — התחל בחינם, then כניסה, then the theme toggle —
+              sun → כניסה → the trial CTA. Reversing the row gives the intended
+              reading order — the trial CTA, then כניסה, then the theme toggle —
               without reordering the DOM, so tab order is unchanged. */}
           <div className='hidden flex-row-reverse items-center justify-end gap-4 lg:flex'>
             <ThemeToggle />

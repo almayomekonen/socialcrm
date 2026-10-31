@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { TRIAL_CTA_LABEL } from '@/lib/pricing'
 
 /**
  * The site header — Lumen's "truncating navbar" ported.
@@ -36,7 +37,7 @@ const LINKS = [
 
 // The primary CTA is for a NEW visitor: it must open the signup page where
 // details are entered and the terms are accepted, not the sign-in box.
-const CTA = { label: 'התחל בחינם', href: '/auth/register' }
+const CTA = { label: TRIAL_CTA_LABEL, href: '/auth/register' }
 
 function Logo() {
   return (
@@ -146,7 +147,7 @@ export function MarketingHeader() {
           <button
             type='button'
             onClick={openMenu}
-            aria-label='פתח תפריט'
+            aria-label='פתיחת התפריט'
             aria-expanded={mounted}
             className='grid size-11 place-items-center rounded-mkt-md text-mkt-fg lg:hidden'
           >
@@ -179,7 +180,7 @@ export function MarketingHeader() {
             <button
               type='button'
               onClick={closeMenu}
-              aria-label='סגור תפריט'
+              aria-label='סגירת התפריט'
               className='grid size-11 place-items-center rounded-mkt-md text-mkt-fg'
             >
               <svg className='size-5' fill='none' stroke='currentColor' viewBox='0 0 24 24' aria-hidden='true'>

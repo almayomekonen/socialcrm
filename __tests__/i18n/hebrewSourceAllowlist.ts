@@ -50,7 +50,6 @@ export const HEBREW_SOURCE_FILES: Record<string, HebrewSourceReason> = {
   'components/ui/how-it-works.tsx': 'out-of-scope',
   'components/ui/pricing-card.tsx': 'out-of-scope',
   'components/ui/radial-orbital-timeline.tsx': 'out-of-scope',
-  'components/ui/stagger-testimonials.tsx': 'out-of-scope',
   'modules/settings/mobile/AutoResponseMobile.tsx': 'out-of-scope',
   'app/(app)/promotion/[id]/page.tsx': 'stored-value',
   'components/clientPage/ClientHeader.tsx': 'stored-value',

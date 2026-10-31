@@ -111,7 +111,7 @@ export default function Logos() {
     <section className="section-padding relative">
       <Noise />
       <p className="text-foreground container text-center text-lg font-semibold">
-        הלידים שלך מגיעים מכל מקום, וואטסאפ, פייסבוק ואינסטגרם. SocialCRM מחבר את כולם לרשימה אחת מסודרת.
+        הלידים שלכם מגיעים מכל מקום: וואטסאפ, פייסבוק ואינסטגרם. SocialCRM מחברת את כולם לרשימה אחת מסודרת.
       </p>
 
       <div>
