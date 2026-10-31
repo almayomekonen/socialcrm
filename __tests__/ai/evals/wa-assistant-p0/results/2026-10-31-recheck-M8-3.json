@@ -1,0 +1,29 @@
+{
+ "label": "recheck-M8-3",
+ "startedAt": "2026-10-31T22:07:34.184Z",
+ "results": [
+  {
+   "id": "M8",
+   "kind": "meeting",
+   "question": "טיפשול",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "צודק, טעיתי כשהוספתי שם שלא אמרת. עדיין צריך לזהות איזה אבי לפני שאבקש לקבוע את הפגישה.",
+   "costUsd": 0.055885,
+   "ms": 3186,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

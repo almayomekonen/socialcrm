@@ -1,0 +1,29 @@
+{
+ "label": "recheck-M7-2",
+ "startedAt": "2026-10-31T22:07:22.698Z",
+ "results": [
+  {
+   "id": "M7",
+   "kind": "meeting",
+   "question": "סלמתאק",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בשמחה. עדיין חסרים כותרת הפגישה ומשך הפגישה בדקות.",
+   "costUsd": 0.05365,
+   "ms": 2727,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}
