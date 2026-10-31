@@ -5,7 +5,7 @@ import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { getEffectiveLeadPlan } from '@/lib/quota'
 import { getFirstName } from '@/lib/users/displayName'
-import { isAgentEnabled } from '@/lib/ai/flags'
+import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import { isWaAssistantAgency } from '@/lib/flags/waAssistantFlags'
 import { hasReminderProductAccess } from '@/lib/ownerWhatsappReminders/productAccess'
 import type { AgentScope } from '@/lib/agent/types'
@@ -94,7 +94,7 @@ export async function resolveAssistantScope(job: { recipientId: number; agencyId
   if (!user) return { ok: false, reason: 'user_not_active' }
 
   const phoneE164 = recipient.phoneE164
-  if (!isAgentEnabled(job.agencyId)) return { ok: false, reason: 'agent_not_enabled', phoneE164 }
+  if (!(await isAgentAvailable(job.agencyId))) return { ok: false, reason: 'agent_not_enabled', phoneE164 }
   if (!(await hasReminderProductAccess(job.agencyId, now))) return { ok: false, reason: 'no_product_access', phoneE164 }
 
   // `getPerms`' admin branch reads the web session, which does not exist here;

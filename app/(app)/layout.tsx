@@ -11,7 +11,7 @@ import { PosProvider, UserProvider } from '@/lib/hooksNEvents'
 import { CopilotContextStoreProvider } from '@/lib/copilot/copilotContextStore'
 import { isCopilotEnabledForUser } from '@/lib/copilot/featureFlag'
 import { isInboxDeltaSyncEnabled } from '@/lib/flags/inboxFlags'
-import { isAgentEnabled } from '@/lib/ai/flags'
+import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import { AwarenessProvider } from '@/modules/inbox/awareness/AwarenessContext'
 import { NotificationProvider } from '@/modules/notifications/NotificationContext'
 import { isNotificationsAgencyAllowlisted, isNotificationsEnabled } from '@/lib/notifications/flags'
@@ -170,7 +170,7 @@ async function LayoutContent({ children }) {
    * 404 is worse than no link. Absence blocks: with the env unset the allowlist
    * parses to an empty list and this is false for everyone.
    */
-  const agentEnabled = isAgentEnabled(user.agencyId)
+  const agentEnabled = await isAgentAvailable(user.agencyId)
 
   /**
    * WORKSPACE REACHED. The denominator for every in-product metric, and the one

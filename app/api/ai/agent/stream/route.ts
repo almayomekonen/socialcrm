@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { AuthError, ProductAccessError, requireProductAccess } from '@/lib/requireUser'
-import { isAgentEnabled } from '@/lib/ai/flags'
+import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import { askAgent } from '@/actions/ai/askAgent'
 import type { AgentTurn } from '@/lib/agent/run'
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return errorResponse({ error: 'unavailable' }, 500)
   }
 
-  if (!isAgentEnabled(user.agencyId)) return errorResponse({ error: 'agent-disabled' }, 404)
+  if (!(await isAgentAvailable(user.agencyId))) return errorResponse({ error: 'agent-disabled' }, 404)
 
   const body = (await req.json().catch(() => null)) as { question?: unknown; history?: unknown } | null
   const question = typeof body?.question === 'string' ? body.question.trim() : ''
