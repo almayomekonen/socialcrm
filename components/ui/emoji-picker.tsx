@@ -2,11 +2,37 @@
 
 import dynamic from 'next/dynamic'
 import { memo, useEffect, useRef, type RefObject } from 'react'
-import type { EmojiStyle } from 'emoji-picker-react'
+import type { Categories, EmojiStyle } from 'emoji-picker-react'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { translatorFor } from '@/lib/i18n/translators'
+import type { Translator } from '@/lib/i18n/translate'
 
 const HEBREW = translatorFor('he')
+
+/** The library's category order (its `Categories` values, minus `custom`: no custom emojis are passed). */
+const CATEGORY_KEYS = [
+  ['suggested', 'inbox.emoji.categories.suggested'],
+  ['smileys_people', 'inbox.emoji.categories.smileysPeople'],
+  ['animals_nature', 'inbox.emoji.categories.animalsNature'],
+  ['food_drink', 'inbox.emoji.categories.foodDrink'],
+  ['travel_places', 'inbox.emoji.categories.travelPlaces'],
+  ['activities', 'inbox.emoji.categories.activities'],
+  ['objects', 'inbox.emoji.categories.objects'],
+  ['symbols', 'inbox.emoji.categories.symbols'],
+  ['flags', 'inbox.emoji.categories.flags'],
+] as const
+
+/**
+ * The library's own words (category headers, the search Clear button) for a translated screen outside Hebrew.
+ * Hebrew passes nothing, so the library keeps its built-in text exactly as before.
+ */
+function libraryText(t: Translator) {
+  if (t.locale === 'he') return {}
+  return {
+    searchClearButtonLabel: t('inbox.emoji.clear'),
+    categories: CATEGORY_KEYS.map(([category, key]) => ({ category: category as Categories, name: t(key) })),
+  }
+}
 
 const loadingCls = 'flex h-[360px] w-full items-center justify-center text-sm text-gray-400'
 
@@ -103,6 +129,7 @@ function EmojiPicker({
         skinTonesDisabled
         previewConfig={{ showPreview: false }}
         lazyLoadEmojis
+        {...(translated ? libraryText(t) : {})}
       />
     </div>
   )

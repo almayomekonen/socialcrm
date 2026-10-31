@@ -23,6 +23,18 @@ export const emoji: I['emoji'] = {
   loading: 'جارٍ تحميل الرموز التعبيرية…',
   dialog: 'اختيار رمز تعبيري',
   search: 'البحث عن رمز تعبيري',
+  clear: 'مسح',
+  categories: {
+    suggested: 'الأكثر استخدامًا',
+    smileysPeople: 'الوجوه والأشخاص',
+    animalsNature: 'الحيوانات والطبيعة',
+    foodDrink: 'الطعام والشراب',
+    travelPlaces: 'السفر والأماكن',
+    activities: 'الأنشطة',
+    objects: 'الأشياء',
+    symbols: 'الرموز',
+    flags: 'الأعلام',
+  },
 }
 
 export const serviceWindow: I['serviceWindow'] = {

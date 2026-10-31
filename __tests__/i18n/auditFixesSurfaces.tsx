@@ -16,11 +16,16 @@ export const AUDIT_USER = { id: 7, agencyId: 103, name: 'דנה כהן', role: '
 
 /** `next/dynamic` for these renders: the ssr:false emoji picker becomes a stub showing its loading line and props. */
 export function auditDynamicMock(_loader: () => Promise<unknown>, opts?: { loading?: () => ReactNode }) {
-  return function DynamicStub(props: { searchPlaceHolder?: string }) {
+  return function DynamicStub(props: { searchPlaceHolder?: string; searchClearButtonLabel?: string; categories?: { category: string; name: string }[] }) {
+    // The library's own words appear only when passed (en/ar), so a Hebrew render is unchanged.
+    const library = {
+      ...(props.searchClearButtonLabel === undefined ? {} : { 'data-clear': props.searchClearButtonLabel }),
+      ...(props.categories === undefined ? {} : { 'data-categories': JSON.stringify(props.categories) }),
+    }
     return (
       <>
         {opts?.loading?.()}
-        <div data-stub='dynamic' data-search={props.searchPlaceHolder ?? ''} />
+        <div data-stub='dynamic' data-search={props.searchPlaceHolder ?? ''} {...library} />
       </>
     )
   }
