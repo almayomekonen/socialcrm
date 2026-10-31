@@ -28,14 +28,14 @@ const ROWS: ComparisonRow[] = [
   { id: '9', feature: 'חיפוש וסינון מהיר', category: 'ניהול', excel: { status: 'partial', label: 'בסיסי' }, crm: { status: 'good', label: 'מלא' } },
   { id: '10', feature: 'גישה ממובייל', category: 'ניהול', excel: { status: 'partial', label: 'מוגבל' }, crm: { status: 'good', label: 'כן' } },
   { id: '11', feature: 'שיוך ליד לנציג', category: 'צוות', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'כן' } },
-  { id: '12', feature: 'נציג רואה רק את שלו', category: 'צוות', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'כן' } },
+  { id: '12', feature: 'נציג רואה את הלידים שלו', category: 'צוות', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'כן' } },
   { id: '13', feature: 'מנהל רואה את כולם', category: 'צוות', excel: { status: 'partial', label: 'ידנית' }, crm: { status: 'good', label: 'כן' } },
   { id: '14', feature: 'אחוז סגירה לפי מקור', category: 'ביצועים', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'כן' } },
   { id: '15', feature: 'ביצועי נציגים', category: 'ביצועים', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'כן' } },
-  { id: '16', feature: 'דוחות חודשיים', category: 'ביצועים', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'כן' } },
+  { id: '16', feature: 'ביצועים לפי תקופה', category: 'ביצועים', excel: { status: 'bad', label: 'לא' }, crm: { status: 'good', label: 'כן' } },
 ]
 
-const CATEGORIES = ['הכל', 'לידים', 'ניהול', 'צוות', 'ביצועים']
+const CATEGORIES = ['הכול', 'לידים', 'ניהול', 'צוות', 'ביצועים']
 
 const CATEGORY_COLORS: Record<string, string> = {
   'לידים': 'bg-blue-50 text-blue-700 border-blue-200',
@@ -83,9 +83,9 @@ function CategoryBadge({ category }: { category: string }) {
 }
 
 export function CRMComparisonTable() {
-  const [activeCategory, setActiveCategory] = useState('הכל')
+  const [activeCategory, setActiveCategory] = useState('הכול')
 
-  const filtered = activeCategory === 'הכל' ? ROWS : ROWS.filter((r) => r.category === activeCategory)
+  const filtered = activeCategory === 'הכול' ? ROWS : ROWS.filter((r) => r.category === activeCategory)
 
   return (
     <div className='w-full max-w-5xl mx-auto px-4 py-16' dir='rtl'>
@@ -119,7 +119,7 @@ export function CRMComparisonTable() {
         <Table>
           <TableHeader>
             <TableRow className='bg-gray-50 border-b border-gray-200 hover:bg-gray-50'>
-              <TableHead className='font-semibold text-gray-600 text-right'>פיצ&apos;ר</TableHead>
+              <TableHead className='font-semibold text-gray-600 text-right'>יכולת</TableHead>
               <TableHead className='font-semibold text-gray-600 text-right'>קטגוריה</TableHead>
               <TableHead className='font-semibold text-gray-600 text-center'>אקסל</TableHead>
               <TableHead className='font-semibold text-gray-600 text-center'>SocialCRM</TableHead>

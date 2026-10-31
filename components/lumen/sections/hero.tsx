@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Noise from '@/components/lumen/noise';
 import { Button } from '@/components/lumen/ui/button';
 import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
+import { TRIAL_CTA_LABEL } from '@/lib/pricing';
 
 export default function Hero() {
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -102,8 +103,8 @@ export default function Hero() {
           variants={itemVariants}
           className="text-3xl leading-tight font-bold tracking-tight md:text-5xl lg:text-6xl"
         >
-          כל הלידים שלך במקום אחד
-          <br className="hidden md:block" /> בלי לפספס שום פנייה בדרך
+          כל הלידים שלכם במקום אחד,
+          <br className="hidden md:block" /> בלי לפספס אף פנייה
         </motion.h1>
 
         <motion.p
@@ -129,7 +130,7 @@ export default function Hero() {
             className="mt-2 rounded-full !ps-5.5 before:rounded-full"
           >
             <Link href="/auth/register">
-            התחל בחינם
+            {TRIAL_CTA_LABEL}
             <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
               <ChevronRight className="size-4 rtl:rotate-180" />
             </div>

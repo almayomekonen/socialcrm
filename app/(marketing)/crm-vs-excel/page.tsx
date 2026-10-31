@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { buildPageMetadata } from '@/lib/seo/metadata'
+import { PRICING, TRIAL_CTA_LABEL } from '@/lib/pricing'
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
 import { FinalCTA } from '@/components/seo/CRMSections'
@@ -13,11 +15,11 @@ import { Btn } from '@/lib/btns/Btn'
 
 export const metadata = buildPageMetadata({
   path: '/crm-vs-excel',
-  title: 'CRM vs אקסל לניהול לידים מה עדיף? | SocialCRM',
+  title: 'CRM מול אקסל לניהול לידים: מה עדיף? | SocialCRM',
   description:
-    'אקסל מעולה לאחסון, אבל לא לניהול תהליך מכירה. 16 נקודות השוואה על אינטגרציה עם פייסבוק, מעקב, תזכורות וניהול צוות, שיעזרו לכם להחליט מתי לעבור.',
-  ogTitle: 'CRM vs אקסל לניהול לידים | SocialCRM',
-  ogDescription: 'אקסל מספיק לניהול לידים? 16 נקודות השוואה שיגידו לך את האמת.',
+    'אקסל מעולה לאחסון, אבל לא לניהול תהליך מכירה. 16 נקודות השוואה על חיבור לפייסבוק, מעקב, תזכורות וניהול צוות, שיעזרו לכם להחליט מתי לעבור.',
+  ogTitle: 'CRM מול אקסל לניהול לידים | SocialCRM',
+  ogDescription: 'אקסל מספיק לניהול לידים? 16 נקודות השוואה שיעזרו לכם להחליט.',
 })
 
 const faqItems = [
@@ -27,15 +29,15 @@ const faqItems = [
   },
   {
     question: 'האם אפשר לייבא את הנתונים מהאקסל הישן?',
-    answer: 'כן. מעלים את הקובץ הקיים, המערכת ממפה את העמודות אוטומטית ומייבאת הכל תוך דקות. אין צורך להזין מחדש.',
+    answer: 'כן. מעלים את הקובץ הקיים, המערכת ממפה את העמודות אוטומטית ומייבאת הכול בתוך דקות, בלי להקליד מחדש.',
   },
   {
-    question: 'האם SocialCRM יקר יותר מאקסל?',
-    answer: 'אקסל נראה בחינם, אבל לידים שנשכחים עולים הרבה יותר. ליד אחד שלא נופל כבר מחזיר את ההשקעה, וגם ככה מתחילים בחינם.',
+    question: 'האם SocialCRM יקרה יותר מאקסל?',
+    answer: `אקסל נראה חינמי, אבל לידים שנשכחים עולים הרבה יותר, וליד אחד שנסגר יכול לכסות את עלות המנוי. מתחילים ב-${TRIAL_LENGTH_DAYS} ימי ניסיון ללא חיוב (נדרש כרטיס אשראי), ולאחר מכן ${PRICING.currency}${PRICING.monthly} לחודש עד לביטול.`,
   },
   {
     question: 'מה ההבדל הכי גדול בין אקסל למערכת CRM?',
-    answer: 'אקסל מאחסן נתונים. CRM מניע פעולה. אין לאקסל תזכורות, שיוך לנציג, או סינכרון אוטומטי מפייסבוק. זה ההבדל בין כלי כתיבה לכלי מכירות.',
+    answer: 'אקסל שומר נתונים, ו-CRM מניע פעולה. לאקסל אין תזכורות, שיוך לנציג או סנכרון אוטומטי עם פייסבוק. זה ההבדל בין גיליון נתונים לכלי מכירות.',
   },
 ]
 
@@ -46,7 +48,7 @@ const pageSchema = {
   '@type': 'WebPage',
   '@id': 'https://getsocialcrm.com/crm-vs-excel',
   url: 'https://getsocialcrm.com/crm-vs-excel',
-  name: 'CRM vs אקסל לניהול לידים | SocialCRM',
+  name: 'CRM מול אקסל לניהול לידים | SocialCRM',
   inLanguage: 'he',
   isPartOf: { '@id': 'https://getsocialcrm.com/#website' },
 }
@@ -61,9 +63,9 @@ const featureCategories = [
     icon: <Icon name='facebook-f' className='size-6 bg-primary' />,
     title: 'ייבוא אוטומטי ממדיה חברתית',
     items: [
-      { text: 'פייסבוק Lead Ads ישירות למערכת' },
-      { text: 'טפסי אינסטגרם אוטומטית' },
-      { text: 'ללא העתקה ידנית' },
+      { text: 'לידים מ-Lead Ads של פייסבוק ישירות למערכת' },
+      { text: 'טפסי לידים מאינסטגרם, אוטומטית' },
+      { text: 'בלי העתקה ידנית' },
     ],
   },
   {
@@ -72,14 +74,14 @@ const featureCategories = [
     items: [
       { text: 'העלאת קובץ אקסל' },
       { text: 'מיפוי עמודות אוטומטי' },
-      { text: 'ללא אובדן נתונים' },
+      { text: 'בלי להקליד הכול מחדש' },
     ],
   },
   {
     icon: <Icon name='circle-check' className='size-6 bg-primary' />,
     title: 'עדכון סטטוס ומעקב',
     items: [
-      { text: 'סטטוס בקליק, מחדש ועד סגור' },
+      { text: 'סטטוס בלחיצה, מחדש ועד סגור' },
       { text: 'היסטוריה מלאה של כל ליד' },
       { text: 'תאריך מעקב לכל ליד' },
     ],
@@ -89,8 +91,8 @@ const featureCategories = [
     title: 'ניהול צוות',
     items: [
       { text: 'שיוך לידים לנציגים' },
-      { text: 'כל נציג רואה רק את שלו' },
-      { text: 'מנהל רואה הכל' },
+      { text: 'כל נציג רואה את הלידים שלו' },
+      { text: 'מנהל רואה את כולם' },
     ],
   },
   {
@@ -108,15 +110,15 @@ const featureCategories = [
     items: [
       { text: 'אחוז סגירה לפי מקור' },
       { text: 'ביצועי נציגים' },
-      { text: 'דוחות חודשיים' },
+      { text: 'ביצועים לפי תקופה' },
     ],
   },
 ]
 
 const STATS = [
-  { value: '×3', label: 'יותר לידים שנסגרים', sub: 'לעסקים שעברו מאקסל למערכת' },
-  { value: '5 דק׳', label: 'חיסכון לכל ליד', sub: 'זמן שחוזר לטיפול עצמי' },
-  { value: '0', label: 'לידים שנשכחים', sub: 'כשיש תזכורות ומעקב אוטומטי' },
+  { value: '16', label: 'נקודות השוואה', sub: 'מייבוא הלידים ועד ביצועי הנציגים' },
+  { value: '5', label: 'סטטוסים ברורים לכל ליד', sub: 'חדש, בטיפול, מעוניין, סגור ואבוד' },
+  { value: '1', label: 'רשימה לכל הלידים', sub: 'מפייסבוק, מאינסטגרם, מוואטסאפ ומאקסל' },
 ]
 
 export default function CRMvsExcelPage() {
@@ -143,7 +145,7 @@ export default function CRMvsExcelPage() {
                 className='inline-block px-3 py-1 rounded-full text-xs font-semibold mb-6 text-white'
                 style={{ backgroundColor: '#217346' }}
               >
-                <span dir='ltr'>CRM vs אקסל</span>
+                CRM מול אקסל
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
                 מפסיקים לנהל לידים באקסל
@@ -151,18 +153,18 @@ export default function CRMvsExcelPage() {
                 <span className='text-gray-500'>עוברים למערכת שבאמת בנויה למכירות</span>
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                אקסל מצוין לאחסון נתונים, אבל ניהול לידים הוא תהליך חי. הנה 16 נקודות השוואה שמראות בדיוק איפה עובר הגבול.
+                אקסל מצוין לשמירת נתונים, אבל ניהול לידים הוא תהליך חי. הנה 16 נקודות השוואה שמראות בדיוק איפה עובר הגבול.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
                   href='/'
                   className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
                 >
-                  ראה את כל הפיצ׳רים
+                  לכל היכולות
                 </Link>
                 <Btn
                   href='/auth/register'
-                  lbl='עוברים למערכת בחינם'
+                  lbl={TRIAL_CTA_LABEL}
                   className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 />
@@ -202,7 +204,7 @@ export default function CRMvsExcelPage() {
             title={<span>מה SocialCRM עושה <span style={{ color: '#3f20f5' }}>במקום אקסל</span></span>}
             subtitle='כל הכלים שאקסל לא נותן, בממשק אחד ומהיר.'
             categories={featureCategories}
-            buttonText='עוברים למערכת בחינם'
+            buttonText={TRIAL_CTA_LABEL}
             buttonHref='/auth'
           />
         </div>
@@ -211,7 +213,7 @@ export default function CRMvsExcelPage() {
         <AnimatedCta
           title='מפסיקים לנהל לידים באקסל'
           highlight='עוברים למערכת שבאמת בנויה למכירות'
-          buttonText='עוברים למערכת בחינם'
+          buttonText={TRIAL_CTA_LABEL}
           buttonHref='/auth'
         />
 

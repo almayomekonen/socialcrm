@@ -52,7 +52,7 @@ export default function VideoShowcase() {
                   <button
                     onClick={handlePlay}
                     className="group flex h-20 w-20 cursor-pointer items-center justify-center rounded-full bg-white shadow-lg transition-all duration-300 hover:scale-103 hover:shadow-xl lg:h-24 lg:w-24"
-                    aria-label="נגן את הסרטון"
+                    aria-label="ניגון הסרטון"
                   >
                     <Play className="ml-1 size-6 fill-black text-black lg:size-7" />
                   </button>
@@ -68,7 +68,7 @@ export default function VideoShowcase() {
                 poster="/media/video/channels-poster.jpg"
               >
                 <source src="/media/video/channels.mp4" type="video/mp4" />
-                הדפדפן שלך לא תומך בניגון וידאו.
+                הדפדפן שלכם לא תומך בניגון וידאו.
               </video>
             )}
           </div>

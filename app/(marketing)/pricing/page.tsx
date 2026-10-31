@@ -11,9 +11,9 @@ export const metadata = buildPageMetadata({
   path: '/pricing',
   title: `מחירים | SocialCRM | ${PRICING.currency}${PRICING.monthly} לחודש`,
   description:
-    `${TRIAL_LENGTH_DAYS} ימי התנסות עם כל המערכת. נדרש כרטיס אשראי, ולא מתבצע חיוב במהלך ההתנסות. אחר כך ${PRICING.currency}${PRICING.monthly} לחודש עד לביטול. כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד, עם AI שמכיר כל ליד.`,
+    `${TRIAL_LENGTH_DAYS} ימי ניסיון במערכת המלאה. נדרש כרטיס אשראי, והוא לא מחויב בתקופת הניסיון. לאחר מכן ${PRICING.currency}${PRICING.monthly} לחודש עד לביטול. כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד, עם AI שמכיר כל ליד.`,
   ogTitle: `מחירים | SocialCRM`,
-  ogDescription: `${TRIAL_LENGTH_DAYS} ימי התנסות מלאה ללא חיוב, ואז ${PRICING.currency}${PRICING.monthly} לחודש.`,
+  ogDescription: `${TRIAL_LENGTH_DAYS} ימי ניסיון במערכת המלאה ללא חיוב (נדרש כרטיס אשראי), ולאחר מכן ${PRICING.currency}${PRICING.monthly} לחודש.`,
 })
 
 /**

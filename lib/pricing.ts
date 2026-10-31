@@ -25,6 +25,16 @@ export const ANNUAL_DISCOUNT_PERCENT = Math.round((ANNUAL_SAVINGS / (PRICING.mon
  * Kept next to the prices so a price change cannot leave the sentence behind.
  */
 export const TRIAL_OFFER_FAQ_ANSWER =
-  `${TRIAL_LENGTH_DAYS} ימי התנסות במערכת המלאה, ללא חיוב. כדי להתחיל נדרש כרטיס אשראי, ` +
-  `והוא לא מחויב במהלך ההתנסות. בתום ${TRIAL_LENGTH_DAYS} הימים המנוי הוא ` +
-  `${PRICING.currency}${PRICING.monthly} לחודש עד לביטול, ואפשר לבטל בכל רגע לפני החיוב הראשון — ואז לא יבוצע חיוב.`
+  `${TRIAL_LENGTH_DAYS} ימי ניסיון במערכת המלאה, ללא חיוב. כדי להתחיל שומרים כרטיס אשראי, ` +
+  `והוא לא מחויב בתקופת הניסיון. בתום ${TRIAL_LENGTH_DAYS} הימים המנוי עולה ` +
+  `${PRICING.currency}${PRICING.monthly} לחודש ומתחדש אוטומטית עד לביטול. אפשר לבטל בכל רגע לפני החיוב הראשון, ואז לא יבוצע חיוב. ` +
+  // ₪1 is Grow's token-check amount (TOKEN_SAVE_SUM in lib/payments/cardTrial/terms.ts,
+  // which imports this module, so it is not imported back). Same disclosure as checkout.
+  `לצורך אימות הכרטיס תיתכן הקפאה זמנית של ${PRICING.currency}1 אצל חברת האשראי. זו אינה גבייה, והיא משתחררת לפי ספק הסליקה בתוך עד 10 ימים.`
+
+/**
+ * The label of every marketing sign-up button, so the offer reads the same in
+ * the navbar, the hero and every closing CTA. No "free": the trial needs a
+ * saved card before the CRM opens (lib/trial).
+ */
+export const TRIAL_CTA_LABEL = `התחילו ${TRIAL_LENGTH_DAYS} ימי ניסיון`

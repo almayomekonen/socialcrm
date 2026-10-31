@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import Noise from '@/components/lumen/noise';
 import { FAQ_ITEMS } from './faqItems';
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial';
 import {
   Accordion,
   AccordionContent,
@@ -33,7 +34,7 @@ export default function FAQSection({ headingLevel = 'h2' }: { headingLevel?: 'h1
       <div className="container">
         {/* Section Header */}
         <Heading className="text-4xl leading-tight tracking-tight lg:text-5xl">
-          שאלות נפוצות:
+          שאלות נפוצות
         </Heading>
 
         {/* FAQ Content */}
@@ -66,8 +67,8 @@ export default function FAQSection({ headingLevel = 'h2' }: { headingLevel?: 'h1
             </CardHeader>
             <CardContent className="pt-0">
               <p className="text-muted-foreground">
-                יש שאלה שלא מופיעה כאן? כתבו לנו ונחזור אליכם. אפשר גם פשוט
-                להתחיל — ההרשמה חינמית ולא דורשת כרטיס אשראי.
+                יש שאלה שלא מופיעה כאן? כתבו לנו ונחזור אליכם. אפשר גם להתחיל
+                מיד: {TRIAL_LENGTH_DAYS} ימי ניסיון במערכת המלאה, ללא חיוב בתקופת הניסיון.
               </p>
             </CardContent>
             <CardFooter className="mt-auto justify-self-end !px-4 sm:!px-6">

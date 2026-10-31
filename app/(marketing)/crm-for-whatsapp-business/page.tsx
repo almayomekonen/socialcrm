@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
+import { TRIAL_CTA_LABEL, TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
 import { buildPageMetadata } from '@/lib/seo/metadata'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbSchema, webPageSchema } from '@/lib/seo/schemas'
@@ -13,38 +13,38 @@ import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 
 const PAGE_PATH = '/crm-for-whatsapp-business'
-const PAGE_TITLE = 'WhatsApp Business CRM, ניהול לידים מעבר לתוויות | SocialCRM'
+const PAGE_TITLE = 'WhatsApp Business CRM: ניהול לידים מעבר לתוויות | SocialCRM'
 const PAGE_DESCRIPTION =
-  'וואטסאפ עסקי נותן תוויות ותגובות מהירות, אבל זו לא מערכת מכירות. SocialCRM מחבר את הוואטסאפ שלכם, הופך כל שיחה לליד עם סטטוס, בעלים ומעקב, ודואג ששום פנייה לא תיפול בין הכיסאות.'
+  'וואטסאפ עסקי נותן תוויות ותגובות מהירות, אבל הוא לא מערכת מכירות. SocialCRM מחברת את הוואטסאפ שלכם, הופכת כל שיחה לליד עם סטטוס, נציג ומעקב, ועוזרת ששום פנייה לא תיפול בין הכיסאות.'
 
 export const metadata = buildPageMetadata({
   path: PAGE_PATH,
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   ogTitle: 'WhatsApp Business CRM | SocialCRM',
-  ogDescription: 'מחברים את הוואטסאפ העסקי, וכל שיחה הופכת לליד עם סטטוס, בעלים ומעקב. שום פנייה לא נשכחת בצ׳אט.',
+  ogDescription: 'מחברים את הוואטסאפ העסקי, וכל שיחה הופכת לליד עם סטטוס, נציג ומעקב, כדי שאף פנייה לא תישכח בצ׳אט.',
 })
 
 const faqItems = [
   {
-    question: 'האם SocialCRM מתחבר לוואטסאפ העסקי?',
+    question: 'האם SocialCRM מתחברת לוואטסאפ העסקי?',
     answer:
-      'כן. מחברים את הוואטסאפ העסקי, מקבלים את השיחות בתוך המערכת, ועונים מכאן. כל שיחה מחוברת לליד עם מקור וסטטוס, ואפשר גם להוסיף ליד ידנית או לייבא רשימת מספרים מאקסל.',
+      'כן. מחברים את הוואטסאפ העסקי, מקבלים את השיחות בתוך המערכת ועונים משם. כל שיחה מחוברת לליד עם מקור וסטטוס, ואפשר גם להוסיף ליד ידנית או לייבא רשימת מספרים מאקסל.',
   },
   {
     question: 'מה ההבדל בין תוויות בוואטסאפ עסקי לבין סטטוסים במערכת?',
     answer:
-      'תוויות הן תיוג ויזואלי על שיחות בתוך וואטסאפ. הן לא נציג, לא תזכורת, ולא טבלה אחת עם כל הלידים והפילטרים. SocialCRM מנהל את הליד מהרגע הראשון ועד הסגירה, עם סטטוס, בעלים, תאריך פנייה, היסטוריה ותזכורות.',
+      'תוויות הן סימון חזותי של שיחות בתוך וואטסאפ. הן לא משייכות נציג, לא מזכירות לחזור, ולא מציגות רשימה אחת של כל הלידים עם סינונים. SocialCRM מנהלת את הליד מהרגע הראשון ועד הסגירה, עם סטטוס, נציג, תאריך פנייה, היסטוריה ותזכורות.',
   },
   {
     question: 'האם זה מתאים לעסק עם נציג אחד?',
     answer:
-      'כן, ובמיוחד. כשעסק קטן עובד לבד דרך WhatsApp, הסיכון הכי גדול הוא ששיחה תיבלע באלפי הודעות אחרות. SocialCRM נותן לך טבלה אחת של כל הלידים ומבטיח שאף אחד לא נופל בין הכיסאות.',
+      'כן, ובמיוחד. כשבעל עסק קטן עובד לבד דרך וואטסאפ, הסיכון הכי גדול הוא ששיחה תיבלע בין אלפי הודעות אחרות. SocialCRM נותנת רשימה אחת של כל הלידים, עם תאריך לחזור לכל אחד, כדי שאף אחד לא ייפול בין הכיסאות.',
   },
   {
     question: 'כמה זמן לוקח להעביר לידים קיימים מהוואטסאפ?',
     answer:
-      'דקות. אם יש רשימת מספרים באקסל, מעלים את הקובץ והכל מאורגן במערכת. אם אין, מוסיפים לידים ידנית בעשר שניות לכל אחד.',
+      'כמה דקות. אם יש רשימת מספרים באקסל, מעלים את הקובץ והכול מסודר במערכת. אם אין, מוסיפים לידים ידנית, בתוך כעשר שניות לכל אחד.',
   },
   {
     question: 'האם יש עלות?',
@@ -54,12 +54,12 @@ const faqItems = [
   {
     question: 'האם יש שיוך לידים בין נציגים?',
     answer:
-      'כן. כל ליד מוואטסאפ אפשר לשייך לנציג. הנציג רואה רק את הלידים שלו, והמנהל רואה את כולם, כולל ביצועים, אחוזי סגירה ולידים שדורשים טיפול.',
+      'כן. כל ליד מוואטסאפ אפשר לשייך לנציג. הנציג רואה את הלידים שלו, והמנהל רואה את כולם, כולל ביצועים, אחוזי סגירה ולידים שדורשים טיפול.',
   },
   {
     question: 'מה קורה אם נציג עוזב?',
     answer:
-      'בוואטסאפ פרטי כל ההיסטוריה יושבת בטלפון של הנציג. במערכת שלנו הליד והשיוך נשמרים, ונציג חדש נכנס ורואה מיד את כל ההקשר: סטטוס, היסטוריית פעולות, והשלב הבא.',
+      'בוואטסאפ פרטי כל ההיסטוריה נשארת בטלפון של הנציג. ב-SocialCRM הליד וההיסטוריה שלו נשמרים, ונציג חדש רואה מיד את כל ההקשר: סטטוס, היסטוריית פעולות והצעד הבא.',
   },
 ]
 
@@ -70,9 +70,9 @@ const faqData = {
 }
 
 const STATS = [
-  { value: '10 שנ׳', label: 'משיחה לליד מנוהל', sub: 'שם, טלפון ומקור, והכל במערכת' },
-  { value: '0', label: 'לידים שנשכחים בצ׳אט', sub: 'כשיש סטטוס, בעלים ותזכורת' },
-  { value: '×3', label: 'יותר לידים נסגרים', sub: 'כשהמעקב מסודר, לא בראש' },
+  { value: '10 שנ׳', label: 'משיחה לליד מנוהל', sub: 'שם, טלפון ומקור, והכול במערכת' },
+  { value: '5', label: 'סטטוסים ברורים לכל ליד', sub: 'חדש, בטיפול, מעוניין, סגור ואבוד' },
+  { value: '1', label: 'רשימה לכל הלידים', sub: 'מוואטסאפ, מפייסבוק, מאינסטגרם ומאקסל' },
 ]
 
 const featureCategories = [
@@ -91,14 +91,14 @@ const featureCategories = [
     items: [
       { text: 'העלאת רשימת מספרים קיימת' },
       { text: 'מיפוי עמודות אוטומטי' },
-      { text: '200 לידים תוך פחות מדקה' },
+      { text: 'כל הרשימה בהעלאה אחת' },
     ],
   },
   {
     icon: <Icon name='info' className='size-6 bg-primary' />,
     title: 'סטטוסים ופילטרים',
     items: [
-      { text: 'מהתוויות לפייפליין אמיתי' },
+      { text: 'מתוויות לסטטוסים אמיתיים' },
       { text: 'סינון לפי מקור, סטטוס, תאריך' },
       { text: 'תצוגה אחת של כל הלידים' },
     ],
@@ -108,8 +108,8 @@ const featureCategories = [
     title: 'ניהול צוות',
     items: [
       { text: 'שיוך לידים לנציגים' },
-      { text: 'כל נציג רואה רק את שלו' },
-      { text: 'מנהל רואה את הכל' },
+      { text: 'כל נציג רואה את הלידים שלו' },
+      { text: 'מנהל רואה את כולם' },
     ],
   },
   {
@@ -169,18 +169,18 @@ export default function CrmForWhatsAppBusinessPage() {
                 מערכת מנהלת מכירות
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                וואטסאפ עסקי נהדר לשיחות, אבל תווית צבעונית היא לא נציג, לא תזכורת, ולא תמונת מצב של כל הלידים. SocialCRM מחבר את הוואטסאפ שלכם ונותן לכל שיחה סטטוס, בעלים, היסטוריה ומעקב.
+                וואטסאפ עסקי נהדר לשיחות, אבל תווית צבעונית היא לא נציג, לא תזכורת ולא תמונת מצב של כל הלידים. SocialCRM מחברת את הוואטסאפ שלכם ונותנת לכל שיחה סטטוס, נציג, היסטוריה ומעקב.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
                   href='/'
                   className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
                 >
-                  ראה את כל הפיצ׳רים
+                  לכל היכולות
                 </Link>
                 <Btn
                   href='/auth/register'
-                  lbl='התחל בחינם'
+                  lbl={TRIAL_CTA_LABEL}
                   className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 />
@@ -194,7 +194,7 @@ export default function CrmForWhatsAppBusinessPage() {
           <div className='max-w-3xl mx-auto' dir='rtl'>
             <h2 className='text-3xl font-bold text-white mb-3 text-center'>הסיטואציה הזו מוכרת?</h2>
             <p className='text-white/50 text-center mb-10 max-w-xl mx-auto'>
-              אתה עובד עם WhatsApp Business, ובכל זאת לידים נשמטים. זו הסיבה.
+              אתם עובדים עם WhatsApp Business, ובכל זאת לידים נשמטים. הנה הסיבות.
             </p>
 
             <ul className='space-y-4 text-white/80'>
@@ -202,28 +202,28 @@ export default function CrmForWhatsAppBusinessPage() {
                 <span className='size-2 rounded-full bg-red-500 mt-2 flex-none' />
                 <span>
                   <strong className='text-white'>הודעות מצטברות ונבלעות.</strong> אחרי שלושה ימים
-                  מי בכלל זוכר מי שאל על המוצר ומי כבר התחבר לתשלום?
+                  מי בכלל זוכר מי שאל על המוצר ומי כבר שילם?
                 </span>
               </li>
               <li className='flex items-start gap-3'>
                 <span className='size-2 rounded-full bg-red-500 mt-2 flex-none' />
                 <span>
-                  <strong className='text-white'>Labels זה לא פייפליין.</strong> אתה יכול לתייג
-                  שיחה כ"חם", אבל אין לך מסך אחד שמראה לך את כל ה"חמים" יחד עם תאריך פנייה אחרון.
+                  <strong className='text-white'>תווית היא לא תהליך מכירה.</strong> אפשר לתייג
+                  שיחה כ"חם", אבל אין מסך אחד שמראה את כל ה"חמים" יחד עם תאריך הפנייה האחרון.
                 </span>
               </li>
               <li className='flex items-start gap-3'>
                 <span className='size-2 rounded-full bg-red-500 mt-2 flex-none' />
                 <span>
-                  <strong className='text-white'>אין תזכורות אמיתיות.</strong> הבטחת ללקוח לחזור
-                  ביום שלישי? בלי מערכת אין מי שיזכיר לך, וזה ליד שהלך.
+                  <strong className='text-white'>אין תזכורות אמיתיות.</strong> הבטחתם לחזור למישהו
+                  ביום שלישי? בלי מערכת אין מי שיזכיר, וזה ליד שהלך.
                 </span>
               </li>
               <li className='flex items-start gap-3'>
                 <span className='size-2 rounded-full bg-red-500 mt-2 flex-none' />
                 <span>
                   <strong className='text-white'>אם נציג עוזב, הולך גם הזיכרון.</strong> כל
-                  ההיסטוריה של הלידים שלו יושבת בטלפון שלו. נציג חדש מתחיל מאפס.
+                  ההיסטוריה של הלידים שלו נשארת בטלפון שלו. נציג חדש מתחיל מאפס.
                 </span>
               </li>
             </ul>
@@ -252,12 +252,12 @@ export default function CrmForWhatsAppBusinessPage() {
         {/* Solution */}
         <section className='px-8 py-16 bg-white' dir='rtl'>
           <div className='max-w-3xl mx-auto'>
-            <h2 className='text-3xl font-bold mb-6'>איך SocialCRM משלים את WhatsApp Business</h2>
+            <h2 className='text-3xl font-bold mb-6'>איך SocialCRM משלימה את WhatsApp Business</h2>
             <p className='text-lg text-gray-700 mb-4 leading-relaxed'>
-              לא צריך לבחור בין וואטסאפ למערכת. מחברים את הוואטסאפ העסקי, וכל שיחה חשובה הופכת לליד מנוהל עם סטטוס, בעלים ומקור. עונים מהמערכת, ורואים מתי הלקוח קיבל וקרא את ההודעה.
+              לא צריך לבחור בין וואטסאפ למערכת. מחברים את הוואטסאפ העסקי, וכל שיחה חשובה הופכת לליד מנוהל עם סטטוס, נציג ומקור. עונים מהמערכת, ורואים מתי ההודעה נמסרה ומתי נקראה.
             </p>
             <p className='text-lg text-gray-700 mb-8 leading-relaxed'>
-              הכל יושב על מסך אחד: מי חדש, מי בטיפול, ולמי צריך לחזור היום. גם כשנציג מתחלף, ההיסטוריה של הליד נשארת במקום, ושום שיחה לא הולכת לאיבוד בטלפון פרטי.
+              הכול על מסך אחד: מי חדש, מי בטיפול ולמי צריך לחזור היום. גם כשנציג מתחלף, ההיסטוריה של הליד נשארת במקום, ושום שיחה לא הולכת לאיבוד בטלפון פרטי.
             </p>
 
             <div className='grid sm:grid-cols-2 gap-6'>
@@ -266,7 +266,7 @@ export default function CrmForWhatsAppBusinessPage() {
                 <ul className='text-sm text-gray-600 space-y-1'>
                   <li>✕ תוויות בלבד</li>
                   <li>✕ אין שיוך לנציג</li>
-                  <li>✕ אין תזכורות</li>
+                  <li>✕ אין תאריך מעקב לכל ליד</li>
                   <li>✕ אין מסך אחד עם כל הלידים</li>
                 </ul>
               </div>
@@ -277,9 +277,9 @@ export default function CrmForWhatsAppBusinessPage() {
                 <p className='font-semibold mb-2'>WhatsApp Business + SocialCRM</p>
                 <ul className='text-sm space-y-1 text-white/90'>
                   <li>✓ כל שיחה מחוברת לליד</li>
-                  <li>✓ פייפליין מלא של סטטוסים</li>
+                  <li>✓ סטטוס לכל ליד, מחדש ועד סגור</li>
                   <li>✓ שיוך לנציגים עם הרשאות</li>
-                  <li>✓ טבלה אחת של כל הלידים</li>
+                  <li>✓ רשימה אחת של כל הלידים</li>
                 </ul>
               </div>
             </div>
@@ -288,17 +288,17 @@ export default function CrmForWhatsAppBusinessPage() {
 
         {/* Features grid */}
         <FeatureGrid
-          title={<><span dir='ltr'>WhatsApp Business</span>, וכל מה שחסר לו</>}
+          title={<><span dir='ltr'>WhatsApp Business</span> וכל מה שחסר לו</>}
           subtitle='שכבה ניהולית מלאה, בלי לוותר על השיחות שאתם כבר מנהלים בוואטסאפ.'
           categories={featureCategories}
-          buttonText='חברו את הוואטסאפ בחינם'
+          buttonText={TRIAL_CTA_LABEL}
           buttonHref='/auth'
         />
 
         <AnimatedCta
           title='תוויות מסדרות שיחות'
           highlight='מערכת מנהלת מכירות'
-          buttonText='התחל בחינם'
+          buttonText={TRIAL_CTA_LABEL}
           buttonHref='/auth'
         />
 

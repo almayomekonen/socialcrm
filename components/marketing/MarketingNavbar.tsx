@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { logout, getSessionState } from '@/actions/auth'
 import { Btn } from '@/lib/btns/Btn'
+import { TRIAL_CTA_LABEL } from '@/lib/pricing'
 
 const NAV_LINKS: { text: ReactNode; href: string }[] = [
   { text: 'ניהול לידים', href: '/crm' },
@@ -57,7 +58,7 @@ export function MarketingNavbar({ isAuthenticated = false }: MarketingNavbarProp
 
   const cta = isAuthenticated
     ? { text: 'פתח את האפליקציה', href: '/' }
-    : { text: 'התחל בחינם', href: '/auth' }
+    : { text: TRIAL_CTA_LABEL, href: '/auth' }
 
   return (
     <div className='pt-6 pb-3 px-4'>

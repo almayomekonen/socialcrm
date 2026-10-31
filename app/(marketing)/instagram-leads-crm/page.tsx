@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { buildPageMetadata } from '@/lib/seo/metadata'
+import { TRIAL_CTA_LABEL } from '@/lib/pricing'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { breadcrumbSchema, webPageSchema } from '@/lib/seo/schemas'
 import { MarketingLayout } from '@/components/seo/MarketingLayout'
@@ -14,51 +15,51 @@ import { Btn } from '@/lib/btns/Btn'
 const PAGE_PATH = '/instagram-leads-crm'
 const PAGE_TITLE = 'ניהול לידים ממודעות אינסטגרם | SocialCRM'
 const PAGE_DESCRIPTION =
-  'מודעות אינסטגרם מביאות לידים ישר למערכת, אוטומטית. פנייה במסר או תגובה לסטורי מתווספות בשניות. הכל במקום אחד עם מקור, סטטוס ומעקב.'
+  'לידים ממודעות אינסטגרם נכנסים למערכת אוטומטית. פנייה מהודעה ישירה או תגובה לסטורי מוסיפים ידנית בתוך שניות. הכול במקום אחד, עם מקור, סטטוס ומעקב.'
 
 export const metadata = buildPageMetadata({
   path: PAGE_PATH,
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   ogTitle: 'לידים ממודעות אינסטגרם | SocialCRM',
-  ogDescription: 'מודעות אינסטגרם מביאות לידים ישר למערכת, אוטומטית. הכל במקום אחד עם מקור, סטטוס ומעקב.',
+  ogDescription: 'לידים ממודעות אינסטגרם נכנסים למערכת אוטומטית. הכול במקום אחד, עם מקור, סטטוס ומעקב.',
 })
 
 const faqItems = [
   {
-    question: 'האם SocialCRM מייבא אוטומטית הודעות מאינסטגרם?',
+    question: 'האם SocialCRM מייבאת אוטומטית הודעות מאינסטגרם?',
     answer:
-      'Instagram לא מאפשר למערכות חיצוניות לקרוא את תוכן ההודעות, אז פניות במסר מוסיפים ידנית בעשר שניות: שם, טלפון ומקור אינסטגרם, והליד כבר במערכת. מי שמפרסם נהנה גם מחיבור אוטומטי דרך Meta Lead Ads (ראו את השאלה הבאה).',
+      'לא. אינסטגרם לא מאפשר למערכות חיצוניות לקרוא את תוכן ההודעות, ולכן פניות מהודעות ישירות מוסיפים ידנית בתוך כעשר שניות: שם, טלפון ומקור אינסטגרם, והליד כבר במערכת. מי שמפרסם באינסטגרם מקבל גם חיבור אוטומטי דרך Meta Lead Ads (ראו בשאלה הבאה).',
   },
   {
-    question: 'איך עובד החיבור לקמפיינים של Instagram?',
+    question: 'איך עובד החיבור לקמפיינים באינסטגרם?',
     answer:
-      'אינסטגרם רץ דרך Meta, אז כל מודעת Lead Ads שאתם מריצים באינסטגרם מתחברת אוטומטית למערכת. כל מי שממלא טופס נכנס כליד תוך שניות, עם הסימון אינסטגרם כמקור.',
+      'מודעות באינסטגרם מנוהלות דרך Meta, ולכן כל מודעת Lead Ads שאתם מריצים באינסטגרם מתחברת אוטומטית למערכת. כל מי שממלא את הטופס נכנס כליד תוך שניות, עם אינסטגרם כמקור.',
   },
   {
     question: 'אפשר לראות כמה מהלידים מאינסטגרם באמת נסגרו?',
     answer:
-      'המערכת מראה אחוז סגירה לפי מקור, כך שרואים כמה מהלידים מאינסטגרם באמת נסגרו. כל ליד שומר את המקור שלו, ואתם מודדים את הערוץ לאורך זמן.',
+      'המערכת מציגה אחוז סגירה לפי מקור, כך שרואים כמה מהלידים מאינסטגרם באמת נסגרו. כל ליד שומר את המקור שלו, כך שאפשר למדוד את הערוץ לאורך זמן.',
   },
   {
     question: 'מה ההבדל בין לידים מאינסטגרם ללידים מפייסבוק?',
     answer:
-      'שניהם מגיעים אוטומטית דרך החיבור למטא. לידים מאינסטגרם נוטים להגיב מהר ולצפות לתגובה חזותית, וסימון המקור הנפרד מאפשר לכם קצב מענה ותסריט שונה לכל ערוץ.',
+      'שניהם מגיעים אוטומטית דרך אותו חיבור ל-Meta, וכל ליד מסומן במקור שלו. כך אפשר לראות כל ערוץ בנפרד ולהתאים לכל אחד קצב מענה ונוסח פנייה משלו.',
   },
   {
     question: 'מה עם תגובות לסטוריז ולסרטונים? איך מנהלים אותן?',
     answer:
-      'תגובה לסטורי או לסרטון היא ליד לכל דבר, מישהו הביע עניין. מוסיפים אותו למערכת בעשר שניות, עם המקור אינסטגרם והערה קצרה על מה הוא הגיב, וההקשר נשמר.',
+      'תגובה לסטורי או לסרטון היא ליד לכל דבר: מישהו הביע עניין. מוסיפים אותו למערכת בתוך כעשר שניות, עם אינסטגרם כמקור והערה קצרה על מה הוא הגיב, וההקשר נשמר.',
   },
   {
     question: 'כמה זמן לוקח להגדיר את החיבור?',
     answer:
-      'החיבור למטא, פייסבוק ואינסטגרם, לוקח כחמש דקות: נכנסים להגדרות, מאשרים הרשאות, ובוחרים את הדף העסקי המקושר לאינסטגרם. מאותו רגע כל ליד ממודעה נכנס אוטומטית.',
+      'החיבור ל-Meta (פייסבוק ואינסטגרם) לוקח כחמש דקות: נכנסים להגדרות, מאשרים הרשאות ובוחרים את הדף העסקי שמקושר לאינסטגרם. מאותו רגע כל ליד ממודעה נכנס אוטומטית.',
   },
   {
-    question: 'האם זה עובד לעסק שמוכר רק דרך Instagram?',
+    question: 'האם זה מתאים לעסק שמוכר רק דרך אינסטגרם?',
     answer:
-      'בהחלט. הרבה עסקים מנהלים את כל המכירות דרך אינסטגרם. SocialCRM נותן להם בדיוק את שכבת הניהול שחסרה: סטטוסים, תזכורות, וטבלה אחת של כל מי שפנה, בלי תלות בכמות הפניות.',
+      'בהחלט. הרבה עסקים מנהלים את כל המכירות דרך אינסטגרם. SocialCRM נותנת להם את שכבת הניהול שחסרה: סטטוסים, תזכורות ורשימה אחת של כל מי שפנה, בלי קשר לכמות הפניות.',
   },
 ]
 
@@ -70,7 +71,7 @@ const faqData = {
 
 const STATS = [
   { value: '5 דק׳', label: 'לחבר Meta Lead Ads', sub: 'אוטומטית גם לאינסטגרם' },
-  { value: '0', label: 'לידים שנעלמים', sub: 'כשכל פנייה הופכת לליד מנוהל' },
+  { value: '10 שנ׳', label: 'להוסיף פנייה מהודעה ישירה', sub: 'שם, טלפון ומקור אינסטגרם' },
   { value: 'שניות', label: 'מהמודעה למערכת', sub: 'כל ליד ממודעה נכנס אוטומטית' },
 ]
 
@@ -80,15 +81,15 @@ const featureCategories = [
     title: 'מודעות אינסטגרם',
     items: [
       { text: 'לידים ממודעות נכנסים אוטומטית' },
-      { text: 'דרך Meta Lead Ads, כיסוי מלא' },
+      { text: 'דרך Meta Lead Ads' },
       { text: 'מסומנים עם מקור וסטטוס' },
     ],
   },
   {
     icon: <Icon name='comment-dots' className='size-6 bg-primary' />,
-    title: 'פניות במסר ובסטוריז',
+    title: 'פניות מהודעות ישירות ומסטוריז',
     items: [
-      { text: 'מוסיפים ליד בעשר שניות' },
+      { text: 'מוסיפים ליד בתוך כעשר שניות' },
       { text: 'מסומן במקור אינסטגרם' },
       { text: 'הערה קצרה על ההקשר' },
     ],
@@ -108,7 +109,7 @@ const featureCategories = [
     items: [
       { text: 'שיוך לידים לנציגים' },
       { text: 'כל אחד עם הלידים שלו' },
-      { text: 'מנהל רואה את הכל' },
+      { text: 'מנהל רואה את כולם' },
     ],
   },
   {
@@ -126,7 +127,7 @@ const featureCategories = [
     items: [
       { text: 'אקסל עם לידים קיימים' },
       { text: 'מיפוי עמודות אוטומטי' },
-      { text: 'הכל במקום אחד' },
+      { text: 'הכול במקום אחד' },
     ],
   },
 ]
@@ -163,7 +164,7 @@ export default function InstagramLeadsCrmPage() {
                     'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
                 }}
               >
-                Instagram Leads
+                לידים מאינסטגרם
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
                 לידים ממודעות אינסטגרם
@@ -171,18 +172,18 @@ export default function InstagramLeadsCrmPage() {
                 נכנסים אוטומטית, מסודרים מהרגע הראשון
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                כל ליד ממודעת אינסטגרם נכנס למערכת אוטומטית, מסודר עם מקור וסטטוס. פנייה במסר או תגובה לסטורי מוסיפים ידנית בשניות, ולא מאבדים אף אחד.
+                כל ליד ממודעת אינסטגרם נכנס למערכת אוטומטית, עם מקור וסטטוס. פנייה מהודעה ישירה או תגובה לסטורי מוסיפים ידנית בתוך שניות, כדי שאף פנייה לא תלך לאיבוד.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
                   href='/'
                   className='w-full sm:w-auto px-8 py-4 border border-gray-300 rounded-xl text-gray-800 font-bold hover:bg-gray-50 text-sm'
                 >
-                  ראה את כל הפיצ׳רים
+                  לכל היכולות
                 </Link>
                 <Btn
                   href='/auth/register'
-                  lbl='התחל בחינם'
+                  lbl={TRIAL_CTA_LABEL}
                   className='w-full sm:w-auto h-auto px-8 py-4 rounded-xl text-white font-bold hover:scale-105 transition-all text-sm'
                   style={{ backgroundColor: '#3f20f5' }}
                 />
@@ -205,29 +206,29 @@ export default function InstagramLeadsCrmPage() {
               <li className='flex items-start gap-3'>
                 <span className='size-2 rounded-full bg-pink-500 mt-2 flex-none' />
                 <span>
-                  <strong className='text-white'>DMs נבלעים בין מאות הודעות.</strong> מישהו שאל
-                  על מוצר שבוע שעבר, ענית, ועכשיו אתה לא זוכר אם הוא חזר אליך או נעלם.
+                  <strong className='text-white'>הודעות ישירות נבלעות בין מאות הודעות.</strong> מישהו שאל
+                  על מוצר בשבוע שעבר, קיבל תשובה, ועכשיו כבר לא ברור אם הוא חזר או נעלם.
                 </span>
               </li>
               <li className='flex items-start gap-3'>
                 <span className='size-2 rounded-full bg-pink-500 mt-2 flex-none' />
                 <span>
-                  <strong className='text-white'>תגובות לסטוריז זרמיות.</strong> סטורי טוב מקבל
-                  עשרות תגובות. רובן הולכות לאיבוד ברגע שהסטורי נעלם תוך 24 שעות.
+                  <strong className='text-white'>תגובות לסטוריז נעלמות מהר.</strong> סטורי טוב מקבל
+                  עשרות תגובות, ורובן הולכות לאיבוד כשהסטורי נעלם אחרי 24 שעות.
                 </span>
               </li>
               <li className='flex items-start gap-3'>
                 <span className='size-2 rounded-full bg-pink-500 mt-2 flex-none' />
                 <span>
                   <strong className='text-white'>לידים ממודעות מתערבבים ונשכחים.</strong> ליד
-                  ממודעה נכנס, אבל בלי סטטוס ומעקב הוא נבלע בין השאר, ואף אחד לא חוזר אליו.
+                  ממודעה נכנס, אבל בלי סטטוס ומעקב הוא נבלע בין כל השאר, ואף אחד לא חוזר אליו.
                 </span>
               </li>
               <li className='flex items-start gap-3'>
                 <span className='size-2 rounded-full bg-pink-500 mt-2 flex-none' />
                 <span>
                   <strong className='text-white'>אין הקשר על מי פנה ולמה.</strong> מי הגיב על
-                  הסטורי על המבצע? מי שאל בהודעה על הקורס? ברור שאי אפשר לזכור את הכל בראש.
+                  הסטורי על המבצע? מי שאל בהודעה על הקורס? אי אפשר לזכור את הכול בראש.
                 </span>
               </li>
             </ul>
@@ -256,12 +257,12 @@ export default function InstagramLeadsCrmPage() {
         {/* Solution */}
         <section className='px-8 py-16 bg-white' dir='rtl'>
           <div className='max-w-3xl mx-auto'>
-            <h2 className='text-3xl font-bold mb-6'>איך SocialCRM מנהל לידים מאינסטגרם</h2>
+            <h2 className='text-3xl font-bold mb-6'>איך SocialCRM מנהלת לידים מאינסטגרם</h2>
             <p className='text-lg text-gray-700 mb-4 leading-relaxed'>
-              כל ליד ממודעת אינסטגרם נכנס למערכת לבד, תוך שניות, מסודר עם מקור וסטטוס. פניות במסר ותגובות לסטוריז מוסיפים ידנית בעשר שניות, עם הערה קצרה על מה עניין אותם.
+              כל ליד ממודעת אינסטגרם נכנס למערכת לבד, תוך שניות, עם מקור וסטטוס. פניות מהודעות ישירות ותגובות לסטוריז מוסיפים ידנית בתוך כעשר שניות, עם הערה קצרה על מה שעניין אותם.
             </p>
             <p className='text-lg text-gray-700 mb-8 leading-relaxed'>
-              מכאן הכל במסך אחד. לכל ליד יש סטטוס, בעלים ותאריך לחזור, ורואים אחוז סגירה לפי מקור, כדי לדעת מאיזה ערוץ מגיעות הסגירות.
+              מכאן הכול במסך אחד. לכל ליד יש סטטוס, נציג ותאריך לחזור אליו, ורואים אחוז סגירה לפי מקור, כדי לדעת מאיזה ערוץ מגיעות הסגירות.
             </p>
 
             <div className='grid sm:grid-cols-2 gap-6'>
@@ -278,12 +279,12 @@ export default function InstagramLeadsCrmPage() {
                 className='p-6 rounded-xl text-white'
                 style={{ backgroundColor: '#3f20f5' }}
               >
-                <p className='font-semibold mb-2'>פניות במסר ובסטוריז</p>
+                <p className='font-semibold mb-2'>פניות מהודעות ישירות ומסטוריז</p>
                 <ul className='text-sm space-y-1 text-white/90'>
-                  <li>✓ הוספה ידנית בעשר שניות</li>
-                  <li>✓ תיוג מקור "Instagram"</li>
+                  <li>✓ הוספה ידנית בתוך כעשר שניות</li>
+                  <li>✓ סימון אינסטגרם כמקור</li>
                   <li>✓ הערת הקשר חופשית</li>
-                  <li>✓ נכנס לאותו פייפליין</li>
+                  <li>✓ נכנסות לאותה רשימה</li>
                 </ul>
               </div>
             </div>
@@ -292,23 +293,23 @@ export default function InstagramLeadsCrmPage() {
 
         {/* Features grid */}
         <FeatureGrid
-          title={<><span dir='ltr'>Instagram</span>, כל הלידים במקום אחד</>}
+          title={<>אינסטגרם: כל הלידים במקום אחד</>}
           subtitle='ערוץ אחד עם הרבה צורות פנייה, ושכבה ניהולית אחת שמטפלת בכולן.'
           categories={featureCategories}
-          buttonText='התחל לנהל לידים מאינסטגרם בחינם'
+          buttonText={TRIAL_CTA_LABEL}
           buttonHref='/auth'
         />
 
         <AnimatedCta
           title='לידים ממודעות אינסטגרם'
           highlight='נכנסים אוטומטית, מסודרים מהרגע הראשון'
-          buttonText='התחל בחינם'
+          buttonText={TRIAL_CTA_LABEL}
           buttonHref='/auth'
         />
 
         <FAQ
           title='שאלות נפוצות על ניהול לידים מאינסטגרם'
-          subtitle='מה ששואלים על ניהול הפניות והקמפיינים'
+          subtitle='מה ששואלים אותנו על ניהול הפניות והקמפיינים'
           categories={{ general: 'כללי', campaigns: 'קמפיינים', setup: 'התחלה' }}
           faqData={faqData}
         />

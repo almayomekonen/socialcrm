@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import Noise from '@/components/lumen/noise';
 import { PRICING } from '@/lib/pricing';
+import { TRIAL_LENGTH_DAYS } from '@/lib/trial';
 import { Badge } from '@/components/lumen/ui/badge';
 import { Button } from '@/components/lumen/ui/button';
 import {
@@ -35,7 +36,7 @@ const money = (n: number) => `${PRICING.currency}${n}${PER_MONTH}`;
  * differs is how long it lasts and what happens at the end.
  */
 const pricingPlans = [
-  { name: 'שבעה ימי התנסות', price: money(0) },
+  { name: `${TRIAL_LENGTH_DAYS} ימי ניסיון`, price: money(0) },
   { name: 'Pro', price: money(PRICING.monthly) },
 ];
 
@@ -49,7 +50,7 @@ const comparisonFeatures: FeatureSection[] = [
     category: 'מחיר',
     features: [
       { name: 'תשלום חודשי', free: money(0), pro: money(PRICING.monthly) },
-      { name: 'משך', free: 'שבעה ימים', pro: 'חודשי, עד לביטול' },
+      { name: 'משך', free: `${TRIAL_LENGTH_DAYS} ימים`, pro: 'חודשי, עד לביטול' },
       { name: 'נדרש כרטיס אשראי', free: true, pro: true },
     ],
   },
@@ -92,7 +93,7 @@ const PricingTable = () => {
         <Noise />
 
         <h2 className="text-4xl leading-tight font-semibold tracking-tight lg:text-5xl">
-          מה כלול בכל מסלול
+          מה כלול בכל תוכנית
         </h2>
         <div>
           <PlanHeaders

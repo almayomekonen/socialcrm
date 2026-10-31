@@ -1,3 +1,5 @@
+import { PRICING } from '@/lib/pricing'
+
 const SITE_URL = 'https://getsocialcrm.com'
 const SITE_NAME = 'SocialCRM'
 
@@ -31,10 +33,18 @@ export function softwareApplicationSchema() {
     url: SITE_URL,
     description: 'מערכת ניהול לידים לעסקים קטנים — כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.',
     inLanguage: 'he',
+    // The one paid plan, from lib/pricing so it cannot drift. Not '0': there is
+    // no free plan, and the 7-day trial needs a saved card (lib/trial).
     offers: {
       '@type': 'Offer',
-      price: '0',
+      price: String(PRICING.monthly),
       priceCurrency: 'ILS',
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: PRICING.monthly,
+        priceCurrency: 'ILS',
+        billingDuration: 'P1M',
+      },
       availability: 'https://schema.org/InStock',
     },
     featureList: [
