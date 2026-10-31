@@ -8,7 +8,8 @@ import CardTrialSetupForm from './CardTrialSetupForm'
 import { trackStartTrial } from '@/lib/facebook/pixelEvents'
 import { useActivationCelebration } from './ActivationCelebrationContext'
 import { useDialogFocusTrap } from '@/hooks/useDialogFocusTrap'
-import { COPY, TAIL, type View } from './welcomeTrialCopy'
+import { copyKeys, tailKey, type View } from './welcomeTrialCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * Shown whenever trial status is NEVER_STARTED. Device gating is the SERVER's
@@ -60,6 +61,7 @@ export default function WelcomeTrialModal({
   const seenRef = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const { markActivated } = useActivationCelebration()
+  const t = useT()
 
   const open = !done
 
@@ -82,7 +84,7 @@ export default function WelcomeTrialModal({
     try {
       const res = await startTrial()
       if ('error' in res) {
-        setError('אירעה שגיאה, נסה שוב')
+        setError(t('trial.welcome.error'))
         trackTrialStartFailed(res.error === 'unauthorized' ? 'unauthorized' : 'unknown').catch(() => {})
         setPending(false)
         return
@@ -106,7 +108,7 @@ export default function WelcomeTrialModal({
       }
       setDone(true)
     } catch {
-      setError('אירעה שגיאה ברשת, נסה שוב')
+      setError(t('trial.welcome.networkError'))
       trackTrialStartFailed('network').catch(() => {})
       setPending(false)
     }
@@ -131,6 +133,7 @@ export default function WelcomeTrialModal({
       pos='middle'
       onClose={() => {}}
       hideClose
+      translated
       labelledBy='welcome-trial-title'
       describedBy='welcome-trial-subtitle'
       /**
@@ -174,10 +177,10 @@ export default function WelcomeTrialModal({
             <span className='text-sm font-medium text-primary-text'>Pro</span>
           </span>
           <h2 id='welcome-trial-title' className='text-[22px] font-bold leading-snug text-gray-900 mobile:text-xl'>
-            {COPY[view].title}
+            {t(copyKeys(view).title)}
           </h2>
           <p id='welcome-trial-subtitle' className='text-sm leading-relaxed text-gray-600'>
-            {COPY[view].sub}
+            {t(copyKeys(view).sub)}
           </p>
         </div>
 
@@ -196,14 +199,15 @@ export default function WelcomeTrialModal({
               purpose='trial_start'
               defaultFullName={cardSetup.defaultFullName}
               defaultPhone={cardSetup.defaultPhone}
-              submitLabel='הוספת כרטיס והפעלת הניסיון'
+              submitLabel={t('trial.welcome.submitCard')}
+              translated
             />
           ) : (
-            <p className='text-sm text-gray-600'>רק מנהל החשבון יכול להפעיל את תקופת הניסיון.</p>
+            <p className='text-sm text-gray-600'>{t('trial.welcome.adminOnly')}</p>
           )
         ) : informational ? (
           <p role='status' className='text-sm text-gray-500'>
-            {TAIL[view as 'awaiting' | 'unavailable' | 'later']}
+            {t(tailKey(view as 'awaiting' | 'unavailable' | 'later'))}
           </p>
         ) : (
           <>
@@ -212,11 +216,11 @@ export default function WelcomeTrialModal({
               variant='solid'
               size='large'
               className='w-full justify-center'
-              lbl={pending ? 'רק רגע...' : 'הפעל את ה-Pro שלי'}
+              lbl={pending ? t('trial.welcome.starting') : t('trial.welcome.start')}
               onClick={onStart}
               disabled={pending}
             />
-            <p className='text-xs text-gray-400 -mt-2'>7 ימים ללא עלות · ללא כרטיס אשראי · אפשר לבטל בכל עת</p>
+            <p className='text-xs text-gray-400 -mt-2'>{t('trial.welcome.startNote')}</p>
           </>
         )}
       </div>

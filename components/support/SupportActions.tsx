@@ -1,5 +1,7 @@
 import OnboardingActionCard from '@/components/clients/OnboardingActionCard'
-import { KIND_COPY } from '@/lib/support/copy'
+import { kindCopy } from '@/lib/support/localizedCopy'
+import type { UiLocale } from '@/lib/i18n/config'
+import { translatorFor } from '@/lib/i18n/translators'
 
 /**
  * The three ways into support, weighted so the eye lands in one place.
@@ -17,15 +19,18 @@ import { KIND_COPY } from '@/lib/support/copy'
  * Reuses the registry-canonical action tile (architecture-rules.md §10). No new
  * card, no new variant, no new tokens.
  */
-export default function SupportActions() {
+export default function SupportActions({ locale = 'he' }: { locale?: UiLocale }) {
+  const t = translatorFor(locale)
+  const problem = kindCopy('problem', locale)
+  const question = kindCopy('question', locale)
   return (
     <div className='grid gap-3'>
       <OnboardingActionCard
         href='/support/new?kind=problem'
         icon='circle-exclamation'
         tileClass='bg-red-500'
-        title={KIND_COPY.problem.tileTitle}
-        description={KIND_COPY.problem.tileDescription}
+        title={problem.tileTitle}
+        description={problem.tileDescription}
         recommended
       />
       <div className='grid gap-3 mobile:grid-cols-1 desktop:grid-cols-2'>
@@ -33,15 +38,15 @@ export default function SupportActions() {
           href='/support/new?kind=question'
           icon='circle-question'
           tileClass='bg-primary'
-          title={KIND_COPY.question.tileTitle}
-          description={KIND_COPY.question.tileDescription}
+          title={question.tileTitle}
+          description={question.tileDescription}
         />
         <OnboardingActionCard
           href='/support/guides'
           icon='book-open'
           tileClass='bg-gray-700'
-          title='מדריכים'
-          description='איך להשתמש ב-SocialCRM'
+          title={t('support.center.guides')}
+          description={t('support.center.guidesDescription')}
         />
       </div>
     </div>

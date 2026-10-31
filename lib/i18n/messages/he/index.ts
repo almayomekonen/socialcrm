@@ -32,5 +32,7 @@ import { education } from './education'
 import { mobileShell } from './mobileShell'
 import { notifications } from './notifications'
 import { auth } from './auth'
+import { trial } from './trial'
+import { support } from './support'
 
-export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education, mobileShell, notifications, auth } as const
+export const he = { shell, roles, settingsNav, language, common, today, leads, leadDetail, entitlement, leadTabs, inbox, tasks, calendar, deals, performance, billing, settings, admin, education, mobileShell, notifications, auth, trial, support } as const

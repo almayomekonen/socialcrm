@@ -24,6 +24,7 @@ const ALLOWED_SAME = new Set<string>([
   'common.source.facebook',
   'common.source.instagram',
   'today.analytics.source.whatsapp',
+  'support.category.whatsapp', // the support centre's WhatsApp category (Phase F5)
   // Pure punctuation pattern; the words come from other keys.
   'today.greetingWithName',
   // Pure placeholder pattern (document kind + its number); the kind comes from another key.

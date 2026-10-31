@@ -5,12 +5,14 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { Btn } from '@/lib/btns/Btn'
 import Icon, { type IconNames } from '@/lib/Icon'
 import { useActivationCelebration } from './ActivationCelebrationContext'
+import { useT } from '@/lib/i18n/I18nProvider'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 // Distinct existing icons only — mirrors WelcomeTrialModal's benefit iconography.
-const BENEFITS: { icon: IconNames; label: string }[] = [
-  { icon: 'brain', label: 'AI מתקדם' },
-  { icon: 'comment-dots', label: 'כל הלידים והשיחות' },
-  { icon: 'calendar', label: 'כל כלי העבודה והאינטגרציות' },
+const BENEFITS: { icon: IconNames; label: MessageKey }[] = [
+  { icon: 'brain', label: 'trial.celebration.benefits.ai' },
+  { icon: 'comment-dots', label: 'trial.celebration.benefits.leads' },
+  { icon: 'calendar', label: 'trial.celebration.benefits.tools' },
 ]
 
 /**
@@ -22,6 +24,7 @@ const BENEFITS: { icon: IconNames; label: string }[] = [
  */
 export default function ProActivationSuccess() {
   const { justActivated, dismiss } = useActivationCelebration()
+  const t = useT()
 
   // Reduced-motion-safe entrance accent: the medallion scales/fades in only for
   // users who allow motion (motion-safe:*). Reduced-motion users get it instantly.
@@ -55,6 +58,7 @@ export default function ProActivationSuccess() {
       labelledBy='pro-active-title'
       describedBy='pro-active-sub'
       className='w-[min(90vw,460px)]'
+      translated
     >
       <div className='flex flex-col items-center text-center gap-5'>
         <span className='inline-block rounded-full bg-dark text-white text-[10px] font-bold tracking-[0.12em] px-2.5 py-1 select-none'>
@@ -71,10 +75,10 @@ export default function ProActivationSuccess() {
 
         <div className='flex flex-col gap-2'>
           <h2 id='pro-active-title' className='text-2xl font-bold leading-snug'>
-            ה־Pro שלך פעיל
+            {t('trial.celebration.title')}
           </h2>
           <p id='pro-active-sub' className='text-sm text-gray-600'>
-            כל היכולות של SocialCRM Pro פתוחות עבורך ל־7 הימים הקרובים.
+            {t('trial.celebration.sub')}
           </p>
         </div>
 
@@ -87,7 +91,7 @@ export default function ProActivationSuccess() {
               <span className='flex size-8 items-center justify-center rounded-lg flex-none bg-primary-tint'>
                 <Icon name={b.icon} type='reg' className='size-4 bg-primary' />
               </span>
-              <p className='text-sm font-semibold text-gray-900'>{b.label}</p>
+              <p className='text-sm font-semibold text-gray-900'>{t(b.label)}</p>
             </li>
           ))}
         </ul>
@@ -96,7 +100,7 @@ export default function ProActivationSuccess() {
           variant='solid'
           size='large'
           className='w-full justify-center'
-          lbl='התחל לעבוד עם Pro'
+          lbl={t('trial.celebration.cta')}
           onClick={close}
         />
       </div>

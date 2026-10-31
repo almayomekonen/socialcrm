@@ -1,7 +1,8 @@
 /**
  * The welcome modal's copy, one headline and one sentence per state (moved out
- * of WelcomeTrialModal.tsx unchanged, i18n Phase F5).
+ * of WelcomeTrialModal.tsx, i18n Phase F5).
  */
+import type { MessageKey } from '@/lib/i18n/translate'
 
 /**
  * ONE headline and ONE sentence per state, in a single table.
@@ -18,20 +19,38 @@
  */
 export type View = 'setup' | 'awaiting' | 'unavailable' | 'later' | 'start'
 
-export const COPY: Record<View, { title: string; sub: string }> = {
-  setup: { title: 'מתחילים עם 7 ימי ניסיון', sub: 'תקופת הניסיון מתחילה רק לאחר אימות הכרטיס. היום לא יבוצע חיוב.' },
-  awaiting: { title: 'הכרטיס נשמר, ואנחנו מאמתים אותו', sub: 'תקופת הניסיון תתחיל מיד לאחר האימות, ולא בוצע חיוב.' },
-  unavailable: { title: 'לא ניתן להתחיל כרגע', sub: 'מערכת התשלומים אינה זמינה זמנית, ולכן תקופת הניסיון עדיין לא נפתחה. לא בוצע חיוב.' },
-  later: { title: 'תקופת הניסיון תיפתח כאן בקרוב', sub: 'אנחנו משלימים את חיבור התשלומים. החשבון שלכם שמור, לא בוצע חיוב, ואין צורך בשום פעולה.' },
-  /* Click-to-start, no card. Unreachable while hasBillingPath() and the card
-     variant share one flag, but it is a real no-card path, so it is the one
-     state where "ללא כרטיס אשראי" is true and it keeps saying so. */
-  start: { title: 'מתחילים עם SocialCRM Pro', sub: 'הצעד הבא: להכניס את הלידים שלכם למערכת.' },
+/**
+ * The headline / sentence / closing line of each state, by key (i18n Phase F5).
+ * The words live in `trial.welcome.*` (Hebrew: the table that stood here,
+ * verbatim). The `start` state is click-to-start with no card: unreachable while
+ * hasBillingPath() and the card variant share one flag, but it is a real no-card
+ * path, so it is the one state where "ללא כרטיס אשראי" is true and keeps saying so.
+ */
+const TITLE: Record<View, MessageKey> = {
+  setup: 'trial.welcome.title.setup',
+  awaiting: 'trial.welcome.title.awaiting',
+  unavailable: 'trial.welcome.title.unavailable',
+  later: 'trial.welcome.title.later',
+  start: 'trial.welcome.title.start',
+}
+const SUB: Record<View, MessageKey> = {
+  setup: 'trial.welcome.sub.setup',
+  awaiting: 'trial.welcome.sub.awaiting',
+  unavailable: 'trial.welcome.sub.unavailable',
+  later: 'trial.welcome.sub.later',
+  start: 'trial.welcome.sub.start',
+}
+const TAIL: Record<'awaiting' | 'unavailable' | 'later', MessageKey> = {
+  awaiting: 'trial.welcome.tail.awaiting',
+  unavailable: 'trial.welcome.tail.unavailable',
+  later: 'trial.welcome.tail.later',
+}
+
+export function copyKeys(view: View): { title: MessageKey; sub: MessageKey } {
+  return { title: TITLE[view], sub: SUB[view] }
 }
 
 /** A closing line for the states that have no action to offer. */
-export const TAIL: Record<'awaiting' | 'unavailable' | 'later', string> = {
-  awaiting: 'האימות נמשך בדרך כלל מספר שניות. אפשר לרענן את העמוד.',
-  unavailable: 'אפשר לנסות שוב מאוחר יותר, או לפנות אלינו ונטפל בזה.',
-  later: 'נעדכן אתכם ברגע שאפשר יהיה להתחיל.',
+export function tailKey(view: 'awaiting' | 'unavailable' | 'later'): MessageKey {
+  return TAIL[view]
 }

@@ -86,14 +86,18 @@ describe('first-run copy — no readiness claim before the user has לידים',
  * dialog/portal machinery; the claim under test is the copy, not the render.
  */
 describe('welcome trial modal — the highest-traffic first-run surface', () => {
-  // The headline / sentence table moved to welcomeTrialCopy.ts (i18n Phase F5 refactor); both are read.
-  const source = ['components/trial/WelcomeTrialModal.tsx', 'components/trial/welcomeTrialCopy.ts']
+  // The modal's Hebrew moved to the catalog in i18n Phase F5 (`trial.welcome.*`,
+  // lib/i18n/messages/he/trial/gate.ts — pinned verbatim in trialCopyPin.test.ts),
+  // so the modal, its key table AND that catalog file are read.
+  const source = ['components/trial/WelcomeTrialModal.tsx', 'components/trial/welcomeTrialCopy.ts', 'lib/i18n/messages/he/trial/gate.ts']
     .map((f) => readFileSync(join(process.cwd(), f), 'utf8'))
     .join('\n')
   /** Only the visible copy: JSX text and quoted title/sub strings. */
   const visible = source.match(/[^\n]*['>][^<'"]*[֐-׿][^<'"]*/g) ?? []
 
   it('does not tell a user with zero לידים that anything of theirs is ready', () => {
+    // Never vacuous: the modal's headline and sentences are in what is scanned.
+    expect(visible.some((line) => line.includes('מתחילים עם 7 ימי ניסיון'))).toBe(true)
     const offenders = visible.filter((line) => READINESS.test(line))
     expect(offenders, `readiness claim in WelcomeTrialModal: ${offenders.join(' | ')}`).toEqual([])
   })

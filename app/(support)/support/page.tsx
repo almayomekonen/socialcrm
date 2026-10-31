@@ -10,8 +10,15 @@ import SupportSearch from '@/components/support/SupportSearch'
 import SupportRequestList from '@/components/support/SupportRequestList'
 import { Seperator } from '@/lib/Seperator'
 import Loading from '@/components/ui/Loading'
+import { getUser } from '@/db/auth'
+import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
+import { translatorFor } from '@/lib/i18n/translators'
 
-export const metadata: Metadata = { title: 'מרכז התמיכה' }
+/** Tab title in the interface language (Hebrew outside the rollout). */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getServerT(await getUser())
+  return { title: t('support.center.title') }
+}
 
 const RECENT_LIMIT = 5
 
@@ -39,18 +46,20 @@ async function SupportCenter() {
     scope: visibilityScopeFor(user as any),
     limit: RECENT_LIMIT,
   })
-  const requests = toRequestSummaries(rows, user.id)
+  const { locale } = await getUiLocaleState(user)
+  const t = translatorFor(locale)
+  const requests = toRequestSummaries(rows, user.id, locale)
 
   return (
     <>
       <header className='mb-8'>
-        <h1 className='text-2xl font-bold text-ink'>מרכז התמיכה</h1>
+        <h1 className='text-2xl font-bold text-ink'>{t('support.center.title')}</h1>
         <p className='mt-1.5 text-sm leading-relaxed text-gray-500'>
-          משהו לא עובד כמו שצריך? אנחנו כאן כדי לעזור.
+          {t('support.center.intro')}
         </p>
       </header>
 
-      <SupportActions />
+      <SupportActions locale={locale} />
 
       <Seperator className='my-8' />
 
@@ -62,15 +71,15 @@ async function SupportCenter() {
       {requests.length > 0 && (
         <section className='mt-10'>
           <div className='mb-3 flex items-baseline justify-between gap-3'>
-            <h2 className='text-base font-bold text-ink'>הפניות שלי</h2>
+            <h2 className='text-base font-bold text-ink'>{t('support.center.mine')}</h2>
             <Link
               href='/support/requests'
               className='shrink-0 text-sm font-medium text-primary-text hover:underline'
             >
-              כל הפניות
+              {t('support.center.all')}
             </Link>
           </div>
-          <SupportRequestList requests={requests} />
+          <SupportRequestList requests={requests} locale={locale} />
         </section>
       )}
     </>

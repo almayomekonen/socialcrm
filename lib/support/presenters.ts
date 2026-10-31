@@ -1,5 +1,7 @@
 import type { StatusRole } from '@/lib/StatusBadge'
-import { AUTHOR_LABEL, STATUS_COPY } from './copy'
+import { STATUS_COPY } from './copy'
+import { authorLabels, statusLabel, subjectText } from './localizedCopy'
+import type { UiLocale } from '@/lib/i18n/config'
 import type { SupportAuthorKind, SupportStatus } from './vocabulary'
 
 /**
@@ -44,7 +46,10 @@ export function toThreadMessages(
   viewerUserId: number,
   /** Shown when a workspace admin is reading a colleague's request. */
   requesterName?: string,
+  /** Display language of the two team / self labels (i18n Phase F5); Hebrew by default. */
+  locale: UiLocale = 'he',
 ): ThreadMessageView[] {
+  const AUTHOR_LABEL = authorLabels(locale)
   return (rows ?? [])
     // An opening message may legitimately be empty: the customer wrote nothing
     // because SocialCRM had already resolved the context, and the context card
@@ -73,11 +78,13 @@ export function toRequestSummaries(
     lastMessageAt: Date | null
   }>,
   _viewerUserId: number,
+  /** Display language of the status word (i18n Phase F5); Hebrew by default. */
+  locale: UiLocale = 'he',
 ): RequestSummaryView[] {
   return (rows ?? []).map((r) => ({
     id: r.id,
-    subject: r.subject,
-    statusLabel: STATUS_COPY[r.status].label,
+    subject: subjectText(r.subject, locale),
+    statusLabel: statusLabel(r.status, locale),
     statusRole: STATUS_COPY[r.status].role,
     lastActivityAt: r.lastMessageAt,
   }))

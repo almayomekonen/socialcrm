@@ -1,7 +1,10 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
-import { getDisplayName } from '@/lib/users/displayName'
+import { GENERIC_DISPLAY_NAME, getDisplayName } from '@/lib/users/displayName'
+import { getUiLocaleState } from '@/lib/i18n/server'
+import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { translatorFor } from '@/lib/i18n/translators'
 import SupportShell from '@/components/support/SupportShell'
 import Loading from '@/components/ui/Loading'
 
@@ -29,7 +32,21 @@ async function SupportLayoutContent({ children }: { children: React.ReactNode })
 
   // Resolve the name HERE and hand the shell only that. The session object
   // stays in the layout rather than being threaded through the subtree.
-  return <SupportShell displayName={getDisplayName(user)}>{children}</SupportShell>
+  const name = getDisplayName(user)
+
+  // Interface language (i18n Phase F5), resolved once from the session user and
+  // passed down as data; Hebrew outside the UI_LOCALE_* rollout, with no query
+  // run. The provider is display-only here (`persistLocale={false}`): the
+  // (app) layout stays the one writer of the pre-login `ui_locale` hint.
+  const { locale } = await getUiLocaleState(user)
+  const displayName = locale !== 'he' && name === GENERIC_DISPLAY_NAME ? translatorFor(locale)('support.shell.genericName') : name
+  return (
+    <I18nProvider locale={locale} persistLocale={false}>
+      <SupportShell displayName={displayName} locale={locale}>
+        {children}
+      </SupportShell>
+    </I18nProvider>
+  )
 }
 
 export default function SupportLayout({ children }: { children: React.ReactNode }) {
