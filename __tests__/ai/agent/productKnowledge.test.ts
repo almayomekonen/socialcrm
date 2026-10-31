@@ -88,7 +88,7 @@ describe('canonical product knowledge', () => {
 
   it('says so wherever a feature is switched on per account', () => {
     // The index is the same for every tenant: a flag-gated feature must not read as one every owner has.
-    for (const id of ['automations', 'questionnaire_auto_reply', 'messenger', 'comments_and_ads', 'recent_updates']) {
+    for (const id of ['automations', 'auto_reply', 'whatsapp_questionnaire', 'messenger', 'facebook_comments', 'meta_ads', 'recent_updates']) {
       expect(getProductTopic(id)!.summary, id).toMatch(/לחשבונות שנבחרו/)
     }
   })
@@ -98,6 +98,14 @@ describe('canonical product knowledge', () => {
     for (const t of PRODUCT_TOPICS) {
       for (const route of t.routes ?? []) expect(pages, `${t.id} ${route}`).toContain(route.split('?')[0])
     }
+  })
+
+  it('a topic links only a screen it names, and a topic naming several screens says which one it is about', () => {
+    for (const t of PRODUCT_TOPICS) {
+      if (t.link) expect(t.routes ?? [], t.id).toContain(t.link)
+    }
+    // The four without a link span several screens with no single subject; a reply citing them links nothing.
+    expect(PRODUCT_TOPICS.filter((t) => (t.routes?.length ?? 0) > 0 && !t.link).map((t) => t.id).sort()).toEqual(['getting_started', 'tasks_followups', 'team', 'today_and_performance'])
   })
 
   it('exposes an index compact enough to sit in a prompt', () => {
@@ -144,6 +152,17 @@ describe('a PRODUCT claim is grounded in the registry, not in CRM evidence', () 
   it('is refused when it cites a topic that does not exist', () => {
     expect(validateAgentAnswer(product(['invented_feature']), empty())).toBeNull()
     expect(isProductTopic('invented_feature')).toBe(false)
+  })
+
+  it('every topic is citable: a product answer on any of them survives with no CRM evidence (web Agent and WhatsApp alike)', () => {
+    for (const t of PRODUCT_TOPICS) expect(validateAgentAnswer(product([t.id]), empty()), t.id).not.toBeNull()
+  })
+
+  it('a casual reply with no claims passes the shared validator on the interactive path, so the web panel shows it', () => {
+    const casual: AgentAnswer = { headline: 'תודה, כיף לשמוע.', claims: [], unknown: null }
+    expect(validateAgentAnswer(casual, empty())?.headline).toBe('תודה, כיף לשמוע.')
+    // The autonomous path still refuses an answer asserting nothing.
+    expect(validateAgentAnswerDetailed(casual, empty(), { requireClaim: true }).rejection).toBe('no-supportable-claim')
   })
 
   it('cannot be grounded by a lead or a metric', () => {

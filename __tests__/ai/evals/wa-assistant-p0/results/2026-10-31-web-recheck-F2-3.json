@@ -1,0 +1,48 @@
+{
+ "label": "web-recheck-F2-3",
+ "startedAt": "2026-10-31T22:27:11.864Z",
+ "results": [
+  {
+   "id": "F2",
+   "kind": "financial",
+   "question": "כמה כסף נכנס החודש?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [
+    "PRODUCT"
+   ],
+   "businessState": null,
+   "reply": "אין לי גישה לסכום שנכנס החודש; במסך «ביצועים» אפשר לבחור „החודש” ולראות את ההכנסות מעסקאות שסומנו כשולמו.\nמסך «ביצועים» מציג הכנסות מעסקאות ששולמו לפי התקופה שנבחרה, אך הסוכן עצמו אינו קורא את נתוני העסקאות וההכנסות.\nסכום ההכנסות החודשי בפועל אינו זמין לי.",
+   "answer": {
+    "headline": "אין לי גישה לסכום שנכנס החודש; במסך «ביצועים» אפשר לבחור „החודש” ולראות את ההכנסות מעסקאות שסומנו כשולמו.",
+    "claims": [
+     {
+      "claimClass": "PRODUCT",
+      "text": "מסך «ביצועים» מציג הכנסות מעסקאות ששולמו לפי התקופה שנבחרה, אך הסוכן עצמו אינו קורא את נתוני העסקאות וההכנסות.",
+      "productEvidence": [
+       "deals_and_performance",
+       "not_supported"
+      ]
+     }
+    ],
+    "unknown": "סכום ההכנסות החודשי בפועל אינו זמין לי.",
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.05769,
+   "ms": 4195,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

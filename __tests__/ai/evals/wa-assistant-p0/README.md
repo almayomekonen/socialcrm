@@ -47,6 +47,30 @@ DATABASE_URL=<local eval db> npx tsx \
 | `2026-10-31-recheck-M7-*`, `-M8-*` | M7, M8 re-run 3× each | 6 / 6 |
 | `2026-10-31-after-dedup-*` | product + financial after the headline de-duplication | 13 / 13 |
 
+### Added 2026-11-01 (review round; the runs above are unchanged)
+
+`EVAL_SURFACE=web` scores the **web Agent**: the same model call as
+`actions/ai/askAgent.ts` (default step budget and deadline, research allowed) and
+the text its answer panel shows. Both surfaces share `lib/agent/prompt.ts` and the
+product knowledge, so this is where a shared-prompt regression would appear. The
+"web-baseline" runs used main's prompt.ts and knowledge.ts, swapped in for the run
+and restored.
+
+| run | social | product | financial | meeting |
+| --- | --- | --- | --- | --- |
+| `web-baseline-*` (main prompt) | 6 / 6 | 9 / 11 | 0 / 2 | 7 / 8 |
+| `web-after-*` (P0 prompt) | 6 / 6 | 10 / 11 | 0 / 2 † | 8 / 8 |
+| `web-recheck-{F1,F2,P10}-*`, `web-diag-F1` | — | P10 3 / 3 | F1 4 / 4, F2 3 / 3 | — |
+
+`links-product` (WhatsApp, after the screen-link fix): product 11 / 11, every
+link the screen of the topic answered — deal import → /deals, questionnaire →
+/settings/questionnaire, auto-reply → /settings/auto-response; the bot question,
+split evenly between auto-reply and the questionnaire, links nothing.
+
+† In `web-after-financial`, F1 and F2 ended `stopReason: error` after 66 ms and
+6 ms with no generation ($0.000), and in `web-after-product` P10 hit the web
+deadline (55 s): call failures, not answers. Each passed every re-check.
+
 In the `after` run, M7 and M8 stopped on `deadline` after 965 s and 162 s of wall
 clock with zero tool calls, against a 35 s deadline that aborts the model call.
 That is the process stalling (the run crossed midnight on a laptop), not the

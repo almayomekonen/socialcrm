@@ -22,7 +22,7 @@ import { admitAiRun } from '@/lib/ai/gate'
 import { getEffectiveLeadPlan } from '@/lib/quota'
 import { getFirstName } from '@/lib/users/displayName'
 import { runAgentInvestigation } from '@/lib/agent/run'
-import type { AgentScope } from '@/lib/agent/types'
+import type { AgentAnswer, AgentScope } from '@/lib/agent/types'
 import { WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
 import { APP_LINK, COPY, NO_ACTIONS_NOTE, failureReply, replyForAnswer } from '@/lib/waAssistant/render'
 import { CASES, DOCUMENTED_FAILURES, type EvalCase } from './cases'
@@ -52,6 +52,17 @@ type Result = {
 
 const FALLBACKS: readonly string[] = [COPY.noAnswer, COPY.failed, COPY.timeout, COPY.notAvailable]
 
+/**
+ * EVAL_SURFACE=web scores the web Agent instead: the same model call as
+ * actions/ai/askAgent.ts, and the text the answer panel shows
+ * (components/agent/AgentAnswerView.tsx: headline, claims, unknown). Both
+ * surfaces share lib/agent/prompt.ts and the product knowledge.
+ */
+const SURFACE: 'whatsapp' | 'web' = process.env.EVAL_SURFACE === 'web' ? 'web' : 'whatsapp'
+const WEB_FAILURE = '<no answer: the panel shows an error>'
+const webText = (a: AgentAnswer) =>
+  [a.headline, ...a.claims.map((c) => c.text), a.unknown ?? ''].filter((t) => t && t.trim()).join('\n')
+
 /** A plain message: no bold report headline, no bullets, no app link. */
 const isPlain = (reply: string) => !reply.startsWith('*') && !/^• /m.test(reply) && !reply.includes(APP_LINK)
 
@@ -76,10 +87,16 @@ async function runCase(c: EvalCase, s: AgentScope): Promise<Result> {
     question: c.question.trim().slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars),
     history: c.history ? [...c.history] : [],
     scope: s,
-    maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
-    deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
-    disableResearch: true,
-    skipInteractiveSpend: true,
+    // The web Agent (actions/ai/askAgent.ts) passes none of these: the default
+    // step budget and deadline, with web research available.
+    ...(SURFACE === 'whatsapp'
+      ? {
+          maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
+          deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
+          disableResearch: true,
+          skipInteractiveSpend: true,
+        }
+      : {}),
     onProgress: (e) => tools.push(e.tool),
     onPersist: async (rec) => {
       dropped = rec.droppedClaims
@@ -88,19 +105,24 @@ async function runCase(c: EvalCase, s: AgentScope): Promise<Result> {
   const ms = Date.now() - startedAt
   const f = r as { rejection?: string; rejectionRuleId?: string | null }
   const reply =
-    r.ok === true
-      ? replyForAnswer(r.answer, { note: r.answer.proposedAction || r.answer.proposedBatch ? NO_ACTIONS_NOTE : null }).text
-      : failureReply(r.reason)
+    SURFACE === 'web'
+      ? r.ok === true
+        ? webText(r.answer)
+        : WEB_FAILURE
+      : r.ok === true
+        ? replyForAnswer(r.answer, { note: r.answer.proposedAction || r.answer.proposedBatch ? NO_ACTIONS_NOTE : null }).text
+        : failureReply(r.reason)
 
   const patternFailures = [
     ...(c.mustMatch ?? []).filter((p) => !p.test(reply)).map((p) => `missing ${p}`),
     ...(c.mustNotMatch ?? []).filter((p) => p.test(reply)).map((p) => `has ${p}`),
   ]
   const checks = {
-    fallback: FALLBACKS.some((t) => reply.startsWith(t)),
+    fallback: SURFACE === 'web' ? reply === WEB_FAILURE || !reply.trim() : FALLBACKS.some((t) => reply.startsWith(t)),
     refused: r.ok !== true && f.rejection === 'unsupported-claim',
     tooManyTools: c.maxTools !== undefined && tools.length > c.maxTools,
-    notPlain: c.plain === true && !isPlain(reply),
+    // The plain-message format is WhatsApp's; the web panel lays out its own answer.
+    notPlain: SURFACE === 'whatsapp' && c.plain === true && !isPlain(reply),
     patternFailures,
   }
   return {
@@ -140,7 +162,7 @@ function report(label: string, results: Result[], startedAt: string): string {
   const lines = [
     `# wa-assistant-p0 — ${label}`,
     '',
-    `Run ${startedAt} · tenant agency ${TENANT.agencyId} · model ${process.env.AGENT_OPENAI_MODEL?.trim() || 'gpt-5.6'} · ${results.length} cases`,
+    `Run ${startedAt} · surface ${SURFACE} · tenant agency ${TENANT.agencyId} · model ${process.env.AGENT_OPENAI_MODEL?.trim() || 'gpt-5.6'} · ${results.length} cases`,
     '',
     '| metric | count |',
     '| --- | --- |',

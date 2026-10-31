@@ -1,0 +1,192 @@
+{
+ "label": "web-baseline-social",
+ "startedAt": "2026-10-31T22:22:33.811Z",
+ "results": [
+  {
+   "id": "S1",
+   "kind": "social",
+   "question": "hey",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "היי, אני השותף העסקי שלך ב‑SocialCRM. אפשר לשאול אותי: „מה דורש טיפול היום?”, „האם אני מפספס לידים?” או „מה כדאי לעשות עכשיו?”",
+   "answer": {
+    "headline": "היי, אני השותף העסקי שלך ב‑SocialCRM. אפשר לשאול אותי: „מה דורש טיפול היום?”, „האם אני מפספס לידים?” או „מה כדאי לעשות עכשיו?”",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.04771,
+   "ms": 4104,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S2",
+   "kind": "social",
+   "question": "אלוף",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "תודה, אני כאן כדי לעזור לך להבין מה קורה בעסק ומה כדאי לעשות עכשיו.",
+   "answer": {
+    "headline": "תודה, אני כאן כדי לעזור לך להבין מה קורה בעסק ומה כדאי לעשות עכשיו.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.044985,
+   "ms": 3061,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S3",
+   "kind": "social",
+   "question": "תודה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בשמחה.",
+   "answer": {
+    "headline": "בשמחה.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.043185,
+   "ms": 2438,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S4",
+   "kind": "social",
+   "question": "מה נשמע?",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "הכול טוב, אני השותף העסקי שלך בתוך SocialCRM.",
+   "answer": {
+    "headline": "הכול טוב, אני השותף העסקי שלך בתוך SocialCRM.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.043525,
+   "ms": 2630,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S5",
+   "kind": "social",
+   "question": "סלמתאק",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "אהלן, אני כאן כדי לעזור להבין מה קורה בעסק ומה כדאי לעשות עכשיו.",
+   "answer": {
+    "headline": "אהלן, אני כאן כדי לעזור להבין מה קורה בעסק ומה כדאי לעשות עכשיו.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.044695,
+   "ms": 2533,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  },
+  {
+   "id": "S6",
+   "kind": "social",
+   "question": "אלוף, תודה",
+   "ok": true,
+   "stopReason": "answered",
+   "rejection": null,
+   "tools": [],
+   "droppedClaims": 0,
+   "claimClasses": [],
+   "businessState": null,
+   "reply": "בשמחה.",
+   "answer": {
+    "headline": "בשמחה.",
+    "claims": [],
+    "unknown": null,
+    "businessState": null,
+    "proposedAction": null,
+    "proposedBatch": null
+   },
+   "costUsd": 0.043945,
+   "ms": 2307,
+   "checks": {
+    "fallback": false,
+    "refused": false,
+    "tooManyTools": false,
+    "notPlain": false,
+    "patternFailures": []
+   },
+   "pass": true
+  }
+ ]
+}

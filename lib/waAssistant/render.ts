@@ -71,10 +71,13 @@ export function renderAnswer(answer: AgentAnswer, opts: { note?: string | null }
  * history line the next turn needed. COPY.noAnswer stays for an answer with
  * nothing in it at all.
  *
- * A product answer (PRODUCT claims only) is plain too, and links the screen its
- * first cited topic names instead of the Agent page.
+ * A product answer (PRODUCT claims only) is plain too, and links the one screen
+ * it is about (`productLink`) instead of the Agent page — or none.
  */
-export function replyForAnswer(answer: AgentAnswer, opts: { note?: string | null } = {}): { text: string; headline: string | null } {
+export function replyForAnswer(
+  answer: AgentAnswer,
+  opts: { note?: string | null } = {},
+): { text: string; headline: string | null } {
   const claims = answer.claims ?? []
   const headline = clean(answer.headline || '')
   const unknown = answer.unknown ? clean(answer.unknown) : ''
@@ -85,7 +88,7 @@ export function replyForAnswer(answer: AgentAnswer, opts: { note?: string | null
   }
 
   if (claims.every((c) => c.claimClass === 'PRODUCT')) {
-    const route = claims.flatMap((c) => (c.claimClass === 'PRODUCT' ? c.productEvidence : [])).map((id) => getProductTopic(id)?.routes?.[0]).find(Boolean)
+    const route = productLink(claims)
     // A claim the headline already says in full is not sent twice.
     const said = squash(headline)
     const body = claims.map((c) => clean(c.text)).filter((t) => t && !said.includes(squash(t)))
@@ -111,6 +114,25 @@ export const COPY = {
   failed: 'לא הצלחתי להשלים את הבדיקה הפעם. אפשר לנסות שוב בעוד רגע, או להמשיך ב-SocialCRM: ' + APP_LINK,
   noAnswer: 'לא מצאתי במערכת מספיק נתונים כדי לענות על זה בוודאות. אפשר לנסח אחרת, למשל עם שם הליד המלא.',
 } as const
+
+/**
+ * The screen a product answer links to: the `link` of the topic the answer is
+ * about. Each claim votes once for the screen of each topic it cites; the
+ * screen with the most votes wins, and a tie — an answer split evenly between
+ * screens — links nothing rather than guess. A topic without a `link` (one that
+ * is not about a single screen) never votes.
+ */
+export function productLink(claims: AgentAnswer['claims']): string | null {
+  const votes = new Map<string, number>()
+  for (const c of claims) {
+    if (c.claimClass !== 'PRODUCT') continue
+    const links = new Set(c.productEvidence.map((id) => getProductTopic(id)?.link).filter((l): l is string => !!l))
+    for (const l of links) votes.set(l, (votes.get(l) ?? 0) + 1)
+  }
+  const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1])
+  if (!ranked.length || (ranked[1] && ranked[1][1] === ranked[0][1])) return null
+  return ranked[0][0]
+}
 
 /** The reply when the investigation itself did not produce an answer. */
 export function failureReply(reason: string): string {
