@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest'
 import { findHebrewLeaks } from './leakScan'
-import { alignment, iconButtons, iconPicker, readyMessageChevrons, toastBodies } from './auditFixesSurfaces'
+import { alignment, iconButtons, iconPicker, readyMessageChevrons, toastBodies, uploaderFailures } from './auditFixesSurfaces'
 
 /**
  * The final UI audit fixes in en / ar (Hebrew identity: auditFixesHebrewBaseline,
@@ -125,4 +125,32 @@ describe('G: a toast body declares the interface language; a verbatim Hebrew sen
       expect(out.sentence.replace(/ lang="\w+" dir="\w+"/, '')).toBe(he.sentence)
     })
   }
+})
+
+describe("H: the uploader's own refusals are worded in the interface language", () => {
+  const WORDS = {
+    en: { tooLarge: 'File upload failed: the file is too large', noneSelected: 'File upload failed: no files were selected' },
+    ar: { tooLarge: 'فشل رفع الملفات: الملف كبير جدًا', noneSelected: 'فشل رفع الملفات: لم يتم اختيار أي ملف' },
+  }
+  for (const locale of ['en', 'ar'] as const) {
+    test(locale, async () => {
+      const out = await uploaderFailures(locale)
+      for (const key of ['tooLarge', 'noneSelected'] as const) {
+        const dialog = parse(out[key]).firstElementChild!
+        expect(dialog.getAttribute('aria-label'), key).toBe(WORDS[locale][key])
+        expect(dialog.textContent, key).toContain(WORDS[locale][key])
+        expect(findHebrewLeaks(dialog, []), key).toEqual([])
+      }
+    })
+  }
+
+  test('the Hebrew catalog words are the exact sentences uploadS3 throws', async () => {
+    const { UPLOAD_NONE_SELECTED, UPLOAD_TOO_LARGE } = await import('@/components/files/funcs')
+    const { translatorFor } = await import('@/lib/i18n/translators')
+    const he = translatorFor('he')
+    expect([he('leadTabs.files.uploader.tooLarge'), he('leadTabs.files.uploader.noneSelected')]).toEqual([UPLOAD_TOO_LARGE, UPLOAD_NONE_SELECTED])
+    const source = (await import('node:fs')).readFileSync('components/files/funcs.tsx', 'utf8')
+    expect(source).toContain('throw new Error(UPLOAD_NONE_SELECTED)')
+    expect(source).toContain('throw new Error(UPLOAD_TOO_LARGE)')
+  })
 })

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Icon, { IconNames } from '@/lib/Icon'
-import { FileDisplay, uploadS3 } from './funcs'
+import { FileDisplay, UPLOAD_NONE_SELECTED, UPLOAD_TOO_LARGE, uploadS3 } from './funcs'
 import { useUser } from '@/lib/hooksNEvents'
 import dynamic from 'next/dynamic'
 import { twMerge } from 'tailwind-merge'
@@ -11,8 +11,15 @@ import { useAccessDenied } from '@/lib/entitlement/EntitlementContext'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { translatorFor } from '@/lib/i18n/translators'
+import type { MessageKey } from '@/lib/i18n/translate'
 
 const HEBREW = translatorFor('he')
+
+/** `uploadS3`'s own refusals by their exact sentence (Hebrew = the same sentence); any other reason is shown as received. */
+const REASON_KEY: Record<string, MessageKey> = {
+  [UPLOAD_TOO_LARGE]: 'leadTabs.files.uploader.tooLarge',
+  [UPLOAD_NONE_SELECTED]: 'leadTabs.files.uploader.noneSelected',
+}
 
 const Glry = dynamic(() => import('./Glry'), { ssr: false })
 type folderPath = 'display' | 'docs'
@@ -83,8 +90,11 @@ export default function FileUploader({
     getFiles(e.target.files)
 
     const newFiles = (await uploadS3(e, folderPath, taskId, clientId)) as any
-    // The reason is the upload's own error text, shown as it arrives.
-    if (newFiles.err) return setErrMsg(t('leadTabs.files.uploader.failed', { reason: newFiles.msg }))
+    // The reason: the upload's own refusals worded by sentence; any other error text is shown as it arrives.
+    if (newFiles.err) {
+      const key = REASON_KEY[newFiles.msg]
+      return setErrMsg(t('leadTabs.files.uploader.failed', { reason: key ? t(key) : newFiles.msg }))
+    }
 
     const obj = single ? [newFiles[0]] : [...files, ...newFiles]
     setFiles(obj)

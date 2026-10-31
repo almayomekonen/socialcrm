@@ -37,6 +37,9 @@ export const files = {
     /** `Glry`'s button and `FileDisplay`'s fallback for an entry without a file (Phase E6). */
     gallery: 'בחירה מגלריה',
     unavailable: 'לא ניתן להציג',
+    /** `uploadS3`'s own refusals inside `failed` (final UI audit) — Hebrew = the exact sentences it throws (`components/files/funcs.tsx`). */
+    tooLarge: 'קובץ גדול מדי',
+    noneSelected: 'לא נבחרו קבצים',
   },
 } as const
 
