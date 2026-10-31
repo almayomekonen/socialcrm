@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
 import { copyToClipboard } from '@/lib/clipboard'
-import { DESKTOP_URL, DESKTOP_URL_LABEL, MOBILE_HANDOFF_COPY as COPY } from '@/lib/activation/mobileHandoffCopy'
+import { DESKTOP_URL, DESKTOP_URL_LABEL } from '@/lib/activation/mobileHandoffCopy'
+import { handoffCopyIn } from '@/lib/activation/localizedCopy'
+import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
  * The one action available on a phone: get the workspace URL onto the other
@@ -31,6 +33,7 @@ const CONFIRM_MS = 2400
 type Status = 'idle' | 'copied' | 'failed'
 
 export default function ContinueOnDesktop() {
+  const COPY = handoffCopyIn(useT().locale)
   const [status, setStatus] = useState<Status>('idle')
   const [canShare, setCanShare] = useState(false)
 

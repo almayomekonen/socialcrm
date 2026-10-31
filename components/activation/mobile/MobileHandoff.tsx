@@ -1,7 +1,9 @@
 import { ACTIVATION_BG } from '@/components/activation/ActivationBrand'
 import MobileWorkspaceScene from '@/components/activation/mobile/MobileWorkspaceScene'
 import ContinueOnDesktop from '@/components/activation/mobile/ContinueOnDesktop'
-import { MOBILE_HANDOFF_COPY as COPY } from '@/lib/activation/mobileHandoffCopy'
+import { handoffCopyIn } from '@/lib/activation/localizedCopy'
+import { rtlOrRegionAttrs } from '@/lib/i18n/preLoginLocale'
+import type { UiLocale } from '@/lib/i18n/config'
 
 /**
  * The mobile experience for SocialCRM — the entire experience, not a fallback.
@@ -44,10 +46,12 @@ const KEYFRAMES = `
 }
 `
 
-export default function MobileHandoff() {
+/** `locale`: the pre-login interface language (Phase F4); Hebrew by default. */
+export default function MobileHandoff({ locale = 'he' }: { locale?: UiLocale }) {
+  const COPY = handoffCopyIn(locale)
   return (
     <main
-      dir='rtl'
+      {...rtlOrRegionAttrs(locale)}
       className='flex min-h-dvh w-full flex-col items-center justify-center gap-9 overflow-x-hidden px-6'
       style={{
         background: ACTIVATION_BG,

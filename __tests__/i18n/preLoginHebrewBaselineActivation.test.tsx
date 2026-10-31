@@ -54,7 +54,14 @@ const PAGES = [
   { id: 'p1', name: 'סלון דנה' },
   { id: 'p2', name: 'סטודיו נועה' },
 ]
-const STATUSES = ['waitingForActivation', 'oauthPending', 'selectingPage', 'subscribingPage', 'activationCompleted', 'failed'] as const
+const STATUSES = [
+  'waitingForActivation',
+  'oauthPending',
+  'selectingPage',
+  'subscribingPage',
+  'activationCompleted',
+  'failed',
+] as const
 
 async function activatePage(env: Partial<typeof preLoginEnv> = {}) {
   Object.assign(preLoginEnv, { user: SIGNED_IN }, env)
@@ -82,7 +89,10 @@ describe('Hebrew baseline — /activate', () => {
     for (const status of STATUSES) {
       resetPreLoginEnv()
       out[status] = await activatePage({
-        machine: { status, context: { pages: PAGES, selectedPageId: null, connectedPageName: 'סלון דנה', errorReason: 'denied' } },
+        machine: {
+          status,
+          context: { pages: PAGES, selectedPageId: null, connectedPageName: 'סלון דנה', errorReason: 'denied' },
+        },
       })
     }
     resetPreLoginEnv()
@@ -100,7 +110,10 @@ describe('Hebrew baseline — /activate', () => {
   test('the CTA busy label, the completed screen copied state, the phone copy states', async () => {
     const out: Record<string, string> = {}
     const { default: ActivationExperience } = await import('@/components/activation/ActivationExperience')
-    preLoginEnv.machine = { status: 'waitingForActivation', context: { pages: [], selectedPageId: null, connectedPageName: null, errorReason: null } }
+    preLoginEnv.machine = {
+      status: 'waitingForActivation',
+      context: { pages: [], selectedPageId: null, connectedPageName: null, errorReason: null },
+    }
     const waiting = render(<ActivationExperience />)
     fireEvent.click(waiting.container.querySelector('button')!)
     await act(async () => {})
@@ -109,9 +122,18 @@ describe('Hebrew baseline — /activate', () => {
     // The desktop page shows the "workspace ready" screen for this state; the
     // completed screen itself (its copy-link button) is rendered directly.
     const { default: ActivationScreen } = await import('@/components/activation/ActivationScreen')
-    const machine = { status: 'activationCompleted', context: { pages: [], selectedPageId: null, connectedPageName: 'סלון דנה', errorReason: null } } as const
+    const machine = {
+      status: 'activationCompleted',
+      context: { pages: [], selectedPageId: null, connectedPageName: 'סלון דנה', errorReason: null },
+    } as const
     const completed = render(
-      <ActivationScreen machine={machine as never} onCta={() => {}} onSelect={() => {}} onRetry={() => {}} onContinue={async () => (preLoginEnv.calls.push(['continueDesktop']), true)} />,
+      <ActivationScreen
+        machine={machine as never}
+        onCta={() => {}}
+        onSelect={() => {}}
+        onRetry={() => {}}
+        onContinue={async () => (preLoginEnv.calls.push(['continueDesktop']), true)}
+      />,
     )
     fireEvent.click(completed.container.querySelector('button')!)
     for (let i = 0; i < 3; i++) await act(async () => {})
@@ -134,14 +156,25 @@ describe('Hebrew baseline — /activate', () => {
 
 describe('Hebrew baseline — /oauth/consent', () => {
   test('MCP off, signed out, expired / used request, every ineligible reason, the card', async () => {
-    const reasons = ['no_user', 'no_agency', 'suspended', 'not_allowlisted', 'trial_not_started', 'subscription_required'] as const
+    const reasons = [
+      'no_user',
+      'no_agency',
+      'suspended',
+      'not_allowlisted',
+      'trial_not_started',
+      'subscription_required',
+    ] as const
     const out: Record<string, string> = {
       mcpOff: await consentPage({ mcp: false }),
       signedOut: (resetPreLoginEnv(), await consentPage({ user: null })),
       expired: (resetPreLoginEnv(), await consentPage({ pending: null })),
       used: (resetPreLoginEnv(), await consentPage({ pendingUsed: true })),
       card: (resetPreLoginEnv(), await consentPage()),
-      cardChatGpt: (resetPreLoginEnv(), await consentPage({ pending: { ...preLoginEnv.pending!, clientName: 'ChatGPT', redirectUri: 'https://chatgpt.com/cb' } })),
+      cardChatGpt:
+        (resetPreLoginEnv(),
+        await consentPage({
+          pending: { ...preLoginEnv.pending!, clientName: 'ChatGPT', redirectUri: 'https://chatgpt.com/cb' },
+        })),
       cardNoAgency: (resetPreLoginEnv(), await consentPage({ agencyName: null })),
     }
     for (const reason of reasons) {
@@ -157,7 +190,14 @@ describe('Hebrew baseline — /oauth/consent', () => {
     const out: Record<string, string> = {}
     for (const decision of ['approve', 'deny'] as const) {
       const view = render(
-        <ConsentCard clientName='Claude' redirectHost='claude.ai' userName='דנה' agencyName='סלון דנה' scopes={['crm.leads.read', 'crm.conversations.read']} csrf={'c'.repeat(32)} />,
+        <ConsentCard
+          clientName='Claude'
+          redirectHost='claude.ai'
+          userName='דנה'
+          agencyName='סלון דנה'
+          scopes={['crm.leads.read', 'crm.conversations.read']}
+          csrf={'c'.repeat(32)}
+        />,
       )
       const form = view.container.querySelector('form')!
       const ev = new Event('submit', { bubbles: true, cancelable: true })

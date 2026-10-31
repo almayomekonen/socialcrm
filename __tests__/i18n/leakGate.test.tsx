@@ -30,6 +30,8 @@ vi.mock('@/components/notifications/NotificationBell', () => ({ default: () => n
 vi.mock('@/components/education/HelpTrigger', () => ({ default: () => null }))
 vi.mock('@/db/auth', async () => (await import('./leakGateAdminMocks')).authModule())
 vi.mock('@/db/uiLocale', () => ({ getUiLocalePrefs: async () => ({ userLocale: prefs.userLocale, agencyLocale: null }) }))
+vi.mock('@/lib/i18n/preLoginServer', () => ({ getPreLoginLocale: async () => prefs.userLocale ?? 'he' })) // the pre-login pages (F4)
+vi.mock('@/actions/agencies', async () => (await import('./preLoginMocks')).agenciesActionsModule()) // the registration form (F4)
 vi.mock('@/lib/device', async () => {
   const f = await import('./dashboardFixtures')
   // The Messenger / Comments phone branches (mobile Phase D) read their fixtures' `mobile` flag; false by default.

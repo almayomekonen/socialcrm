@@ -23,9 +23,13 @@ const DEFAULTS = () => ({
   cookies: {} as Record<string, string>,
   facebookAuth: true,
   mcp: true,
-  pending: { clientName: 'Claude', redirectUri: 'https://claude.ai/api/mcp/auth_callback', scopes: ['crm.leads.read', 'crm.conversations.read'], csrf: 'c'.repeat(32), jti: 'j1' } as
-    | { clientName: string; redirectUri: string; scopes: string[]; csrf: string; jti: string }
-    | null,
+  pending: {
+    clientName: 'Claude',
+    redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+    scopes: ['crm.leads.read', 'crm.conversations.read'],
+    csrf: 'c'.repeat(32),
+    jti: 'j1',
+  } as { clientName: string; redirectUri: string; scopes: string[]; csrf: string; jti: string } | null,
   pendingUsed: false,
   eligibility: { user: { agencyId: 103, firstName: 'דנה' } } as Eligibility,
   agencyName: 'סלון דנה' as string | null,
@@ -37,9 +41,17 @@ const DEFAULTS = () => ({
   addAgency: undefined as Record<string, unknown> | undefined,
   copyOk: true,
   /** The desktop activation state machine the (mocked) controller hands the screen. */
-  machine: { status: 'waitingForActivation', context: { pages: [], selectedPageId: null, connectedPageName: null, errorReason: null } } as {
+  machine: {
+    status: 'waitingForActivation',
+    context: { pages: [], selectedPageId: null, connectedPageName: null, errorReason: null },
+  } as {
     status: string
-    context: { pages: { id: string; name: string }[]; selectedPageId: string | null; connectedPageName: string | null; errorReason: string | null }
+    context: {
+      pages: { id: string; name: string }[]
+      selectedPageId: string | null
+      connectedPageName: string | null
+      errorReason: string | null
+    }
   },
   alreadyConnected: null as boolean | null,
   continueOk: true,

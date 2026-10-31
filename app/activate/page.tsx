@@ -7,6 +7,8 @@ import ActivationExperience from '@/components/activation/ActivationExperience'
 import MobileHandoff from '@/components/activation/mobile/MobileHandoff'
 import RegistrationPixel from '@/components/activation/RegistrationPixel'
 import RegistrationConversion from '@/components/analytics/RegistrationConversion'
+import { I18nProvider } from '@/lib/i18n/I18nProvider'
+import { getPreLoginLocale } from '@/lib/i18n/preLoginServer'
 
 export default async function ActivatePage() {
   const user = await getUser()
@@ -19,8 +21,10 @@ export default async function ActivatePage() {
   // page previously never consulted the allowlist, so a phone parked on
   // /activate (registration, bookmark, or the onboarding bounce) stayed closed.
   if (mobile && onboarded && canEnterMobileWorkspace(user.agencyId)) redirect('/dashboard')
+  // Display only (Phase F4): the `ui_locale` hint, read after every redirect decision.
+  const locale = await getPreLoginLocale()
   return (
-    <>
+    <I18nProvider locale={locale} persistLocale={false}>
       {/* Mobile registration attribution. Registration sends phones here (not to
           /leads) precisely because redirect() drops the query string, so this is
           the only place the CompleteRegistration pixel can fire for a phone. It
@@ -38,7 +42,7 @@ export default async function ActivatePage() {
           absence, never CSS-hide a mobile-only surface; the rule names this
           screen as its example). Phones get the handoff experience and nothing
           else; the activation flow is desktop-only. */}
-      {mobile ? <MobileHandoff /> : <ActivationExperience />}
-    </>
+      {mobile ? <MobileHandoff locale={locale} /> : <ActivationExperience />}
+    </I18nProvider>
   )
 }

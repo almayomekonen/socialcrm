@@ -22,7 +22,12 @@ vi.mock('@/actions/agencies', async () => (await import('./preLoginMocks')).agen
 vi.mock('@/lib/toast', async () => (await import('./preLoginMocks')).toastModule())
 
 beforeEach(() => {
-  window.matchMedia = ((q: string) => ({ matches: q.includes('1000px'), media: q, addEventListener() {}, removeEventListener() {} })) as never
+  window.matchMedia = ((q: string) => ({
+    matches: q.includes('1000px'),
+    media: q,
+    addEventListener() {},
+    removeEventListener() {},
+  })) as never
 })
 afterEach(() => {
   cleanup()

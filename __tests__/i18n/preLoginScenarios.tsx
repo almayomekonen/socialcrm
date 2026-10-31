@@ -25,7 +25,10 @@ const flush = async () => {
 }
 
 /** The magic-link form: type an e-mail, submit, let the actions settle (optionally advance the slow/timeout timers). */
-export async function magicLink(locale: UiLocale | null, opts: { error?: string; advanceMs?: number; neverResolve?: boolean } = {}) {
+export async function magicLink(
+  locale: UiLocale | null,
+  opts: { error?: string; advanceMs?: number; neverResolve?: boolean } = {},
+) {
   const { default: LoginMagicLink } = await import('@/components/auth/LoginMagicLink')
   const view = render(await wrap(locale, <LoginMagicLink error={opts.error} />))
   const initial = view.container.innerHTML
@@ -43,7 +46,11 @@ export async function magicLink(locale: UiLocale | null, opts: { error?: string;
 }
 
 /** The registration form: fill every field, tick the terms, submit. */
-export async function register(locale: UiLocale | null, props: { defaultEmail?: string; defaultName?: string } = {}, advanceMs = 0) {
+export async function register(
+  locale: UiLocale | null,
+  props: { defaultEmail?: string; defaultName?: string } = {},
+  advanceMs = 0,
+) {
   const { default: AddAgencyForm } = await import('@/components/agencies/AddAgencyForm')
   const view = render(await wrap(locale, <AddAgencyForm {...props} />))
   const set = (sel: string, value: string) => fireEvent.change(view.container.querySelector(sel)!, { target: { value } })
@@ -72,7 +79,15 @@ type FbResponse = { status?: string; authResponse?: { accessToken?: string } }
  */
 export async function social(
   locale: UiLocale | null,
-  opts: { phone?: boolean; facebook?: boolean; fbReady?: boolean; click?: 'facebook' | 'google' | null; fbResponse?: FbResponse; advanceMs?: number; user?: { name?: string; gglName?: string } } = {},
+  opts: {
+    phone?: boolean
+    facebook?: boolean
+    fbReady?: boolean
+    click?: 'facebook' | 'google' | null
+    fbResponse?: FbResponse
+    advanceMs?: number
+    user?: { name?: string; gglName?: string }
+  } = {},
 ) {
   let gisCallback: ((u: { credential: string }) => Promise<void>) | null = null
   ;(globalThis as Record<string, unknown>).google = {
@@ -98,7 +113,10 @@ export async function social(
         }
   const { default: Login } = await import('@/components/auth/Login')
   const view = render(
-    await wrap(locale, <Login user={opts.user} facebookAppId={opts.facebook === false ? undefined : '42'} matchSocialButtons={opts.phone} />),
+    await wrap(
+      locale,
+      <Login user={opts.user} facebookAppId={opts.facebook === false ? undefined : '42'} matchSocialButtons={opts.phone} />,
+    ),
   )
   await flush()
   if (opts.click === 'facebook') fireEvent.click(view.container.querySelector('button[type="button"]')!)
@@ -109,5 +127,9 @@ export async function social(
       vi.advanceTimersByTime(opts.advanceMs!)
     })
   }
-  return { html: view.container.innerHTML, calls: [...preLoginEnv.calls], names: screen.queryAllByRole('button').map((b) => b.textContent) }
+  return {
+    html: view.container.innerHTML,
+    calls: [...preLoginEnv.calls],
+    names: screen.queryAllByRole('button').map((b) => b.textContent),
+  }
 }

@@ -7,6 +7,8 @@ import { checkFacebookUser, checkUser } from '../../actions/auth'
 import { toast } from '@/lib/toast'
 import { getDisplayName } from '@/lib/users/displayName'
 import SocialButtons from './SocialButtons'
+import { useT } from '@/lib/i18n/I18nProvider'
+import { authMessageText } from './authMessageText'
 
 declare global {
   const google: any
@@ -27,6 +29,9 @@ export default function Login({
   matchSocialButtons?: boolean
 }) {
   const router = useRouter()
+  const t = useT()
+  // Server sentences (no code) are worded by exact match; the comparisons below still use the Hebrew.
+  const say = (msg: string) => authMessageText(msg, t).text
   const client_id = process.env.NEXT_PUBLIC_GGLID
   const mounted = useRef(true)
   const fbReady = useRef(false)
@@ -60,9 +65,9 @@ export default function Login({
   ) {
     if (timedOut || !res) return
     if (res.fail) {
-      if (res.msg === 'המשתמש מושהה') return toast('error', res.msg)
+      if (res.msg === 'המשתמש מושהה') return toast('error', say(res.msg))
       if (route === 'facebook_check') {
-        if (!res.register) return toast('error', res.msg ?? 'ההתחברות נכשלה, נסה שוב')
+        if (!res.register) return toast('error', res.msg ? say(res.msg) : t('auth.social.failed'))
         const email = res.email ?? ''
         const name = res.name ?? ''
         router.push(`/auth/register?email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`)
@@ -92,13 +97,13 @@ export default function Login({
       slowTimer = setTimeout(() => {
         if (!mounted.current) return
         console.log('[AUTH_DEBUG] slow timer fired')
-        toast('loading', 'הפעולה לוקחת יותר זמן מהרגיל...')
+        toast('loading', t('auth.wait.slow'))
       }, 10000)
       retryTimer = setTimeout(() => {
         timedOut = true
         if (!mounted.current) return
         console.log('[AUTH_DEBUG] retry timer fired')
-        toast('error', 'לוקח זמן רב מהרגיל, נסה שוב')
+        toast('error', t('auth.wait.timeout'))
       }, 20000)
 
       const res = await checkUser({ credential: gglUser.credential })
@@ -106,7 +111,7 @@ export default function Login({
     } catch (error) {
       unstable_rethrow(error)
       console.error('[AUTH] route=google_check client_error', error)
-      if (!timedOut) toast('error', 'ההתחברות נכשלה, נסה שוב')
+      if (!timedOut) toast('error', t('auth.social.failed'))
     } finally {
       cleanup()
     }
@@ -129,7 +134,7 @@ export default function Login({
       theme: 'outline',
       size: 'large',
       text: 'signin_with',
-      locale: 'he',
+      locale: t.locale, // the button's own text; Hebrew unchanged
       shape: 'rectangular',
       ...(matchSocialButtons ? { logo_alignment: 'left' } : {}),
     })
@@ -175,12 +180,12 @@ export default function Login({
     try {
       slowTimer = setTimeout(() => {
         if (!mounted.current) return
-        toast('loading', 'הפעולה לוקחת יותר זמן מהרגיל...')
+        toast('loading', t('auth.wait.slow'))
       }, 10000)
       retryTimer = setTimeout(() => {
         timedOut = true
         if (!mounted.current) return
-        toast('error', 'לוקח זמן רב מהרגיל, נסה שוב')
+        toast('error', t('auth.wait.timeout'))
       }, 20000)
 
       const res = await checkFacebookUser({ accessToken: response.authResponse.accessToken })
@@ -188,7 +193,7 @@ export default function Login({
     } catch (error) {
       unstable_rethrow(error)
       console.error('[AUTH] route=facebook_check client_error', error)
-      if (!timedOut) toast('error', 'ההתחברות נכשלה, נסה שוב')
+      if (!timedOut) toast('error', t('auth.social.failed'))
     } finally {
       cleanup()
     }
@@ -197,7 +202,7 @@ export default function Login({
   function onFacebookClick() {
     const FB = facebookSdk()
     if (!fbReady.current || !FB) {
-      toast('error', 'ההתחברות נכשלה, נסה שוב')
+      toast('error', t('auth.social.failed'))
       return
     }
 
@@ -211,13 +216,13 @@ export default function Login({
 
   return (
     <div ref={rootRef} className='flex w-full flex-col items-center lg:items-start'>
-      {user && <p className='text-sm text-gray-600 mb-1'>כניסה בשם {getDisplayName(user)}</p>}
+      {user && <p className='text-sm text-gray-600 mb-1'>{t('auth.social.signedInAs', { name: getDisplayName(user) })}</p>}
       <Script src='https://accounts.google.com/gsi/client' onLoad={initGoogle} strategy='lazyOnload' />
       {facebookAppId && (
         <Script src='https://connect.facebook.net/he_IL/sdk.js' onLoad={initFacebook} strategy='lazyOnload' />
       )}
 
-      <SocialButtons phone={matchSocialButtons} facebook={!!facebookAppId} onFacebookClick={onFacebookClick} />
+      <SocialButtons t={t} phone={matchSocialButtons} facebook={!!facebookAppId} onFacebookClick={onFacebookClick} />
     </div>
   )
 }

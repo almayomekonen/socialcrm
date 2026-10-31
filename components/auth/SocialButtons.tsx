@@ -1,4 +1,5 @@
 import { FacebookMark, GoogleMark, SOCIAL_BTN } from './SocialMarks'
+import type { Translator } from '@/lib/i18n/translate'
 
 /**
  * The Google / Facebook buttons under the sign-in and registration forms. Moved
@@ -7,10 +8,12 @@ import { FacebookMark, GoogleMark, SOCIAL_BTN } from './SocialMarks'
  * draws the buttons — the phone's matched pair or the desktop's GIS slot.
  */
 export default function SocialButtons({
+  t,
   phone,
   facebook,
   onFacebookClick,
 }: {
+  t: Translator
   phone: boolean
   facebook: boolean
   onFacebookClick: () => void
@@ -20,14 +23,14 @@ export default function SocialButtons({
       <div className='relative h-11 w-full'>
         <div aria-hidden className={SOCIAL_BTN}>
           <GoogleMark />
-          <span>כניסה באמצעות Google</span>
+          <span>{t('auth.social.google')}</span>
         </div>
         <div id='gglBtn' className='absolute inset-0 flex items-center overflow-hidden opacity-0' dir='ltr' />
       </div>
       {facebook && (
         <button type='button' dir='ltr' className={SOCIAL_BTN} onClick={onFacebookClick}>
           <FacebookMark />
-          <span>כניסה באמצעות Facebook</span>
+          <span>{t('auth.social.facebook')}</span>
         </button>
       )}
     </div>
@@ -42,7 +45,7 @@ export default function SocialButtons({
           onClick={onFacebookClick}
         >
           <FacebookMark />
-          <span>כניסה באמצעות Facebook</span>
+          <span>{t('auth.social.facebook')}</span>
         </button>
       )}
     </>

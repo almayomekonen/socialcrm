@@ -97,7 +97,7 @@ describe('Hebrew baseline — pre-login layouts and metadata', () => {
       activate: renderToString(await resolveAsync(<ActivateLayout>child</ActivateLayout>)),
       oauth: renderToString(await resolveAsync(<OAuthLayout>child</OAuthLayout>)),
     }
-    expect(out.auth).toContain("lang=\"he\"")
+    expect(out.auth).toContain('lang="he"')
     expect(out).toMatchSnapshot()
   })
 
