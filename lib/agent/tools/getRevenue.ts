@@ -59,8 +59,17 @@ export function makeGetRevenue(deps: { scope: AgentScope; evidence: EvidenceColl
       const verdict = deps.budget.canStep('get_revenue', `${period}:${from ?? ''}:${to ?? ''}`)
       if (verdict.allowed === false) return { refused: true as const, reason: verdict.reason }
 
-      if (!canReadRevenue(deps.scope.role)) {
-        const payload = { restricted: true as const, reason: 'This user role has no access to the Performance screen numbers.' }
+      // A non-admin with no reps in scope (`[]`, or getPerms' `[0]` "nobody"
+      // sentinel) would read ₪0 and recordsDeals=false — which the answer would
+      // state as "the business records no deals". It is no access, and says so.
+      const noReps = !isAdmin(deps.scope.role) && !deps.scope.gotPermIds.some((id) => id > 0)
+      if (!canReadRevenue(deps.scope.role) || noReps) {
+        const payload = {
+          restricted: true as const,
+          reason: noReps
+            ? "This user may not see any rep's deals."
+            : 'This user role has no access to the Performance screen numbers.',
+        }
         deps.budget.noteResult(JSON.stringify(payload))
         return payload
       }
@@ -95,7 +104,10 @@ export function makeGetRevenue(deps: { scope: AgentScope; evidence: EvidenceColl
       const payload = {
         period,
         periodLabel: PERIOD_LABEL[period],
-        ...bounds,
+        // Only a custom range's dates are the user's own. A named period's bounds
+        // are Performance's internal window (e.g. "this month" ends next month),
+        // and stated back they would misdescribe the period; they stay on the evidence.
+        ...(period === 'custom' ? bounds : {}),
         dateBasis: 'offer date (תאריך פנייה), as on the Performance screen',
         currency: 'ILS',
         metrics,

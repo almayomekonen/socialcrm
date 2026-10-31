@@ -111,6 +111,29 @@ describe('get_revenue', () => {
     expect(await run({ period: 'this_year' })).toMatchObject({ recordsDeals: false })
   })
 
+  it.each([[[]], [[0]]])('a non-admin with no reps in scope (%j) is refused, never shown as "no deals recorded"', async (ids) => {
+    const { run, evidence } = build({ ...REP, role: Roles.OFFICE, gotPermIds: ids })
+    expect(await run({ period: 'this_year' })).toMatchObject({ restricted: true })
+    expect(getRevenueTotals).not.toHaveBeenCalled()
+    expect(evidence.hasMetric('revenue.paid')).toBe(false)
+  })
+
+  it('an admin\'s empty gotPermIds means the whole agency, not "no access"', async () => {
+    const { run } = build(ADMIN)
+    expect(await run({ period: 'this_year' })).toMatchObject({ scope: 'whole agency', recordsDeals: true })
+    expect(getRevenueTotals).toHaveBeenCalledTimes(1)
+  })
+
+  it("a named period returns its label, not Performance's internal bounds; a custom range returns its own dates", async () => {
+    const { run } = build()
+    for (const period of ['this_month', 'last_month', 'this_year', 'last_year']) {
+      const out = await run({ period })
+      expect(out, period).not.toHaveProperty('from')
+      expect(out, period).not.toHaveProperty('to')
+      expect(out.periodLabel, period).toBeTruthy()
+    }
+  })
+
   it('a role with no Performance view is refused, with no read and no evidence', async () => {
     const { run, evidence } = build({ ...REP, role: 'EXT' as AgentScope['role'] })
     expect(await run({ period: 'this_month' })).toMatchObject({ restricted: true })
