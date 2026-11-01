@@ -1,32 +1,26 @@
 'use server'
 
-import { getUser, decrypt } from '@/db/auth'
+import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { revalidatePath } from 'next/cache'
 import { toIso } from '@/lib/dates'
 import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
+import { getPermsAndFilter } from '@/db/filter'
+import { getDealExportRows } from '@/db/salesTbl'
+import { parseExportFilter } from '@/lib/deals/exportFilter'
 
-// Export the deals table without a row limit. The query is NOT supplied by the
-// client: getDealTableData signs the server-generated query into `token`, and
-// this action verifies that signature before running it. A tampered/forged
-// token fails verification, so arbitrary client SQL can no longer be executed.
-// The result is still scoped to the caller's agency.
-export async function getDealDataToExport(token: unknown) {
+// Export the deals table without a row limit. The client sends only the page's
+// active filter; the query is rebuilt here exactly as the page builds it, with
+// agency, role and rep permissions taken from the session. No token, no
+// client-carried SQL, no dependency on the session signing key.
+export async function getDealDataToExport(filter: unknown) {
   const user = await requireProductAccess()
 
-  let payload: { sql?: unknown; bindings?: unknown }
-  try {
-    payload = await decrypt(typeof token === 'string' ? token : '')
-  } catch {
-    throw new Error('Invalid export request')
-  }
+  const parsed = parseExportFilter(filter)
+  if (!parsed.ok) throw new Error('Invalid export request')
 
-  const sql = typeof payload?.sql === 'string' ? payload.sql : ''
-  const bindings = Array.isArray(payload?.bindings) ? payload.bindings : []
-  if (!sql) throw new Error('Invalid export request')
-
-  const res = await db.raw(`SELECT * FROM (${sql}) AS _export WHERE "agencyId" = ?`, [...bindings, user.agencyId])
-  return res.rows
+  const { sqlFilter } = await getPermsAndFilter({ user, filter: parsed.filter })
+  return getDealExportRows(sqlFilter, user.agencyId)
 }
 
 /**
