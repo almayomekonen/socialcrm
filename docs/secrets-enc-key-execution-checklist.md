@@ -4,6 +4,11 @@ Companion to `docs/secrets-enc-key-security-plan.md` (the why, the data map and
 the exposure assessment). This file is the **how**: ordered, checkable steps
 with a verification signal and a rollback for each one.
 
+> **Phase 1 is superseded by `docs/security-phase1-environment-isolation.md`**,
+> which corrects it: rotating `CRON_SECRET` is blocked by the unsubscribe-link
+> dependency, `FACEBOOK_APP_*` and the old Grow secrets are orphans to delete
+> (not rotate), and Deployment Protection comes first.
+
 Status: **not started.** Every box is unticked and every step needs its own
 approval. Nothing in this document has been run.
 
