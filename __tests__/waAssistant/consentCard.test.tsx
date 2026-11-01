@@ -47,7 +47,7 @@ describe('assistant consent on the settings card', () => {
     expect(button).toHaveAttribute('title', 'צריך לאשר שיחות עם העוזר')
     fireEvent.click(box)
     fireEvent.click(button)
-    await waitFor(() => expect(actions.grant).toHaveBeenCalledWith({ consent: true, consentVersion: 'v3' }))
+    await waitFor(() => expect(actions.grant).toHaveBeenCalledWith({ consent: true, consentVersion: 'v4' }))
     // Turning everything off stays available next to it.
     expect(screen.getByRole('button', { name: 'כיבוי תזכורות' })).toBeInTheDocument()
   })
@@ -72,6 +72,6 @@ describe('assistant consent on the settings card', () => {
     expect(screen.queryByRole('checkbox', { name: OWNER_WA_CONSENT.text })).toBeNull()
     fireEvent.click(screen.getByRole('checkbox', { name: OWNER_WA_ASSISTANT_CONSENT.text }))
     fireEvent.click(screen.getByRole('button', { name: 'הפעלת תזכורות בוואטסאפ' }))
-    await waitFor(() => expect(actions.start).toHaveBeenCalledWith({ consent: true, consentVersion: 'v3' }))
+    await waitFor(() => expect(actions.start).toHaveBeenCalledWith({ consent: true, consentVersion: 'v4' }))
   })
 })

@@ -125,12 +125,19 @@ describe('the consent texts', () => {
     expect(consentCoversAssistant('v3')).toBe(true)
   })
 
-  it('v3 names the assistant, AI processing, the CRM data read, the private/customer distinction and both ways to stop', () => {
+  it('v4 (current) states the assistant reads ONLY the connected business, and only what the role permits', () => {
+    expect(OWNER_WA_ASSISTANT_CONSENT.version).toBe('v4')
+    expect(OWNER_WA_ASSISTANT_CONSENT.text).toContain('רק נתונים של העסק שהמספר הזה מחובר אליו')
+    expect(OWNER_WA_ASSISTANT_CONSENT.text).toContain('ורק את מה שמותר לי לראות לפי ההרשאות של התפקיד שלי')
+    expect(consentCoversAssistant('v4')).toBe(true)
+  })
+
+  it('the current text names the assistant, AI processing, the CRM data read, the private/customer distinction and both ways to stop', () => {
     const t = OWNER_WA_ASSISTANT_CONSENT.text
     for (const part of [
       'העוזר החכם של SocialCRM',
       'בינה מלאכותית',
-      'נתוני העסק',
+      'נתונים של העסק',
       'שיחות עם לקוחות',
       'פרטית',
       'לא כותב ללקוחות',
@@ -146,7 +153,7 @@ describe('consent granted at activation (assistant agency)', () => {
   it('records v3 for the text shown; the owner is then answered', async () => {
     const u = await user(A)
     session.user = { id: u, agencyId: A }
-    const res = await startWhatsappReminderActivation({ consent: true, consentVersion: 'v3' })
+    const res = await startWhatsappReminderActivation({ consent: true, consentVersion: 'v4' })
     if (!('ok' in res)) throw new Error(res.msg)
     expect(
       await processPlatformMessage({
@@ -157,7 +164,7 @@ describe('consent granted at activation (assistant agency)', () => {
         text: { body: res.code },
       }),
     ).toBe('activated')
-    expect(await consentOf(A, u)).toEqual({ consentTextVersion: 'v3', status: 'active' })
+    expect(await consentOf(A, u)).toEqual({ consentTextVersion: 'v4', status: 'active' })
 
     expect((await ask('972500008001')).outcome).toBe('assistant_queued')
     const h = harness()
@@ -215,12 +222,12 @@ describe('granting the assistant consent on an already verified number', () => {
     const u = await user(A)
     await recipient(A, u, '972500008021')
     session.user = { id: u, agencyId: A }
-    expect(await grantWhatsappAssistantConsent({ consent: false, consentVersion: 'v3' })).toMatchObject({ fail: true })
+    expect(await grantWhatsappAssistantConsent({ consent: false, consentVersion: 'v4' })).toMatchObject({ fail: true })
     expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v2' })).toMatchObject({ fail: true })
     expect((await consentOf(A, u)).consentTextVersion).toBe('v2')
 
-    expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v3' })).toEqual({ ok: true })
-    expect(await consentOf(A, u)).toEqual({ consentTextVersion: 'v3', status: 'active' })
+    expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v4' })).toEqual({ ok: true })
+    expect(await consentOf(A, u)).toEqual({ consentTextVersion: 'v4', status: 'active' })
     await ask('972500008021')
     const h = harness()
     await drain(h.deps)
@@ -231,13 +238,13 @@ describe('granting the assistant consent on an already verified number', () => {
     const u = await user(NO_ASSISTANT)
     await recipient(NO_ASSISTANT, u, '972500008022')
     session.user = { id: u, agencyId: NO_ASSISTANT }
-    expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v3' })).toEqual({
+    expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v4' })).toEqual({
       fail: true,
       msg: 'העוזר אינו זמין לחשבון זה',
     })
     const v = await user(A)
     session.user = { id: v, agencyId: A }
-    expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v3' })).toEqual({
+    expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v4' })).toEqual({
       fail: true,
       msg: 'קודם צריך להפעיל ולאמת את המספר',
     })
@@ -249,9 +256,34 @@ describe('granting the assistant consent on an already verified number', () => {
     await recipient(A, mine, '972500008023')
     await recipient(B, other, '972500008024')
     session.user = { id: mine, agencyId: A }
-    await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v3' })
-    expect((await consentOf(A, mine)).consentTextVersion).toBe('v3')
+    await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v4' })
+    expect((await consentOf(A, mine)).consentTextVersion).toBe('v4')
     expect((await consentOf(B, other)).consentTextVersion).toBe('v2')
+  })
+})
+
+describe('the v3 → v4 wording change', () => {
+  it('a page that still shows the v3 text can no longer record a consent (activation or grant)', async () => {
+    const u = await user(A)
+    session.user = { id: u, agencyId: A }
+    expect(await startWhatsappReminderActivation({ consent: true, consentVersion: 'v3' })).toMatchObject({ fail: true })
+    const v = await user(A)
+    await recipient(A, v, '972500008051')
+    session.user = { id: v, agencyId: A }
+    expect(await grantWhatsappAssistantConsent({ consent: true, consentVersion: 'v3' })).toMatchObject({ fail: true })
+    expect((await consentOf(A, v)).consentTextVersion).toBe('v2')
+  })
+
+  it('an existing v3 consent is still honoured and is never rewritten to v4', async () => {
+    const u = await user(A)
+    await recipient(A, u, '972500008052', undefined, 'v3')
+    await ask('972500008052')
+    const h = harness()
+    await drain(h.deps)
+    expect(h.runAgent).toHaveBeenCalledTimes(1)
+    expect((await consentOf(A, u)).consentTextVersion).toBe('v3')
+    const row = await db('owner_whatsapp_recipients').where({ agencyId: A, userId: u }).first()
+    expect(ownerReminderView(row, new Date(), { assistantEnabled: true }).assistant).toBe('granted')
   })
 })
 
