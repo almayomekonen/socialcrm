@@ -14,16 +14,16 @@ Authorization: Bearer $CRON_SECRET
 `lib/whatsapp/platform/agentReadiness.ts`. Without `scope=agent` the route returns
 the owner-reminder readiness exactly as before.
 
-| check | severity | passes when | source |
-| --- | --- | --- | --- |
-| config | blocking | phone number id, WABA id, token, app id and secret are set | env |
-| token | blocking | valid SYSTEM_USER token of this app, messaging granted on this WABA | `debug_token` |
-| phone | blocking | CONNECTED, can send (AVAILABLE / LIMITED), quality not RED | phone node |
-| webhook | blocking | this app is in `GET {waba}/subscribed_apps` | WABA edge |
-| displayName | blocking | `name_status` APPROVED or AVAILABLE_WITHOUT_REVIEW | phone node |
-| quality | blocking | GREEN = ok, YELLOW = **warning** (passes, reported), RED = blocks; tier and LIMITED/BLOCKED reasons in `detail` | phone node |
-| business | warning | `business_verification_status` = verified | WABA field |
-| accountReview | warning | `account_review_status` = APPROVED | WABA field |
+| check         | severity | passes when                                                                                                     | source        |
+| ------------- | -------- | --------------------------------------------------------------------------------------------------------------- | ------------- |
+| config        | blocking | phone number id, WABA id, token, app id and secret are set                                                      | env           |
+| token         | blocking | valid SYSTEM_USER token of this app, messaging granted on this WABA                                             | `debug_token` |
+| phone         | blocking | CONNECTED, can send (AVAILABLE / LIMITED), quality not RED                                                      | phone node    |
+| webhook       | blocking | this app is in `GET {waba}/subscribed_apps`                                                                     | WABA edge     |
+| displayName   | blocking | `name_status` APPROVED or AVAILABLE_WITHOUT_REVIEW                                                              | phone node    |
+| quality       | blocking | GREEN = ok, YELLOW = **warning** (passes, reported), RED = blocks; tier and LIMITED/BLOCKED reasons in `detail` | phone node    |
+| business      | warning  | `business_verification_status` = verified                                                                       | WABA field    |
+| accountReview | warning  | `account_review_status` = APPROVED                                                                              | WABA field    |
 
 `ready` is true only when every blocking check is `ok` or `warning`. A read that
 fails, or a field the Graph version does not return, is `unavailable` — never a
@@ -41,7 +41,7 @@ Record the date and who checked each item.
 - [ ] **Business verification** of the owning Meta Business is Verified (Security Center). Cross-check with the `business` check.
 - [ ] **Two-step verification PIN** is set on the platform number and stored in the team's secret manager (not in the repo, not in Vercel).
 - [ ] **System-user token**: owned by the intended System User, `never expires`, and its rotation date recorded. Rotation procedure: create the new token, set `PLATFORM_WHATSAPP_ACCESS_TOKEN` in Vercel Production, redeploy, run the readiness check, then revoke the old token.
-- [ ] **Messaging capacity**: current tier (also in the `quality` check), current quality rating, and any recent tier downgrade. The assistant only *replies* inside the customer service window; Meta's current pricing and limits for those replies must be confirmed against Meta's documentation at the time of rollout.
+- [ ] **Messaging capacity**: current tier (also in the `quality` check), current quality rating, and any recent tier downgrade. The assistant only _replies_ inside the customer service window; Meta's current pricing and limits for those replies must be confirmed against Meta's documentation at the time of rollout.
 - [ ] **Display name** approved and matching the brand the consent copy names.
 
 ## 3. Worker capacity (measured from code, 2026-11-01)
@@ -58,7 +58,9 @@ Record the date and who checked each item.
 - In Vercel, **one variable entry spans Preview and Production**, so every preview deployment holds the production key. Preview uses `preview-shared`, a copy of production data, so previews can decrypt the copied production tokens.
 - This machine's `.env.production.local` holds an **empty** value (Vercel does not let sensitive variables be pulled), so a direct fingerprint comparison is impossible. That the local `.env.local` key equals production's was confirmed in an earlier session by a decryption test; it was not repeated today.
 
-**Rotation plan (not executed; needs explicit approval):**
+**Rotation plan (not executed; needs explicit approval).** Superseded by the full
+exposure assessment and runbook in `docs/secrets-enc-key-security-plan.md`; the
+summary below is kept for context.
 
 1. Code: a keyring — encrypt with `SECRETS_ENC_KEY`, decrypt trying `SECRETS_ENC_KEY` then `SECRETS_ENC_KEY_PREVIOUS`; prefix new ciphertexts with a key id so later rotations are mechanical. Tests: old and new ciphertexts both open; a tampered tag still fails.
 2. Generate the new production key outside any developer machine; set it Production-only (separate from Preview), with the old key as `SECRETS_ENC_KEY_PREVIOUS`.
