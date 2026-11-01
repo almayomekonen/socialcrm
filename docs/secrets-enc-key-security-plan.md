@@ -74,6 +74,11 @@ that authorises production's internal and cron endpoints.
 
 ## 3. Remediation — three PRs and one runbook
 
+The ordered, checkable version — including removing production secrets from
+Preview first and the `CRON_SECRET` split — is
+`docs/secrets-enc-key-execution-checklist.md`; where the two differ in order,
+the checklist wins.
+
 Order matters: code that can read both keys ships **before** any key changes, so
 every step has a rollback that loses nothing.
 
