@@ -1,7 +1,9 @@
 import { NextResponse, after } from 'next/server'
-import { processPlatformChanges } from './inbound'
+import { processPlatformChanges, type GuidanceReply } from './inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { platformBatchResponse, type WebhookSplit } from './webhookBatch'
+import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { sendPlatformText } from './sendText'
 
 /**
  * A webhook delivery that carried platform-number changes: the agency path
@@ -31,6 +33,7 @@ export async function handleDeliveryWithPlatformChanges(
     })
   }
   if (platform.outcomes.includes('assistant_queued')) kickAssistant()
+  if (platform.guidance.length) sendGuidanceAfterResponse(platform.guidance)
   if (decision.useAgencyResponse && agencyResponse) return agencyResponse
   return NextResponse.json({ ok: decision.status < 300 }, { status: decision.status })
 }
@@ -40,6 +43,46 @@ export async function handleDeliveryWithPlatformChanges(
  * The job is already committed; if this cannot run (or fails), the minute-ly
  * /api/cron/wa-assistant drains it.
  */
+/**
+ * Fixed guidance replies (senderGuidance.ts), after Meta gets its 200. Each was
+ * decided once, inside its message's committed transaction, so it is sent ONCE:
+ * no retry, and an unknown outcome is never resent. The reply answers the
+ * sender's own message, inside Meta's customer service window.
+ */
+export async function sendGuidanceReplies(replies: GuidanceReply[]): Promise<void> {
+  const phoneNumberId = platformWhatsappPhoneNumberId()
+  const accessToken = platformWhatsappAccessToken()
+  for (const r of replies) {
+    if (!phoneNumberId || !accessToken) {
+      console.warn('[WaAssistant][guidance] platform number not configured; not sent', { kind: r.kind })
+      continue
+    }
+    const outcome = await sendPlatformText({
+      phoneNumberId,
+      accessToken,
+      toE164: `+${r.toDigits}`,
+      body: r.body,
+      replyToWamid: r.replyToWamid,
+      jobId: 0,
+    })
+    console.log('[WaAssistant][guidance]', { kind: r.kind, outcome: outcome.kind })
+  }
+}
+
+function sendGuidanceAfterResponse(replies: GuidanceReply[]): void {
+  try {
+    after(async () => {
+      try {
+        await sendGuidanceReplies(replies)
+      } catch (err) {
+        console.error('[WaAssistant][guidance] failed', { name: (err as Error)?.name ?? null })
+      }
+    })
+  } catch {
+    // Outside a request scope (tests, scripts): nothing to send from here.
+  }
+}
+
 function kickAssistant(): void {
   try {
     after(async () => {

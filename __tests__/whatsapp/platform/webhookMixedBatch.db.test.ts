@@ -34,7 +34,7 @@ vi.mock('@/lib/whatsapp/platform/inbound', async (importOriginal) => {
     processPlatformChanges: vi.fn(async (changes: Parameters<typeof actual.processPlatformChanges>[0]) => {
       if (platformFail.next > 0) {
         platformFail.next--
-        return { ok: false, failed: 1, outcomes: [] }
+        return { ok: false, failed: 1, outcomes: [], guidance: [] }
       }
       return actual.processPlatformChanges(changes)
     }),

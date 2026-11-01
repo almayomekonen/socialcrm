@@ -48,6 +48,15 @@ export function isWaAssistantMeetingsAgency(agencyId: number | null | undefined)
   return ids.includes(agencyId as number)
 }
 
+/**
+ * WA_ASSISTANT_SENDER_GUIDANCE=1: a sender the assistant cannot answer gets ONE
+ * fixed reply per 24 hours saying how to connect, instead of silence
+ * (lib/whatsapp/platform/senderGuidance.ts). Exactly `1`; absent = off, as before.
+ */
+export function isWaAssistantSenderGuidanceEnabled(): boolean {
+  return process.env.WA_ASSISTANT_SENDER_GUIDANCE === '1'
+}
+
 const DEFAULT_DAILY_USD_CAP = 2
 
 export function waAssistantDailyUsdCap(): number {

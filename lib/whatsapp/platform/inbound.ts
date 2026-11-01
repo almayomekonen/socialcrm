@@ -11,9 +11,15 @@ import { parsePlatformStatus, recordPlatformStatus } from '@/db/platformWhatsapp
 import { parsePlatformCommand } from './commands'
 import { hashActivationCode, hashPlatformSender } from './keys'
 import { enqueueWaAssistantJob } from '@/db/waAssistantJobs'
-import { isWaAssistantAgency, waAssistantAgencyIds, WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
+import {
+  isWaAssistantAgency,
+  isWaAssistantSenderGuidanceEnabled,
+  waAssistantAgencyIds,
+  WA_ASSISTANT_LIMITS,
+} from '@/lib/flags/waAssistantFlags'
 import { matchAssistantSender } from '@/lib/waAssistant/identity'
 import { DECISION_ID_RE } from '@/lib/waAssistant/meetings/copy'
+import { decideSenderGuidance, type SenderGuidance } from './senderGuidance'
 
 /**
  * Inbound traffic to the SocialCRM platform number (not an agency's number).
@@ -34,6 +40,9 @@ import { DECISION_ID_RE } from '@/lib/waAssistant/meetings/copy'
  *      in an agency with the assistant enabled, is queued for the assistant
  *      (WA_ASSISTANT_AGENCY_IDS; absent = nothing is queued, as before). Opt-out
  *      and activation always win: they are decided first and never queued.
+ *      A sender it cannot answer may instead earn ONE fixed guidance reply
+ *      (senderGuidance.ts; WA_ASSISTANT_SENDER_GUIDANCE), sent by the caller
+ *      after commit — this module still makes no network call.
  * A failure rolls the whole message back, including step 1, so a redelivery
  * processes it again. The caller decides what to answer Meta.
  */
@@ -50,6 +59,10 @@ export type PlatformMessageOutcome =
   | 'ignored'
   | 'skipped'
   | 'assistant_queued'
+  | 'assistant_guidance'
+
+/** A fixed reply to send AFTER the message's transaction committed (senderGuidance.ts). */
+export type GuidanceReply = { toDigits: string; replyToWamid: string } & SenderGuidance
 
 type Change = { field?: unknown; value?: { messages?: unknown; statuses?: unknown } & Record<string, unknown> }
 
@@ -60,9 +73,21 @@ function sentAt(raw: unknown): number | null {
   return Number.isSafeInteger(n) && n > 0 ? n : null
 }
 
-export async function processPlatformMessage(message: Record<string, any>): Promise<PlatformMessageOutcome> {
+/**
+ * `guidance` collects the fixed reply this message earned, if any — pushed only
+ * once the transaction has committed, so a rolled-back message never sends one.
+ */
+export async function processPlatformMessage(message: Record<string, any>, guidance?: GuidanceReply[]): Promise<PlatformMessageOutcome> {
+  const r = await decidePlatformMessage(message)
+  if (r.guidance && guidance) guidance.push(r.guidance)
+  return r.outcome
+}
+
+type Decided = { outcome: PlatformMessageOutcome; guidance?: GuidanceReply }
+
+async function decidePlatformMessage(message: Record<string, any>): Promise<Decided> {
   const wamid = typeof message?.id === 'string' && message.id ? message.id : null
-  if (!wamid) return 'skipped'
+  if (!wamid) return { outcome: 'skipped' }
 
   const from = phoneDigits(message.from)
   const timestamp = sentAt(message.timestamp)
@@ -74,19 +99,24 @@ export async function processPlatformMessage(message: Record<string, any>): Prom
   const messageTimestamp = timestamp ?? Math.floor(Date.now() / 1000)
   const fromHash = from ? hashPlatformSender(from) : null
 
-  return db.transaction(async (trx) => {
+  return db.transaction(async (trx): Promise<Decided> => {
     if (fromHash) {
       await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?), ?)', [fromHash, PLATFORM_SENDER_LOCK_NAMESPACE])
     }
     const isNew = await recordPlatformInbound(trx, { wamid, kind: command.kind, fromHash, messageTimestamp })
-    if (!isNew) return 'duplicate'
+    if (!isNew) return { outcome: 'duplicate' }
 
     if (command.kind === 'opt_out') {
       await optOutByPhone(trx, `+${from}`, messageTimestamp)
-      return 'opted_out'
+      return { outcome: 'opted_out' }
     }
-    if (command.kind === 'other') return (await queueForAssistant(trx, message, from, messageTimestamp)) ? 'assistant_queued' : 'ignored'
-    if (command.kind !== 'activation' || !fromHash) return 'ignored'
+    if (command.kind === 'other') {
+      const routed = await routeToAssistant(trx, message, from, fromHash, messageTimestamp)
+      if (routed === 'queued') return { outcome: 'assistant_queued' }
+      if (routed && from) return { outcome: 'assistant_guidance', guidance: { toDigits: from, replyToWamid: wamid, ...routed } }
+      return { outcome: 'ignored' }
+    }
+    if (command.kind !== 'activation' || !fromHash) return { outcome: 'ignored' }
 
     const rejected =
       (await countRecentRejectedActivations(trx, fromHash)) >= MAX_REJECTED_ACTIVATIONS_PER_HOUR ||
@@ -97,9 +127,9 @@ export async function processPlatformMessage(message: Record<string, any>): Prom
         messageTimestamp,
         agencyIds: ownerWhatsappReminderAudience(),
       }))
-    if (!rejected) return 'activated'
+    if (!rejected) return { outcome: 'activated' }
     await setPlatformInboundKind(trx, wamid, 'activation_rejected')
-    return 'activation_rejected'
+    return { outcome: 'activation_rejected' }
   })
 }
 
@@ -113,18 +143,29 @@ function decisionId(message: Record<string, any>): string | null {
   return typeof id === 'string' && DECISION_ID_RE.test(id) ? id : null
 }
 
-async function queueForAssistant(trx: Parameters<typeof enqueueWaAssistantJob>[0], message: Record<string, any>, from: string | null, messageTimestamp: number): Promise<boolean> {
-  if (!from || waAssistantAgencyIds().length === 0) return false
+/** Queued for the assistant, a fixed guidance reply for a sender it cannot answer, or nothing. */
+async function routeToAssistant(
+  trx: Parameters<typeof enqueueWaAssistantJob>[0],
+  message: Record<string, any>,
+  from: string | null,
+  fromHash: string | null,
+  messageTimestamp: number,
+): Promise<'queued' | SenderGuidance | null> {
+  // Both off: no lookup at all, exactly as before.
+  if (!from || (waAssistantAgencyIds().length === 0 && !isWaAssistantSenderGuidanceEnabled())) return null
   const isText = message.type === 'text' && typeof message.text?.body === 'string'
   const decision = decisionId(message)
-  if (!isText && !decision && !UNSUPPORTED_MEDIA.has(String(message.type))) return false
+  if (!isText && !decision && !UNSUPPORTED_MEDIA.has(String(message.type))) return null
   const match = await matchAssistantSender(trx, `+${from}`)
   if (match.kind === 'ambiguous') {
     console.log('[WhatsappWebhook][platform] assistant: number verified for several accounts; not answered', { count: match.count })
-    return false
   }
-  if (match.kind !== 'match' || !isWaAssistantAgency(match.agencyId)) return false
-  return enqueueWaAssistantJob(trx, {
+  if (match.kind !== 'match' || !isWaAssistantAgency(match.agencyId)) {
+    const guidance = await decideSenderGuidance(trx, { fromHash, wamid: message.id, match })
+    if (guidance) console.log('[WhatsappWebhook][platform] assistant: guidance', { kind: guidance.kind })
+    return guidance
+  }
+  const queued = await enqueueWaAssistantJob(trx, {
     wamid: message.id,
     recipientId: match.recipientId,
     agencyId: match.agencyId,
@@ -133,6 +174,7 @@ async function queueForAssistant(trx: Parameters<typeof enqueueWaAssistantJob>[0
     question: isText ? String(message.text.body).slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars) : decision,
     messageTimestamp,
   })
+  return queued ? 'queued' : null
 }
 
 /**
@@ -141,8 +183,11 @@ async function queueForAssistant(trx: Parameters<typeof enqueueWaAssistantJob>[0
  * persisted, so the caller can ask Meta to redeliver (a redelivery repeats only
  * what was not saved; what was saved is a no-op by message id).
  */
-export async function processPlatformChanges(changes: Change[]): Promise<{ ok: boolean; failed: number; outcomes: PlatformMessageOutcome[] }> {
+export async function processPlatformChanges(
+  changes: Change[],
+): Promise<{ ok: boolean; failed: number; outcomes: PlatformMessageOutcome[]; guidance: GuidanceReply[] }> {
   const outcomes: PlatformMessageOutcome[] = []
+  const guidance: GuidanceReply[] = []
   let failed = 0
   for (const change of changes) {
     if (change?.field !== 'messages') continue
@@ -160,12 +205,12 @@ export async function processPlatformChanges(changes: Change[]): Promise<{ ok: b
     const messages = Array.isArray(change.value?.messages) ? (change.value.messages as Record<string, any>[]) : []
     for (const message of messages) {
       try {
-        outcomes.push(await processPlatformMessage(message))
+        outcomes.push(await processPlatformMessage(message, guidance))
       } catch (err) {
         failed++
         console.error('[WhatsappWebhook][platform] message not saved', { code: (err as { code?: string })?.code ?? null })
       }
     }
   }
-  return { ok: failed === 0, failed, outcomes }
+  return { ok: failed === 0, failed, outcomes, guidance }
 }
