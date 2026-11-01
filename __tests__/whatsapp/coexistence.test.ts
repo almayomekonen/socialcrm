@@ -158,16 +158,29 @@ describe('fetchPhoneBizAppState', () => {
     mockFetchOnce([{ ok: true, body: { is_on_biz_app: true, platform_type: 'CLOUD_API' } }])
     await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({
       isOnBizApp: true,
+      known: true,
       platformType: 'CLOUD_API',
     })
   })
 
-  it('does not treat a missing flag as on the Business app', async () => {
+  it('an explicit false is a known Cloud API answer', async () => {
+    mockFetchOnce([{ ok: true, body: { is_on_biz_app: false, platform_type: 'CLOUD_API' } }])
+    await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({
+      isOnBizApp: false,
+      known: true,
+      platformType: 'CLOUD_API',
+    })
+  })
+
+  it('a missing or non-boolean flag is not "on the Business app", but it is UNKNOWN, never a known false', async () => {
     mockFetchOnce([{ ok: true, body: { platform_type: 'CLOUD_API' } }])
     await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({
       isOnBizApp: false,
+      known: false,
       platformType: 'CLOUD_API',
     })
+    mockFetchOnce([{ ok: true, body: { is_on_biz_app: 'true' } }])
+    await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toMatchObject({ isOnBizApp: false, known: false })
   })
 
   it('requests the documented fields on the coexistence Graph version', async () => {
@@ -181,7 +194,7 @@ describe('fetchPhoneBizAppState', () => {
 
   it('never throws when the lookup fails', async () => {
     mockFetchOnce([{ ok: false, status: 400 }])
-    await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({ isOnBizApp: false })
+    await expect(fetchPhoneBizAppState('PHONE', 'TOKEN')).resolves.toEqual({ isOnBizApp: false, known: false })
   })
 })
 
