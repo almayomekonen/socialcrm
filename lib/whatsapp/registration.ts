@@ -216,6 +216,17 @@ export async function ensureMessagingReady(
     })
     return { ready: false, status: status.status, reason: 'coexistence_pending' }
   }
+  // Fail closed: if Meta did not say whether the number is on the WhatsApp
+  // Business app, do not register it. A Cloud API number stays "setup not
+  // complete" until the customer reconnects; a Business app number is never
+  // claimed for Cloud API on a guess.
+  if (!bizApp.known) {
+    console.warn('[WA Registration] is_on_biz_app unknown; registration deferred', {
+      phoneNumberId,
+      status: status.status,
+    })
+    return { ready: false, status: status.status, reason: 'biz_app_status_unknown' }
+  }
 
   const reg = await registerPhoneNumber(phoneNumberId, accessToken, generatePin())
   if (reg.success) return { ready: true, status: CONNECTED }

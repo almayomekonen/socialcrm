@@ -150,6 +150,8 @@ export type PhoneResolution = {
 
 export type PhoneBizAppState = {
   isOnBizApp: boolean
+  /** Meta answered `is_on_biz_app`. False = unknown: the number may be on the Business app. */
+  known: boolean
   platformType?: string
 }
 
@@ -161,9 +163,8 @@ export type PhoneBizAppState = {
  * and MUST NOT be passed to POST /register.
  *
  * Uses the coexistence Graph version because `is_on_biz_app` postdates v19.0.
- * Never throws: a failed lookup returns isOnBizApp false so Cloud API
- * onboarding is not blocked by a metadata blip. The hard lock against
- * /register is `isOnBizApp === true`, not "lookup failed".
+ * Never throws. A failed lookup is `known: false`: the connection is still
+ * saved, but registration must not run (see ensureMessagingReady).
  */
 export async function fetchPhoneBizAppState(phoneNumberId: string, accessToken: string): Promise<PhoneBizAppState> {
   try {
@@ -172,13 +173,15 @@ export async function fetchPhoneBizAppState(phoneNumberId: string, accessToken: 
     )
     if (!res.ok) {
       console.error('[WA Coexistence] phone biz-app lookup failed:', res.status)
-      return { isOnBizApp: false }
+      return { isOnBizApp: false, known: false }
     }
-    const data = (await res.json().catch(() => ({}))) as { is_on_biz_app?: boolean; platform_type?: string }
-    return { isOnBizApp: data.is_on_biz_app === true, platformType: data.platform_type }
+    const data = (await res.json().catch(() => ({}))) as { is_on_biz_app?: unknown; platform_type?: string }
+    const known = typeof data.is_on_biz_app === 'boolean'
+    if (!known) console.error('[WA Coexistence] phone biz-app lookup returned no is_on_biz_app')
+    return { isOnBizApp: data.is_on_biz_app === true, known, platformType: data.platform_type }
   } catch (e) {
     console.error('[WA Coexistence] phone biz-app lookup threw:', e)
-    return { isOnBizApp: false }
+    return { isOnBizApp: false, known: false }
   }
 }
 
