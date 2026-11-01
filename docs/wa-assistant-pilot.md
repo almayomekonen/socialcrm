@@ -28,7 +28,7 @@ read). Phone numbers and emails are redacted from every reply.
 2. **Kick**: `after()` runs the worker right away; `/api/cron/wa-assistant`
    drains every minute as a backstop.
 3. **Worker** (`lib/waAssistant/worker.ts`), per job: 23-hour reply window →
-   recipient, user, agency, **assistant consent (v3)**, Agent rollout and product
+   recipient, user, agency, **assistant consent (v3/v4)**, Agent rollout and product
    access re-checked from the database (fail closed) → limits → typing indicator → Agent (read tools only,
    no web research, 5 steps, 35s, last 3 exchanges as context) → one reply.
 4. **Reply** (`lib/whatsapp/platform/sendText.ts`): `sending` is committed before
@@ -40,8 +40,8 @@ read). Phone numbers and emails are redacted from every reply.
   owner's own phone. Ambiguous numbers (verified for several accounts) are
   refused. Strangers, inactive or opted-out recipients, suspended users, other
   agencies: nothing queued, nothing sent.
-- Consent: only a row whose current consent is the assistant's own (v3) is
-  answered; see "Consent" below. Reminder-only consent (v2) never counts.
+- Consent: only a row whose current consent is the assistant's own (v3 or v4)
+  is answered; see "Consent" below. Reminder-only consent (v2) never counts.
 - Tenant isolation: the Agent scope is rebuilt per turn from the recipient row
   (same construction as `lib/ai/integration/autonomousScope.ts`); tools close
   over it; the model never supplies an agency or user.
@@ -70,17 +70,18 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | Version | Covers | Recorded when |
 |---|---|---|
 | `v2` | reminders only | activation in an agency **without** the assistant; or after withdrawing the assistant |
-| `v3` | reminders **and** conversations with the assistant | activation in an agency **with** the assistant (`WA_ASSISTANT_AGENCY_IDS`); or "אישור שיחות עם העוזר" on an already verified number |
+| `v4` (current) | reminders **and** conversations with the assistant; states that it reads **only** the business the number is connected to, and only what the owner's role permits | activation in an agency **with** the assistant (`WA_ASSISTANT_AGENCY_IDS`); or "אישור שיחות עם העוזר" on an already verified number |
+| `v3` | the same, earlier wording (live 2026-11-01) | no longer recorded; existing v3 rows stay valid and are never rewritten (`ASSISTANT_CONSENT_VERSIONS`) |
 
-- The page shows v3 where the assistant is enabled for the agency and v2
+- The page shows the current assistant text (v4) where the assistant is enabled for the agency and v2
   elsewhere; the action records a consent only for the version the page showed
   (`consentVersion`), otherwise "נוסח ההסכמה התעדכן".
 - **Enforcement**: `resolveAssistantScope` (every turn, before anything is read)
-  refuses a row without v3 with `consent_required`: no Agent run, one fixed reply
+  refuses a row without an assistant consent (v3 or v4) with `consent_required`: no Agent run, one fixed reply
   (`COPY.consentRequired`, no CRM data) pointing to settings. Applies to turns
   queued before a withdrawal too.
 - **Existing rows are v2**: nothing upgrades them. The pilot owner (agency 103)
-  must tick the v3 consent once in settings after this ships; until then the
+  must tick the assistant consent once in settings after this ships; until then the
   assistant answers only with the consent reply.
 - **Revoking**: "ביטול השיחות עם העוזר" (`withdrawWhatsappAssistantConsent`)
   records v2 again: reminders stay on, the assistant stops. "כיבוי תזכורות" or
@@ -109,8 +110,8 @@ Migrations (additive; apply manually before the deploy, per
    decision; never re-add it as part of an assistant deploy.
 2. **Which number is the platform sender** (WABA `2060714354527399`): confirmed
    by the owner as 054-922-1572.
-3. **Consent text**: implemented as v3 (above). Before adding customer
-   agencies, the v3 wording needs the owner's (and, if required, legal) approval;
+3. **Consent text**: implemented, currently v4 (above). Before adding customer
+   agencies, the v4 wording needs the owner's (and, if required, legal) approval;
    any wording change bumps the version.
 4. The migration must be applied first; `next build` is verified by the Preview.
 
