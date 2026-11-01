@@ -1,4 +1,5 @@
 import type { OwnRecipientRow } from '@/db/ownerWhatsappRecipients'
+import { consentCoversAssistant } from './consentText'
 
 /**
  * What the settings page shows for the session's own row. Pure. An expired code
@@ -9,16 +10,37 @@ export type OwnerReminderView = {
   state: 'off' | 'pending' | 'active' | 'opted_out'
   /** Last two digits only, e.g. `••••••72`. Never the full number. */
   maskedPhone: string | null
+  /**
+   * Conversations with the assistant, for an ACTIVE row of an agency where it is
+   * enabled: `granted` only for the assistant's own consent (v3); a reminders-only
+   * consent is `consent_required`. Otherwise `not_offered`.
+   */
+  assistant: 'not_offered' | 'consent_required' | 'granted'
 }
 
 export function maskPhone(phoneE164: string | null): string | null {
   return phoneE164 && phoneE164.length >= 4 ? `••••••${phoneE164.slice(-2)}` : null
 }
 
-export function ownerReminderView(row: OwnRecipientRow | null, now: Date): OwnerReminderView {
-  if (!row) return { state: 'off', maskedPhone: null }
-  if (row.status === 'active') return { state: 'active', maskedPhone: maskPhone(row.phoneE164) }
-  if (row.status === 'opted_out') return { state: 'opted_out', maskedPhone: null }
+export function ownerReminderView(
+  row: OwnRecipientRow | null,
+  now: Date,
+  opts: { assistantEnabled?: boolean } = {},
+): OwnerReminderView {
+  const assistant = 'not_offered' as const
+  if (!row) return { state: 'off', maskedPhone: null, assistant }
+  if (row.status === 'active') {
+    return {
+      state: 'active',
+      maskedPhone: maskPhone(row.phoneE164),
+      assistant: !opts.assistantEnabled
+        ? assistant
+        : consentCoversAssistant(row.consentTextVersion)
+          ? 'granted'
+          : 'consent_required',
+    }
+  }
+  if (row.status === 'opted_out') return { state: 'opted_out', maskedPhone: null, assistant }
   const live = !!row.activationExpiresAt && new Date(row.activationExpiresAt).getTime() > now.getTime()
-  return { state: live ? 'pending' : 'off', maskedPhone: null }
+  return { state: live ? 'pending' : 'off', maskedPhone: null, assistant }
 }

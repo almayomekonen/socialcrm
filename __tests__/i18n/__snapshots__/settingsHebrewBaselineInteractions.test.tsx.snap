@@ -20,12 +20,14 @@ exports[`Hebrew baseline — account page interactions > WhatsApp reminders: con
       "startWhatsappReminderActivation",
       {
         "consent": true,
+        "consentVersion": "v2",
       },
     ],
     [
       "startWhatsappReminderActivation",
       {
         "consent": true,
+        "consentVersion": "v2",
       },
     ],
     [

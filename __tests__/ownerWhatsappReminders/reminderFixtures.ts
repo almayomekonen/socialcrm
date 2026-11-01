@@ -26,10 +26,19 @@ export async function user(agencyId: number, role = 'ADMIN', extra: Record<strin
   return Number(u.id)
 }
 
-/** An ACTIVE, verified recipient (as PR A's activation would leave it). */
-export async function recipient(agencyId: number, userId: number, digits: string, verifiedAt = ago(3 * 24 * 60 * MIN)): Promise<number> {
+/**
+ * An ACTIVE, verified recipient (as PR A's activation would leave it). Consent
+ * defaults to reminders only (v2); the assistant's tests pass 'v3'.
+ */
+export async function recipient(
+  agencyId: number,
+  userId: number,
+  digits: string,
+  verifiedAt = ago(3 * 24 * 60 * MIN),
+  consentTextVersion = 'v2',
+): Promise<number> {
   const [r] = await db('owner_whatsapp_recipients')
-    .insert({ agencyId, userId, phoneE164: `+${digits}`, status: 'active', consentAt: verifiedAt, consentTextVersion: 'v2', consentSource: 'settings', verifiedAt })
+    .insert({ agencyId, userId, phoneE164: `+${digits}`, status: 'active', consentAt: verifiedAt, consentTextVersion, consentSource: 'settings', verifiedAt })
     .returning('id')
   return Number(r.id)
 }

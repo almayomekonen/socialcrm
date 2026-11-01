@@ -17,6 +17,8 @@ import { MAX_REPLY_CHARS } from '@/lib/whatsapp/platform/sendText'
 
 const APP_ORIGIN = 'https://getsocialcrm.com'
 export const APP_LINK = `${APP_ORIGIN}/agent`
+/** Where an owner connects this phone (the code is issued there, in their own logged-in session). */
+export const CONNECT_LINK = `${APP_ORIGIN}/settings/whatsapp_reminders`
 const MAX_CLAIMS = 6
 
 /** Phone-like runs (9+ digits, with the separators people type) and emails. */
@@ -113,6 +115,18 @@ export const COPY = {
   timeout: 'לקח לי יותר מדי זמן לבדוק את זה. אפשר לנסות שוב בניסוח קצר יותר, או להמשיך ב-SocialCRM: ' + APP_LINK,
   failed: 'לא הצלחתי להשלים את הבדיקה הפעם. אפשר לנסות שוב בעוד רגע, או להמשיך ב-SocialCRM: ' + APP_LINK,
   noAnswer: 'לא מצאתי במערכת מספיק נתונים כדי לענות על זה בוודאות. אפשר לנסח אחרת, למשל עם שם הליד המלא.',
+  /**
+   * Sender guidance (senderGuidance.ts). Each is the SAME text for every sender
+   * in its case, so it never says whether a number belongs to anyone.
+   */
+  notConnected:
+    'כאן העוזר של SocialCRM. כדי לשאול אותי על העסק שלך, צריך לחבר את המספר הזה לחשבון שלך ב-SocialCRM, בהגדרות ← תזכורות בוואטסאפ: ' +
+    CONNECT_LINK,
+  consentRequired:
+    'כדי לשוחח איתי כאן, צריך קודם לאשר שיחות עם העוזר בחשבון שלך ב-SocialCRM, בהגדרות ← תזכורות בוואטסאפ: ' + CONNECT_LINK,
+  severalAccounts:
+    'המספר הזה מחובר לכמה חשבונות ב-SocialCRM, ולכן אין לי דרך לדעת על איזה עסק לענות. כדי לשאול אותי כאן, צריך להשאיר אותו מחובר לחשבון אחד בלבד, בהגדרות ← תזכורות בוואטסאפ: ' +
+    CONNECT_LINK,
 } as const
 
 /**
@@ -148,6 +162,8 @@ export function refusalReply(reason: string): string | null {
     case 'no_product_access':
     case 'agent_not_enabled':
       return COPY.notAvailable
+    case 'consent_required':
+      return COPY.consentRequired
     case 'sender_limit':
       return COPY.senderLimit
     case 'agency_limit':

@@ -118,6 +118,15 @@ export const account: Messages['settings']['account'] = {
     consentRequired: 'You need to agree to receive reminders',
     cancel: 'Cancel',
     turnedOff: 'Reminders turned off',
+    assistant: {
+      offer: 'You can also chat on WhatsApp with the SocialCRM assistant and ask it about your business. To turn it on, you need to agree:',
+      grant: 'Agree to chats with the assistant',
+      consentRequired: 'You need to agree to chats with the assistant',
+      granted: 'Chats with the assistant are on. Ask it about your business in a message to the SocialCRM number.',
+      grantedToast: 'Chats with the assistant are on',
+      withdraw: 'Stop chats with the assistant',
+      withdrawn: 'Chats with the assistant stopped. Reminders continue.',
+    },
     error: {
       noPermission: 'No permission to turn on reminders',
       unavailable: "Reminders aren't available for this account",
@@ -125,6 +134,10 @@ export const account: Messages['settings']['account'] = {
       alreadyActive: 'Reminders are already on',
       codeFailed: "Couldn't create an activation code. Please try again.",
       noAuth: 'No permission',
+      assistantUnavailable: "The assistant isn't available for this account",
+      assistantConsent: 'To continue, you need to agree to chats with the assistant',
+      staleConsent: 'The consent wording was updated. Refresh the page and agree again.',
+      notVerified: 'First turn on and verify the number',
     },
   },
   art: {

@@ -3,6 +3,8 @@ import { getUser } from '@/db/auth'
 import { getOwnRecipient } from '@/db/ownerWhatsappRecipients'
 import AccordionItem from '@/lib/AccordionItem'
 import { canUseOwnerWhatsappReminders } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { isWaAssistantAgency } from '@/lib/flags/waAssistantFlags'
+import { activationConsentFor } from '@/lib/whatsapp/platform/consentText'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { ownerReminderView } from '@/lib/whatsapp/platform/ownerReminderView'
 import WhatsappReminderCard from '@/components/settings/whatsappReminders/WhatsappReminderCard'
@@ -16,7 +18,9 @@ export default async function page() {
   if (!user?.agencyId || !canUseOwnerWhatsappReminders(user.agencyId)) notFound()
   if (!(await getAgencyProductAccess(user.agencyId)).hasAccess) notFound()
 
-  const view = ownerReminderView(await getOwnRecipient(user.agencyId, user.id), new Date())
+  // The assistant's consent (v3) is offered only where it is enabled for the agency; elsewhere reminders only (v2).
+  const assistantEnabled = isWaAssistantAgency(user.agencyId)
+  const view = ownerReminderView(await getOwnRecipient(user.agencyId, user.id), new Date(), { assistantEnabled })
 
   const { locale } = await getUiLocaleState(user)
   const t = translatorFor(locale)
@@ -28,7 +32,7 @@ export default async function page() {
       </p>
       <div className='accordion mb-6 max-w-2xl'>
         <AccordionItem bodyClass='p-6' title={t('settings.account.reminders.mine')} open>
-          <WhatsappReminderCard initial={view} />
+          <WhatsappReminderCard initial={view} consent={activationConsentFor(assistantEnabled)} />
         </AccordionItem>
       </div>
     </div>

@@ -36,7 +36,7 @@ type Owner = { u: number; r: number; digits: string; lead: number }
 async function owner(role = 'ADMIN', agencyId = A): Promise<Owner> {
   const u = await user(agencyId, role)
   const digits = `9725000071${String(++seq).padStart(2, '0')}`
-  const r = await recipient(agencyId, u, digits)
+  const r = await recipient(agencyId, u, digits, undefined, 'v3') // the assistant's consent
   const [c] = await db('clients').insert({ firstName: 'Itamar', lastName: 'Am', agencyId, userId: u, createdById: u, lead: true }).returning('id')
   return { u, r, digits, lead: Number(c.id) }
 }

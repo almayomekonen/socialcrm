@@ -9,6 +9,7 @@ import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import { isWaAssistantAgency } from '@/lib/flags/waAssistantFlags'
 import { hasReminderProductAccess } from '@/lib/ownerWhatsappReminders/productAccess'
 import type { AgentScope } from '@/lib/agent/types'
+import { consentCoversAssistant } from '@/lib/whatsapp/platform/consentText'
 
 /**
  * WHO a WhatsApp message to the platform number speaks for.
@@ -59,6 +60,7 @@ export type ScopeRefusal =
   | 'ambiguous_number'
   | 'user_not_active'
   | 'no_product_access'
+  | 'consent_required'
 
 /**
  * EVERY TURN, before anything is read: the job's recipient, user and agency are
@@ -66,6 +68,10 @@ export type ScopeRefusal =
  * lib/ai/integration/autonomousScope.ts builds one without a session. A user
  * who was suspended, moved, opted out or lost product access since the message
  * arrived gets nothing.
+ *
+ * CONSENT: the row must record the assistant's consent (v3). A reminders-only
+ * consent (v2), or one withdrawn since the message arrived, gets a fixed
+ * "approve in settings" reply and nothing from the Agent.
  *
  * Product access FAILS CLOSED here (hasReminderProductAccess): an answer sent to
  * a phone cannot be taken back.
@@ -81,7 +87,7 @@ export async function resolveAssistantScope(job: { recipientId: number; agencyId
   const recipient = (await db('owner_whatsapp_recipients')
     .where({ id: job.recipientId, agencyId: job.agencyId, userId: job.userId, status: 'active' })
     .whereNotNull('verifiedAt')
-    .first('phoneE164')) as { phoneE164: string | null } | undefined
+    .first('phoneE164', 'consentTextVersion')) as { phoneE164: string | null; consentTextVersion: string } | undefined
   if (!recipient?.phoneE164) return { ok: false, reason: 'recipient_not_active' }
 
   const rows = await activeRowsForPhone(db, recipient.phoneE164)
@@ -94,6 +100,7 @@ export async function resolveAssistantScope(job: { recipientId: number; agencyId
   if (!user) return { ok: false, reason: 'user_not_active' }
 
   const phoneE164 = recipient.phoneE164
+  if (!consentCoversAssistant(recipient.consentTextVersion)) return { ok: false, reason: 'consent_required', phoneE164 }
   if (!(await isAgentAvailable(job.agencyId))) return { ok: false, reason: 'agent_not_enabled', phoneE164 }
   if (!(await hasReminderProductAccess(job.agencyId, now))) return { ok: false, reason: 'no_product_access', phoneE164 }
 

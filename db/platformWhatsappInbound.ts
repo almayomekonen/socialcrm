@@ -31,6 +31,21 @@ export async function countRecentRejectedActivations(trx: Knex.Transaction, from
   return Number(row?.count ?? 0)
 }
 
+/** This sender has opted out at some point. A sender who did is never sent guidance. */
+export async function hasEverOptedOut(trx: Knex.Transaction, fromHash: string): Promise<boolean> {
+  return !!(await trx(TABLE).where({ fromHash, kind: 'opt_out' }).first('id'))
+}
+
+/** Another message from this sender was received in the last 24 hours (this one, `wamid`, excluded). */
+export async function hasOtherInboundInLastDay(trx: Knex.Transaction, fromHash: string, wamid: string): Promise<boolean> {
+  const row = await trx(TABLE)
+    .where({ fromHash })
+    .whereNot({ wamid })
+    .where('receivedAt', '>', trx.raw(`now() - interval '24 hours'`))
+    .first('id')
+  return !!row
+}
+
 /** An opt-out from this sender sent at or after `messageTimestamp` (a tie counts). */
 export async function hasOptOutAtOrAfter(trx: Knex.Transaction, fromHash: string, messageTimestamp: number): Promise<boolean> {
   const row = await trx(TABLE)
