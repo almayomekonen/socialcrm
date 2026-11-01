@@ -1,4 +1,4 @@
-import { getUser, encrypt } from '@/db/auth'
+import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
 import { WithSql } from '@/types/global'
 import { removeSqlField } from './helpers/funcs'
@@ -10,10 +10,13 @@ function toIntArraySql(ids: unknown[]): string | null {
   return ints.length ? `ARRAY[${ints.join(',')}]::INT[]` : null
 }
 
-export async function getDealTableData(
-  { sql, userIds, handlerIds, clientId, isCollab }: WithSql,
-  { pageNum = 1, tableLimit = 100 },
-) {
+/**
+ * The deals table's query for one active filter — the single definition the
+ * table, its summary cards and the export all use. `sqlFilter` comes from
+ * `getPermsAndFilter`, so it is already scoped to the session's agency and the
+ * reps the user may see.
+ */
+function dealsQuery({ sql, userIds, handlerIds, clientId, isCollab }: WithSql) {
   sql = removeSqlField(sql, ['userId'])
   sql.table('_sales')
   if (clientId) sql.where('clientId', clientId)
@@ -24,12 +27,11 @@ export async function getDealTableData(
   }
   if (handlerIds?.length) sql.whereIn('handlerId', handlerIds)
   if (isCollab) sql.whereRaw('cardinality("userIds") > 1')
+  return sql
+}
 
-  // Sign the export query so the client cannot tamper with it. The client
-  // round-trips this token back to getDealDataToExport, which verifies the
-  // signature before executing — closing the arbitrary-SQL export vector.
-  const query = sql.clone().toSQL()
-  const sqlExport = await encrypt({ sql: query.sql, bindings: query.bindings })
+export async function getDealTableData(sqlFilter: WithSql, { pageNum = 1, tableLimit = 100 }) {
+  const sql = dealsQuery(sqlFilter)
 
   // The summary cards (count + revenue) come from THIS query too, so they always
   // describe exactly the rows the table shows under the active filter.
@@ -41,7 +43,17 @@ export async function getDealTableData(
       .orderBy('updatedAt', 'desc'),
   ])
 
-  return { tblData, count: countRes?.count || 0, revenue: Number(countRes?.revenue) || 0, sqlExport }
+  return { tblData, count: countRes?.count || 0, revenue: Number(countRes?.revenue) || 0 }
+}
+
+/**
+ * Every row of the table under the same filter, without paging — what the
+ * export downloads. Built on the server from `sqlFilter`; the client never
+ * supplies or carries a query. The agency predicate is repeated here so the
+ * export stays tenant-scoped even if the filter builder changes.
+ */
+export async function getDealExportRows(sqlFilter: WithSql, agencyId: number) {
+  return dealsQuery(sqlFilter).where('agencyId', agencyId)
 }
 
 /**

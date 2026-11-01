@@ -52,7 +52,7 @@ export default async function SalesPage({ searchParams }) {
 
   const handlers = isAdmin(user.role) ? gotPermUsers : allPermUsers
 
-  const [{ tblData, count, revenue, sqlExport }, allUsers, hasLeads] = await Promise.all([
+  const [{ tblData, count, revenue }, allUsers, hasLeads] = await Promise.all([
     getDealTableData(sqlFilter, { pageNum, tableLimit }),
     getUsers({ withOfficeUsers: true, withExtUsers: true }),
     hasAnyLeads(user.agencyId, gotPermIds, user.role),
@@ -71,7 +71,8 @@ export default async function SalesPage({ searchParams }) {
       props={{
         tableLength: tblData.length,
         count,
-        sqlExport,
+        // The export rebuilds its query on the server from this same filter.
+        exportFilter: filter ?? null,
         params: { filter, saleId, isFav, pageNum, tableLimit },
         gotPermIds,
       }}

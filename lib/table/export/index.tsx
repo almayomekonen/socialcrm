@@ -29,15 +29,16 @@ export default function ExportTable({ data, dataToFetch, columns }: Props) {
   // columns, so translating them would break export → re-import.
   const t = useT()
   const [img, setImg] = useState(null)
-  let sql = null
+  // `dataToFetch` gets the page's active filter (never a query); the server
+  // action rebuilds the rows from it.
+  let exportFilter = null
   try {
-    const { sqlExport } = useProps()
-    sql = sqlExport
+    exportFilter = useProps().exportFilter ?? null
   } catch (error) {}
 
   async function getData() {
     if (data) return data
-    return await dataToFetch(sql)
+    return await dataToFetch(exportFilter)
   }
 
   async function onSubmit(e) {
