@@ -147,6 +147,20 @@ describe('resolveOnboardingType', () => {
     expect(resolveOnboardingType({ isOnBizApp: false, browserOnboardingType: 'cloud_api' })).toBe('cloud_api')
     expect(resolveOnboardingType({ isOnBizApp: false })).toBe('cloud_api')
   })
+
+  it('an existing Coexistence connection stays Coexistence whatever Meta or the browser says', () => {
+    for (const isOnBizApp of [true, false])
+      for (const browserOnboardingType of ['cloud_api', 'coexistence', undefined] as const)
+        expect(resolveOnboardingType({ isOnBizApp, browserOnboardingType, existingOnboardingType: 'coexistence' })).toBe('coexistence')
+  })
+
+  it('an existing Cloud API (or legacy null) row is resolved exactly as before', () => {
+    for (const existingOnboardingType of ['cloud_api', null, undefined]) {
+      expect(resolveOnboardingType({ isOnBizApp: false, browserOnboardingType: 'cloud_api', existingOnboardingType })).toBe('cloud_api')
+      expect(resolveOnboardingType({ isOnBizApp: true, browserOnboardingType: 'cloud_api', existingOnboardingType })).toBe('coexistence')
+      expect(resolveOnboardingType({ isOnBizApp: false, browserOnboardingType: 'coexistence', existingOnboardingType })).toBe('coexistence')
+    }
+  })
 })
 
 describe('fetchPhoneBizAppState', () => {

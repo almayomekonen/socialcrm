@@ -109,13 +109,6 @@ export async function POST(req: NextRequest) {
     phoneNumberId = resolution.phoneNumberId
   }
 
-  // Server-side authority: Graph `is_on_biz_app` wins over the browser type.
-  const bizApp = await fetchPhoneBizAppState(phoneNumberId, accessToken)
-  const onboardingType = resolveOnboardingType({
-    isOnBizApp: bizApp.isOnBizApp,
-    browserOnboardingType,
-  })
-
   // 2. Cross-tenant safety: never silently move a phone number between agencies.
   //    Same agency reconnecting is allowed (updates token/waba below).
   const existing = await db('whatsapp_connections').where({ phone_number_id: phoneNumberId }).first()
@@ -126,6 +119,24 @@ export async function POST(req: NextRequest) {
       // NOTE: the owning agency id/name is deliberately NOT returned to the client.
     })
     return fail(agencyId, user.id, WA_REASON.RESOURCE_CLAIMED, 'ownership', 409)
+  }
+
+  // Server-side authority: Graph `is_on_biz_app` wins over the browser type,
+  // except that an existing Coexistence connection is never converted here.
+  const bizApp = await fetchPhoneBizAppState(phoneNumberId, accessToken)
+  const onboardingType = resolveOnboardingType({
+    isOnBizApp: bizApp.isOnBizApp,
+    browserOnboardingType,
+    existingOnboardingType: existing?.onboarding_type,
+  })
+  if (existing?.onboarding_type === 'coexistence' && bizApp.known && !bizApp.isOnBizApp) {
+    // Meta now says the number is not on the WhatsApp Business app. Moving it to
+    // Cloud API must be the customer's explicit choice, so it stays Coexistence
+    // (no /register, no re-sync) and the conflict is left for a human to review.
+    console.warn('[WA EmbeddedSignup] coexistence reconnect: is_on_biz_app=false conflicts with the stored connection; kept coexistence', {
+      phoneNumberId,
+      browserOnboardingType,
+    })
   }
 
   // 3. Subscribe the app to the WABA. This is the webhook subscription that lets
