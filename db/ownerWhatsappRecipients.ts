@@ -20,6 +20,8 @@ export type OwnRecipientRow = {
   activationExpiresAt: Date | null
   verifiedAt: Date | null
   optedOutAt: Date | null
+  /** The owner's current consent (lib/whatsapp/platform/consentText.ts). */
+  consentTextVersion: string
 }
 
 const TABLE = 'owner_whatsapp_recipients'
@@ -27,8 +29,22 @@ const TABLE = 'owner_whatsapp_recipients'
 export async function getOwnRecipient(agencyId: number, userId: number): Promise<OwnRecipientRow | null> {
   const row = await db(TABLE)
     .where({ agencyId, userId })
-    .first('status', 'phoneE164', 'activationExpiresAt', 'verifiedAt', 'optedOutAt')
+    .first('status', 'phoneE164', 'activationExpiresAt', 'verifiedAt', 'optedOutAt', 'consentTextVersion')
   return row ?? null
+}
+
+/**
+ * Record a new consent on the session's own ACTIVE row: granting the assistant
+ * (v3) or withdrawing it (back to reminders-only v2). The verified number and
+ * the active state are kept; `consentAt` becomes now. False when the row is not
+ * active (nothing to change: the number must be verified first).
+ */
+export async function setOwnActiveConsent(agencyId: number, userId: number, consentTextVersion: string): Promise<boolean> {
+  const rows = await db(TABLE)
+    .where({ agencyId, userId, status: 'active' })
+    .update({ consentTextVersion, consentAt: db.fn.now(), consentSource: 'settings', updatedAt: db.fn.now() })
+    .returning('id')
+  return rows.length > 0
 }
 
 /**

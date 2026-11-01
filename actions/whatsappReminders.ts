@@ -1,10 +1,16 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { optOutOwnRow, startOwnActivation } from '@/db/ownerWhatsappRecipients'
+import { getOwnRecipient, optOutOwnRow, setOwnActiveConsent, startOwnActivation } from '@/db/ownerWhatsappRecipients'
 import { canUseOwnerWhatsappReminders, platformWhatsappWaMeNumber } from '@/lib/flags/ownerWhatsappReminderFlags'
+import { isWaAssistantAgency } from '@/lib/flags/waAssistantFlags'
 import { AuthError, ProductAccessError, requireAgencyUser, requireProductAccess } from '@/lib/requireUser'
-import { OWNER_WA_CONSENT } from '@/lib/whatsapp/platform/consentText'
+import {
+  OWNER_WA_ASSISTANT_CONSENT,
+  OWNER_WA_CONSENT,
+  activationConsentFor,
+  consentCoversAssistant,
+} from '@/lib/whatsapp/platform/consentText'
 import { formatActivationCode, generateActivationCode, hashActivationCode } from '@/lib/whatsapp/platform/keys'
 
 /**
@@ -17,10 +23,20 @@ import { formatActivationCode, generateActivationCode, hashActivationCode } from
 
 const CODE_TTL_MS = 15 * 60 * 1000
 const PATH = '/settings/whatsapp_reminders'
+const STALE_CONSENT = 'נוסח ההסכמה התעדכן. רעננו את הדף ואשרו שוב.'
 
 export type StartActivationResult = { ok: true; code: string; waMeHref: string } | { fail: true; msg: string }
 
-export async function startWhatsappReminderActivation(input: { consent?: unknown }): Promise<StartActivationResult> {
+/**
+ * `consentVersion` is the version of the sentence the page SHOWED. It must be
+ * the one recorded now (v3 where the assistant is enabled for the agency, v2
+ * elsewhere), so a consent is never recorded for a text the user did not see.
+ * Absent means the reminders-only text (pages that predate v3).
+ */
+export async function startWhatsappReminderActivation(input: {
+  consent?: unknown
+  consentVersion?: unknown
+}): Promise<StartActivationResult> {
   let user
   try {
     user = await requireProductAccess()
@@ -31,6 +47,9 @@ export async function startWhatsappReminderActivation(input: { consent?: unknown
   const waMe = platformWhatsappWaMeNumber()
   if (!canUseOwnerWhatsappReminders(user.agencyId) || !waMe) return { fail: true, msg: 'התזכורות אינן זמינות לחשבון זה' }
   if (input?.consent !== true) return { fail: true, msg: 'כדי להמשיך צריך לאשר קבלת תזכורות' }
+  const consentToRecord = activationConsentFor(isWaAssistantAgency(user.agencyId))
+  const shown = input.consentVersion ?? OWNER_WA_CONSENT.version
+  if (shown !== consentToRecord.version) return { fail: true, msg: STALE_CONSENT }
 
   // A code collision with another live code is astronomically rare; the unique
   // index turns it into an error, and a fresh code is drawn.
@@ -42,7 +61,7 @@ export async function startWhatsappReminderActivation(input: { consent?: unknown
         userId: user.id,
         codeHash: hashActivationCode(code),
         expiresAt: new Date(Date.now() + CODE_TTL_MS),
-        consentTextVersion: OWNER_WA_CONSENT.version,
+        consentTextVersion: consentToRecord.version,
       })
       if (outcome === 'already_active') return { fail: true, msg: 'התזכורות כבר פעילות' }
       revalidatePath(PATH)
@@ -69,6 +88,55 @@ export async function turnOffWhatsappReminders(): Promise<{ ok: true } | { fail:
     throw err
   }
   await optOutOwnRow(user.agencyId, user.id)
+  revalidatePath(PATH)
+  return { ok: true }
+}
+
+/**
+ * Consent to conversations with the SocialCRM assistant on an ALREADY verified
+ * number (a v2, reminders-only row): records v3 on the session's own active
+ * row. A reminder-only consent is never upgraded by anything else.
+ */
+export async function grantWhatsappAssistantConsent(input: {
+  consent?: unknown
+  consentVersion?: unknown
+}): Promise<{ ok: true } | { fail: true; msg: string }> {
+  let user
+  try {
+    user = await requireProductAccess()
+  } catch (err) {
+    if (err instanceof AuthError || err instanceof ProductAccessError) return { fail: true, msg: 'אין הרשאה' }
+    throw err
+  }
+  if (!canUseOwnerWhatsappReminders(user.agencyId) || !isWaAssistantAgency(user.agencyId)) {
+    return { fail: true, msg: 'העוזר אינו זמין לחשבון זה' }
+  }
+  if (input?.consent !== true) return { fail: true, msg: 'כדי להמשיך צריך לאשר שיחות עם העוזר' }
+  if (input.consentVersion !== OWNER_WA_ASSISTANT_CONSENT.version) return { fail: true, msg: STALE_CONSENT }
+  if (!(await setOwnActiveConsent(user.agencyId, user.id, OWNER_WA_ASSISTANT_CONSENT.version))) {
+    return { fail: true, msg: 'קודם צריך להפעיל ולאמת את המספר' }
+  }
+  revalidatePath(PATH)
+  return { ok: true }
+}
+
+/**
+ * Stop the assistant, keep reminders: the session's own active row goes back to
+ * the reminders-only consent (v2). Allowed whatever the rollout or subscription
+ * state, like turning reminders off: stopping must always work.
+ */
+export async function withdrawWhatsappAssistantConsent(): Promise<{ ok: true } | { fail: true; msg: string }> {
+  let user
+  try {
+    user = await requireAgencyUser()
+  } catch (err) {
+    if (err instanceof AuthError) return { fail: true, msg: 'אין הרשאה' }
+    throw err
+  }
+  const row = await getOwnRecipient(user.agencyId, user.id)
+  if (row && consentCoversAssistant(row.consentTextVersion)) {
+    await setOwnActiveConsent(user.agencyId, user.id, OWNER_WA_CONSENT.version)
+  }
   revalidatePath(PATH)
   return { ok: true }
 }

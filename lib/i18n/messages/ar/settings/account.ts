@@ -118,6 +118,15 @@ export const account: Messages['settings']['account'] = {
     consentRequired: 'يجب الموافقة على تلقي التذكيرات',
     cancel: 'إلغاء',
     turnedOff: 'تم إيقاف التذكيرات',
+    assistant: {
+      offer: 'يمكنك أيضًا المحادثة عبر واتساب مع مساعد SocialCRM وسؤاله عن عملك. للتفعيل يجب الموافقة:',
+      grant: 'الموافقة على المحادثات مع المساعد',
+      consentRequired: 'يجب الموافقة على المحادثات مع المساعد',
+      granted: 'المحادثات مع المساعد مفعّلة. يمكنك سؤاله عن عملك برسالة إلى رقم SocialCRM.',
+      grantedToast: 'تمت الموافقة على المحادثات مع المساعد',
+      withdraw: 'إيقاف المحادثات مع المساعد',
+      withdrawn: 'تم إيقاف المحادثات مع المساعد. التذكيرات مستمرة.',
+    },
     error: {
       noPermission: 'لا توجد صلاحية لتفعيل التذكيرات',
       unavailable: 'التذكيرات غير متاحة لهذا الحساب',
@@ -125,6 +134,10 @@ export const account: Messages['settings']['account'] = {
       alreadyActive: 'التذكيرات مفعّلة بالفعل',
       codeFailed: 'تعذّر إنشاء رمز تفعيل. حاول مرة أخرى.',
       noAuth: 'لا توجد صلاحية',
+      assistantUnavailable: 'المساعد غير متاح لهذا الحساب',
+      assistantConsent: 'للمتابعة يجب الموافقة على المحادثات مع المساعد',
+      staleConsent: 'تم تحديث نص الموافقة. حدّث الصفحة ووافق مرة أخرى.',
+      notVerified: 'يجب أولًا تفعيل الرقم والتحقق منه',
     },
   },
   art: {

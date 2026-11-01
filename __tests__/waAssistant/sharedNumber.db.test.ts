@@ -44,7 +44,7 @@ const textMsg = (from: string, body: string, id = `wamid.__shared_${++seq}`) => 
 const jobs = () => db('wa_assistant_jobs').orderBy('id')
 async function owner(agencyId: number, digits: string) {
   const u = await user(agencyId)
-  const r = await recipient(agencyId, u, digits)
+  const r = await recipient(agencyId, u, digits, undefined, 'v3') // the assistant's consent
   return { u, r, digits }
 }
 

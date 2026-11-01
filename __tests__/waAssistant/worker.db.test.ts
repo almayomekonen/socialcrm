@@ -55,7 +55,7 @@ async function ask(from: string, body: string, opts: { at?: number; type?: strin
 }
 async function owner(digits: string, role = 'ADMIN', agencyId = A) {
   const u = await user(agencyId, role)
-  const r = await recipient(agencyId, u, digits)
+  const r = await recipient(agencyId, u, digits, undefined, 'v3') // the assistant's consent
   return { u, r }
 }
 const job = (wamid: string) => db('wa_assistant_jobs').where({ wamid }).first()

@@ -122,6 +122,8 @@ export const COPY = {
   notConnected:
     'כאן העוזר של SocialCRM. כדי לשאול אותי על העסק שלך, צריך לחבר את המספר הזה לחשבון שלך ב-SocialCRM, בהגדרות ← תזכורות בוואטסאפ: ' +
     CONNECT_LINK,
+  consentRequired:
+    'כדי לשוחח איתי כאן, צריך קודם לאשר שיחות עם העוזר בחשבון שלך ב-SocialCRM, בהגדרות ← תזכורות בוואטסאפ: ' + CONNECT_LINK,
   severalAccounts:
     'המספר הזה מחובר לכמה חשבונות ב-SocialCRM, ולכן אין לי דרך לדעת על איזה עסק לענות. כדי לשאול אותי כאן, צריך להשאיר אותו מחובר לחשבון אחד בלבד, בהגדרות ← תזכורות בוואטסאפ: ' +
     CONNECT_LINK,
@@ -160,6 +162,8 @@ export function refusalReply(reason: string): string | null {
     case 'no_product_access':
     case 'agent_not_enabled':
       return COPY.notAvailable
+    case 'consent_required':
+      return COPY.consentRequired
     case 'sender_limit':
       return COPY.senderLimit
     case 'agency_limit':

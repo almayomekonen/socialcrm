@@ -87,7 +87,7 @@ describe('settings view', () => {
 
   it('shows only the last two digits', () => {
     expect(maskPhone('+972500000072')).toBe('••••••72')
-    expect(ownerReminderView(row({ status: 'active', phoneE164: '+972500000072' }), now)).toEqual({ state: 'active', maskedPhone: '••••••72' })
+    expect(ownerReminderView(row({ status: 'active', phoneE164: '+972500000072' }), now)).toEqual({ state: 'active', maskedPhone: '••••••72', assistant: 'not_offered' })
   })
 
   it('an expired code reads as off; a live one as pending', () => {

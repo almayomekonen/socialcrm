@@ -124,6 +124,15 @@ export const account = {
     consentRequired: 'צריך לאשר קבלת תזכורות',
     cancel: 'ביטול',
     turnedOff: 'התזכורות כובו',
+    assistant: {
+      offer: 'אפשר גם לשוחח בוואטסאפ עם העוזר של SocialCRM ולשאול אותו על העסק. כדי להפעיל, צריך לאשר:',
+      grant: 'אישור שיחות עם העוזר',
+      consentRequired: 'צריך לאשר שיחות עם העוזר',
+      granted: 'השיחות עם העוזר פעילות. אפשר לשאול אותו על העסק בהודעה למספר של SocialCRM.',
+      grantedToast: 'השיחות עם העוזר אושרו',
+      withdraw: 'ביטול השיחות עם העוזר',
+      withdrawn: 'השיחות עם העוזר בוטלו. התזכורות ממשיכות.',
+    },
     error: {
       noPermission: 'אין הרשאה להפעיל תזכורות',
       unavailable: 'התזכורות אינן זמינות לחשבון זה',
@@ -131,6 +140,10 @@ export const account = {
       alreadyActive: 'התזכורות כבר פעילות',
       codeFailed: 'לא ניתן ליצור קוד הפעלה. נסו שוב.',
       noAuth: 'אין הרשאה',
+      assistantUnavailable: 'העוזר אינו זמין לחשבון זה',
+      assistantConsent: 'כדי להמשיך צריך לאשר שיחות עם העוזר',
+      staleConsent: 'נוסח ההסכמה התעדכן. רעננו את הדף ואשרו שוב.',
+      notVerified: 'קודם צריך להפעיל ולאמת את המספר',
     },
   },
   art: {
