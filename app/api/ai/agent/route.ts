@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AuthError, ProductAccessError, requireProductAccess } from '@/lib/requireUser'
-import { isAgentEnabled } from '@/lib/ai/flags'
+import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import { askAgent } from '@/actions/ai/askAgent'
 
 /**
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // ── Is this surface switched on for them. Session agency only.
-  if (!isAgentEnabled(user.agencyId)) return json({ error: 'agent-disabled' }, 404)
+  if (!(await isAgentAvailable(user.agencyId))) return json({ error: 'agent-disabled' }, 404)
 
   // ── What is being asked. One field, and it must be a real string.
   const body = (await req.json().catch(() => null)) as { question?: unknown } | null

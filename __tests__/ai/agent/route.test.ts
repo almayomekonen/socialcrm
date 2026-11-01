@@ -103,6 +103,18 @@ describe('authorization', () => {
     expect(askAgent).not.toHaveBeenCalled()
   })
 
+  it('an excluded agency is 404 even while allowlisted — the same decision the page, nav and WhatsApp use', async () => {
+    process.env.AGENT_EXCLUDED_AGENCY_IDS = '7'
+    try {
+      const res = await POST(post({ question: 'q' }))
+      expect(res.status).toBe(404)
+      expect(await res.json()).toEqual({ error: 'agent-disabled' })
+      expect(askAgent).not.toHaveBeenCalled()
+    } finally {
+      delete process.env.AGENT_EXCLUDED_AGENCY_IDS
+    }
+  })
+
   it('gates on the agency from the session, never from the body', async () => {
     await POST(post({ question: 'q', agencyId: 999 }))
     expect(isAgentEnabled).toHaveBeenCalledWith(7)

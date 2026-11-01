@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getUser } from '@/db/auth'
-import { isAgentEnabled } from '@/lib/ai/flags'
+import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import { layoutProbeRequested } from '@/lib/agent/layoutProbeGate'
 import AgentWorkspace from '@/components/agent/AgentWorkspace'
 import AgentLayoutProbe from '@/components/agent/AgentLayoutProbe'
@@ -62,7 +62,7 @@ export default function AgentPage({ searchParams }: { searchParams: Promise<Reco
  */
 async function AgentGate({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getUser()
-  if (!isAgentEnabled(user?.agencyId)) notFound()
+  if (!(await isAgentAvailable(user?.agencyId))) notFound()
   const probe = layoutProbeRequested(await searchParams, user?.email)
   return (
     <>

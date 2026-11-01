@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import { getUser } from '@/db/auth'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
-import { isAgentEnabled, isCopilotInspectorEnabled } from '@/lib/ai/flags'
+import { isCopilotInspectorEnabled } from '@/lib/ai/flags'
+import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import MobileMoreView from '@/components/mobile/MobileMoreView'
 import { visibleMoreItems } from '@/components/mobile/moreDestinations'
 import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
@@ -36,7 +37,7 @@ export default async function MobileMorePage() {
   const items = visibleMoreItems({
     role: user.role,
     inspectorEnabled: user.role === 'ADMIN' && isCopilotInspectorEnabled(),
-    agentEnabled: isAgentEnabled(user.agencyId),
+    agentEnabled: await isAgentAvailable(user.agencyId),
     questionnaireBuilderEnabled: canUseQuestionnaireBuilder(user.agencyId),
   })
 

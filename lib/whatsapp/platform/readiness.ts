@@ -35,7 +35,7 @@ import { attachReadinessDiagnostics, meIdentity, scopeGrantOnWaba, tokenUserIdFr
 
 export type ReadinessCheck = { name: 'config' | 'token' | 'phone' | 'template'; ok: boolean; detail: Record<string, unknown> }
 
-async function graphGet(path: string, token: string): Promise<{ status: number; body: any }> {
+export async function graphGet(path: string, token: string): Promise<{ status: number; body: any }> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS)
   try {
@@ -48,7 +48,7 @@ async function graphGet(path: string, token: string): Promise<{ status: number; 
   }
 }
 
-const graphError = (r: { status: number; body: any }) => ({ httpStatus: r.status, code: r.body?.error?.code ?? null, message: r.body?.error?.message ?? null })
+export const graphError = (r: { status: number; body: any }) => ({ httpStatus: r.status, code: r.body?.error?.code ?? null, message: r.body?.error?.message ?? null })
 
 /** The audience as booleans/counts/ids for the config check (agency ids are not secret). */
 function audienceDetail() {

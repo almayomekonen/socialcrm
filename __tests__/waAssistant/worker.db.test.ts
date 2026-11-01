@@ -75,6 +75,7 @@ beforeEach(async () => {
   process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = PLATFORM
   process.env.PLATFORM_WHATSAPP_ACCESS_TOKEN = TOKEN
   delete process.env.WA_ASSISTANT_DAILY_USD_CAP
+  delete process.env.AGENT_EXCLUDED_AGENCY_IDS
 })
 afterAll(async () => {
   for (const k of ['WA_ASSISTANT_AGENCY_IDS', 'OWNER_WA_REMINDERS_AGENCY_IDS', 'PLATFORM_WHATSAPP_PHONE_NUMBER_ID', 'PLATFORM_WHATSAPP_ACCESS_TOKEN']) delete process.env[k]
@@ -227,6 +228,7 @@ describe('authority re-checked on every turn: no model call, no data', () => {
   it.each([
     ['product access expired', async () => { await db('agencies').where({ id: A }).update({ plan: 'free', trialStartedAt: new Date(Date.now() - 10 * DAY), trialEndsAt: new Date(Date.now() - 3 * DAY) }) }],
     ['the Agent rollout was turned off', async () => { flags.agent = false }],
+    ['the agency was excluded from the Agent (AGENT_EXCLUDED_AGENCY_IDS)', async () => { process.env.AGENT_EXCLUDED_AGENCY_IDS = String(A) }],
   ])('%s: a fixed "not available" reply, no model call', async (_label, mutate) => {
     await owner('972500006011')
     const w = await ask('972500006011', 'סכם לי את היום')

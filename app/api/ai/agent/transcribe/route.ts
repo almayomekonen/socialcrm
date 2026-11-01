@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { AuthError, ProductAccessError, requireProductAccess } from '@/lib/requireUser'
-import { isAgentEnabled } from '@/lib/ai/flags'
+import { isAgentAvailable } from '@/lib/ai/agentAvailability'
 import { admitAiRun } from '@/lib/ai/gate'
 import { addDailySpend } from '@/lib/ai/router/spend'
 import {
@@ -31,7 +31,7 @@ import {
  *
  * Same gates as asking the agent, in the same order:
  *   1. identity        requireProductAccess() — session + entitlement
- *   2. rollout         isAgentEnabled(agency)  — 404 outside AGENT_AGENCY_IDS
+ *   2. rollout         isAgentAvailable(agency) — 404 outside the Agent audience (lib/ai/agentAvailability.ts)
  *   3. AI admission    admitAiRun(agent.investigate) — AI_ENABLED, allowlist,
  *                      entitlement, provider presence, daily USD cap
  * then the audio's own checks: declared type, size, a byte-signature match,
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // ── 2. Rollout — identical to /agent and the stream route.
-  if (!isAgentEnabled(user.agencyId)) return reply({ error: 'agent-disabled' }, 404)
+  if (!(await isAgentAvailable(user.agencyId))) return reply({ error: 'agent-disabled' }, 404)
 
   // ── 3. The shared AI admission sequence, under the agent's own task.
   const admission = await admitAiRun({ kind: 'agent.investigate', agencyId: user.agencyId })
