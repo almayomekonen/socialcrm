@@ -5,6 +5,7 @@ import {
   isDeviceOverrideAllowed,
   parseDeviceOverride,
 } from '@/lib/deviceOverride'
+import { isLocalePage, localeNotFoundResponse, localeOfPath } from '@/lib/seo/localeNotFound'
 
 // Public marketing/SEO pages — accessible without authentication
 const PUBLIC_ROUTES = [
@@ -22,13 +23,6 @@ const PUBLIC_ROUTES = [
   '/terms',
   '/data-deletion',
 ]
-
-/**
- * Language roots of the marketing site. Placeholders for now (noindex, not
- * linked, not in the sitemap); kept apart from PUBLIC_ROUTES so that list stays
- * the Hebrew marketing pages exactly.
- */
-const LOCALE_ROUTES = ['/en', '/ar']
 
 /**
  * OAuth / MCP discovery documents (ChatGPT connector). EXACT paths only — no
@@ -63,7 +57,11 @@ export async function proxy(request: NextRequest) {
 
   // Allow public marketing pages (exact match or nested paths)
   if (PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return NextResponse.next()
-  if (LOCALE_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return NextResponse.next()
+  // Language trees of the marketing site (`/en`, `/ar`): public, kept apart from
+  // PUBLIC_ROUTES so that list stays the Hebrew pages exactly. A path with no
+  // page gets the locale's own 404 here (see lib/seo/localeNotFound).
+  const locale = localeOfPath(pathname)
+  if (locale) return isLocalePage(locale, pathname) ? NextResponse.next() : localeNotFoundResponse(locale)
 
   if (!user && !pathname.startsWith('/auth')) return Response.redirect(new URL('/auth', request.url))
 
