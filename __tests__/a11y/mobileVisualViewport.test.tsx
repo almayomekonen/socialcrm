@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe('mobile workspace — pinned to the visible viewport (iOS keyboard)', () => {
   test('1. the column uses the utility, not a viewport-unit height', () => {
-    const src = readFileSync(join(process.cwd(), 'app/(app)/layout.tsx'), 'utf8')
+    const src = readFileSync(join(process.cwd(), 'app/(he)/(app)/layout.tsx'), 'utf8')
     expect(src).toContain("className='mobile-viewport-column flex flex-col min-h-0 items-stretch'")
     expect(src).not.toContain("className='flex flex-col h-dvh min-h-0 items-stretch'")
   })

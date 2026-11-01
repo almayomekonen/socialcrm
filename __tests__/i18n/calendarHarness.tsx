@@ -21,7 +21,7 @@ export async function calShell(locale: UiLocale | null, node: ReactNode, ent: En
 }
 
 export async function calendarPage() {
-  const { default: Page } = await import('@/app/(app)/calendar/page')
+  const { default: Page } = await import('@/app/(he)/(app)/calendar/page')
   return resolveAsync(await Page())
 }
 

@@ -267,6 +267,10 @@ const nextConfig = {
   cacheComponents: true,
   reactCompiler: true,
   experimental: {
+    // One root layout per language (app/(he), app/(en), app/(ar)) leaves no
+    // top-level layout for unmatched URLs; app/global-not-found.tsx renders the
+    // Hebrew 404 instead.
+    globalNotFound: true,
     serverActions: {
       bodySizeLimit: '9mb',
     },

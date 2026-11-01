@@ -231,7 +231,7 @@ describe('/sum_sales, /promotion and ads in English', () => {
   test('ads report in ar: signals, cards, trend, table; the account and campaign names untouched', async () => {
     S.prefs.userLocale = 'ar'
     dealsEnv.pathname = '/sum_sales/ads'
-    const { default: Page } = await import('@/app/(app)/sum_sales/ads/page')
+    const { default: Page } = await import('@/app/(he)/(app)/sum_sales/ads/page')
     const { container } = render(await dealsShell('ar', await perfLayout(await Page({ searchParams: Promise.resolve({}) }))))
     has(textOf(container), 'أداء الإعلانات', 'انتبه', 'حسب Meta', 'في SocialCRM', 'الأداء حسب الحملة', 'الاتجاه اليومي (يومان)', 'نقرة خلال 7 أيام أو مشاهدة خلال يوم واحد', 'حملة')
     // Meta's campaign names are external data: shown exactly as Meta returned them.
@@ -243,13 +243,13 @@ describe('/sum_sales, /promotion and ads in English', () => {
 describe('tab titles', () => {
   test('every page title follows the language (Hebrew unchanged)', async () => {
     const pages = {
-      deals: await import('@/app/(app)/deals/page'),
-      perf: await import('@/app/(app)/sum_sales/layout'),
-      months: await import('@/app/(app)/sum_sales/months/page'),
-      companies: await import('@/app/(app)/sum_sales/companies/page'),
-      ads: await import('@/app/(app)/sum_sales/ads/page'),
-      promos: await import('@/app/(app)/promotion/page'),
-      promo: await import('@/app/(app)/promotion/[id]/page'),
+      deals: await import('@/app/(he)/(app)/deals/page'),
+      perf: await import('@/app/(he)/(app)/sum_sales/layout'),
+      months: await import('@/app/(he)/(app)/sum_sales/months/page'),
+      companies: await import('@/app/(he)/(app)/sum_sales/companies/page'),
+      ads: await import('@/app/(he)/(app)/sum_sales/ads/page'),
+      promos: await import('@/app/(he)/(app)/promotion/page'),
+      promo: await import('@/app/(he)/(app)/promotion/[id]/page'),
     }
     const out: Record<string, string[]> = {}
     for (const locale of ['he', 'en', 'ar'] as const) {

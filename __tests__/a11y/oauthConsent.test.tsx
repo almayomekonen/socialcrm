@@ -7,7 +7,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 import ConsentCard from '@/components/oauth/ConsentCard'
 import ConsentMessage from '@/components/oauth/ConsentMessage'
-import OAuthLayout from '@/app/oauth/layout'
+import OAuthLayout from '@/app/(he)/oauth/layout'
 
 afterEach(cleanup)
 

@@ -81,7 +81,7 @@ vi.mock('@/components/settings/MetaPermissionButton', () => ({
   default: ({ href, lbl }: { href: string; lbl: string }) => <a href={href}>{lbl}</a>,
 }))
 
-import AdsReportingPage from '@/app/(app)/sum_sales/ads/page'
+import AdsReportingPage from '@/app/(he)/(app)/sum_sales/ads/page'
 import { businessDateString } from '@/lib/today/time'
 
 const ACC_1 = { id: 'act_1', name: 'Main', currency: 'ILS', timezone: 'Asia/Jerusalem', status: 1 }

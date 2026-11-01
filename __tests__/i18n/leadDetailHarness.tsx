@@ -23,12 +23,12 @@ export async function detailShell(locale: UiLocale, node: ReactNode, ent: Ent = 
 }
 
 export async function detailLayout(children: ReactNode = null, clientId = '41') {
-  const { default: Layout } = await import('@/app/(app)/clients/[clientId]/layout')
+  const { default: Layout } = await import('@/app/(he)/(app)/clients/[clientId]/layout')
   return resolveAsync(await Layout({ children, params: Promise.resolve({ clientId }) }))
 }
 
 export async function summaryPage(clientId = '41') {
-  const { default: SummaryPage } = await import('@/app/(app)/clients/[clientId]/summary/page')
+  const { default: SummaryPage } = await import('@/app/(he)/(app)/clients/[clientId]/summary/page')
   return resolveAsync(await SummaryPage({ params: Promise.resolve({ clientId }), searchParams: Promise.resolve({}) }))
 }
 

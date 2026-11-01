@@ -81,7 +81,7 @@ const REASONS = ['no_user', 'no_agency', 'suspended', 'not_allowlisted', 'trial_
 
 async function page(path: 'activate' | 'consent', env: Partial<typeof preLoginEnv> = {}) {
   Object.assign(preLoginEnv, { user: SIGNED_IN }, env)
-  const mod = path === 'activate' ? await import('@/app/activate/page') : await import('@/app/oauth/consent/page')
+  const mod = path === 'activate' ? await import('@/app/(he)/activate/page') : await import('@/app/(he)/oauth/consent/page')
   try {
     return await resolveAsync(await mod.default())
   } catch (e) {
@@ -199,7 +199,7 @@ describe('en / ar from the stored preference', () => {
   })
 
   test('tab title', async () => {
-    const consent = await import('@/app/oauth/consent/page')
+    const consent = await import('@/app/(he)/oauth/consent/page')
     preLoginEnv.user = SIGNED_IN
     as(null)
     expect((await consent.generateMetadata()).title).toBe('חיבור אפליקציה ל-SocialCRM')
@@ -226,7 +226,7 @@ describe('the language is the signed-in user\'s, never a hand-set cookie (final 
       process.env = { ...saved }
     }
     expect(H.reads).toBe(0)
-    const consent = await import('@/app/oauth/consent/page')
+    const consent = await import('@/app/(he)/oauth/consent/page')
     preLoginEnv.user = SIGNED_IN
     cookie('en')
     expect((await consent.generateMetadata()).title).toBe('חיבור אפליקציה ל-SocialCRM')
@@ -257,7 +257,7 @@ describe('the language is the signed-in user\'s, never a hand-set cookie (final 
         cleanup()
       }
     }
-    const consent = await import('@/app/oauth/consent/page')
+    const consent = await import('@/app/(he)/oauth/consent/page')
     preLoginEnv.user = SIGNED_IN
     expect((await consent.generateMetadata()).title).toBe('Connect an app to SocialCRM')
   })

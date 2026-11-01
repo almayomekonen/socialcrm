@@ -39,7 +39,7 @@ async function page(build: () => Promise<unknown>): Promise<never> {
 }
 
 async function inLayout(child: () => Promise<unknown>) {
-  const { default: Layout } = await import('@/app/(support)/layout')
+  const { default: Layout } = await import('@/app/(he)/(support)/layout')
   return page(async () => Layout({ children: (await resolveAsync((await child()) as ReactNode)) as ReactNode }))
 }
 
@@ -47,13 +47,13 @@ export const TRIAL_SUPPORT_SURFACES: Surface[] = [
   {
     name: 'support centre — layout, landing with requests',
     route: '/support',
-    render: async () => inLayout(async () => (await import('@/app/(support)/support/page')).default()),
+    render: async () => inLayout(async () => (await import('@/app/(he)/(support)/support/page')).default()),
     allowed: data('דנה כהן', 'הוואטסאפ לא מתחבר', 'איך מייבאים לידים?', 'החיוב לא ברור לי', 'טופס האתר לא שולח'),
   },
   {
     name: 'support centre — my requests (populated)',
     route: '/support/requests',
-    render: async () => page(async () => (await import('@/app/(support)/support/requests/page')).default()),
+    render: async () => page(async () => (await import('@/app/(he)/(support)/support/requests/page')).default()),
     allowed: data('הוואטסאפ לא מתחבר', 'איך מייבאים לידים?', 'החיוב לא ברור לי', 'טופס האתר לא שולח'),
   },
   {
@@ -61,7 +61,7 @@ export const TRIAL_SUPPORT_SURFACES: Surface[] = [
     route: '/support/requests',
     render: async () => {
       trialSupportEnv.requests = []
-      return page(async () => (await import('@/app/(support)/support/requests/page')).default())
+      return page(async () => (await import('@/app/(he)/(support)/support/requests/page')).default())
     },
     allowed: [],
   },
@@ -70,7 +70,7 @@ export const TRIAL_SUPPORT_SURFACES: Surface[] = [
       name: `support centre — new request (${kind})`,
       route: '/support/new',
       render: async (locale) =>
-        provider(locale, await page(async () => (await import('@/app/(support)/support/new/page')).default({ searchParams: Promise.resolve({ kind }) }))),
+        provider(locale, await page(async () => (await import('@/app/(he)/(support)/support/new/page')).default({ searchParams: Promise.resolve({ kind }) }))),
       allowed: [],
     }),
   ),
@@ -79,7 +79,7 @@ export const TRIAL_SUPPORT_SURFACES: Surface[] = [
     route: '/support/requests/[requestId]',
     render: async (locale) => {
       trialSupportEnv.request = { ...trialSupportEnv.request!, status: 'waiting_for_customer' }
-      const { default: Page } = await import('@/app/(support)/support/requests/[requestId]/page')
+      const { default: Page } = await import('@/app/(he)/(support)/support/requests/[requestId]/page')
       return provider(locale, await page(async () => Page({ params: Promise.resolve({ requestId: '41' }) })))
     },
     allowed: data('הוואטסאפ לא מתחבר', 'ניסיתי פעמיים', 'בודקים את זה עכשיו', 'עדיין לא עובד', 'דנה כהן'),
@@ -89,7 +89,7 @@ export const TRIAL_SUPPORT_SURFACES: Surface[] = [
       name: `support centre — guides (${q ?? 'categories'})`,
       route: '/support/guides',
       render: async (locale) =>
-        provider(locale, await page(async () => (await import('@/app/(support)/support/guides/page')).default({ searchParams: Promise.resolve(q ? { q } : {}) }))),
+        provider(locale, await page(async () => (await import('@/app/(he)/(support)/support/guides/page')).default({ searchParams: Promise.resolve(q ? { q } : {}) }))),
       allowed: [],
     }),
   ),
@@ -98,7 +98,7 @@ export const TRIAL_SUPPORT_SURFACES: Surface[] = [
     route: '/support/guides/[slug]',
     render: async () => {
       const { GUIDE_ARTICLES } = await import('@/lib/support/knowledgeBase')
-      const { default: Page } = await import('@/app/(support)/support/guides/[slug]/page')
+      const { default: Page } = await import('@/app/(he)/(support)/support/guides/[slug]/page')
       const articles = await Promise.all(GUIDE_ARTICLES.map((a) => page(async () => Page({ params: Promise.resolve({ slug: a.slug }) }))))
       return <>{articles.map((a, i) => <div key={i}>{a}</div>)}</>
     },
@@ -116,7 +116,7 @@ export const TRIAL_SUPPORT_SURFACES: Surface[] = [
   {
     name: 'card return — the REAL /billing/success page (verifying)',
     route: '/billing/success',
-    render: async () => page(async () => (await import('@/app/billing/success/page')).default({ searchParams: Promise.resolve({ source: 'card_trial' }) })),
+    render: async () => page(async () => (await import('@/app/(he)/billing/success/page')).default({ searchParams: Promise.resolve({ source: 'card_trial' }) })),
     allowed: [],
   },
 ]

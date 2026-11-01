@@ -24,6 +24,13 @@ const PUBLIC_ROUTES = [
 ]
 
 /**
+ * Language roots of the marketing site. Placeholders for now (noindex, not
+ * linked, not in the sitemap); kept apart from PUBLIC_ROUTES so that list stays
+ * the Hebrew marketing pages exactly.
+ */
+const LOCALE_ROUTES = ['/en', '/ar']
+
+/**
  * OAuth / MCP discovery documents (ChatGPT connector). EXACT paths only — no
  * prefix match, no other /.well-known path. Public metadata with no tenant data
  * (and 404 while MCP is disabled); it must be fetchable without a session or
@@ -56,6 +63,7 @@ export async function proxy(request: NextRequest) {
 
   // Allow public marketing pages (exact match or nested paths)
   if (PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return NextResponse.next()
+  if (LOCALE_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))) return NextResponse.next()
 
   if (!user && !pathname.startsWith('/auth')) return Response.redirect(new URL('/auth', request.url))
 

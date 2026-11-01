@@ -40,8 +40,8 @@ describe('Google authentication is unchanged', () => {
 })
 
 describe('auth pages use the authentication App ID', () => {
-  const loginPage = readFileSync(new URL('../../app/(auth)/auth/page.tsx', import.meta.url), 'utf8')
-  const registerPage = readFileSync(new URL('../../app/(auth)/auth/register/page.tsx', import.meta.url), 'utf8')
+  const loginPage = readFileSync(new URL('../../app/(he)/(auth)/auth/page.tsx', import.meta.url), 'utf8')
+  const registerPage = readFileSync(new URL('../../app/(he)/(auth)/auth/register/page.tsx', import.meta.url), 'utf8')
 
   it('gates the Facebook SDK App ID behind the server-side rollout helpers', () => {
     expect(loginPage).toContain('process.env.AUTH_FACEBOOK_APP_ID')
@@ -52,7 +52,7 @@ describe('auth pages use the authentication App ID', () => {
     expect(registerPage).not.toContain('process.env.META_APP_ID')
     expect(registerPage).toContain('isFacebookUserAuthOpenToNewAgencies')
     const securityPage = readFileSync(
-      new URL('../../app/(app)/settings/(user_settings)/update_security/page.tsx', import.meta.url),
+      new URL('../../app/(he)/(app)/settings/(user_settings)/update_security/page.tsx', import.meta.url),
       'utf8',
     )
     expect(securityPage).toContain('process.env.AUTH_FACEBOOK_APP_ID')

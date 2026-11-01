@@ -15,17 +15,17 @@ import { MARKETING_ROUTES, SITE_URL } from './routes'
 
 vi.mock('@/actions/auth', () => ({ getSessionState: async () => false, logout: async () => {} }))
 
-import { metadata as home } from '@/app/(marketing)/page'
-import { metadata as channels } from '@/app/(marketing)/channels/page'
-import { metadata as pricing } from '@/app/(marketing)/pricing/page'
-import { metadata as faq } from '@/app/(marketing)/faq/page'
-import { metadata as instagramLeads } from '@/app/(marketing)/instagram-leads-crm/page'
-import { metadata as crmForWhatsapp } from '@/app/(marketing)/crm-for-whatsapp-business/page'
-import { metadata as crmVsExcel } from '@/app/(marketing)/crm-vs-excel/page'
-import { metadata as privacy } from '@/app/(marketing)/privacy/page'
-import { metadata as terms } from '@/app/(marketing)/terms/page'
-import { metadata as dataDeletion } from '@/app/(marketing)/data-deletion/page'
-import { metadata as thankYou } from '@/app/(marketing)/thank-you/page'
+import { metadata as home } from '@/app/(he)/(marketing)/page'
+import { metadata as channels } from '@/app/(he)/(marketing)/channels/page'
+import { metadata as pricing } from '@/app/(he)/(marketing)/pricing/page'
+import { metadata as faq } from '@/app/(he)/(marketing)/faq/page'
+import { metadata as instagramLeads } from '@/app/(he)/(marketing)/instagram-leads-crm/page'
+import { metadata as crmForWhatsapp } from '@/app/(he)/(marketing)/crm-for-whatsapp-business/page'
+import { metadata as crmVsExcel } from '@/app/(he)/(marketing)/crm-vs-excel/page'
+import { metadata as privacy } from '@/app/(he)/(marketing)/privacy/page'
+import { metadata as terms } from '@/app/(he)/(marketing)/terms/page'
+import { metadata as dataDeletion } from '@/app/(he)/(marketing)/data-deletion/page'
+import { metadata as thankYou } from '@/app/(he)/(marketing)/thank-you/page'
 import type { Metadata } from 'next'
 
 const BY_PATH: Record<string, Metadata> = {

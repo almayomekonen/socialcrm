@@ -33,23 +33,23 @@ const sp = (filter?: Record<string, unknown>, extra: Record<string, string> = {}
   Promise.resolve({ ...(filter ? { filter: JSON.stringify(filter) } : {}), ...extra })
 
 export async function dealsPage(filter?: Record<string, unknown>, extra: Record<string, string> = {}) {
-  const { default: Page } = await import('@/app/(app)/deals/page')
+  const { default: Page } = await import('@/app/(he)/(app)/deals/page')
   return resolveAsync(await Page({ searchParams: sp(filter, extra) }))
 }
 
 /** The performance layout (sub-nav) around one of its pages. */
 export async function perfLayout(children: ReactNode) {
-  const { default: Layout } = await import('@/app/(app)/sum_sales/layout')
+  const { default: Layout } = await import('@/app/(he)/(app)/sum_sales/layout')
   return resolveAsync(await Layout({ children }))
 }
 
 type PerfPage = 'overview' | 'agents' | 'months' | 'teams' | 'companies'
 const PERF_MODULES: Record<PerfPage, () => Promise<{ default: (p: any) => Promise<ReactNode> }>> = {
-  overview: () => import('@/app/(app)/sum_sales/page'),
-  agents: () => import('@/app/(app)/sum_sales/agents/page'),
-  months: () => import('@/app/(app)/sum_sales/months/page'),
-  teams: () => import('@/app/(app)/sum_sales/teams/page'),
-  companies: () => import('@/app/(app)/sum_sales/companies/page'),
+  overview: () => import('@/app/(he)/(app)/sum_sales/page'),
+  agents: () => import('@/app/(he)/(app)/sum_sales/agents/page'),
+  months: () => import('@/app/(he)/(app)/sum_sales/months/page'),
+  teams: () => import('@/app/(he)/(app)/sum_sales/teams/page'),
+  companies: () => import('@/app/(he)/(app)/sum_sales/companies/page'),
 }
 
 export async function perfPage(which: PerfPage, filter?: Record<string, unknown>) {
@@ -58,12 +58,12 @@ export async function perfPage(which: PerfPage, filter?: Record<string, unknown>
 }
 
 export async function promotionListPage() {
-  const { default: Page } = await import('@/app/(app)/promotion/page')
+  const { default: Page } = await import('@/app/(he)/(app)/promotion/page')
   return resolveAsync(await Page())
 }
 
 export async function promotionPage(id = '1') {
-  const { default: Page } = await import('@/app/(app)/promotion/[id]/page')
+  const { default: Page } = await import('@/app/(he)/(app)/promotion/[id]/page')
   return resolveAsync(await Page({ params: Promise.resolve({ id }), searchParams: Promise.resolve({}) }))
 }
 

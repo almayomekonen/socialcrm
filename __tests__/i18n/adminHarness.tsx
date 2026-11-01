@@ -47,19 +47,19 @@ export async function resolveServer(node: ReactNode): Promise<ReactNode> {
 }
 
 export const ADMIN_PAGES = {
-  editUsers: () => import('@/app/(app)/settings/(admin_settings)/edit_users/page'),
-  editTeams: () => import('@/app/(app)/settings/(admin_settings)/edit_teams/page'),
-  editPromotions: () => import('@/app/(app)/settings/(admin_settings)/edit_promotions/page'),
-  editTmplts: () => import('@/app/(app)/settings/(admin_settings)/edit_tmplts/page'),
-  tmpltDetail: () => import('@/app/(app)/settings/(admin_settings)/edit_tmplts/[tmpltTaskId]/page'),
-  quoteTemplates: () => import('@/app/(app)/settings/(admin_settings)/quote-templates/page'),
-  autoResponse: () => import('@/app/(app)/settings/(admin_settings)/auto-response/page'),
+  editUsers: () => import('@/app/(he)/(app)/settings/(admin_settings)/edit_users/page'),
+  editTeams: () => import('@/app/(he)/(app)/settings/(admin_settings)/edit_teams/page'),
+  editPromotions: () => import('@/app/(he)/(app)/settings/(admin_settings)/edit_promotions/page'),
+  editTmplts: () => import('@/app/(he)/(app)/settings/(admin_settings)/edit_tmplts/page'),
+  tmpltDetail: () => import('@/app/(he)/(app)/settings/(admin_settings)/edit_tmplts/[tmpltTaskId]/page'),
+  quoteTemplates: () => import('@/app/(he)/(app)/settings/(admin_settings)/quote-templates/page'),
+  autoResponse: () => import('@/app/(he)/(app)/settings/(admin_settings)/auto-response/page'),
 } as const
 export type AdminPage = keyof typeof ADMIN_PAGES
 
 /** The real page inside the real (admin_settings) layout, server parts awaited. */
 export async function adminPage(name: AdminPage): Promise<ReactNode> {
-  const { default: Layout } = (await import('@/app/(app)/settings/(admin_settings)/layout')) as { default: (p: unknown) => Promise<ReactNode> }
+  const { default: Layout } = (await import('@/app/(he)/(app)/settings/(admin_settings)/layout')) as { default: (p: unknown) => Promise<ReactNode> }
   const { default: Page } = (await ADMIN_PAGES[name]()) as { default: (p: unknown) => Promise<ReactNode> }
   const page = await resolveServer(await Page({ params: Promise.resolve({ tmpltTaskId: '4' }) }))
   return resolveServer(await Layout({ children: page }))

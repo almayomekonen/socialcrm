@@ -266,7 +266,7 @@ describe('portalled sheets declare the language', () => {
 
 describe('phone loading and error boundaries in the interface language', () => {
   test('list / thread skeleton status and region; Messenger and Comments phone errors', async () => {
-    const { default: InboxLoading } = await import('@/app/(app)/inbox/loading')
+    const { default: InboxLoading } = await import('@/app/(he)/(app)/inbox/loading')
     const shell = (node: ReactNode) => mobileShell('en', node)
     const list = render(await shell(<InboxLoading />))
     expect(regionOf(list.getByTestId('inbox-skeleton-mobile'))).toEqual(['en', 'ltr'])
@@ -277,8 +277,8 @@ describe('phone loading and error boundaries in the interface language', () => {
     expect(regionOf(thread.getByTestId('inbox-thread-skeleton-mobile'))).toEqual(['en', 'ltr'])
     window.history.pushState({}, '', '/inbox')
     thread.unmount()
-    const { default: MessengerError } = await import('@/app/(app)/inbox/messenger/error')
-    const { default: CommentsError } = await import('@/app/(app)/inbox/comments/error')
+    const { default: MessengerError } = await import('@/app/(he)/(app)/inbox/messenger/error')
+    const { default: CommentsError } = await import('@/app/(he)/(app)/inbox/comments/error')
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const errors = render(await mobileShell('ar', <><MessengerError error={new Error('x')} reset={() => {}} /><CommentsError error={new Error('x')} reset={() => {}} /></>))
     expect(findHebrewLeaks(errors.container, [])).toEqual([])

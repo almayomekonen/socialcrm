@@ -174,13 +174,13 @@ describe('the two surfaces that used to lie', () => {
     // "מנוי פעיל" must now be unreachable while expired.
     expect(card).toContain('if (expired)')
 
-    const page = read('app/(app)/settings/(user_settings)/update_payment/page.tsx')
+    const page = read('app/(he)/(app)/settings/(user_settings)/update_payment/page.tsx')
     expect(page).toContain('getAgencyProductAccess')
     expect(page).toContain('hasAccess={productAccess.hasAccess}')
   })
 
   it('the header PRO badge requires entitlement, not just plan==="pro"', () => {
-    const layout = read('app/(app)/layout.tsx')
+    const layout = read('app/(he)/(app)/layout.tsx')
     expect(layout).toContain('isPro={productAccess.hasAccess &&')
     expect(layout).not.toMatch(/isPro=\{\(await getAgencyPlan\(user\.agencyId\)\) === 'pro'\}/)
   })
@@ -188,7 +188,7 @@ describe('the two surfaces that used to lie', () => {
 
 describe('entitlement is not authentication', () => {
   it('notifications keeps an expired user inside the app, and now shows the list', () => {
-    const page = read('app/(app)/notifications/page.tsx')
+    const page = read('app/(he)/(app)/notifications/page.tsx')
     // The ejection to the marketing homepage is gone…
     expect(page).not.toMatch(/hasAccess\)\s*redirect\('\/'\)/)
     // …and so is the page-level lock that replaced it. Reading your own
@@ -198,7 +198,7 @@ describe('entitlement is not authentication', () => {
   })
 
   it('seeds entitlement from the existing guard, not a second calculation', () => {
-    const layout = read('app/(app)/layout.tsx')
+    const layout = read('app/(he)/(app)/layout.tsx')
     expect(layout).toContain('getAgencyProductAccess(user.agencyId)')
     expect(layout).toContain('<EntitlementProvider')
     const ctx = read('lib/entitlement/EntitlementContext.tsx')
@@ -231,8 +231,8 @@ describe('every gated surface uses the shared state, not a local invention', () 
     ['components/clients/ClientFormPop.tsx', 'create_lead'],
     ['components/inbox/WhatsappComposerPanel.tsx', 'whatsapp_composer'],
     ['components/inbox/LeadlessConversationActions.tsx', 'conversation_actions'],
-    ['app/(app)/settings/(user_settings)/integrations/page.tsx', 'integrations_page'],
-    ['app/(app)/settings/(user_settings)/update_payment/page.tsx', 'billing_page'],
+    ['app/(he)/(app)/settings/(user_settings)/integrations/page.tsx', 'integrations_page'],
+    ['app/(he)/(app)/settings/(user_settings)/update_payment/page.tsx', 'billing_page'],
     // Notifications moved to Tier 2: the bell and the page now render the real
     // list for an expired customer, so neither carries a locked state at all.
   ]
@@ -257,7 +257,7 @@ describe('every gated surface uses the shared state, not a local invention', () 
   })
 
   it('billing uses the plan name only for view selection, never for access', () => {
-    const src = read('app/(app)/settings/(user_settings)/update_payment/page.tsx')
+    const src = read('app/(he)/(app)/settings/(user_settings)/update_payment/page.tsx')
     expect(src).toContain("const isPro = plan === 'pro'")
     // The ACCESS answer comes from the guard, and is what the card renders.
     expect(src).toContain('getAgencyProductAccess')
@@ -325,7 +325,7 @@ describe('manage-plan offers renewal, not cancellation, to an expired customer',
 
 describe('integrations separates connection health from entitlement', () => {
   it('keeps the connector copy and states the subscription fact once', () => {
-    const page = read('app/(app)/settings/(user_settings)/integrations/page.tsx')
+    const page = read('app/(he)/(app)/settings/(user_settings)/integrations/page.tsx')
     expect(page).toContain('getAgencyProductAccess')
     expect(page).toContain('SubscriptionExpiredState')
     // The connectors themselves are untouched — their claim is true.
@@ -336,7 +336,7 @@ describe('integrations separates connection health from entitlement', () => {
 
 describe('no mobile tab ejects an expired user', () => {
   it.each(['dashboard', 'leads', 'inbox', 'notifications', 'm'])('/%s has no redirect to "/"', (route) => {
-    const src = read(`app/(app)/${route}/page.tsx`)
+    const src = read(`app/(he)/(app)/${route}/page.tsx`)
     // Comments may mention the old behaviour; executable code must not contain it.
     const code = src
       .split('\n')
@@ -481,7 +481,7 @@ describe('production audit follow-ups', () => {
   })
 
   it('the education tour does not open over a paywall', () => {
-    const layout = read('app/(app)/layout.tsx')
+    const layout = read('app/(he)/(app)/layout.tsx')
     expect(layout).toContain('productAccess.hasAccess && !trialExpired')
     // Active accounts keep tours: the other conditions are still present.
     expect(layout).toContain("trialStatus !== 'NEVER_STARTED'")
@@ -939,7 +939,7 @@ describe('surfaces the sweep deliberately left alone', () => {
   })
 
   it('the notifications list renders for an expired customer', () => {
-    const page = read('app/(app)/notifications/page.tsx')
+    const page = read('app/(he)/(app)/notifications/page.tsx')
     expect(page).toContain('<NotificationCenter')
     expect(page).not.toContain('<SubscriptionExpiredState')
   })
@@ -965,10 +965,10 @@ describe('surfaces the sweep deliberately left alone', () => {
 
 describe('pure-configuration settings pages lock instead of failing per click', () => {
   const PAGES: Array<[string, string]> = [
-    ['app/(app)/settings/(admin_settings)/automation-templates/page.tsx', 'automation_templates_settings'],
-    ['app/(app)/settings/(admin_settings)/automations/page.tsx', 'automations_settings'],
-    ['app/(app)/settings/(admin_settings)/quote-templates/page.tsx', 'quote_templates_settings'],
-    ['app/(app)/settings/(admin_settings)/auto-response/page.tsx', 'auto_response_settings'],
+    ['app/(he)/(app)/settings/(admin_settings)/automation-templates/page.tsx', 'automation_templates_settings'],
+    ['app/(he)/(app)/settings/(admin_settings)/automations/page.tsx', 'automations_settings'],
+    ['app/(he)/(app)/settings/(admin_settings)/quote-templates/page.tsx', 'quote_templates_settings'],
+    ['app/(he)/(app)/settings/(admin_settings)/auto-response/page.tsx', 'auto_response_settings'],
   ]
 
   it.each(PAGES)('%s stays readable and teases Pro instead of locking', (file, source) => {
@@ -986,16 +986,16 @@ describe('pure-configuration settings pages lock instead of failing per click', 
    * page that their subscription ended is simply the wrong sentence.
    */
   it.each([
-    ['app/(app)/settings/(admin_settings)/automation-templates/page.tsx', 'isAutomationsAgencyAllowlisted'],
-    ['app/(app)/settings/(admin_settings)/automations/page.tsx', 'isAutomationsAgencyAllowlisted'],
-    ['app/(app)/settings/(admin_settings)/quote-templates/page.tsx', 'canManageQuoteTemplates'],
+    ['app/(he)/(app)/settings/(admin_settings)/automation-templates/page.tsx', 'isAutomationsAgencyAllowlisted'],
+    ['app/(he)/(app)/settings/(admin_settings)/automations/page.tsx', 'isAutomationsAgencyAllowlisted'],
+    ['app/(he)/(app)/settings/(admin_settings)/quote-templates/page.tsx', 'canManageQuoteTemplates'],
   ])('%s checks permission before entitlement', (file, permission) => {
     const src = read(file)
     expect(src.indexOf(permission)).toBeLessThan(src.indexOf('getAgencyProductAccess(user.agencyId)).hasAccess'))
   })
 
   it('auto-response leaves the mobile branch ahead of the gate, untouched', () => {
-    const src = read('app/(app)/settings/(admin_settings)/auto-response/page.tsx')
+    const src = read('app/(he)/(app)/settings/(admin_settings)/auto-response/page.tsx')
     expect(src.indexOf('isMobileWorkspaceRequest')).toBeLessThan(
       src.indexOf('getAgencyProductAccess(user.agencyId)).hasAccess'),
     )
@@ -1203,7 +1203,7 @@ describe('invoice mutations are withheld while the records stay readable', () =>
   })
 
   it('the new-invoice route locks, because creating is all it does', () => {
-    const src = read('app/(app)/clients/[clientId]/billing/new/page.tsx')
+    const src = read('app/(he)/(app)/clients/[clientId]/billing/new/page.tsx')
     expect(src).toContain('getAgencyProductAccess(user.agencyId)).hasAccess')
     expect(src).toContain("source='invoice_new'")
     // Identity still outranks commercial state.
@@ -1213,7 +1213,7 @@ describe('invoice mutations are withheld while the records stay readable', () =>
   })
 
   it('the billing tab itself is NOT gated — existing invoices stay readable', () => {
-    const tab = read('app/(app)/clients/[clientId]/billing/page.tsx')
+    const tab = read('app/(he)/(app)/clients/[clientId]/billing/page.tsx')
     expect(tab).not.toContain('SubscriptionExpiredState')
   })
 })
@@ -1254,7 +1254,7 @@ describe('no new entitlement mechanism was introduced anywhere in this workstrea
       'components/billing/SendInvoiceModal.tsx',
       'components/sales/saleForm/SaleForm.tsx',
       'components/files/FileUploader.tsx',
-      'app/(app)/clients/[clientId]/billing/new/page.tsx',
+      'app/(he)/(app)/clients/[clientId]/billing/new/page.tsx',
     ]
     for (const f of FILES) {
       const src = read(f)

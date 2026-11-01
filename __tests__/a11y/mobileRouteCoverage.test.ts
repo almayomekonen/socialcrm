@@ -2,11 +2,11 @@
 //
 // The desktop-handoff work fixed seven sections that rendered a desktop table
 // inside the phone shell. Fixing them is worth little on its own: the NEXT route
-// added to `app/(app)` would arrive in exactly the same state, and nobody would
+// added to `app/(he)/(app)` would arrive in exactly the same state, and nobody would
 // notice until a customer on a phone did.
 //
 // So this walks the filesystem rather than a hand-written list. Every top-level
-// route under `app/(app)` must be accounted for in `lib/mobile/desktopOnlyRoutes.ts`
+// route under `app/(he)/(app)` must be accounted for in `lib/mobile/desktopOnlyRoutes.ts`
 // — either as a section that hands off to the computer, or as a route with a
 // real phone presentation. Adding a route without making that decision fails
 // here, on the commit that adds it.
@@ -28,7 +28,7 @@ import {
   SETTINGS_MOBILE_BACKLOG,
 } from '@/lib/mobile/desktopOnlyRoutes'
 
-const APP_DIR = path.join(process.cwd(), 'app', '(app)')
+const APP_DIR = path.join(process.cwd(), 'app', '(he)', '(app)')
 
 /**
  * The top-level route segments that actually render a page.
@@ -209,14 +209,14 @@ describe('the gates are actually wired into the routes', () => {
   const GATE = 'isMobileWorkspaceRequest'
 
   const GATED_FILES: Record<string, string> = {
-    tasks: 'app/(app)/tasks/page.tsx',
-    calendar: 'app/(app)/calendar/page.tsx',
-    deals: 'app/(app)/deals/page.tsx',
-    clients: 'app/(app)/clients/page.tsx',
+    tasks: 'app/(he)/(app)/tasks/page.tsx',
+    calendar: 'app/(he)/(app)/calendar/page.tsx',
+    deals: 'app/(he)/(app)/deals/page.tsx',
+    clients: 'app/(he)/(app)/clients/page.tsx',
     // Gated at the LAYOUT: ביצועים is five pages sharing one desktop surface.
-    sum_sales: 'app/(app)/sum_sales/layout.tsx',
-    files: 'app/(app)/files/page.tsx',
-    promotion: 'app/(app)/promotion/page.tsx',
+    sum_sales: 'app/(he)/(app)/sum_sales/layout.tsx',
+    files: 'app/(he)/(app)/files/page.tsx',
+    promotion: 'app/(he)/(app)/promotion/page.tsx',
   }
 
   test.each(Object.entries(GATED_FILES))('%s gates on the device class and renders the handoff', (section, file) => {
@@ -226,19 +226,19 @@ describe('the gates are actually wired into the routes', () => {
   })
 
   test('the campaign DETAIL route is gated too — a direct URL is not a way around the handoff', () => {
-    const src = fs.readFileSync(path.join(process.cwd(), 'app/(app)/promotion/[id]/page.tsx'), 'utf8')
+    const src = fs.readFileSync(path.join(process.cwd(), 'app/(he)/(app)/promotion/[id]/page.tsx'), 'utf8')
     expect(src).toContain(GATE)
   })
 
   test('clients/layout.tsx is NOT gated — it wraps the mobile lead-detail route', () => {
-    const src = fs.readFileSync(path.join(process.cwd(), 'app/(app)/clients/layout.tsx'), 'utf8')
+    const src = fs.readFileSync(path.join(process.cwd(), 'app/(he)/(app)/clients/layout.tsx'), 'utf8')
     expect(src).not.toContain(GATE)
   })
 
   test('clients/[clientId]/layout.tsx is NOT gated either', () => {
     // It returns `children` on a phone so the summary tab can render its own
     // mobile screen. Gating here would take סיכום ליד down with the others.
-    const src = fs.readFileSync(path.join(process.cwd(), 'app/(app)/clients/[clientId]/layout.tsx'), 'utf8')
+    const src = fs.readFileSync(path.join(process.cwd(), 'app/(he)/(app)/clients/[clientId]/layout.tsx'), 'utf8')
     expect(src).not.toContain(GATE)
   })
 })

@@ -11,7 +11,7 @@
 export interface MarketingRoute {
   /** URL path as it appears in the sitemap and in canonicals. */
   path: string
-  /** Directory under `app/(marketing)/`; `null` for the group's own page.tsx. */
+  /** Directory under `app/(he)/(marketing)/`; `null` for the group's own page.tsx. */
   dir: string | null
   /** False for pages intentionally kept out of the index (e.g. /thank-you). */
   indexable: boolean

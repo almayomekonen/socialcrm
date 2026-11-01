@@ -98,7 +98,7 @@ describe('no-response jobs on auto_response_jobs', () => {
 
 describe('auto-response delay source of truth', () => {
   it('settings page passes the stored delaySeconds value', () => {
-    const src = read('app/(app)/settings/(admin_settings)/auto-response/page.tsx')
+    const src = read('app/(he)/(app)/settings/(admin_settings)/auto-response/page.tsx')
     expect(src).toContain('delaySeconds={channel?.delaySeconds ?? 0}')
     expect(src).not.toMatch(/delaySeconds=\{0\}/)
   })

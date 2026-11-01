@@ -140,9 +140,9 @@ describe('automations screens in en / ar', () => {
 describe('tab titles, language switch, hydration', () => {
   test('the automations, templates and pilot titles follow the interface language', async () => {
     const pages = await Promise.all([
-      import('@/app/(app)/settings/(admin_settings)/automations/page'),
-      import('@/app/(app)/settings/(admin_settings)/automation-templates/page'),
-      import('@/app/(app)/settings/(admin_settings)/automations-pilot/page'),
+      import('@/app/(he)/(app)/settings/(admin_settings)/automations/page'),
+      import('@/app/(he)/(app)/settings/(admin_settings)/automation-templates/page'),
+      import('@/app/(he)/(app)/settings/(admin_settings)/automations-pilot/page'),
     ])
     for (const [locale, ...titles] of [
       ['he', 'אוטומציות', 'תבניות אוטומציה', 'מדדי פיילוט'],

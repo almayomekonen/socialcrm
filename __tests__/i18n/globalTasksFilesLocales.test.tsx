@@ -137,8 +137,8 @@ describe('/files in en / ar', () => {
 
 describe('tab titles', () => {
   test('each page titles the tab in the interface language; Hebrew is the title it always had', async () => {
-    const tasks = await import('@/app/(app)/tasks/page')
-    const files = await import('@/app/(app)/files/page')
+    const tasks = await import('@/app/(he)/(app)/tasks/page')
+    const files = await import('@/app/(he)/(app)/files/page')
     S.prefs.userLocale = 'en'
     expect(await tasks.generateMetadata()).toEqual({ title: 'Tasks', description: 'All lead tasks' })
     expect(await files.generateMetadata()).toEqual({ title: 'Files' })

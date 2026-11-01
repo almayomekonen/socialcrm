@@ -20,7 +20,7 @@ const pkg = read('components/settings/payment/Packages.tsx')
    why this surface defers to CardBillingControls names the very functions it
    must not call, and matching prose is not matching code. */
 const pkgCode = pkg.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-const page = read('app/(app)/settings/(user_settings)/update_payment/page.tsx')
+const page = read('app/(he)/(app)/settings/(user_settings)/update_payment/page.tsx')
 
 describe('the upgrade CTA cannot be a silent no-op', () => {
   it('renders only when the scroll target is rendered', () => {

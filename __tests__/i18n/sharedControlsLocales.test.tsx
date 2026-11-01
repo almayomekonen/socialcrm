@@ -36,7 +36,7 @@ const proToast = (opts: Parameters<typeof toastModule.proToast>[0]) => toastModu
 const { default: Topbar } = await import('@/lib/navs/Topbar')
 const { useAction } = await import('@/lib/useAction')
 const { EntitlementProvider } = await import('@/lib/entitlement/EntitlementContext')
-const { default: AppError } = await import('@/app/(app)/error')
+const { default: AppError } = await import('@/app/(he)/(app)/error')
 const { UserProvider } = await import('@/lib/hooksNEvents')
 const { default: FileUploader } = await import('@/components/files/FileUploader')
 const { FileDisplay } = await import('@/components/files/funcs')

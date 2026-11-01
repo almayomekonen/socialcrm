@@ -152,7 +152,7 @@ describe('root and page titles', () => {
     const { CHUNK_RELOADING_KEY } = await import('@/lib/ChunkReloader')
     for (const l of ['he', 'en', 'ar'] as const)
       expect(translatorFor(l)(CHUNK_RELOADING_KEY)).toBe(CATALOGS[l].auth.root.chunkReloading)
-    expect(src('app/(auth)/auth/page.tsx')).toContain(`title: '${he.auth.signIn.title}'`)
+    expect(src('app/(he)/(auth)/auth/page.tsx')).toContain(`title: '${he.auth.signIn.title}'`)
     expect(he.auth.register.title).toBe('הרשמה')
     expect(he.auth.oauth.title).toBe('חיבור אפליקציה ל-SocialCRM')
   })

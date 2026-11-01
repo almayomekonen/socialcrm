@@ -79,7 +79,7 @@ describe('the return page never announces what the server has not confirmed', ()
   })
 
   it('is the only thing the success page can render, and a stale Payment-Link return goes to billing', () => {
-    const page = readFileSync('app/billing/success/page.tsx', 'utf8')
+    const page = readFileSync('app/(he)/billing/success/page.tsx', 'utf8')
     expect(page).toContain('CardSetupVerifier')
     // The Payment-Link entitlement verifier is gone with Payment Links.
     expect(page).not.toContain('BillingActivationVerifier')

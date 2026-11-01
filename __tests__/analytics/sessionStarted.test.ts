@@ -92,7 +92,7 @@ describe('session_started', () => {
   })
 
   it('is scheduled only after the authenticated real-workspace gate, never on auth redirects or the teaser', () => {
-    const layout = readFileSync(path.resolve(process.cwd(), 'app/(app)/layout.tsx'), 'utf8')
+    const layout = readFileSync(path.resolve(process.cwd(), 'app/(he)/(app)/layout.tsx'), 'utf8')
     const sessionCall = layout.lastIndexOf('trackSessionStartedOncePerDay')
     const unauthenticatedRedirect = layout.indexOf("if (!user) redirect('/api/auth/clear')")
     const onboardingRedirect = layout.indexOf("if (!(await isOnboarded(user.agencyId))) redirect('/activate')")

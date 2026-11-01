@@ -46,12 +46,12 @@ export async function PageProps({ children, search = '' }: { children: ReactNode
 }
 
 export async function leadsPage(params: Record<string, string> = {}) {
-  const { default: LeadsPage } = await import('@/app/(app)/leads/page')
+  const { default: LeadsPage } = await import('@/app/(he)/(app)/leads/page')
   return LeadsPage({ searchParams: Promise.resolve(params) })
 }
 
 export async function clientsPage(params: Record<string, string> = {}) {
-  const { default: ClientsPage } = await import('@/app/(app)/clients/page')
+  const { default: ClientsPage } = await import('@/app/(he)/(app)/clients/page')
   return ClientsPage({ searchParams: Promise.resolve(params) })
 }
 

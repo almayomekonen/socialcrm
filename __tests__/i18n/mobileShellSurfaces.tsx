@@ -52,7 +52,7 @@ export const MOBILE_SHELL_SURFACES: Surface[] = [
     render: async (locale) => {
       const { dashboardEnv } = await import('./dashboardFixtures')
       dashboardEnv.mobile = true // the page redirects a desktop request away
-      const { default: Page } = await import('@/app/(app)/m/page')
+      const { default: Page } = await import('@/app/(he)/(app)/m/page')
       return provider(locale, await resolveAsync(await Page()))
     },
     // The signed-in rep's own name, shown as their identity row.

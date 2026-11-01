@@ -23,7 +23,7 @@ vi.mock('@/db/usersNTeams', () => ({ getAllTeams: H.getAllTeams, getUsers: H.get
 // The create/delete server actions are not under test; the form must only be reachable.
 vi.mock('@/actions/usersNteams', () => ({ upsertTeam: vi.fn(), deleteTeam: vi.fn() }))
 
-import EditTeamsPage from '@/app/(app)/settings/(admin_settings)/edit_teams/page'
+import EditTeamsPage from '@/app/(he)/(app)/settings/(admin_settings)/edit_teams/page'
 
 const USERS = [
   { id: 1, name: 'דנה', role: 'AGNT' },

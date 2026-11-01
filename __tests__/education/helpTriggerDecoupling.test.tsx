@@ -145,7 +145,7 @@ describe('a visible Help button starts no guided tour by itself', () => {
   })
 
   it('the layout keeps hasAccess in tour eligibility', () => {
-    expect(read('app/(app)/layout.tsx')).toContain(
+    expect(read('app/(he)/(app)/layout.tsx')).toContain(
       "productAccess.hasAccess && !trialExpired && trialStatus !== 'NEVER_STARTED' && !mobileWorkspace",
     )
   })

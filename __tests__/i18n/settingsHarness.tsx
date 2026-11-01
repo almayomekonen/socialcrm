@@ -56,14 +56,14 @@ async function serverTypes() {
 const sp = () => Promise.resolve({ ...setEnv.searchParams })
 
 export const SETTINGS_PAGES = {
-  selfEdit: () => import('@/app/(app)/settings/(user_settings)/self_edit/page'),
-  userDetails: () => import('@/app/(app)/settings/(user_settings)/update_user_details/page'),
-  security: () => import('@/app/(app)/settings/(user_settings)/update_security/page'),
-  system: () => import('@/app/(app)/settings/(user_settings)/update_default/page'),
-  reminders: () => import('@/app/(app)/settings/(user_settings)/whatsapp_reminders/page'),
-  agency: () => import('@/app/(app)/settings/(user_settings)/update_agency/page'),
-  payment: () => import('@/app/(app)/settings/(user_settings)/update_payment/page'),
-  integrations: () => import('@/app/(app)/settings/(user_settings)/integrations/page'),
+  selfEdit: () => import('@/app/(he)/(app)/settings/(user_settings)/self_edit/page'),
+  userDetails: () => import('@/app/(he)/(app)/settings/(user_settings)/update_user_details/page'),
+  security: () => import('@/app/(he)/(app)/settings/(user_settings)/update_security/page'),
+  system: () => import('@/app/(he)/(app)/settings/(user_settings)/update_default/page'),
+  reminders: () => import('@/app/(he)/(app)/settings/(user_settings)/whatsapp_reminders/page'),
+  agency: () => import('@/app/(he)/(app)/settings/(user_settings)/update_agency/page'),
+  payment: () => import('@/app/(he)/(app)/settings/(user_settings)/update_payment/page'),
+  integrations: () => import('@/app/(he)/(app)/settings/(user_settings)/integrations/page'),
 } as const
 export type SettingsPage = keyof typeof SETTINGS_PAGES
 

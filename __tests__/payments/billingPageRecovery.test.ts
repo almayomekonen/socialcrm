@@ -23,7 +23,7 @@ const read = (p: string) => readFileSync(`${process.cwd()}/${p}`, 'utf8')
 
 describe('the billing page finishes a recoverable save', () => {
   it('invokes recovery before it decides what to render', () => {
-    const src = read('app/(app)/settings/(user_settings)/update_payment/page.tsx')
+    const src = read('app/(he)/(app)/settings/(user_settings)/update_payment/page.tsx')
     expect(src).toContain("import { refreshCardSetupState } from '@/lib/payments/cardTrial/recoverCardSetup'")
     expect(src).toContain('await refreshCardSetupState(user.agencyId)')
 

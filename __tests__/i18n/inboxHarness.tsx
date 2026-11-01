@@ -26,13 +26,13 @@ export async function inboxShell(locale: UiLocale | null, node: ReactNode, ent: 
 }
 
 export async function inboxPage(searchParams: Record<string, string> = {}) {
-  const { default: Page } = await import('@/app/(app)/inbox/page')
+  const { default: Page } = await import('@/app/(he)/(app)/inbox/page')
   const sp = inboxEnv.selected ? { conversation: String(inboxEnv.selected.conversationId), ...searchParams } : searchParams
   return resolveAsync(await Page({ searchParams: Promise.resolve(sp) }))
 }
 
 export async function inboxLoading() {
-  const { default: Loading } = await import('@/app/(app)/inbox/loading')
+  const { default: Loading } = await import('@/app/(he)/(app)/inbox/loading')
   return <Loading />
 }
 

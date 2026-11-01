@@ -67,7 +67,7 @@ const html = (el: Element | null) => {
 }
 
 async function adsPage(query: Record<string, string> = {}) {
-  const { default: Page } = await import('@/app/(app)/sum_sales/ads/page')
+  const { default: Page } = await import('@/app/(he)/(app)/sum_sales/ads/page')
   return Page({ searchParams: Promise.resolve(query) })
 }
 
@@ -155,7 +155,7 @@ describe('Hebrew baseline — /sum_sales/ads pieces', () => {
     const { default: DisconnectAdsButton } = await import('@/modules/adsReporting/components/DisconnectAdsButton')
     const { default: AdVideoPreview } = await import('@/modules/adsReporting/components/AdVideoPreview')
     const { default: AdsReportSkeleton } = await import('@/modules/adsReporting/components/AdsReportSkeleton')
-    const { default: AdsError } = await import('@/app/(app)/sum_sales/ads/error')
+    const { default: AdsError } = await import('@/app/(he)/(app)/sum_sales/ads/error')
     const out: Record<string, unknown> = {}
     const { container } = render(
       await dealsShell(

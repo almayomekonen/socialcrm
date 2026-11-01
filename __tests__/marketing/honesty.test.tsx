@@ -39,17 +39,17 @@ vi.mock('next/navigation', () => ({
   notFound: () => {},
 }))
 
-import MarketingLayout from '@/app/(marketing)/layout'
-import Home from '@/app/(marketing)/page'
-import Channels from '@/app/(marketing)/channels/page'
-import Pricing from '@/app/(marketing)/pricing/page'
-import Faq from '@/app/(marketing)/faq/page'
-import InstagramLeads from '@/app/(marketing)/instagram-leads-crm/page'
-import CrmForWhatsapp from '@/app/(marketing)/crm-for-whatsapp-business/page'
-import CrmVsExcel from '@/app/(marketing)/crm-vs-excel/page'
-import Privacy from '@/app/(marketing)/privacy/page'
-import Terms from '@/app/(marketing)/terms/page'
-import DataDeletion from '@/app/(marketing)/data-deletion/page'
+import MarketingLayout from '@/app/(he)/(marketing)/layout'
+import Home from '@/app/(he)/(marketing)/page'
+import Channels from '@/app/(he)/(marketing)/channels/page'
+import Pricing from '@/app/(he)/(marketing)/pricing/page'
+import Faq from '@/app/(he)/(marketing)/faq/page'
+import InstagramLeads from '@/app/(he)/(marketing)/instagram-leads-crm/page'
+import CrmForWhatsapp from '@/app/(he)/(marketing)/crm-for-whatsapp-business/page'
+import CrmVsExcel from '@/app/(he)/(marketing)/crm-vs-excel/page'
+import Privacy from '@/app/(he)/(marketing)/privacy/page'
+import Terms from '@/app/(he)/(marketing)/terms/page'
+import DataDeletion from '@/app/(he)/(marketing)/data-deletion/page'
 
 afterEach(cleanup)
 
@@ -102,9 +102,9 @@ describe('the tested pages are exactly the live public marketing routes', () => 
     expect(live.sort()).toEqual(Object.keys(ROUTES).sort())
   })
 
-  test('every tested route is served by a page file under app/(marketing)', () => {
+  test('every tested route is served by a page file under app/(he)/(marketing)', () => {
     for (const r of INDEXABLE_ROUTES) {
-      const file = r.dir ? `app/(marketing)/${r.dir}/page.tsx` : 'app/(marketing)/page.tsx'
+      const file = r.dir ? `app/(he)/(marketing)/${r.dir}/page.tsx` : 'app/(he)/(marketing)/page.tsx'
       expect(existsSync(file), `${r.path} → ${file}`).toBe(true)
     }
   })

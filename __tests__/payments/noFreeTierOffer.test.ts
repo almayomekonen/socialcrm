@@ -9,7 +9,7 @@ import { FREE_LEAD_LIMIT } from '@/lib/quota/constants'
  * The billing page advertised a "Free" plan promising "לידים ללא הגבלה" and
  * "ה-CRM כולו חינמי לתמיד". Verified against what an expired account gets:
  *
- *   · app/(app)/layout.tsx renders WorkspaceTeaser INSTEAD of the workspace and
+ *   · app/(he)/(app)/layout.tsx renders WorkspaceTeaser INSTEAD of the workspace and
  *     its children once trialStatus is TRIAL_EXPIRED, so the CRM is never
  *     served to an account without access;
  *   · assertLeadQuota caps the free plan at FREE_LEAD_LIMIT — 50, not unlimited.
@@ -43,7 +43,7 @@ describe('the in-app plans surface', () => {
   })
 
   it('the expired account really is blocked, which is why no Free tier is offered', () => {
-    const layout = read('app/(app)/layout.tsx')
+    const layout = read('app/(he)/(app)/layout.tsx')
     expect(layout).toContain("{trialStatus === 'NEVER_STARTED' || trialExpired ? (")
     expect(layout).toContain('<WorkspaceTeaser />')
   })

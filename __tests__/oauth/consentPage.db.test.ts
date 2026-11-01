@@ -27,7 +27,7 @@ vi.mock('@/db/auth', async (importActual) => ({ ...(await importActual<typeof im
 vi.mock('@/lib/access/productAccess', () => ({ getAgencyProductAccess: h.productAccess }))
 
 import { db } from '@/config/db'
-import ConsentPage from '@/app/oauth/consent/page'
+import ConsentPage from '@/app/(he)/oauth/consent/page'
 import ConsentCard from '@/components/oauth/ConsentCard'
 import ConsentMessage from '@/components/oauth/ConsentMessage'
 import { signPendingRequest } from '@/lib/oauth/server/pendingRequest'

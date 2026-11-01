@@ -66,7 +66,7 @@ vi.mock('@/lib/facebook/messenger/deliveryCheck', () => ({
   pendingMessengerDeliveryChecks: async () => {},
 }))
 
-import MessengerPage from '@/app/(app)/inbox/messenger/page'
+import MessengerPage from '@/app/(he)/(app)/inbox/messenger/page'
 
 const GRANTED = JSON.stringify(['pages_show_list', 'pages_manage_metadata', 'pages_messaging'])
 const RECONNECT_CTA = 'חבר מחדש את הדף ל-Messenger'

@@ -62,7 +62,7 @@ afterEach(() => {
 
 async function morePage(user: typeof shellEnv.user, flags: Partial<typeof shellEnv> = {}) {
   Object.assign(shellEnv, { user, pathname: '/m' }, flags)
-  const { default: Page } = await import('@/app/(app)/m/page')
+  const { default: Page } = await import('@/app/(he)/(app)/m/page')
   return renderToString(await resolveAsync(await Page()))
 }
 
@@ -84,7 +84,7 @@ describe('Hebrew baseline — the "עוד" page (/m)', () => {
   })
 
   test('tab title', async () => {
-    const mod = await import('@/app/(app)/m/page')
+    const mod = await import('@/app/(he)/(app)/m/page')
     const meta = 'generateMetadata' in mod ? await (mod as any).generateMetadata() : (mod as any).metadata
     expect(meta).toEqual({ title: 'עוד' })
   })

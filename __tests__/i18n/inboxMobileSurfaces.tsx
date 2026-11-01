@@ -155,12 +155,12 @@ export const INBOX_MOBILE_SURFACES: Surface[] = [
     name: 'mobile inbox — phone loading (thread, list) and the Messenger / Comments phone loading + error boundaries',
     route: '/inbox, /inbox/messenger, /inbox/comments (phone loading, error)',
     render: async (locale) => {
-      const { default: InboxLoading } = await import('@/app/(app)/inbox/loading')
+      const { default: InboxLoading } = await import('@/app/(he)/(app)/inbox/loading')
       const { default: ThreadSkeleton } = await import('@/components/mobile/skeletons/InboxThreadSkeletonMobile')
-      const { default: MessengerLoading } = await import('@/app/(app)/inbox/messenger/loading')
-      const { default: MessengerError } = await import('@/app/(app)/inbox/messenger/error')
-      const { default: CommentsLoading } = await import('@/app/(app)/inbox/comments/loading')
-      const { default: CommentsError } = await import('@/app/(app)/inbox/comments/error')
+      const { default: MessengerLoading } = await import('@/app/(he)/(app)/inbox/messenger/loading')
+      const { default: MessengerError } = await import('@/app/(he)/(app)/inbox/messenger/error')
+      const { default: CommentsLoading } = await import('@/app/(he)/(app)/inbox/comments/loading')
+      const { default: CommentsError } = await import('@/app/(he)/(app)/inbox/comments/error')
       return mobileShell(
         locale,
         <>

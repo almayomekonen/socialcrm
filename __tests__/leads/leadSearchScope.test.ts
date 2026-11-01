@@ -92,7 +92,7 @@ async function purge(ids: number[]) {
   await db('agencies').whereIn('id', ids).delete()
 }
 
-/** The list read exactly as `app/(app)/leads/page.tsx` performs it. */
+/** The list read exactly as `app/(he)/(app)/leads/page.tsx` performs it. */
 async function leadsTableFor(user: TestUser, params: Record<string, unknown>) {
   const { gotPermIds } = await getPerms(user)
   const q = typeof params.q === 'string' ? params.q : ''

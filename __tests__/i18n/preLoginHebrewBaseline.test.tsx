@@ -41,13 +41,13 @@ afterEach(() => {
 
 async function authPage(env: Partial<typeof preLoginEnv> = {}, search: Record<string, string> = {}) {
   Object.assign(preLoginEnv, env)
-  const { default: Page } = await import('@/app/(auth)/auth/page')
+  const { default: Page } = await import('@/app/(he)/(auth)/auth/page')
   return renderToString(await resolveAsync(await Page({ searchParams: Promise.resolve(search) })))
 }
 
 async function registerPage(env: Partial<typeof preLoginEnv> = {}, search: Record<string, string> = {}) {
   Object.assign(preLoginEnv, env)
-  const { default: Page } = await import('@/app/(auth)/auth/register/page')
+  const { default: Page } = await import('@/app/(he)/(auth)/auth/register/page')
   return renderToString(await resolveAsync(await Page({ searchParams: Promise.resolve(search) })))
 }
 
@@ -89,9 +89,9 @@ describe('Hebrew baseline — /auth/register', () => {
 
 describe('Hebrew baseline — pre-login layouts and metadata', () => {
   test('the (auth), activate and oauth layouts', async () => {
-    const { default: AuthLayout } = await import('@/app/(auth)/layout')
-    const { default: ActivateLayout } = await import('@/app/activate/layout')
-    const { default: OAuthLayout } = await import('@/app/oauth/layout')
+    const { default: AuthLayout } = await import('@/app/(he)/(auth)/layout')
+    const { default: ActivateLayout } = await import('@/app/(he)/activate/layout')
+    const { default: OAuthLayout } = await import('@/app/(he)/oauth/layout')
     const out = {
       auth: renderToString(await resolveAsync(<AuthLayout>child</AuthLayout>)),
       activate: renderToString(await resolveAsync(<ActivateLayout>child</ActivateLayout>)),
@@ -103,9 +103,9 @@ describe('Hebrew baseline — pre-login layouts and metadata', () => {
 
   test('tab titles and the sign-in page metadata', async () => {
     const out = {
-      auth: await metadataOf(await import('@/app/(auth)/auth/page')),
-      register: await metadataOf(await import('@/app/(auth)/auth/register/page')),
-      consent: await metadataOf(await import('@/app/oauth/consent/page')),
+      auth: await metadataOf(await import('@/app/(he)/(auth)/auth/page')),
+      register: await metadataOf(await import('@/app/(he)/(auth)/auth/register/page')),
+      consent: await metadataOf(await import('@/app/(he)/oauth/consent/page')),
     }
     expect(JSON.stringify(out)).toContain('התחברות')
     expect(out).toMatchSnapshot()

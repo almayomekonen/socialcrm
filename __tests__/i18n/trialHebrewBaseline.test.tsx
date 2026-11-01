@@ -200,7 +200,7 @@ describe('Hebrew baseline — the card return page', () => {
   })
 
   test('/billing/success: every source, the stale link, the title', async () => {
-    const mod = await import('@/app/billing/success/page')
+    const mod = await import('@/app/(he)/billing/success/page')
     const out: Record<string, string> = {}
     for (const source of ['card_trial', 'card_update', 'reactivate']) {
       out[source] = renderToString((await resolveAsync(mod.default({ searchParams: Promise.resolve({ source }) }))) as ReactNode)

@@ -7,7 +7,7 @@ const session = vi.hoisted(() => ({ user: null as null | { id: number; email: st
 vi.mock('@/db/auth', () => ({ getUser: async () => session.user }))
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND') } }))
 
-import AssistantDemoPage from '@/app/admin/whatsapp/assistant-demo/page'
+import AssistantDemoPage from '@/app/(he)/admin/whatsapp/assistant-demo/page'
 import AssistantDemoPanel from '@/components/admin/whatsapp/assistantDemo/AssistantDemoPanel'
 
 beforeEach(() => {

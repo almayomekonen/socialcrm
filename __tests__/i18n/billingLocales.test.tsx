@@ -130,7 +130,7 @@ describe('billing pages in en / ar', () => {
 
   test('tab titles mirror the lead layout in every language', async () => {
     for (const path of ['new/page', '[invoiceId]/page'] as const) {
-      const mod = await import(`@/app/(app)/clients/[clientId]/billing/${path}`)
+      const mod = await import(`@/app/(he)/(app)/clients/[clientId]/billing/${path}`)
       for (const [locale, title] of [['en', 'Lead details'], ['ar', null], ['he', 'נתוני ליד']] as const) {
         H.prefs.userLocale = locale
         const meta = await mod.generateMetadata()

@@ -67,7 +67,7 @@ vi.mock('@/components/settings/MetaPermissionButton', () => ({
   default: ({ href, lbl }: { href: string; lbl: string }) => <a href={href}>{lbl}</a>,
 }))
 
-import AdsReportingPage from '@/app/(app)/sum_sales/ads/page'
+import AdsReportingPage from '@/app/(he)/(app)/sum_sales/ads/page'
 import SumSalesNav from '@/components/sumSales/SumSalesNav'
 import { ADS_NOTICES } from '@/modules/adsReporting/notices'
 

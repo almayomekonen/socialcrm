@@ -38,12 +38,12 @@ afterAll(() => vi.useRealTimers())
 afterEach(resetTrialSupportEnv)
 
 async function layout(child: ReactNode = <h1>x</h1>) {
-  const { default: Layout } = await import('@/app/(support)/layout')
+  const { default: Layout } = await import('@/app/(he)/(support)/layout')
   return html(Layout({ children: child }))
 }
 
 async function threadPage(id = '41') {
-  const { default: Page } = await import('@/app/(support)/support/requests/[requestId]/page')
+  const { default: Page } = await import('@/app/(he)/(support)/support/requests/[requestId]/page')
   return html(await Page({ params: Promise.resolve({ requestId: id }) }))
 }
 
@@ -55,21 +55,21 @@ describe('Hebrew baseline — support shell and landing', () => {
   })
 
   test('/support with requests, without requests', async () => {
-    const { default: Page } = await import('@/app/(support)/support/page')
+    const { default: Page } = await import('@/app/(he)/(support)/support/page')
     expect(await html(Page())).toMatchSnapshot('/support — with requests')
     env.requests = []
     expect(await html(Page())).toMatchSnapshot('/support — no requests')
   })
 
   test('/support/requests populated, empty', async () => {
-    const { default: Page } = await import('@/app/(support)/support/requests/page')
+    const { default: Page } = await import('@/app/(he)/(support)/support/requests/page')
     expect(await html(Page())).toMatchSnapshot('/support/requests — populated')
     env.requests = []
     expect(await html(Page())).toMatchSnapshot('/support/requests — empty')
   })
 
   test('/support/new for every kind', async () => {
-    const { default: Page } = await import('@/app/(support)/support/new/page')
+    const { default: Page } = await import('@/app/(he)/(support)/support/new/page')
     for (const kind of ['problem', 'question', 'nonsense', undefined]) {
       const out = await html(await Page({ searchParams: Promise.resolve(kind ? { kind } : {}) }))
       expect(out).toMatchSnapshot(`/support/new — ${kind ?? 'none'}`)
@@ -97,7 +97,7 @@ describe('Hebrew baseline — a support thread', () => {
 
 describe('Hebrew baseline — guides', () => {
   test('/support/guides: categories, results, no results', async () => {
-    const { default: Page } = await import('@/app/(support)/support/guides/page')
+    const { default: Page } = await import('@/app/(he)/(support)/support/guides/page')
     for (const q of [undefined, 'whatsapp', 'לידים', 'zzzz']) {
       const out = await html(await Page({ searchParams: Promise.resolve(q ? { q } : {}) }))
       expect(out).toMatchSnapshot(`/support/guides — ${q ?? 'categories'}`)
@@ -106,7 +106,7 @@ describe('Hebrew baseline — guides', () => {
 
   test('every guide article; unknown slug', async () => {
     const { GUIDE_ARTICLES } = await import('@/lib/support/knowledgeBase')
-    const { default: Page } = await import('@/app/(support)/support/guides/[slug]/page')
+    const { default: Page } = await import('@/app/(he)/(support)/support/guides/[slug]/page')
     for (const a of GUIDE_ARTICLES) {
       expect(await html(await Page({ params: Promise.resolve({ slug: a.slug }) }))).toMatchSnapshot(`article — ${a.slug}`)
     }
@@ -119,14 +119,14 @@ describe('Hebrew baseline — metadata and producers', () => {
     const titles: Record<string, unknown> = {}
     const of = async (mod: { metadata?: unknown; generateMetadata?: (a?: unknown) => Promise<unknown> }, arg?: unknown) =>
       mod.generateMetadata ? await mod.generateMetadata(arg) : mod.metadata
-    titles.support = await of(await import('@/app/(support)/support/page'))
-    titles.requests = await of(await import('@/app/(support)/support/requests/page'))
-    titles.new = await of(await import('@/app/(support)/support/new/page'))
-    titles.guides = await of(await import('@/app/(support)/support/guides/page'))
-    const article = await import('@/app/(support)/support/guides/[slug]/page')
+    titles.support = await of(await import('@/app/(he)/(support)/support/page'))
+    titles.requests = await of(await import('@/app/(he)/(support)/support/requests/page'))
+    titles.new = await of(await import('@/app/(he)/(support)/support/new/page'))
+    titles.guides = await of(await import('@/app/(he)/(support)/support/guides/page'))
+    const article = await import('@/app/(he)/(support)/support/guides/[slug]/page')
     titles.article = await of(article as never, { params: Promise.resolve({ slug: 'connect-whatsapp' }) })
     titles.articleUnknown = await of(article as never, { params: Promise.resolve({ slug: 'nope' }) })
-    const thread = await import('@/app/(support)/support/requests/[requestId]/page')
+    const thread = await import('@/app/(he)/(support)/support/requests/[requestId]/page')
     titles.thread = await of(thread as never, { params: Promise.resolve({ requestId: '41' }) })
     expect(titles).toMatchSnapshot()
   })

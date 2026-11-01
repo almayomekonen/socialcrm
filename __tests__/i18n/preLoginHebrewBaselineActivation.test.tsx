@@ -65,7 +65,7 @@ const STATUSES = [
 
 async function activatePage(env: Partial<typeof preLoginEnv> = {}) {
   Object.assign(preLoginEnv, { user: SIGNED_IN }, env)
-  const { default: Page } = await import('@/app/activate/page')
+  const { default: Page } = await import('@/app/(he)/activate/page')
   try {
     return renderToString(await resolveAsync(await Page()))
   } catch (e) {
@@ -75,7 +75,7 @@ async function activatePage(env: Partial<typeof preLoginEnv> = {}) {
 
 async function consentPage(env: Partial<typeof preLoginEnv> = {}) {
   Object.assign(preLoginEnv, { user: SIGNED_IN }, env)
-  const { default: Page } = await import('@/app/oauth/consent/page')
+  const { default: Page } = await import('@/app/(he)/oauth/consent/page')
   try {
     return renderToString(await resolveAsync(await Page()))
   } catch (e) {

@@ -29,22 +29,22 @@ export async function tabsShell(locale: UiLocale | null, node: ReactNode, ent: E
 const params = (clientId = '41', taskId = '2') => Promise.resolve({ clientId, taskId })
 
 export async function tasksPage() {
-  const { default: Page } = await import('@/app/(app)/clients/[clientId]/tasks/page')
+  const { default: Page } = await import('@/app/(he)/(app)/clients/[clientId]/tasks/page')
   return resolveAsync(await Page({ params: params() }))
 }
 
 export async function taskDetailPage() {
-  const { default: Page } = await import('@/app/(app)/clients/[clientId]/tasks/[taskId]/page')
+  const { default: Page } = await import('@/app/(he)/(app)/clients/[clientId]/tasks/[taskId]/page')
   return resolveAsync(await Page({ params: params() }))
 }
 
 export async function filesPage() {
-  const { default: Page } = await import('@/app/(app)/clients/[clientId]/files/page')
+  const { default: Page } = await import('@/app/(he)/(app)/clients/[clientId]/files/page')
   return resolveAsync(await Page({ params: params(), searchParams: Promise.resolve({}) }))
 }
 
 export async function billingPage() {
-  const { default: Page } = await import('@/app/(app)/clients/[clientId]/billing/page')
+  const { default: Page } = await import('@/app/(he)/(app)/clients/[clientId]/billing/page')
   return resolveAsync(await Page({ params: params() }))
 }
 

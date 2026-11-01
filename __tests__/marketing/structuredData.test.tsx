@@ -30,8 +30,8 @@ vi.mock('next/navigation', () => ({
   notFound: () => {},
 }))
 
-import Home from '@/app/(marketing)/page'
-import MarketingLayout from '@/app/(marketing)/layout'
+import Home from '@/app/(he)/(marketing)/page'
+import MarketingLayout from '@/app/(he)/(marketing)/layout'
 
 afterEach(cleanup)
 

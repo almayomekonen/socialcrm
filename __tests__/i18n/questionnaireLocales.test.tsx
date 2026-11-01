@@ -116,7 +116,7 @@ describe('questionnaire builder in en / ar', () => {
 
 describe('tab title, language switch, hydration', () => {
   test('the title follows the interface language', async () => {
-    const page = await import('@/app/(app)/settings/(admin_settings)/questionnaire/page')
+    const page = await import('@/app/(he)/(app)/settings/(admin_settings)/questionnaire/page')
     for (const [locale, title] of [['he', 'שאלון וואטסאפ'], ['en', 'WhatsApp questionnaire'], ['ar', 'استبيان واتساب']] as const) {
       H.prefs.userLocale = locale
       expect((await page.generateMetadata()).title, locale).toBe(title)

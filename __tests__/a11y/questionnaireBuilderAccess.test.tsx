@@ -58,8 +58,8 @@ vi.mock('@/components/settings/questionnaire/QuestionnaireBuilder', () => ({
   default: ({ flowEnabled }: { flowEnabled?: boolean }) => <p data-flow={String(Boolean(flowEnabled))}>desktop editor</p>,
 }))
 
-import QuestionnaireBuilderPage from '@/app/(app)/settings/(admin_settings)/questionnaire/page'
-import SettingLayout from '@/app/(app)/settings/layout'
+import QuestionnaireBuilderPage from '@/app/(he)/(app)/settings/(admin_settings)/questionnaire/page'
+import SettingLayout from '@/app/(he)/(app)/settings/layout'
 import QuestionnaireMobile from '@/components/settings/questionnaire/QuestionnaireMobile'
 import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
 import { visibleMoreItems } from '@/components/mobile/moreDestinations'
