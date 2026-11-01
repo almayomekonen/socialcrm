@@ -7,11 +7,11 @@ Status: proposal. Nothing here is configured in Production, and no budget is enf
 Every provider request goes through one of three call sites, and all three open
 a durable shadow reservation when `AI_BUDGET_SHADOW=1`:
 
-| path | file | covers |
-| --- | --- | --- |
+| path   | file                                  | covers                                                                                                                      |
+| ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | router | `lib/ai/router.ts` (`generateObject`) | every task kind: lead summary, classify, follow-up, next step, pipeline, health, copilot, conversation analysis, auto-reply |
-| Agent | `lib/agent/run.ts` (`generateText`) | web Agent, WhatsApp assistant, autonomous investigations — one reservation per model call, both phases |
-| voice | `lib/agent/voice/transcribe.ts` | Agent voice transcription |
+| Agent  | `lib/agent/run.ts` (`generateText`)   | web Agent, WhatsApp assistant, autonomous investigations — one reservation per model call, both phases                      |
+| voice  | `lib/agent/voice/transcribe.ts`       | Agent voice transcription                                                                                                   |
 
 No other file imports a provider SDK or calls `generateText`/`generateObject`.
 
@@ -42,15 +42,15 @@ is proposed for this.
 
 `ai_runs` has no rows in 30 days; the ledger started 2026-10-31 12:29 UTC.
 
-| measure | value |
-| --- | --- |
-| ledger rows / cost | 34 rows, $0.42 (19 WhatsApp Agent calls in 11 jobs, 15 lead summaries), one agency |
-| agency daily max | $0.42 |
-| agency hourly max | $0.11 |
-| per run (WhatsApp job) | avg $0.037, p95 $0.071, max $0.076 |
-| per run (job-recorded, old prices) | max $0.17 |
-| auto-reply | no ledgered calls in the window — **not calibrated** |
-| local evaluation runs (old prices) | ~$0.08 per WhatsApp question; ~$0.12 per web revenue question |
+| measure                            | value                                                                              |
+| ---------------------------------- | ---------------------------------------------------------------------------------- |
+| ledger rows / cost                 | 34 rows, $0.42 (19 WhatsApp Agent calls in 11 jobs, 15 lead summaries), one agency |
+| agency daily max                   | $0.42                                                                              |
+| agency hourly max                  | $0.11                                                                              |
+| per run (WhatsApp job)             | avg $0.037, p95 $0.071, max $0.076                                                 |
+| per run (job-recorded, old prices) | max $0.17                                                                          |
+| auto-reply                         | no ledgered calls in the window — **not calibrated**                               |
+| local evaluation runs (old prices) | ~$0.08 per WhatsApp question; ~$0.12 per web revenue question                      |
 
 The window is one day and one internal agency. It can rule values out, not prove
 them.
@@ -62,13 +62,13 @@ estimate scales with `maxSteps` and `maxOutputTokens`, so one investigation can
 reserve several times what it spends. Each limit must be read against the
 would-deny rate it produces in shadow, not against ledger actuals alone.
 
-| limit | proposed | against measured | assessment |
-| --- | --- | --- | --- |
-| per run | $0.25 | max actual $0.076 | headroom on actuals; the multi-step estimate may exceed $0.25 for ordinary questions — confirm in shadow before enforcing |
-| paid hourly | $0.50 | max $0.11 | a heavy WhatsApp session (20 questions/hour × ~$0.04) ≈ $0.80 would be denied — **raise to $1.00** |
-| paid daily | $2.00 | max $0.42 | fine for the Agent alone, but it also counts auto-replies, which are not yet measured — **start shadow at $3.00** and review |
-| global daily | $20.00 | $0.42 platform-wide today | fine now; at general availability 40 active agencies × $0.50 ≈ $20 would trip it and stop auto-replies for everyone — **start at $50 with an alert at 50%** |
-| WhatsApp | $2/day (existing) | — | unchanged |
+| limit        | proposed          | against measured          | assessment                                                                                                                                                  |
+| ------------ | ----------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| per run      | $0.25             | max actual $0.076         | headroom on actuals; the multi-step estimate may exceed $0.25 for ordinary questions — confirm in shadow before enforcing                                   |
+| paid hourly  | $0.50             | max $0.11                 | a heavy WhatsApp session (20 questions/hour × ~$0.04) ≈ $0.80 would be denied — **raise to $1.00**                                                          |
+| paid daily   | $2.00             | max $0.42                 | fine for the Agent alone, but it also counts auto-replies, which are not yet measured — **start shadow at $3.00** and review                                |
+| global daily | $20.00            | $0.42 platform-wide today | fine now; at general availability 40 active agencies × $0.50 ≈ $20 would trip it and stop auto-replies for everyone — **start at $50 with an alert at 50%** |
+| WhatsApp     | $2/day (existing) | —                         | unchanged                                                                                                                                                   |
 
 **Trial accounts** (to be expressible after WS1c): daily $1.00, hourly $0.50,
 per run $0.25 — about a third of paid, enough for ~20 Agent questions a day.
@@ -76,9 +76,14 @@ per run $0.25 — about a third of paid, enough for ~20 Agent questions a day.
 **Proposed shadow policy for WS1a** (for `AI_BUDGET_POLICY`, once approved; global, since tiers need WS1c):
 
 ```json
-{ "version": "shadow-2026-11-a",
-  "perRunUsd": 0.25, "agencyHourlyUsd": 1.0, "agencyDailyUsd": 3.0,
-  "globalDailyUsd": 50, "warnAtFraction": 0.5 }
+{
+  "version": "shadow-2026-11-a",
+  "perRunUsd": 0.25,
+  "agencyHourlyUsd": 1.0,
+  "agencyDailyUsd": 3.0,
+  "globalDailyUsd": 50,
+  "warnAtFraction": 0.5
+}
 ```
 
 Run it for at least seven days after the AI-usage measurement ends (2026-11-07)
@@ -90,5 +95,5 @@ feature, and which agencies would have been denied.
 **Fail open, with the in-memory cap kept as the backstop and every failure alerted.**
 
 - The budget store lives in the same database the request needs anyway. When that database is down the Agent's tools cannot read, the auto-reply worker cannot claim a job, and the WhatsApp worker cannot resolve an identity — so very few AI calls can happen at all, and the cost exposure of failing open is the in-memory cap per instance for the minutes of an outage.
-- Failing closed protects almost nothing in a real outage, but it turns *partial* failures — a slow budget table, lock contention on one agency's counters, a timeout — into refused AI calls, including customer-facing auto-replies.
-- Exception to consider: an explicit `would_deny` from a reachable store is always enforced; only an *unreachable* store fails open. A reservation timeout should be short (≤ 300 ms) and counted (`reservation_failed` already exists as an event).
+- Failing closed protects almost nothing in a real outage, but it turns _partial_ failures — a slow budget table, lock contention on one agency's counters, a timeout — into refused AI calls, including customer-facing auto-replies.
+- Exception to consider: an explicit `would_deny` from a reachable store is always enforced; only an _unreachable_ store fails open. A reservation timeout should be short (≤ 300 ms) and counted (`reservation_failed` already exists as an event).
