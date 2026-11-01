@@ -189,8 +189,15 @@ export async function fetchPhoneBizAppState(phoneNumberId: string, accessToken: 
  * Graph `is_on_biz_app` wins over the browser-supplied type. The browser hint
  * is kept only for the window where Meta has completed Embedded Signup but
  * has not yet flipped the flag — still skip /register in that case.
+ * An existing Coexistence connection stays Coexistence on reconnect, whatever
+ * Meta or the browser say: leaving Coexistence is never automatic.
  */
-export function resolveOnboardingType(args: { isOnBizApp: boolean; browserOnboardingType?: OnboardingType }): OnboardingType {
+export function resolveOnboardingType(args: {
+  isOnBizApp: boolean
+  browserOnboardingType?: OnboardingType
+  existingOnboardingType?: string | null
+}): OnboardingType {
+  if (args.existingOnboardingType === 'coexistence') return 'coexistence'
   if (args.isOnBizApp) return 'coexistence'
   return args.browserOnboardingType === 'coexistence' ? 'coexistence' : 'cloud_api'
 }
