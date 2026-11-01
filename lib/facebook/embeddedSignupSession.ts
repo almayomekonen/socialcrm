@@ -165,12 +165,16 @@ export function parseEmbeddedSignupMessage(origin: string, data: unknown): Embed
   const msg = parsed as {
     type?: string
     event?: string
-    data?: { waba_id?: string; phone_number_id?: string }
+    data?: { waba_id?: string; phone_number_id?: string; messaging_account_ids?: unknown }
   }
   if (msg.type !== 'WA_EMBEDDED_SIGNUP') return null
   if (msg.event !== ES_EVENT_FINISH && msg.event !== ES_EVENT_FINISH_COEXISTENCE) return null
+  // v4 sends `waba_id`; v5 sends `messaging_account_ids` ("Replaces waba_id").
+  // Only an unambiguous single id is used; several would be a guess.
+  const ids = msg.data?.messaging_account_ids
+  const v5Waba = Array.isArray(ids) && ids.length === 1 && typeof ids[0] === 'string' ? ids[0] : undefined
   return {
-    waba_id: typeof msg.data?.waba_id === 'string' ? msg.data.waba_id : undefined,
+    waba_id: typeof msg.data?.waba_id === 'string' ? msg.data.waba_id : v5Waba,
     phone_number_id: typeof msg.data?.phone_number_id === 'string' ? msg.data.phone_number_id : undefined,
     onboardingType: msg.event === ES_EVENT_FINISH_COEXISTENCE ? 'coexistence' : 'cloud_api',
   }
