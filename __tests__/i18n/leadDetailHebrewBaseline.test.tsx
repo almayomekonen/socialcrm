@@ -121,8 +121,8 @@ vi.mock('@/modules/leads/mobile/LeadDetailMobile', () => ({ default: () => null 
 vi.mock('@/modules/leads/queries', () => ({ getMobileLeadDetail: async () => null }))
 vi.mock('@/components/sales/saleForm/SaleForm', () => ({ default: () => null }))
 
-const { default: Layout } = await import('@/app/(app)/clients/[clientId]/layout')
-const { default: SummaryPage } = await import('@/app/(app)/clients/[clientId]/summary/page')
+const { default: Layout } = await import('@/app/(he)/(app)/clients/[clientId]/layout')
+const { default: SummaryPage } = await import('@/app/(he)/(app)/clients/[clientId]/summary/page')
 const { EntitlementProvider } = await import('@/lib/entitlement/EntitlementContext')
 const { __resetFirstLeadFlowForTests } = await import('@/components/clients/firstLeadFlow')
 
@@ -212,7 +212,7 @@ describe('Hebrew baseline — /clients/[clientId] layout (header + nav)', () => 
 
 describe('Hebrew baseline — loading.tsx', () => {
   test('desktop spinner and phone skeleton', async () => {
-    const { default: Loading } = await import('@/app/(app)/clients/[clientId]/loading')
+    const { default: Loading } = await import('@/app/(he)/(app)/clients/[clientId]/loading')
     const { MobileWorkspaceContext } = await import('@/components/mobile/MobileWorkspaceContext')
     expect({
       desktop: renderToString(<Loading />),

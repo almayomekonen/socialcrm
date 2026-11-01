@@ -32,13 +32,13 @@ export async function shellTree(
 export async function moreTree(locale: UiLocale | null) {
   shellEnv.userLocale = locale
   shellEnv.pathname = '/m'
-  const { default: Page } = await import('@/app/(app)/m/page')
+  const { default: Page } = await import('@/app/(he)/(app)/m/page')
   return withLocale(locale, await resolveAsync(await Page()))
 }
 
 export async function moreTitle(locale: UiLocale | null) {
   shellEnv.userLocale = locale
-  const { generateMetadata } = await import('@/app/(app)/m/page')
+  const { generateMetadata } = await import('@/app/(he)/(app)/m/page')
   return (await generateMetadata()).title
 }
 

@@ -44,7 +44,7 @@ import {
 } from '@/actions/questionnaire/builderPublish'
 import { publishDefinition } from '@/lib/inbox/autoresponse/questionnaire/builder/publish'
 import { getChannelSettings } from '@/db/autoResponseSettings'
-import AutoResponseSettingsPage from '@/app/(app)/settings/(admin_settings)/auto-response/page'
+import AutoResponseSettingsPage from '@/app/(he)/(app)/settings/(admin_settings)/auto-response/page'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
 
 const PP = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'scripts/questionnaire/samples/perfect-picture.he.json'), 'utf8'))

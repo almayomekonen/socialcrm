@@ -24,8 +24,8 @@ vi.mock('@/db/uiLocale', () => ({ getUiLocalePrefs: (...a: any[]) => (getUiLocal
 vi.mock('@/lib/device', () => ({ isMobileRequest: async () => false }))
 vi.mock('@/lib/access/productAccess', () => ({ getAgencyProductAccess: async () => ({ hasAccess: true }) }))
 
-const { default: SettingLayout } = await import('@/app/(app)/settings/layout')
-const { default: LanguagePage } = await import('@/app/(app)/settings/(user_settings)/language/page')
+const { default: SettingLayout } = await import('@/app/(he)/(app)/settings/layout')
+const { default: LanguagePage } = await import('@/app/(he)/(app)/settings/(user_settings)/language/page')
 
 async function linkShown() {
   const html = renderToString(await SettingLayout({ children: null }))

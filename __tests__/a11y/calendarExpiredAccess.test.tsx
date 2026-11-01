@@ -72,7 +72,7 @@ describe('the page renders for an expired customer', () => {
   /**
    * The defect: the page required only an authenticated agency user, but read
    * its meetings through a Pro-gated action, so the render threw
-   * ProductAccessError and app/(app)/error.tsx answered "חלה שגיאה במערכת".
+   * ProductAccessError and app/(he)/(app)/error.tsx answered "חלה שגיאה במערכת".
    */
   it('the meetings read no longer demands a subscription', () => {
     const src = read('actions/calendar/list.ts')
@@ -87,7 +87,7 @@ describe('the page renders for an expired customer', () => {
   })
 
   it('the page itself never gained a gate, and never redirects', () => {
-    const page = read('app/(app)/calendar/page.tsx')
+    const page = read('app/(he)/(app)/calendar/page.tsx')
     expect(page).toContain('requireAgencyUser()')
     expect(page).not.toContain('getAgencyProductAccess')
     expect(page).not.toContain('SubscriptionExpiredState')
@@ -95,7 +95,7 @@ describe('the page renders for an expired customer', () => {
   })
 
   it('mobile keeps its own routing, unchanged by this policy', () => {
-    const page = read('app/(app)/calendar/page.tsx')
+    const page = read('app/(he)/(app)/calendar/page.tsx')
     expect(page).toContain('isMobileWorkspaceRequest')
     expect(page).toContain('MobileDesktopOnly')
   })

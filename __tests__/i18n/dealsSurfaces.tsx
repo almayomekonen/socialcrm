@@ -34,7 +34,7 @@ const leadNames = (): Allowance[] => LEAD_NAMES.map((text) => ({ text, reason: '
 async function ads(query: Record<string, string>, over: Partial<typeof adsEnv> = {}) {
   resetAdsEnv()
   Object.assign(adsEnv, over)
-  const { default: Page } = await import('@/app/(app)/sum_sales/ads/page')
+  const { default: Page } = await import('@/app/(he)/(app)/sum_sales/ads/page')
   try {
     return await perfLayout(await Page({ searchParams: Promise.resolve(query) }))
   } finally {

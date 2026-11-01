@@ -197,7 +197,7 @@ describe('card return', () => {
   })
 
   test('/billing/success redirects a stale link the same way in every language', async () => {
-    const mod = await import('@/app/billing/success/page')
+    const mod = await import('@/app/(he)/billing/success/page')
     for (const locale of LOCALES) {
       env.cookieLocale = locale
       for (const sp of [{}, { source: 'payment_link' }, { source: ['x'] }]) {

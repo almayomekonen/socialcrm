@@ -51,13 +51,13 @@ async function serverTypes() {
 }
 
 export async function newInvoicePage(kind?: string) {
-  const { default: Page } = await import('@/app/(app)/clients/[clientId]/billing/new/page')
+  const { default: Page } = await import('@/app/(he)/(app)/clients/[clientId]/billing/new/page')
   const searchParams = Promise.resolve(kind ? { kind } : {})
   return resolveServer(await Page({ params: Promise.resolve({ clientId: '41' }), searchParams }), await serverTypes())
 }
 
 export async function invoicePage(invoiceId = '9') {
-  const { default: Page } = await import('@/app/(app)/clients/[clientId]/billing/[invoiceId]/page')
+  const { default: Page } = await import('@/app/(he)/(app)/clients/[clientId]/billing/[invoiceId]/page')
   return resolveServer(await Page({ params: Promise.resolve({ clientId: '41', invoiceId }) }), await serverTypes())
 }
 

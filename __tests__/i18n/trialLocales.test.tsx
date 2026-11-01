@@ -208,7 +208,7 @@ for (const locale of ['en', 'ar'] as const) {
 
 describe('/billing/success follows the ui_locale hint', () => {
   test('page and title per locale; Hebrew byte-identical', async () => {
-    const mod = await import('@/app/billing/success/page')
+    const mod = await import('@/app/(he)/billing/success/page')
     const html = async () => renderRaw(<>{(await resolveAsync(mod.default({ searchParams: Promise.resolve({ source: 'card_trial' }) }))) as ReactNode}</>)
     const hebrew = await html()
     expect(hebrew).toContain('dir="rtl"')
@@ -229,7 +229,7 @@ describe('hydration', () => {
       ;(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true
       env.cookieLocale = locale
       const { default: Screen } = await import('@/components/trial/TrialExpiredScreen')
-      const mod = await import('@/app/billing/success/page')
+      const mod = await import('@/app/(he)/billing/success/page')
       const trees = [
         await provided(locale, <Screen leadCount={3} leadNames={['דנה כהן']} />),
         await provided(locale, <Screen cardReactivation={{ reason: 'declined' }} />),

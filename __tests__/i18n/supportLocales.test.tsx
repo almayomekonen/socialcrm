@@ -49,21 +49,21 @@ function as(locale: Loc | null, flag = true) {
 }
 
 async function tree(child: () => Promise<unknown>): Promise<ReactNode> {
-  const { default: Layout } = await import('@/app/(support)/layout')
+  const { default: Layout } = await import('@/app/(he)/(support)/layout')
   const inner = (await resolveAsync((await child()) as ReactNode)) as ReactNode
   return (await resolveAsync(Layout({ children: inner }) as ReactNode)) as ReactNode
 }
 
 const PAGES: Record<string, () => Promise<unknown>> = {
-  landing: async () => (await import('@/app/(support)/support/page')).default(),
-  requests: async () => (await import('@/app/(support)/support/requests/page')).default(),
-  newProblem: async () => (await import('@/app/(support)/support/new/page')).default({ searchParams: Promise.resolve({ kind: 'problem' }) }),
-  newQuestion: async () => (await import('@/app/(support)/support/new/page')).default({ searchParams: Promise.resolve({ kind: 'question' }) }),
-  thread: async () => (await import('@/app/(support)/support/requests/[requestId]/page')).default({ params: Promise.resolve({ requestId: '41' }) }),
-  guides: async () => (await import('@/app/(support)/support/guides/page')).default({ searchParams: Promise.resolve({}) }),
-  results: async () => (await import('@/app/(support)/support/guides/page')).default({ searchParams: Promise.resolve({ q: 'whatsapp' }) }),
-  noResults: async () => (await import('@/app/(support)/support/guides/page')).default({ searchParams: Promise.resolve({ q: 'zzzz' }) }),
-  article: async () => (await import('@/app/(support)/support/guides/[slug]/page')).default({ params: Promise.resolve({ slug: 'connect-whatsapp' }) }),
+  landing: async () => (await import('@/app/(he)/(support)/support/page')).default(),
+  requests: async () => (await import('@/app/(he)/(support)/support/requests/page')).default(),
+  newProblem: async () => (await import('@/app/(he)/(support)/support/new/page')).default({ searchParams: Promise.resolve({ kind: 'problem' }) }),
+  newQuestion: async () => (await import('@/app/(he)/(support)/support/new/page')).default({ searchParams: Promise.resolve({ kind: 'question' }) }),
+  thread: async () => (await import('@/app/(he)/(support)/support/requests/[requestId]/page')).default({ params: Promise.resolve({ requestId: '41' }) }),
+  guides: async () => (await import('@/app/(he)/(support)/support/guides/page')).default({ searchParams: Promise.resolve({}) }),
+  results: async () => (await import('@/app/(he)/(support)/support/guides/page')).default({ searchParams: Promise.resolve({ q: 'whatsapp' }) }),
+  noResults: async () => (await import('@/app/(he)/(support)/support/guides/page')).default({ searchParams: Promise.resolve({ q: 'zzzz' }) }),
+  article: async () => (await import('@/app/(he)/(support)/support/guides/[slug]/page')).default({ params: Promise.resolve({ slug: 'connect-whatsapp' }) }),
 }
 
 const EXPECT: Record<'en' | 'ar', Record<string, string[]>> = {
@@ -114,7 +114,7 @@ describe('support centre in en / ar', () => {
     test(`${locale}: every guide article translated`, async () => {
       as(locale)
       const { GUIDE_ARTICLES } = await import('@/lib/support/knowledgeBase')
-      const { default: Page } = await import('@/app/(support)/support/guides/[slug]/page')
+      const { default: Page } = await import('@/app/(he)/(support)/support/guides/[slug]/page')
       for (const a of GUIDE_ARTICLES) {
         const { container } = render(<>{(await resolveAsync(await Page({ params: Promise.resolve({ slug: a.slug }) }))) as ReactNode}</>)
         expect(findHebrewLeaks(container, []), a.slug).toEqual([])
@@ -125,7 +125,7 @@ describe('support centre in en / ar', () => {
   }
 
   test('outside the rollout, without a choice, or Hebrew chosen → the Hebrew pages, no new attribute', async () => {
-    const { default: Page } = await import('@/app/(support)/support/page')
+    const { default: Page } = await import('@/app/(he)/(support)/support/page')
     as(null)
     const reference = renderRaw(<>{await tree(PAGES.landing)}</>)
     for (const [locale, flag] of [['he', true], ['en', false]] as const) {
@@ -152,12 +152,12 @@ describe('support centre in en / ar', () => {
     const titles = async () => {
       const of = async (m: { generateMetadata?: (a?: never) => Promise<{ title?: unknown }> }, a?: unknown) => (await m.generateMetadata!(a as never)).title
       return [
-        await of(await import('@/app/(support)/support/page')),
-        await of(await import('@/app/(support)/support/requests/page')),
-        await of(await import('@/app/(support)/support/new/page')),
-        await of(await import('@/app/(support)/support/guides/page')),
-        await of((await import('@/app/(support)/support/guides/[slug]/page')) as never, { params: Promise.resolve({ slug: 'lead-statuses' }) }),
-        await of((await import('@/app/(support)/support/guides/[slug]/page')) as never, { params: Promise.resolve({ slug: 'nope' }) }),
+        await of(await import('@/app/(he)/(support)/support/page')),
+        await of(await import('@/app/(he)/(support)/support/requests/page')),
+        await of(await import('@/app/(he)/(support)/support/new/page')),
+        await of(await import('@/app/(he)/(support)/support/guides/page')),
+        await of((await import('@/app/(he)/(support)/support/guides/[slug]/page')) as never, { params: Promise.resolve({ slug: 'lead-statuses' }) }),
+        await of((await import('@/app/(he)/(support)/support/guides/[slug]/page')) as never, { params: Promise.resolve({ slug: 'nope' }) }),
       ]
     }
     as('en')

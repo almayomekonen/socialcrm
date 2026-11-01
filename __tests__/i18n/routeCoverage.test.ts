@@ -21,24 +21,26 @@ const APP = 'app'
 
 /** Whole trees outside the i18n phases (CLAUDE.md / phaseF brief). */
 const OUT_OF_SCOPE_TREES: Record<string, string> = {
-  'app/(marketing)': 'marketing site incl. the legal pages (terms, privacy, data-deletion) — out of scope',
-  'app/admin': 'platform owner console — out of scope',
+  'app/(he)/(marketing)': 'marketing site incl. the legal pages (terms, privacy, data-deletion) — out of scope',
+  'app/(en)': 'English marketing site (placeholder) — out of scope like the Hebrew one',
+  'app/(ar)': 'Arabic marketing site (placeholder) — out of scope like the Hebrew one',
+  'app/(he)/admin': 'platform owner console — out of scope',
   'app/api': 'route handlers (incl. the wedding module) — no pages',
 }
 
 const EXCLUDED: Record<string, string> = {
-  'app/(app)/agent/page.tsx': 'AI (owner order: no AI localization) — only its shell title / More row are chrome',
-  'app/(app)/settings/(admin_settings)/ai-inspector/page.tsx': 'AI admin tooling (owner order: no AI localization)',
+  'app/(he)/(app)/agent/page.tsx': 'AI (owner order: no AI localization) — only its shell title / More row are chrome',
+  'app/(he)/(app)/settings/(admin_settings)/ai-inspector/page.tsx': 'AI admin tooling (owner order: no AI localization)',
 }
 
 const CLIENT_ROOT: Record<string, string> = {
-  'app/(app)/settings/(admin_settings)/edit_teams/page.tsx': 'components/agntsAndGrps/TeamCard.tsx',
+  'app/(he)/(app)/settings/(admin_settings)/edit_teams/page.tsx': 'components/agntsAndGrps/TeamCard.tsx',
 }
 
 const REDIRECTS = [
-  'app/(app)/settings/(admin_settings)/connections/page.tsx',
-  'app/(app)/settings/(user_settings)/calendar/page.tsx',
-  'app/(app)/settings/(user_settings)/facebook/page.tsx',
+  'app/(he)/(app)/settings/(admin_settings)/connections/page.tsx',
+  'app/(he)/(app)/settings/(user_settings)/calendar/page.tsx',
+  'app/(he)/(app)/settings/(user_settings)/facebook/page.tsx',
 ]
 
 const SERVER_ENTRY = /\b(getUiLocaleState|getServerT|getPreLoginLocale)\(/
@@ -115,6 +117,6 @@ describe('route coverage', () => {
 
   it('the classifier bites: a page without an entry point is not localized', () => {
     expect(isLocalized(Object.keys(CLIENT_ROOT)[0])).toBe(false)
-    expect(isLocalized('app/(app)/leads/page.tsx')).toBe(true)
+    expect(isLocalized('app/(he)/(app)/leads/page.tsx')).toBe(true)
   })
 })

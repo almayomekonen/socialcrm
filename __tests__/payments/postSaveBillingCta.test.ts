@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs'
  * Source-level because the defect is which condition gates the element.
  */
 
-const page = readFileSync(`${process.cwd()}/app/(app)/settings/(user_settings)/update_payment/page.tsx`, 'utf8')
+const page = readFileSync(`${process.cwd()}/app/(he)/(app)/settings/(user_settings)/update_payment/page.tsx`, 'utf8')
 /* Comments stripped for the "appears once" count: the block explaining this
    fix quotes the label it removed, and matching prose is not matching UI. */
 const pageCode = page.replace(/\{?\/\*[\s\S]*?\*\/\}?/g, '')

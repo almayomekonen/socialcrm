@@ -110,9 +110,9 @@ describe('trial gate and card return', () => {
       'components/trial/ProActivationSuccess.tsx',
       'components/trial/LeadEntryToasts.tsx',
       'components/billing/CardSetupVerifier.tsx',
-      'app/billing/success/page.tsx',
+      'app/(he)/billing/success/page.tsx',
       ...['SupportShell', 'SupportActions', 'SupportRequestForm', 'SupportReplyBox', 'SupportRequestList', 'SupportThread', 'SupportSearch', 'GuideArticle', 'GuideCategoryGrid'].map((c) => `components/support/${c}.tsx`),
-      ...['layout', 'support/page', 'support/requests/page', 'support/new/page', 'support/requests/[requestId]/page', 'support/guides/page', 'support/guides/[slug]/page'].map((p) => `app/(support)/${p}.tsx`),
+      ...['layout', 'support/page', 'support/requests/page', 'support/new/page', 'support/requests/[requestId]/page', 'support/guides/page', 'support/guides/[slug]/page'].map((p) => `app/(he)/(support)/${p}.tsx`),
     ]) {
       // Only comments may still carry Hebrew.
       const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
@@ -124,6 +124,6 @@ describe('trial gate and card return', () => {
     const verifier = read('components/billing/CardSetupVerifier.tsx')
     expect(verifier).toContain('const POLL_INTERVAL_MS = 2_000')
     expect(verifier).toContain('const MAX_WAIT_MS = 30_000')
-    expect(read('app/billing/success/page.tsx')).toContain("redirect('/settings/update_payment')")
+    expect(read('app/(he)/billing/success/page.tsx')).toContain("redirect('/settings/update_payment')")
   })
 })

@@ -153,8 +153,8 @@ describe('settings pages in en / ar', () => {
 
 describe('tab title, language switch, hydration', () => {
   test('the user-settings group and integrations titles follow the interface language', async () => {
-    const group = await import('@/app/(app)/settings/(user_settings)/layout')
-    const integrations = await import('@/app/(app)/settings/(user_settings)/integrations/page')
+    const group = await import('@/app/(he)/(app)/settings/(user_settings)/layout')
+    const integrations = await import('@/app/(he)/(app)/settings/(user_settings)/integrations/page')
     for (const [locale, g, i] of [['he', 'הגדרות אישיות', 'אינטגרציות'], ['en', 'Personal settings', 'Integrations'], ['ar', 'الإعدادات الشخصية', 'التكاملات']] as const) {
       H.prefs.userLocale = locale
       expect((await group.generateMetadata()).title, locale).toBe(g)

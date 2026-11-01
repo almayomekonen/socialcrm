@@ -107,7 +107,7 @@ describe('/calendar page in en / ar', () => {
   })
 
   test('tab title', async () => {
-    const mod = await import('@/app/(app)/calendar/page')
+    const mod = await import('@/app/(he)/(app)/calendar/page')
     prefs.userLocale = 'en'
     expect(await mod.generateMetadata()).toEqual({ title: 'Meetings' })
     prefs.userLocale = 'ar'

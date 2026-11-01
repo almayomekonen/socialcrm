@@ -60,13 +60,13 @@ export async function resolveServer(node: ReactNode, expand: ReadonlySet<unknown
 
 /** The REAL `/leads` page (phone branch). */
 export async function phoneLeadsPage(params: Record<string, string> = {}) {
-  const { default: LeadsPage } = await import('@/app/(app)/leads/page')
+  const { default: LeadsPage } = await import('@/app/(he)/(app)/leads/page')
   return resolveServer(await LeadsPage({ searchParams: Promise.resolve(params) }), new Set())
 }
 
 /** The REAL `/clients/[clientId]/summary` page (phone branch). */
 export async function phoneDetailPage(params: Record<string, string> = {}) {
-  const { default: SummaryPage } = await import('@/app/(app)/clients/[clientId]/summary/page')
+  const { default: SummaryPage } = await import('@/app/(he)/(app)/clients/[clientId]/summary/page')
   const { default: LeadDetailMobile } = await import('@/modules/leads/mobile/LeadDetailMobile')
   const node = await SummaryPage({ params: Promise.resolve({ clientId: '41' }), searchParams: Promise.resolve(params) })
   return resolveServer(node, new Set([LeadDetailMobile]))

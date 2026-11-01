@@ -99,8 +99,8 @@ describe('Hebrew baseline — shell-level skeletons and loading boundaries', () 
 
   test('MobileChromeSkeleton (cold boot), the (app) segment loading and the /m loading, on a phone', async () => {
     const { default: MobileChromeSkeleton } = await import('@/components/mobile/skeletons/MobileChromeSkeleton')
-    const { default: AppLoading } = await import('@/app/(app)/loading')
-    const { default: MoreLoading } = await import('@/app/(app)/m/loading')
+    const { default: AppLoading } = await import('@/app/(he)/(app)/loading')
+    const { default: MoreLoading } = await import('@/app/(he)/(app)/m/loading')
     const { MobileWorkspaceContext } = await import('@/components/mobile/MobileWorkspaceContext')
     const phone = (node: ReactNode) => renderToString(<MobileWorkspaceContext.Provider value>{node}</MobileWorkspaceContext.Provider>)
     shellEnv.pathname = '/leads'

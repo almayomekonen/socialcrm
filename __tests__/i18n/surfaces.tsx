@@ -94,7 +94,7 @@ export const SURFACES: Surface[] = [
     route: '/settings/*',
     render: async (locale) => {
       const { I18nProvider } = await import('@/lib/i18n/I18nProvider')
-      const { default: SettingLayout } = await import('@/app/(app)/settings/layout')
+      const { default: SettingLayout } = await import('@/app/(he)/(app)/settings/layout')
       return <I18nProvider locale={locale}>{await SettingLayout({ children: null })}</I18nProvider>
     },
     allowed: [],

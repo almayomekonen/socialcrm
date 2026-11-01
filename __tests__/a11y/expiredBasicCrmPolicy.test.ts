@@ -308,7 +308,7 @@ describe('Tier 1: reading your own data never asks about the plan', () => {
 
 describe('Tier 2: the feature is visible, the spend is gated', () => {
   it('notifications render for an expired customer', () => {
-    const page = read('app/(app)/notifications/page.tsx')
+    const page = read('app/(he)/(app)/notifications/page.tsx')
     expect(page).toContain('<NotificationCenter')
     expect(page).not.toContain('SubscriptionExpiredState')
   })
@@ -321,10 +321,10 @@ describe('Tier 2: the feature is visible, the spend is gated', () => {
   })
 
   it.each([
-    'app/(app)/settings/(admin_settings)/automations/page.tsx',
-    'app/(app)/settings/(admin_settings)/automation-templates/page.tsx',
-    'app/(app)/settings/(admin_settings)/quote-templates/page.tsx',
-    'app/(app)/settings/(admin_settings)/auto-response/page.tsx',
+    'app/(he)/(app)/settings/(admin_settings)/automations/page.tsx',
+    'app/(he)/(app)/settings/(admin_settings)/automation-templates/page.tsx',
+    'app/(he)/(app)/settings/(admin_settings)/quote-templates/page.tsx',
+    'app/(he)/(app)/settings/(admin_settings)/auto-response/page.tsx',
   ])('%s renders its real content plus a Pro notice', (file) => {
     const src = read(file)
     expect(src).toContain('proLocked')
@@ -746,7 +746,7 @@ describe('reading notifications is untouched by the delivery gate', () => {
   })
 
   it('the page renders stored notifications for an expired customer', () => {
-    const page = read('app/(app)/notifications/page.tsx')
+    const page = read('app/(he)/(app)/notifications/page.tsx')
     expect(page).toContain('<NotificationCenter')
     expect(page).not.toContain('SubscriptionExpiredState')
   })
@@ -784,7 +784,7 @@ describe('the automations page answers a lapsed subscription with billing, not a
   /**
    * The reported defect: the toggle threw a guarded Server Action, Next routed
    * it to the segment error boundary, and the customer saw the whole page
-   * replaced by "חלה שגיאה במערכת" — app/(app)/error.tsx.
+   * replaced by "חלה שגיאה במערכת" — app/(he)/(app)/error.tsx.
    */
   it('pre-gates before any action runs, so nothing is dispatched', () => {
     const src = settings()

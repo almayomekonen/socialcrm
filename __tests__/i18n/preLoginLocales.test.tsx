@@ -46,11 +46,11 @@ function as(locale: string | null, flag = true) {
 }
 
 async function authTree(search: Record<string, string> = {}) {
-  const { default: Page } = await import('@/app/(auth)/auth/page')
+  const { default: Page } = await import('@/app/(he)/(auth)/auth/page')
   return resolveAsync(await Page({ searchParams: Promise.resolve(search) }))
 }
 async function registerTree() {
-  const { default: Page } = await import('@/app/(auth)/auth/register/page')
+  const { default: Page } = await import('@/app/(he)/(auth)/auth/register/page')
   return resolveAsync(await Page({ searchParams: Promise.resolve({}) }))
 }
 
@@ -131,8 +131,8 @@ describe('en / ar from the cookie', () => {
 
 describe('tab titles', () => {
   test('he = the recorded metadata; en / ar re-word only the title', async () => {
-    const auth = await import('@/app/(auth)/auth/page')
-    const register = await import('@/app/(auth)/auth/register/page')
+    const auth = await import('@/app/(he)/(auth)/auth/page')
+    const register = await import('@/app/(he)/(auth)/auth/register/page')
     as(null)
     const heAuth = (await auth.generateMetadata()) as Record<string, unknown>
     expect(heAuth.title).toBe('התחברות | SocialCRM — מערכת ניהול לידים')

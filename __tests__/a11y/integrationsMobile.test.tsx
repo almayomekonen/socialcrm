@@ -328,7 +328,7 @@ describe('IntegrationsLanding', () => {
 describe('desktop protection — source contracts', () => {
   it('the integrations page still mounts LeadSourcesSection on desktop', () => {
     const src = readFileSync(
-      join(process.cwd(), 'app/(app)/settings/(user_settings)/integrations/page.tsx'),
+      join(process.cwd(), 'app/(he)/(app)/settings/(user_settings)/integrations/page.tsx'),
       'utf8',
     )
     expect(src).toContain('isMobileWorkspaceRequest')

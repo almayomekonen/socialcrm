@@ -179,9 +179,9 @@ describe('a failed product-access read', () => {
 
 describe('one decision for every surface', () => {
   const SURFACES = [
-    'app/(app)/agent/page.tsx',
-    'app/(app)/layout.tsx',
-    'app/(app)/m/page.tsx',
+    'app/(he)/(app)/agent/page.tsx',
+    'app/(he)/(app)/layout.tsx',
+    'app/(he)/(app)/m/page.tsx',
     'app/api/ai/agent/route.ts',
     'app/api/ai/agent/stream/route.ts',
     'app/api/ai/agent/transcribe/route.ts',

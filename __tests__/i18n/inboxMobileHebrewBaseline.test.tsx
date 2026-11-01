@@ -173,10 +173,10 @@ describe('Hebrew baseline — mobile thread (server HTML)', () => {
 
 describe('Hebrew baseline — phone loading and error boundaries', () => {
   test('/inbox loading (list, thread); Messenger and Comments loading + error inside the mobile workspace', async () => {
-    const { default: InboxLoading } = await import('@/app/(app)/inbox/loading')
+    const { default: InboxLoading } = await import('@/app/(he)/(app)/inbox/loading')
     const routes = {
-      messenger: [(await import('@/app/(app)/inbox/messenger/loading')).default, (await import('@/app/(app)/inbox/messenger/error')).default],
-      comments: [(await import('@/app/(app)/inbox/comments/loading')).default, (await import('@/app/(app)/inbox/comments/error')).default],
+      messenger: [(await import('@/app/(he)/(app)/inbox/messenger/loading')).default, (await import('@/app/(he)/(app)/inbox/messenger/error')).default],
+      comments: [(await import('@/app/(he)/(app)/inbox/comments/loading')).default, (await import('@/app/(he)/(app)/inbox/comments/error')).default],
     } as const
     // Client-rendered: the loading boundary picks list vs thread from `location.search` after mount.
     const client = async (node: ReactNode) => {

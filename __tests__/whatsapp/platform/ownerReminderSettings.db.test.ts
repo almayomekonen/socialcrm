@@ -187,7 +187,7 @@ describe('turning reminders off', () => {
 
 describe('the settings page gate', () => {
   it('404s outside the rollout (agency 158 included) and renders inside it', async () => {
-    const { default: page } = await import('@/app/(app)/settings/(user_settings)/whatsapp_reminders/page')
+    const { default: page } = await import('@/app/(he)/(app)/settings/(user_settings)/whatsapp_reminders/page')
     as(u158, EXCLUDED)
     await expect(page()).rejects.toThrow('NEXT_NOT_FOUND')
     as(ua, A)
@@ -198,7 +198,7 @@ describe('the settings page gate', () => {
   })
 
   it('audience all: renders for an agency in no list, 158 included; 404 for an excluded agency', async () => {
-    const { default: page } = await import('@/app/(app)/settings/(user_settings)/whatsapp_reminders/page')
+    const { default: page } = await import('@/app/(he)/(app)/settings/(user_settings)/whatsapp_reminders/page')
     process.env.OWNER_WA_REMINDERS_AGENCY_IDS = ''
     process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
     as(ua, A)
@@ -211,7 +211,7 @@ describe('the settings page gate', () => {
   })
 
   it('404s without product access (expired trial), whatever the audience', async () => {
-    const { default: page } = await import('@/app/(app)/settings/(user_settings)/whatsapp_reminders/page')
+    const { default: page } = await import('@/app/(he)/(app)/settings/(user_settings)/whatsapp_reminders/page')
     process.env.OWNER_WA_REMINDERS_AUDIENCE = 'all'
     const DAY = 86_400_000
     await db('agencies').where({ id: A }).update({ plan: 'free', trialStartedAt: new Date(Date.now() - 10 * DAY), trialEndsAt: new Date(Date.now() - 3 * DAY) })

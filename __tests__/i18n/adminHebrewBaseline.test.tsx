@@ -119,7 +119,7 @@ describe('Hebrew baseline — admin settings (server HTML)', () => {
     set({ quoteOverviews: structuredClone((await import('./adminEnv')).QUOTE_OVERVIEWS), hasAccess: false })
     out.expired = await html('quoteTemplates', EXPIRED)
     set({ hasAccess: true, user: { ...adminEnv.user, role: 'AGENT' } })
-    out.noPermission = renderToString(await adminShell(null, await (await import('@/app/(app)/settings/(admin_settings)/quote-templates/page')).default()))
+    out.noPermission = renderToString(await adminShell(null, await (await import('@/app/(he)/(app)/settings/(admin_settings)/quote-templates/page')).default()))
     expect(out).toMatchSnapshot()
   })
 

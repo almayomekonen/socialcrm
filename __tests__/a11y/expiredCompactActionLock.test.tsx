@@ -47,14 +47,14 @@ const ACTION_LOCKS: [string, string][] = [
  * built spends nothing. Creating an invoice is pure mutation with nothing to
  * read, so it is still a whole-surface lock.
  */
-const PAGE_LOCKS: string[] = ['app/(app)/clients/[clientId]/billing/new/page.tsx']
+const PAGE_LOCKS: string[] = ['app/(he)/(app)/clients/[clientId]/billing/new/page.tsx']
 
 /** Tier 2: the page renders, and the notice above it is compact. */
 const TIER_2_PAGES: string[] = [
-  'app/(app)/settings/(admin_settings)/auto-response/page.tsx',
-  'app/(app)/settings/(admin_settings)/automations/page.tsx',
-  'app/(app)/settings/(admin_settings)/automation-templates/page.tsx',
-  'app/(app)/settings/(admin_settings)/quote-templates/page.tsx',
+  'app/(he)/(app)/settings/(admin_settings)/auto-response/page.tsx',
+  'app/(he)/(app)/settings/(admin_settings)/automations/page.tsx',
+  'app/(he)/(app)/settings/(admin_settings)/automation-templates/page.tsx',
+  'app/(he)/(app)/settings/(admin_settings)/quote-templates/page.tsx',
 ]
 
 afterEach(() => cleanup())
@@ -111,7 +111,7 @@ describe('compact action lock', () => {
   })
 
   it('EXP-5c: notifications are readable, not locked', () => {
-    const page = src('app/(app)/notifications/page.tsx')
+    const page = src('app/(he)/(app)/notifications/page.tsx')
     expect(page).toContain('<NotificationCenter')
     expect(page).not.toContain('SubscriptionExpiredState')
   })

@@ -27,15 +27,15 @@ export async function automationsShell(locale: UiLocale | null, node: ReactNode,
 }
 
 export const AUTOMATION_PAGES = {
-  automations: () => import('@/app/(app)/settings/(admin_settings)/automations/page'),
-  templates: () => import('@/app/(app)/settings/(admin_settings)/automation-templates/page'),
-  pilot: () => import('@/app/(app)/settings/(admin_settings)/automations-pilot/page'),
+  automations: () => import('@/app/(he)/(app)/settings/(admin_settings)/automations/page'),
+  templates: () => import('@/app/(he)/(app)/settings/(admin_settings)/automation-templates/page'),
+  pilot: () => import('@/app/(he)/(app)/settings/(admin_settings)/automations-pilot/page'),
 } as const
 export type AutomationPage = keyof typeof AUTOMATION_PAGES
 
 /** The real page inside the real (admin_settings) layout, server parts awaited. */
 export async function automationsPage(name: AutomationPage): Promise<ReactNode> {
-  const { default: Layout } = (await import('@/app/(app)/settings/(admin_settings)/layout')) as { default: (p: unknown) => Promise<ReactNode> }
+  const { default: Layout } = (await import('@/app/(he)/(app)/settings/(admin_settings)/layout')) as { default: (p: unknown) => Promise<ReactNode> }
   const { default: Page } = (await AUTOMATION_PAGES[name]()) as { default: (p: unknown) => Promise<ReactNode> }
   return resolveServer(await Layout({ children: await resolveServer(await Page({})) }))
 }

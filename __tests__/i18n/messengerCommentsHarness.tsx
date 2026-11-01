@@ -16,14 +16,14 @@ type Ent = typeof ACTIVE
 
 export async function messengerPage(searchParams: Record<string, string> = {}) {
   mcSpies.route = 'messenger'
-  const { default: Page } = await import('@/app/(app)/inbox/messenger/page')
+  const { default: Page } = await import('@/app/(he)/(app)/inbox/messenger/page')
   const sp = messengerEnv.selectedId ? { c: String(messengerEnv.selectedId), ...searchParams } : searchParams
   return resolveAsync(await Page({ searchParams: Promise.resolve(sp) }))
 }
 
 export async function commentsPage(searchParams: Record<string, string> = {}) {
   mcSpies.route = 'comments'
-  const { default: Page } = await import('@/app/(app)/inbox/comments/page')
+  const { default: Page } = await import('@/app/(he)/(app)/inbox/comments/page')
   return resolveAsync(await Page({ searchParams: Promise.resolve(searchParams) }))
 }
 
@@ -62,11 +62,11 @@ export const commentsScreen = async (
 
 export async function routeChrome(route: 'messenger' | 'comments') {
   if (route === 'messenger') {
-    const { default: Loading } = await import('@/app/(app)/inbox/messenger/loading')
-    const { default: ErrorBoundary } = await import('@/app/(app)/inbox/messenger/error')
+    const { default: Loading } = await import('@/app/(he)/(app)/inbox/messenger/loading')
+    const { default: ErrorBoundary } = await import('@/app/(he)/(app)/inbox/messenger/error')
     return { Loading, ErrorBoundary }
   }
-  const { default: Loading } = await import('@/app/(app)/inbox/comments/loading')
-  const { default: ErrorBoundary } = await import('@/app/(app)/inbox/comments/error')
+  const { default: Loading } = await import('@/app/(he)/(app)/inbox/comments/loading')
+  const { default: ErrorBoundary } = await import('@/app/(he)/(app)/inbox/comments/error')
   return { Loading, ErrorBoundary }
 }

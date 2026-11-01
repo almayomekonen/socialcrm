@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { MarketingFooter } from '@/components/marketing/system/MarketingFooter'
-import TermsPage from '@/app/(marketing)/terms/page'
+import TermsPage from '@/app/(he)/(marketing)/terms/page'
 import { BUSINESS_ADDRESS, BUSINESS_PHONE_DISPLAY, BUSINESS_PHONE_HREF } from '@/lib/businessContact'
 
 /**
@@ -76,7 +76,7 @@ describe('business contact details, as Grow requires them', () => {
 describe('marketing skip link', () => {
   it('is the first focusable element and points at a real target', async () => {
     const { ShellFrame } = await import('@/components/marketing/system/ShellChrome')
-    const MarketingLayout = (await import('@/app/(marketing)/layout')).default
+    const MarketingLayout = (await import('@/app/(he)/(marketing)/layout')).default
 
     render(<MarketingLayout><p>תוכן</p></MarketingLayout>)
 

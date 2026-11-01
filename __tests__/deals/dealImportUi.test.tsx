@@ -53,7 +53,7 @@ describe('Deals page — ייבוא עסקאות', () => {
   it('the toolbar action opens the deal import modal', async () => {
     const setFn = vi.fn()
     const user = { id: 1, role: 'AGNT' }
-    // The same providers the app shell and app/(app)/deals/page.tsx supply.
+    // The same providers the app shell and app/(he)/(app)/deals/page.tsx supply.
     render(
       <UserProvider user={user}>
         <PosProvider>

@@ -25,11 +25,11 @@ export async function questionnaireShell(locale: UiLocale | null, node: ReactNod
   return locale ? <I18nProvider locale={locale}>{inner}</I18nProvider> : inner
 }
 
-const PAGE = () => import('@/app/(app)/settings/(admin_settings)/questionnaire/page')
+const PAGE = () => import('@/app/(he)/(app)/settings/(admin_settings)/questionnaire/page')
 
 /** The real page inside the real (admin_settings) layout, server parts awaited. A 404 resolves to its message. */
 export async function questionnairePage(): Promise<ReactNode> {
-  const { default: Layout } = (await import('@/app/(app)/settings/(admin_settings)/layout')) as { default: (p: unknown) => Promise<ReactNode> }
+  const { default: Layout } = (await import('@/app/(he)/(app)/settings/(admin_settings)/layout')) as { default: (p: unknown) => Promise<ReactNode> }
   const { default: Page } = (await PAGE()) as unknown as { default: (p: unknown) => Promise<ReactNode> }
   return resolveServer(await Layout({ children: await resolveServer(await Page({})) }))
 }

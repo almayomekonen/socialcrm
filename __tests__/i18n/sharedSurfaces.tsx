@@ -14,7 +14,7 @@ export const SHARED_SURFACES: Surface[] = [
     route: '(any workspace route that fails)',
     render: async (locale) => {
       const { I18nProvider } = await import('@/lib/i18n/I18nProvider')
-      const { default: AppError } = await import('@/app/(app)/error')
+      const { default: AppError } = await import('@/app/(he)/(app)/error')
       return (
         <I18nProvider locale={locale}>
           <AppError error={new Error('gate')} reset={() => {}} />

@@ -114,7 +114,7 @@ async function seedComment(over: Record<string, unknown> = {}) {
   return commentId
 }
 
-/** The list read exactly as `app/(app)/leads/page.tsx` performs it. */
+/** The list read exactly as `app/(he)/(app)/leads/page.tsx` performs it. */
 async function leadsTableFor(user: TestUser) {
   const { gotPermIds } = await getPerms(user)
   return (await getLeadsTable({ user, params: {}, leads: true, gotPermIds })) as { id: number; status: string }[]

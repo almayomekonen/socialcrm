@@ -28,13 +28,13 @@ export async function globalShell(locale: UiLocale | null, node: ReactNode, ent:
 }
 
 export async function globalTasksPage(filter?: Record<string, unknown>) {
-  const { default: Page } = await import('@/app/(app)/tasks/page')
+  const { default: Page } = await import('@/app/(he)/(app)/tasks/page')
   const searchParams = Promise.resolve(filter ? { filter: JSON.stringify(filter) } : {})
   return resolveAsync(await Page({ searchParams }))
 }
 
 export async function globalFilesPage() {
-  const { default: Page } = await import('@/app/(app)/files/page')
+  const { default: Page } = await import('@/app/(he)/(app)/files/page')
   return resolveAsync(await Page())
 }
 

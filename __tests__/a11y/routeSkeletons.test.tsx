@@ -118,28 +118,28 @@ describe('mobile skeletons — geometry matches the phone entity', () => {
 describe('loading.tsx files actually branch on the phone entity', () => {
   const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
   const loadingFiles = [
-    'app/(app)/loading.tsx',
-    'app/(app)/leads/loading.tsx',
-    'app/(app)/inbox/loading.tsx',
-    'app/(app)/inbox/comments/loading.tsx',
-    'app/(app)/clients/loading.tsx',
-    'app/(app)/clients/[clientId]/loading.tsx',
-    'app/(app)/dashboard/loading.tsx',
-    'app/(app)/notifications/loading.tsx',
-    'app/(app)/m/loading.tsx',
-    'app/(app)/settings/loading.tsx',
-    'app/(app)/settings/(user_settings)/integrations/loading.tsx',
+    'app/(he)/(app)/loading.tsx',
+    'app/(he)/(app)/leads/loading.tsx',
+    'app/(he)/(app)/inbox/loading.tsx',
+    'app/(he)/(app)/inbox/comments/loading.tsx',
+    'app/(he)/(app)/clients/loading.tsx',
+    'app/(he)/(app)/clients/[clientId]/loading.tsx',
+    'app/(he)/(app)/dashboard/loading.tsx',
+    'app/(he)/(app)/notifications/loading.tsx',
+    'app/(he)/(app)/m/loading.tsx',
+    'app/(he)/(app)/settings/loading.tsx',
+    'app/(he)/(app)/settings/(user_settings)/integrations/loading.tsx',
   ]
 
   it('leads loading serves LeadsSkeletonMobile on phone and keeps the table for desktop', () => {
-    const src = read('app/(app)/leads/loading.tsx')
+    const src = read('app/(he)/(app)/leads/loading.tsx')
     expect(src).toContain('EntityLoading')
     expect(src).toContain('LeadsSkeletonMobile')
     expect(src).toContain('LeadsTableSkeleton')
   })
 
   it('inbox loading serves the mobile list/thread, not only InboxRouteSkeleton', () => {
-    const src = read('app/(app)/inbox/loading.tsx')
+    const src = read('app/(he)/(app)/inbox/loading.tsx')
     expect(src).toContain('InboxSegmentLoading')
     const inbox = read('components/mobile/skeletons/InboxSegmentLoading.tsx')
     expect(inbox).toContain('InboxListSkeletonMobile')
@@ -158,7 +158,7 @@ describe('loading.tsx files actually branch on the phone entity', () => {
   })
 
   it('app layout Suspense fallback is phone chrome, not the desktop spinner alone', () => {
-    const src = read('app/(app)/layout.tsx')
+    const src = read('app/(he)/(app)/layout.tsx')
     expect(src).toContain('MobileChromeSkeleton')
     expect(src).toContain('PhoneAwareShell')
     expect(src).toContain('getDeviceClass')

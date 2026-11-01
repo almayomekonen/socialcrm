@@ -79,7 +79,7 @@ describe('overview intro record', () => {
 
 describe('invitation wiring', () => {
   it('reuses the existing workspace gate and does not add a second tour host', () => {
-    const layout = readFileSync('app/(app)/layout.tsx', 'utf8')
+    const layout = readFileSync('app/(he)/(app)/layout.tsx', 'utf8')
     /**
      * `toursEnabled` is TOUR ELIGIBILITY. It gained `productAccess.hasAccess`
      * so a tour can never auto-open on top of the paywall, where it stood
@@ -115,7 +115,7 @@ describe('invitation wiring', () => {
     const firstRun = readFileSync('components/clients/LeadsFirstRun.tsx', 'utf8')
     expect(firstRun).not.toContain('OverviewIntro')
     expect(firstRun).not.toContain('{children}')
-    const leadsPage = readFileSync('app/(app)/leads/page.tsx', 'utf8')
+    const leadsPage = readFileSync('app/(he)/(app)/leads/page.tsx', 'utf8')
     expect(leadsPage).not.toContain('OverviewIntroCard')
     expect(leadsPage).not.toContain('OverviewIntroPrompt')
     expect(existsSync('components/education/OverviewIntroPrompt.tsx')).toBe(false)

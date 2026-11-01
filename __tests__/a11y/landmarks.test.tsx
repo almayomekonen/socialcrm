@@ -8,8 +8,8 @@
 import { afterEach, test, expect } from 'vitest'
 import React from 'react'
 import { render, screen, cleanup } from '@testing-library/react'
-import MarketingLayout from '@/app/(marketing)/layout'
-import AuthLayout from '@/app/(auth)/layout'
+import MarketingLayout from '@/app/(he)/(marketing)/layout'
+import AuthLayout from '@/app/(he)/(auth)/layout'
 
 afterEach(cleanup)
 

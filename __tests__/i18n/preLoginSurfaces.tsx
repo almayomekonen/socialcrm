@@ -38,7 +38,7 @@ export const PRE_LOGIN_SURFACES: Surface[] = [
     name: 'sign-in page — magic link, social buttons, signed-in line',
     route: '/auth',
     render: async () => {
-      const { default: Page } = await import('@/app/(auth)/auth/page')
+      const { default: Page } = await import('@/app/(he)/(auth)/auth/page')
       return (await resolveAsync(await Page({ searchParams: Promise.resolve({ error: '1' }) }))) as never
     },
     // The gate's session user (`דנה כהן`) is shown in "Signing in as …".
@@ -48,7 +48,7 @@ export const PRE_LOGIN_SURFACES: Surface[] = [
     name: 'registration page — form, terms row, social buttons',
     route: '/auth/register',
     render: async () => {
-      const { default: Page } = await import('@/app/(auth)/auth/register/page')
+      const { default: Page } = await import('@/app/(he)/(auth)/auth/register/page')
       return (await resolveAsync(
         await Page({ searchParams: Promise.resolve({ email: 'noa@example.com', name: 'Noa' }) }),
       )) as never

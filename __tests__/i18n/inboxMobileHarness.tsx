@@ -21,7 +21,7 @@ export async function mobileShell(locale: UiLocale | null, node: ReactNode, ent:
 }
 
 export async function mobileInboxPage(searchParams: Record<string, string> = {}) {
-  const { default: Page } = await import('@/app/(app)/inbox/page')
+  const { default: Page } = await import('@/app/(he)/(app)/inbox/page')
   const sp = inboxEnv.selected ? { conversation: String(inboxEnv.selected.conversationId), ...searchParams } : searchParams
   return resolveAsync(await Page({ searchParams: Promise.resolve(sp) }))
 }

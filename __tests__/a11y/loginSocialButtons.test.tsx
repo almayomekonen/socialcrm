@@ -53,7 +53,7 @@ describe('desktop login presentation is unchanged', () => {
   })
 
   it('auth pages only match buttons on the phone entity', () => {
-    const auth = fs.readFileSync(path.join(process.cwd(), 'app/(auth)/auth/page.tsx'), 'utf8')
+    const auth = fs.readFileSync(path.join(process.cwd(), 'app/(he)/(auth)/auth/page.tsx'), 'utf8')
     expect(auth).toContain('matchSocialButtons={phoneLogin}')
     expect(auth).toContain('isMobileRequest')
     const login = fs.readFileSync(path.join(process.cwd(), 'components/auth/Login.tsx'), 'utf8')

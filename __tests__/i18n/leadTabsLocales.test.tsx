@@ -322,10 +322,10 @@ describe('regions: page roots and portalled dialogs declare the language; Hebrew
 describe('tab titles', () => {
   test('each tab page titles the tab in the interface language; Hebrew is the lead title it always had', async () => {
     const pages = {
-      tasks: await import('@/app/(app)/clients/[clientId]/tasks/page'),
-      taskDetail: await import('@/app/(app)/clients/[clientId]/tasks/[taskId]/page'),
-      files: await import('@/app/(app)/clients/[clientId]/files/page'),
-      billing: await import('@/app/(app)/clients/[clientId]/billing/page'),
+      tasks: await import('@/app/(he)/(app)/clients/[clientId]/tasks/page'),
+      taskDetail: await import('@/app/(he)/(app)/clients/[clientId]/tasks/[taskId]/page'),
+      files: await import('@/app/(he)/(app)/clients/[clientId]/files/page'),
+      billing: await import('@/app/(he)/(app)/clients/[clientId]/billing/page'),
     }
     for (const [path, { generateMetadata }] of Object.entries(pages)) {
       S.prefs.userLocale = 'en'

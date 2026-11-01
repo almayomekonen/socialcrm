@@ -326,7 +326,7 @@ describe('CommentsInboxMobile', () => {
 
 describe('desktop protection — comments page still mounts the desktop grid', () => {
   it('mobile is a branch, not a replacement of the desktop comments page', () => {
-    const src = readFileSync(join(process.cwd(), 'app/(app)/inbox/comments/page.tsx'), 'utf8')
+    const src = readFileSync(join(process.cwd(), 'app/(he)/(app)/inbox/comments/page.tsx'), 'utf8')
     expect(src).toContain('isMobileWorkspaceRequest')
     expect(src).toContain('CommentsInboxMobile')
     expect(src).toContain('loadCommentsFeedPage')
@@ -365,7 +365,7 @@ describe('CommentsEmptyState', () => {
   })
 
   it('makes no "reconnect to get text" claim — production shows text arriving without that grant', () => {
-    const src = readFileSync(join(process.cwd(), 'app/(app)/inbox/comments/page.tsx'), 'utf8')
+    const src = readFileSync(join(process.cwd(), 'app/(he)/(app)/inbox/comments/page.tsx'), 'utf8')
     expect(src).not.toContain('needs-reconnect')
     expect(src).not.toContain('hasCommentTextCapability')
   })

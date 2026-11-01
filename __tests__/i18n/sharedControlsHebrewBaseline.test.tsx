@@ -112,7 +112,7 @@ describe('useAction', () => {
 describe('(app) error boundary', () => {
   test('the recovery screen', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { default: AppError } = await import('@/app/(app)/error')
+    const { default: AppError } = await import('@/app/(he)/(app)/error')
     const reset = vi.fn()
     const { container } = render(<AppError error={Object.assign(new Error('x'), { digest: 'd1' })} reset={reset} />)
     expect(container.innerHTML).toMatchSnapshot()

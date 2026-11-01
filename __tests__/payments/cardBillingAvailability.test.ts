@@ -53,7 +53,7 @@ describe('isCardBillingAvailable', () => {
 })
 
 describe('the billing screen never offers a retired checkout', () => {
-  const page = readFileSync('app/(app)/settings/(user_settings)/update_payment/page.tsx', 'utf8')
+  const page = readFileSync('app/(he)/(app)/settings/(user_settings)/update_payment/page.tsx', 'utf8')
 
   it('shows a temporary-unavailability state instead of a dead-end CTA', () => {
     expect(page).toContain('PaymentsUnavailableNotice')

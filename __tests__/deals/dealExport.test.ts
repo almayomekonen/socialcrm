@@ -137,7 +137,7 @@ describe('the flow no longer depends on the session signing key', () => {
   })
 
   it('the page hands the export a filter, never a query or token', () => {
-    const page = read('app/(app)/deals/page.tsx')
+    const page = read('app/(he)/(app)/deals/page.tsx')
     expect(page).toMatch(/exportFilter: filter \?\? null/)
     expect(page).not.toMatch(/sqlExport/)
     expect(read('lib/table/export/index.tsx')).not.toMatch(/sqlExport/)

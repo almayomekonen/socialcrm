@@ -172,7 +172,7 @@ describe('layout (header + tab nav)', () => {
   })
 
   test('tab titles follow the interface language (Hebrew outside the rollout)', async () => {
-    const { generateMetadata } = await import('@/app/(app)/clients/[clientId]/layout')
+    const { generateMetadata } = await import('@/app/(he)/(app)/clients/[clientId]/layout')
     H.prefs.userLocale = 'en'
     expect(await generateMetadata()).toEqual({ title: 'Lead details', description: 'All of the lead’s details' })
     H.prefs.userLocale = 'ar'

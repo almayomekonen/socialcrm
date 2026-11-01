@@ -211,7 +211,7 @@ describe('mobile מענה אוטומטי — the switch', () => {
 
 describe('mobile מענה אוטומטי — routing and the desktop form', () => {
   const page = fs.readFileSync(
-    path.join(process.cwd(), 'app/(app)/settings/(admin_settings)/auto-response/page.tsx'),
+    path.join(process.cwd(), 'app/(he)/(app)/settings/(admin_settings)/auto-response/page.tsx'),
     'utf8',
   )
 

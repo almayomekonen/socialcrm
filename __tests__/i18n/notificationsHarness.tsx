@@ -36,14 +36,14 @@ export async function pageTree(
   notifEnv.userLocale = locale
   if (opts.rows) notifEnv.rows = opts.rows
   if (opts.mobile !== undefined) notifEnv.mobile = opts.mobile
-  const { default: Page } = await import('@/app/(app)/notifications/page')
+  const { default: Page } = await import('@/app/(he)/(app)/notifications/page')
   const page = await resolveAsync(await Page({ searchParams: Promise.resolve(search) }))
   return withLocale(locale, await withNotifications(page, opts.unread ?? 3))
 }
 
 export async function pageTitle(locale: UiLocale | null) {
   notifEnv.userLocale = locale
-  const mod = (await import('@/app/(app)/notifications/page')) as {
+  const mod = (await import('@/app/(he)/(app)/notifications/page')) as {
     metadata?: { title?: unknown }
     generateMetadata?: () => Promise<{ title?: unknown }>
   }

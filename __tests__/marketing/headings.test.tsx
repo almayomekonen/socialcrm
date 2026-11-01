@@ -27,16 +27,16 @@ vi.mock('next/navigation', () => ({
   notFound: () => {},
 }))
 
-import Home from '@/app/(marketing)/page'
-import Channels from '@/app/(marketing)/channels/page'
-import Pricing from '@/app/(marketing)/pricing/page'
-import Faq from '@/app/(marketing)/faq/page'
-import InstagramLeads from '@/app/(marketing)/instagram-leads-crm/page'
-import CrmForWhatsapp from '@/app/(marketing)/crm-for-whatsapp-business/page'
-import CrmVsExcel from '@/app/(marketing)/crm-vs-excel/page'
-import Privacy from '@/app/(marketing)/privacy/page'
-import Terms from '@/app/(marketing)/terms/page'
-import DataDeletion from '@/app/(marketing)/data-deletion/page'
+import Home from '@/app/(he)/(marketing)/page'
+import Channels from '@/app/(he)/(marketing)/channels/page'
+import Pricing from '@/app/(he)/(marketing)/pricing/page'
+import Faq from '@/app/(he)/(marketing)/faq/page'
+import InstagramLeads from '@/app/(he)/(marketing)/instagram-leads-crm/page'
+import CrmForWhatsapp from '@/app/(he)/(marketing)/crm-for-whatsapp-business/page'
+import CrmVsExcel from '@/app/(he)/(marketing)/crm-vs-excel/page'
+import Privacy from '@/app/(he)/(marketing)/privacy/page'
+import Terms from '@/app/(he)/(marketing)/terms/page'
+import DataDeletion from '@/app/(he)/(marketing)/data-deletion/page'
 
 afterEach(cleanup)
 

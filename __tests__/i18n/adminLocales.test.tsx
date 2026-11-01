@@ -128,9 +128,9 @@ describe('admin settings pages in en / ar', () => {
 
 describe('tab titles, language switch, hydration', () => {
   test('the admin group, quote templates and auto-response titles follow the interface language', async () => {
-    const group = await import('@/app/(app)/settings/(admin_settings)/layout')
-    const quotes = await import('@/app/(app)/settings/(admin_settings)/quote-templates/page')
-    const auto = await import('@/app/(app)/settings/(admin_settings)/auto-response/page')
+    const group = await import('@/app/(he)/(app)/settings/(admin_settings)/layout')
+    const quotes = await import('@/app/(he)/(app)/settings/(admin_settings)/quote-templates/page')
+    const auto = await import('@/app/(he)/(app)/settings/(admin_settings)/auto-response/page')
     for (const [locale, g, q, a] of [
       ['he', 'הגדרות אדמין', 'תבניות הצעות מחיר', 'מענה אוטומטי'],
       ['en', 'Admin settings', 'Quote templates', 'Auto response'],
