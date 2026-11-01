@@ -12,9 +12,9 @@ import { parsePlatformCommand } from './commands'
 import { hashActivationCode, hashPlatformSender } from './keys'
 import { enqueueWaAssistantJob } from '@/db/waAssistantJobs'
 import {
+  hasWaAssistantAudience,
   isWaAssistantAgency,
   isWaAssistantSenderGuidanceEnabled,
-  waAssistantAgencyIds,
   WA_ASSISTANT_LIMITS,
 } from '@/lib/flags/waAssistantFlags'
 import { matchAssistantSender } from '@/lib/waAssistant/identity'
@@ -38,7 +38,8 @@ import { decideSenderGuidance, type SenderGuidance } from './senderGuidance'
  *      then consumes its code in one guarded statement;
  *   4. anything else, from a number verified for EXACTLY ONE active recipient
  *      in an agency with the assistant enabled, is queued for the assistant
- *      (WA_ASSISTANT_AGENCY_IDS; absent = nothing is queued, as before). Opt-out
+ *      (WA_ASSISTANT_AUDIENCE=all or WA_ASSISTANT_AGENCY_IDS; neither = nothing is
+ *      queued, as before; WA_ASSISTANT_EXCLUDED_AGENCY_IDS never). Opt-out
  *      and activation always win: they are decided first and never queued.
  *      A sender it cannot answer may instead earn ONE fixed guidance reply
  *      (senderGuidance.ts; WA_ASSISTANT_SENDER_GUIDANCE), sent by the caller
@@ -151,8 +152,8 @@ async function routeToAssistant(
   fromHash: string | null,
   messageTimestamp: number,
 ): Promise<'queued' | SenderGuidance | null> {
-  // Both off: no lookup at all, exactly as before.
-  if (!from || (waAssistantAgencyIds().length === 0 && !isWaAssistantSenderGuidanceEnabled())) return null
+  // No audience (neither `all` nor any listed id) and no guidance: no lookup at all, exactly as before.
+  if (!from || (!hasWaAssistantAudience() && !isWaAssistantSenderGuidanceEnabled())) return null
   const isText = message.type === 'text' && typeof message.text?.body === 'string'
   const decision = decisionId(message)
   if (!isText && !decision && !UNSUPPORTED_MEDIA.has(String(message.type))) return null

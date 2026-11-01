@@ -3,7 +3,7 @@ import {
   platformWhatsappPhoneNumberId,
   platformWhatsappWabaId,
 } from '@/lib/flags/ownerWhatsappReminderFlags'
-import { waAssistantAgencyIds } from '@/lib/flags/waAssistantFlags'
+import { waAssistantAudience } from '@/lib/flags/waAssistantFlags'
 import { checkOwnerReminderReadiness, graphGet, type ReadinessCheck } from './readiness'
 
 /**
@@ -45,7 +45,10 @@ export type AgentReadiness = {
   ready: boolean
   checks: AgentReadinessCheck[]
   notVerifiable: string[]
-  assistantAgencies: number
+  /** Listed agencies in list mode; null in `all` mode (every eligible agency), see `assistantAudience`. */
+  assistantAgencies: number | null
+  /** Who may use the assistant: every agency (minus exclusions) or an explicit list. Counts only, no ids. */
+  assistantAudience: { mode: 'all' | 'list'; excludedAgencies: number }
 }
 
 export const NOT_VERIFIABLE = ['wabaPaymentMethod', 'metaBillingStatus', 'twoStepPin', 'trafficCapacity'] as const
@@ -56,6 +59,14 @@ const APPROVED_NAME = new Set(['APPROVED', 'AVAILABLE_WITHOUT_REVIEW'])
 function fromReminder(c: ReadinessCheck | undefined, name: 'config' | 'token' | 'phone'): AgentReadinessCheck {
   if (!c) return { name, severity: 'blocking', state: 'unavailable', detail: { reason: 'not_checked' } }
   return { name, severity: 'blocking', state: c.ok ? 'ok' : 'failed', detail: c.detail }
+}
+
+function audienceSummary(): Pick<AgentReadiness, 'assistantAgencies' | 'assistantAudience'> {
+  const a = waAssistantAudience()
+  return {
+    assistantAgencies: a.mode === 'all' ? null : a.agencyIds.length,
+    assistantAudience: { mode: a.mode, excludedAgencies: a.excludedIds.length },
+  }
 }
 
 export async function checkAgentPlatformReadiness(): Promise<AgentReadiness> {
@@ -76,7 +87,7 @@ export async function checkAgentPlatformReadiness(): Promise<AgentReadiness> {
     ready: checks.every((c) => c.severity !== 'blocking' || c.state === 'ok' || c.state === 'warning'),
     checks,
     notVerifiable: [...NOT_VERIFIABLE],
-    assistantAgencies: waAssistantAgencyIds().length,
+    ...audienceSummary(),
   })
   if (!phoneId || !wabaId || !token) return result()
 

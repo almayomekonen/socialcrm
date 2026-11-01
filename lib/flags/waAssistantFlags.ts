@@ -8,6 +8,16 @@
  *   that are not plain digits (`all`, `*`, `true`) are ignored, so no value opens
  *   it to everyone. Pilot: `103`.
  *
+ * WA_ASSISTANT_AUDIENCE
+ *   Exactly `all`: every agency is in the audience (WA_ASSISTANT_AGENCY_IDS is
+ *   then ignored). Anything else, or absent: the explicit list above, as before.
+ *   Being in the audience only makes an agency eligible: every turn still needs
+ *   product access, an active verified recipient, the assistant consent, an
+ *   active user and Agent availability (lib/waAssistant/identity.ts).
+ *
+ * WA_ASSISTANT_EXCLUDED_AGENCY_IDS
+ *   Explicit ids that never get the assistant, in either mode. Plain digits only.
+ *
  * WA_ASSISTANT_DAILY_USD_CAP
  *   Durable per-agency model spend per UTC day, summed from wa_assistant_jobs.
  *   Default 2 USD; non-numeric or non-positive values fall back to the default.
@@ -17,8 +27,8 @@
  * (`isAgentAvailable`, lib/ai/agentAvailability.ts). Read per call, never cached.
  */
 
-export function waAssistantAgencyIds(): number[] {
-  const ids = (process.env.WA_ASSISTANT_AGENCY_IDS ?? '')
+function parseIds(raw: string | undefined): number[] {
+  const ids = (raw ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter((s) => /^\d+$/.test(s))
@@ -27,9 +37,34 @@ export function waAssistantAgencyIds(): number[] {
   return [...new Set(ids)]
 }
 
+export function waAssistantAgencyIds(): number[] {
+  return parseIds(process.env.WA_ASSISTANT_AGENCY_IDS)
+}
+
+export function waAssistantExcludedAgencyIds(): number[] {
+  return parseIds(process.env.WA_ASSISTANT_EXCLUDED_AGENCY_IDS)
+}
+
+export type WaAssistantAudience =
+  | { mode: 'all'; excludedIds: number[] }
+  | { mode: 'list'; agencyIds: number[]; excludedIds: number[] }
+
+export function waAssistantAudience(): WaAssistantAudience {
+  const excludedIds = waAssistantExcludedAgencyIds()
+  if (process.env.WA_ASSISTANT_AUDIENCE?.trim() === 'all') return { mode: 'all', excludedIds }
+  return { mode: 'list', agencyIds: waAssistantAgencyIds().filter((id) => !excludedIds.includes(id)), excludedIds }
+}
+
+/** True when at least one agency can be in the audience (so inbound work is worth doing at all). */
+export function hasWaAssistantAudience(audience: WaAssistantAudience = waAssistantAudience()): boolean {
+  return audience.mode === 'all' || audience.agencyIds.length > 0
+}
+
 export function isWaAssistantAgency(agencyId: number | null | undefined): boolean {
   if (!agencyId || !Number.isSafeInteger(agencyId) || agencyId <= 0) return false
-  return waAssistantAgencyIds().includes(agencyId)
+  const audience = waAssistantAudience()
+  if (audience.excludedIds.includes(agencyId)) return false
+  return audience.mode === 'all' || audience.agencyIds.includes(agencyId)
 }
 
 /**
