@@ -30,9 +30,9 @@ import { askAgent } from '@/actions/ai/askAgent'
  * only other thing passed is the request's own abort signal, which can only ever
  * shorten a run.
  *
- * `isAgentEnabled` is a ROLLOUT gate layered on top of admission, not a
- * replacement for it — an agency that is not opted in gets 404 before any AI
- * work is attempted.
+ * `isAgentAvailable` (lib/ai/agentAvailability.ts) is a ROLLOUT gate layered on
+ * top of admission, not a replacement for it — an agency outside the Agent
+ * audience gets 404 before any AI work is attempted.
  */
 
 export const maxDuration = 60

@@ -166,9 +166,9 @@ async function LayoutContent({ children }) {
    * The agent rollout, resolved once and handed to the nav.
    *
    * `/agent` and `POST /api/ai/agent/stream` both 404 for an agency outside
-   * `AGENT_AGENCY_IDS`, so the nav entry has to agree with them — a link to a
-   * 404 is worse than no link. Absence blocks: with the env unset the allowlist
-   * parses to an empty list and this is false for everyone.
+   * the Agent audience, and all three ask the same `isAgentAvailable`, so the
+   * nav entry agrees with them — a link to a 404 is worse than no link. Absence
+   * blocks: with the env unset the allowlist is empty and this is false for everyone.
    */
   const agentEnabled = await isAgentAvailable(user.agencyId)
 

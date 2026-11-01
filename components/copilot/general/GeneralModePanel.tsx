@@ -31,7 +31,7 @@ type Turn =
   | { role: 'agentError'; reason: AgentAskFailure }
 
 /**
- * `agentEnabled` is resolved on the SERVER (isAgentEnabled → AGENT_AGENCY_IDS)
+ * `agentEnabled` is resolved on the SERVER (isAgentAvailable, lib/ai/agentAvailability.ts)
  * and threaded down like `generalModeEnabled` before it. It defaults to false,
  * so every agency that is not opted in keeps today's General Mode behaviour
  * unchanged, byte for byte.
