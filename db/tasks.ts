@@ -4,12 +4,14 @@ import { getPerms } from './filter'
 import { requireUser } from '@/lib/requireUser'
 
 export async function getTasks(user, filter) {
+  // A task's tenant is its lead's: without an agency there is nothing to list.
+  if (!user?.agencyId) return []
   const perms = await getPerms(user)
 
   const permIds = perms.gotPermIds.length ? perms.gotPermIds : perms.allPermIds
 
   const conditions: string[] = []
-  const bindings: any[] = [permIds]
+  const bindings: any[] = [permIds, user.agencyId]
 
   if (filter.status) {
     conditions.push(`AND t.status = ?`)
@@ -33,7 +35,7 @@ export async function getTasks(user, filter) {
     WHERE t."clientId" IN (
         SELECT c2.id
         FROM clients c2
-        WHERE c2."createdById" = ANY(?)
+        WHERE c2."createdById" = ANY(?) AND c2."agencyId" = ?
     ) ${where}
     ORDER BY t."createdAt" DESC
     LIMIT 200

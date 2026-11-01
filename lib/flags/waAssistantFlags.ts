@@ -92,6 +92,17 @@ export function isWaAssistantSenderGuidanceEnabled(): boolean {
   return process.env.WA_ASSISTANT_SENDER_GUIDANCE === '1'
 }
 
+/**
+ * WA_ASSISTANT_TASKS_AGENCY_IDS: agencies whose assistant may create TASKS and
+ * FOLLOW-UPS (confirmation card → existing Action Runtime executors). ABSENCE
+ * BLOCKS, explicit ids only, and only for an agency that also has the assistant
+ * itself (so an exclusion or a lost audience still wins).
+ */
+export function isWaAssistantTasksAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantAgency(agencyId)) return false
+  return parseIds(process.env.WA_ASSISTANT_TASKS_AGENCY_IDS).includes(agencyId as number)
+}
+
 const DEFAULT_DAILY_USD_CAP = 2
 
 export function waAssistantDailyUsdCap(): number {

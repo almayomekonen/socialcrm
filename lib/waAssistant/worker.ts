@@ -14,15 +14,19 @@ import {
 } from '@/db/waAssistantJobs'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { track } from '@/lib/analytics/track'
-import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
+import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantTasksAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
 import { resolveAssistantScope } from './identity'
 import { COPY, NO_ACTIONS_NOTE, failureReply, refusalReply, replyForAnswer } from './render'
 import { proposeMeeting, type ProposeDeps } from './meetings/propose'
-import { decideMeeting, type DecideDeps } from './meetings/decide'
+import { type DecideDeps } from './meetings/decide'
+import { decideCard } from './decideCard'
+import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
+import type { TaskDecideDeps } from './tasks/decide'
 import { MEETING_COPY } from './meetings/copy'
+import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
 
 /**
@@ -39,8 +43,9 @@ import type { MeetingReply } from './meetings/types'
  *      research, a shorter clock, and the previous turns as context;
  *   5. one reply, with `sending` committed first (`unknown` is never resent).
  *
- * WRITES: only `create_meeting`, only for an agency on
- * WA_ASSISTANT_MEETINGS_AGENCY_IDS, and never on the owner's words alone: the
+ * WRITES: `create_meeting` (WA_ASSISTANT_MEETINGS_AGENCY_IDS) and `create_task` /
+ * `create_follow_up` (WA_ASSISTANT_TASKS_AGENCY_IDS, ./tasks/), each only for
+ * an agency on its own list, and never on the owner's words alone: the
  * proposal becomes a confirmation card (./meetings/propose.ts) and only a tap on
  * its button executes it through the existing Action Runtime
  * (./meetings/decide.ts). Every other proposal (and every proposal without that
@@ -53,6 +58,7 @@ export type WaAssistantDeps = {
   typing?: typeof sendPlatformTypingIndicator
   now?: () => Date
   meetings?: { propose?: ProposeDeps; decide?: DecideDeps }
+  tasks?: { propose?: TaskProposeDeps; decide?: TaskDecideDeps }
 }
 
 /** A typed "yes" while a card is open: pointed at the button, never treated as approval. */
@@ -121,12 +127,16 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   }
 
   const meetingsOn = isWaAssistantMeetingsAgency(job.agencyId)
+  const tasksOn = isWaAssistantTasksAgency(job.agencyId)
   if (job.kind === 'decision') {
-    const r = meetingsOn ? await decideMeeting({ job, scope: who.scope, nowMs: startedAt.getTime(), deps: deps.meetings?.decide }) : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
+    const r =
+      meetingsOn || tasksOn
+        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), meetingsOn, tasksOn, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide } })
+        : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed() })
   }
-  if (meetingsOn && job.kind === 'text' && BARE_AFFIRMATION.test(job.question?.trim() ?? '') && (await hasLiveWaApproval(job.recipientId, startedAt))) {
-    return finishMeeting(job, platform, who.phoneE164, { status: 'answered', stopReason: 'meeting_use_buttons', text: MEETING_COPY.useButtons, headline: null }, deps, { durationMs: elapsed() })
+  if ((meetingsOn || tasksOn) && job.kind === 'text' && BARE_AFFIRMATION.test(job.question?.trim() ?? '') && (await hasLiveWaApproval(job.recipientId, startedAt))) {
+    return finishMeeting(job, platform, who.phoneE164, { status: 'answered', stopReason: 'meeting_use_buttons', text: tasksOn ? TASK_COPY.useButtons : MEETING_COPY.useButtons, headline: null }, deps, { durationMs: elapsed() })
   }
 
   if (job.kind === 'unsupported' || !job.question?.trim()) {
@@ -168,6 +178,10 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   const proposed = result.answer.proposedAction
   if (meetingsOn && proposed?.actionType === 'create_meeting' && !result.answer.proposedBatch) {
     const r = await proposeMeeting({ job, scope: who.scope, proposal: proposed, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.meetings?.propose })
+    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
+  }
+  if (tasksOn && (proposed?.actionType === 'create_task' || proposed?.actionType === 'create_follow_up') && !result.answer.proposedBatch) {
+    const r = await proposeTaskOrFollowUp({ job, scope: who.scope, proposal: proposed, evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.tasks?.propose })
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
   }
 

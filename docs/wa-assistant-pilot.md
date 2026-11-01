@@ -95,6 +95,7 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | `WA_ASSISTANT_AGENCY_IDS` | `103` | Absent = off. `all` is ignored |
 | `WA_ASSISTANT_DAILY_USD_CAP` | optional | Default 2 |
 | `WA_ASSISTANT_MEETINGS_AGENCY_IDS` | `103` (when approved) | Absent = read-only. Lets the assistant create meetings (below). Needs `WA_ASSISTANT_AGENCY_IDS` too |
+| `WA_ASSISTANT_TASKS_AGENCY_IDS` | absent | Absent = no tasks/follow-ups. Lets the assistant create tasks and follow-ups (below). Needs the assistant itself too |
 | `AGENT_AGENCY_IDS`, `AI_ENABLED` | must include 103 | The Agent rollout the assistant reuses |
 | Platform number + token | existing | Same as owner reminders |
 
@@ -221,15 +222,44 @@ assistant is read-only again, and open cards get "not available". Created
 meetings remain normal SocialCRM meetings. The migration's `down` drops the
 approvals table and restores the job-kind constraint.
 
+# Tasks and follow-ups from WhatsApp
+
+**Status: built, behind `WA_ASSISTANT_TASKS_AGENCY_IDS` (absent = off).**
+
+"תזכיר לי לחזור לדני מחר", "תפתח משימת מעקב לליד הזה", "תחזור למיכל ביום ראשון
+הבא", "תזכיר לי לבדוק את ההצעה בעוד שלושה ימים":
+
+1. **Proposal** (`lib/waAssistant/tasks/propose.ts`): the existing Agent returns a
+   `create_task` or `create_follow_up` proposal. If its reads produced several
+   readable leads, the owner is asked which one (by name, never picked). The
+   lead must be readable by this user (agency + rep visibility). The day is
+   read deterministically from the owner's words (`meetings/when.ts`, now also
+   "בעוד N ימים / שבוע / שבועיים") and must equal the Agent's argument;
+   otherwise one question. Then `submitProposedAction` records it as
+   AWAITING_APPROVAL and a card is sent ("לאשר וליצור" / "לאשר ולקבוע" /
+   "ביטול"), bound to a single-use, recipient-bound, 15-minute token.
+2. **Decision** (`lib/waAssistant/decideCard.ts` → `tasks/decide.ts`): the token
+   is consumed in one guarded statement (replay, expiry, supersession and
+   another phone do nothing), then the existing `decideOnAction` runs the
+   `create_task` / `create_follow_up` executors (agency + rep visibility,
+   verification against the persisted row). Turning the flag off, withdrawing
+   consent, suspension or losing access to the lead between card and tap
+   creates nothing.
+3. **Task authorization fixes** (user-facing, `lib/tasks/taskAccess.ts`): task
+   update/delete/create asserts now require agency AND role (a rep acts only on
+   leads owned or created by reps they have permission for); `getTasks` filters
+   by the user's agency.
+
+Tests: `__tests__/waAssistant/tasks.db.test.ts`, `__tests__/tasks/taskAccess.db.test.ts`,
+relative dates in `__tests__/waAssistant/meetingWhen.test.ts`.
+
 ## Next phases (not built)
 
 - **Phase 2, more actions**, each behind the same card and after an
   authorization audit. Known gaps to fix first: `transferLeadToRep`
   (`actions/clients.ts:600`, no admin or recipient-agency check), `updateLead`
   reassignment fields (`:65-66`), the `upsertLead` update branch (agency-only),
-  task asserts and `getTasks` (no agency filter). Tasks and follow-ups already
-  have runtime executors (`create_task`, `create_follow_up`) and are the next
-  candidates. Customer messages must stay on supported, consent-compliant
+  task asserts and `getTasks` (no agency filter). Tasks and follow-ups are built (above). Customer messages must stay on supported, consent-compliant
   channels, with their own confirmation.
 - **Phase 3, proactive**: surface overdue follow-ups and unhandled leads with a
   card offering the next action. Pre-authorized routine actions only within

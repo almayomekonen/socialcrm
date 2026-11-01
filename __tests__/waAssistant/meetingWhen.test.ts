@@ -87,3 +87,27 @@ describe('business timezone and DST (Asia/Jerusalem)', () => {
 it('hebrewDateLabel', () => {
   expect(hebrewDateLabel('2026-10-20')).toBe('יום שלישי, 20.10.2026')
 })
+
+describe('relative offsets ("בעוד …"), for tasks and follow-ups', () => {
+  it.each([
+    ['תזכיר לי לבדוק את ההצעה בעוד שלושה ימים', '2026-10-22'],
+    ['בעוד 3 ימים', '2026-10-22'],
+    ['בעוד יום', '2026-10-20'],
+    ['בעוד יומיים', '2026-10-21'],
+    ['בעוד שבוע', '2026-10-26'],
+    ['בעוד שבועיים', '2026-11-02'],
+    ['בעוד 2 שבועות', '2026-11-02'],
+    ['ובעוד ארבעה ימים', '2026-10-23'],
+    ['תחזור למיכל ביום ראשון', '2026-10-25'],
+  ])('%j → %s', (text, date) => {
+    expect(p(text)).toMatchObject({ date, problem: null })
+  })
+
+  it.each(['בעוד 900 ימים', 'בעוד שלושה שבועיים', 'מחר או בעוד שבוע'])('%j is ambiguous, never guessed', (text) => {
+    expect(p(text)).toMatchObject({ date: null, problem: 'ambiguous_date' })
+  })
+
+  it('crosses the DST change (25.10.2026) on the calendar day, not by 24-hour steps', () => {
+    expect(p('בעוד 7 ימים', Date.parse('2026-10-22T21:30:00Z')).date).toBe('2026-10-30')
+  })
+})
