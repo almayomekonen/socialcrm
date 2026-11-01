@@ -16,6 +16,7 @@ import {
   initFacebookApp,
   waitForFacebookSdk,
 } from '@/lib/facebook/facebookSdk'
+import { embeddedSignupLaunch } from '@/lib/facebook/embeddedSignupLaunch'
 
 /**
  * How long `launch` may wait for the real SDK bundle.
@@ -24,37 +25,6 @@ import {
  * the whole flow including the customer's time inside Meta's popup.
  */
 const SDK_READY_TIMEOUT_MS = 15_000
-
-/**
- * Opt into the WhatsApp Business App coexistence flow.
- *
- * With no feature type, Meta runs the default Cloud API flow, which for a number
- * already live on the WhatsApp Business app can only end one way: "you must
- * either delete your account, or onboard to the platform using a solution
- * provider who supports business app number onboarding." Customers chose their
- * WhatsApp Business app over us, every time.
- *
- * Setting this replaces the WABA selection screen with an option to connect the
- * existing WhatsApp Business account, keeping both working on one number.
- */
-const COEXISTENCE_FEATURE_TYPE = 'whatsapp_business_app_onboarding'
-
-/**
- * Targeted off-switch for the line above, and only that line.
- *
- * This is the one change here that cannot be verified before production:
- * Facebook Login runs only on the app's allowlisted domain, so Embedded Signup
- * cannot be exercised on a preview deployment. If Meta rejects this feature type
- * on our Login configuration, the failure would not be limited to Business app
- * users — it could block onboarding for everyone.
- *
- * Set `NEXT_PUBLIC_WA_COEXISTENCE_DISABLED=1` to fall back to production's
- * previous behaviour while keeping the rest of this feature (phone-number
- * resolution, the echo guard, the registration skip) intact. Requires a
- * redeploy, since Next.js inlines NEXT_PUBLIC_* at build time — but it is a
- * config flip and rebuild rather than a code revert and review.
- */
-const COEXISTENCE_DISABLED = process.env.NEXT_PUBLIC_WA_COEXISTENCE_DISABLED === '1'
 
 /**
  * Safety valve only. Starts AFTER the OAuth code exists. Does not bound how
@@ -166,7 +136,8 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
         if (!configId) return settle({ ok: false, error: 'config' })
         // Re-assert our app on the shared SDK, synchronously, in the same task
         // as the click. Another consumer may have bound AUTH_FACEBOOK_APP_ID.
-        initFacebookApp(appId, graphVersion)
+        const launchParams = embeddedSignupLaunch(graphVersion)
+        initFacebookApp(appId, launchParams.sdkVersion)
         const gate = createEmbeddedSignupGate()
         gateRef.current = gate
         // FB.login requires a SYNCHRONOUS callback. Handing the SDK an async
@@ -221,10 +192,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
             config_id: configId,
             response_type: 'code',
             override_default_response_type: true,
-            extras: {
-              version: 'v4',
-              featureType: COEXISTENCE_DISABLED ? '' : COEXISTENCE_FEATURE_TYPE,
-            },
+            extras: launchParams.extras,
           },
         )
       } catch {
