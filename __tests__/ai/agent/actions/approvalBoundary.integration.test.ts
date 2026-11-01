@@ -189,4 +189,20 @@ describe('F3 — a pending action follows the CURRENT rollout', () => {
     expect(res).toEqual({ ok: false, reason: 'agent-disabled' })
     expect(await tasksWritten()).toHaveLength(0)
   })
+
+  it('an agency excluded while still allowlisted cannot decide either — exclusion wins over the list', async () => {
+    const pending = await pendingAction()
+    const hash = await argsHashOf(pending.actionId!)
+    process.env.AGENT_EXCLUDED_AGENCY_IDS = String(AGENCY)
+    try {
+      for (const decision of ['APPROVED', 'REJECTED'] as const) {
+        const res = await decideOnAction({ actionId: pending.actionId!, argsHash: hash, decision, scope: as(PROPOSER) })
+        expect(res).toEqual({ ok: false, reason: 'agent-disabled' })
+      }
+      expect(await decisionsRecorded()).toHaveLength(0)
+      expect(await tasksWritten()).toHaveLength(0)
+    } finally {
+      delete process.env.AGENT_EXCLUDED_AGENCY_IDS
+    }
+  })
 })

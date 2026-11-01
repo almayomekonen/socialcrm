@@ -15,6 +15,7 @@ vi.mock('@/lib/access/productAccess', () => ({ getAgencyProductAccess: access })
 
 import { _resetAiEnvCacheForTests } from '@/lib/ai/env'
 import { agentAudience, agentExcludedAgencyIds, getAgentAvailability } from '@/lib/ai/agentAvailability'
+import { isAgentEnabled } from '@/lib/ai/flags'
 
 const VARS = ['AI_ENABLED', 'AGENT_AGENCY_IDS', 'AGENT_AUDIENCE', 'AGENT_EXCLUDED_AGENCY_IDS']
 const PAID = { status: 'PAID', hasAccess: true }
@@ -67,6 +68,34 @@ describe('list (AGENT_AUDIENCE unset or "list") — today\'s behaviour, unchange
     env({ AI_ENABLED: '1', AGENT_AGENCY_IDS: 'all' })
     expect(await decide(999)).toMatchObject({ available: true, audience: 'list' })
   })
+
+  /**
+   * The compatibility claim itself, over every shape the Production value could
+   * have: with AGENT_AUDIENCE and AGENT_EXCLUDED_AGENCY_IDS unset, the decision
+   * is the pre-change `isAgentEnabled` (real parser, not mocked) followed by the
+   * product access every surface already required — nothing more, nothing less.
+   */
+  it.each([undefined, '', '103', ' 103 , 161 ', '103,161', 'all', '*', 'ALL', '1,all', 'abc'])(
+    'AGENT_AGENCY_IDS=%j: identical to isAgentEnabled + product access, AI on or off',
+    async (ids) => {
+      for (const ai of [undefined, '1', '0']) {
+        env({ AI_ENABLED: ai, AGENT_AGENCY_IDS: ids })
+        for (const agencyId of [1, 103, 161, 999]) {
+          for (const a of [PAID, LEGACY, TRIAL, UNKNOWN, EXPIRED, NEVER]) {
+            const legacy = isAgentEnabled(agencyId) && a.hasAccess
+            const got = (await decide(agencyId, a)).available
+            expect({ ids, ai, agencyId, a: a.status, available: got }).toEqual({
+              ids,
+              ai,
+              agencyId,
+              a: a.status,
+              available: legacy,
+            })
+          }
+        }
+      }
+    },
+  )
 })
 
 describe('paid and all', () => {

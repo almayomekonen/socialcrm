@@ -13,8 +13,8 @@
  *   Default 2 USD; non-numeric or non-positive values fall back to the default.
  *
  * The assistant also needs everything the reminders already need (the platform
- * number and token) and the Agent itself to be enabled for the agency
- * (`isAgentEnabled`, lib/ai/flags.ts). Read per call, never cached.
+ * number and token) and the Agent itself to be available for the agency
+ * (`isAgentAvailable`, lib/ai/agentAvailability.ts). Read per call, never cached.
  */
 
 export function waAssistantAgencyIds(): number[] {

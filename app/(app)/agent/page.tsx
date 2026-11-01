@@ -34,15 +34,16 @@ export const metadata: Metadata = {
  * up looking at another's workspace. Suspense defers the read, it does not share
  * the result.
  *
- * GATED BY THE SAME FLAG AS THE API. `POST /api/ai/agent/stream` already returns
- * 404 for an agency outside `AGENT_AGENCY_IDS`, so without this the page would
+ * GATED BY THE SAME DECISION AS THE API. `POST /api/ai/agent/stream` returns
+ * 404 for an agency outside the Agent audience, so without this the page would
  * render, accept a question, and fail on every send — a dead end that looks like
  * a bug rather than a feature that is not on yet. `notFound()` rather than a
  * disabled state: an agency that is not in the rollout has no agent, and saying
  * so with a 404 matches what the route already says.
  *
- * `isAgentEnabled` is the EXISTING mechanism, reused unchanged — absence blocks,
- * because `parseAgencyAllowlist(undefined)` returns an empty list. No new flag.
+ * `isAgentAvailable` (lib/ai/agentAvailability.ts) is that one decision; with
+ * its own variables unset it is the allowlist as before — absence blocks,
+ * because `parseAgencyAllowlist(undefined)` returns an empty list.
  */
 export default function AgentPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   return (
