@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Tasks and follow-ups from WhatsApp, against a real (local test) PostgreSQL
@@ -17,6 +17,7 @@ vi.mock('@/lib/ai/flags', async (orig) => ({
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
 
 import { db } from '@/config/db'
+import { businessDateString, businessInstantMs } from '@/lib/today/time'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { hebrewDateLabel, parseHebrewWhen } from '@/lib/waAssistant/meetings/when'
@@ -223,8 +224,7 @@ describe("Hebrew dates from the owner's own words", () => {
   })
 
   it.each([
-    ['the owner gave no day', 'תזכיר לי לחזור לדני', () => day('מחר'), TASK_COPY.askDate],
-    ['the owner gave two days', 'תזכיר לי לחזור לדני מחר או בעוד שבוע', () => day('מחר'), TASK_COPY.ambiguousDate],
+    ['the owner gave two days', 'תזכיר לי לחזור לדני מחר או בעוד שבוע', () => day('מחר'), 'לאיזה יום בדיוק?'],
     [
       'the owner gave an hour that could be morning or afternoon',
       'תזכיר לי לחזור לדני מחר ב-4',
@@ -243,41 +243,40 @@ describe("Hebrew dates from the owner's own words", () => {
 })
 
 describe('a conversation, not a form', () => {
+  // A fixed morning, so "today at 12:00" is ahead of the clock whenever this runs. Only Date is faked.
+  const today = () => businessDateString(Date.now())
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(businessInstantMs(businessDateString(Date.now()), '10:00'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
   const asks = (headline: string) => ({
     ...answer(null, []),
     answer: { headline, claims: [], unknown: null, proposedAction: null },
   })
   const bodies = (h: ReturnType<typeof harness>) => h.sendText.mock.calls.map((c) => (c[0] as { body: string }).body)
 
-  it('the reported conversation: lead, then time, then day → one card with both, the time kept in the task', async () => {
+  it('the reported conversation: the lead, then the time → a card for today at once, the time kept in the task', async () => {
     const o = await owner()
     const oren = await lead(A, o.u, 'Oren', 'Kakun')
     const otherOren = await lead(A, o.u, 'Oren', 'Levi')
-    const call = (dueDate: string) => answer(task(oren, dueDate, 'להתקשר לאורן'), [oren, otherOren])
-    const h = harness([asks('לאיזה ליד?'), call(day('היום')), call(day('היום')), call(day('מחר'))])
+    const call = () => answer(task(oren, today(), 'להתקשר לאורן'), [oren, otherOren])
+    const h = harness([asks('לאיזה ליד?'), asks('מה לעשות?'), call()])
 
     await say(o, 'תיצור לי משימה ומעקב מתוך הוואטסאפ')
     await run(h)
     expect(h.last().body).toContain('לאיזה ליד?')
-
     await say(o, 'Oren kakun')
     await run(h)
-    expect(h.last().body).toBe(TASK_COPY.askDate)
-
     await say(o, 'לשעה 12:00 להתקשר לאורן')
     await run(h)
-    // Only the day is asked for: not the lead again, and the time is kept.
-    expect(h.last().body).toBe(TASK_COPY.askDate)
-    const memo = await db('wa_assistant_jobs').where({ recipientId: o.r }).orderBy('id', 'desc').first('answerHeadline')
-    expect(memo.answerHeadline).toContain('Oren Kakun')
-    expect(memo.answerHeadline).toContain('בשעה 12:00')
 
-    await say(o, 'מחר')
-    await run(h)
     const c = h.last()
     expect(c.buttons).toHaveLength(2)
     expect(c.body).toContain('Oren Kakun')
-    expect(c.body).toContain(`${hebrewDateLabel(day('מחר'))}, בשעה 12:00`)
+    expect(c.body).toContain(`${hebrewDateLabel(today())}, בשעה 12:00`)
     expect(bodies(h).filter((b) => b.includes('לאיזה ליד'))).toHaveLength(1)
     expect(await tasksOf(oren)).toHaveLength(0)
 
@@ -285,8 +284,42 @@ describe('a conversation, not a form', () => {
     await run(h)
     expect(h.last().body).toContain('*המשימה נוצרה ב-SocialCRM*')
     expect(await tasksOf(oren).select('title', db.raw(`to_char("dueDate", 'YYYY-MM-DD') as "dueDate"`))).toEqual([
-      { title: 'להתקשר לאורן בשעה 12:00', dueDate: day('מחר') },
+      { title: 'להתקשר לאורן בשעה 12:00', dueDate: today() },
     ])
+  })
+
+  it.each([
+    ['תיצור משימה להתקשר לדני', task],
+    ['תעשה לי מעקב עם דני', followUp],
+  ])('no day named: "%s" → a card for today, with no question', async (words, make) => {
+    const o = await owner()
+    const h = harness([answer(make(o.lead, day('מחרתיים')), [o.lead])])
+    const c = await card(o, h, words)
+    expect(c.body).toContain(hebrewDateLabel(today()))
+    expect(h.sendText).toHaveBeenCalledTimes(1)
+    expect(await actionsOf(A)).toHaveLength(1)
+  })
+
+  it('a time already passed today: asks about tomorrow, records nothing; "כן" → a card for tomorrow at that time', async () => {
+    const o = await owner()
+    const h = harness([
+      answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead]),
+      answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead]),
+    ])
+    await say(o, 'תיצור משימה להתקשר לדני בשעה 09:00')
+    await run(h)
+    expect(h.last().body).toBe('השעה 09:00 היום כבר עברה. למחר באותה שעה?')
+    expect(await actionsOf(A)).toHaveLength(0)
+
+    const c = await card(o, h, 'כן')
+    expect(c.body).toContain(`${hebrewDateLabel(day('מחר'))}, בשעה 09:00`)
+  })
+
+  it('an explicit day wins over the today default', async () => {
+    const o = await owner()
+    const h = harness([answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead])])
+    const c = await card(o, h, 'תיצור משימה להתקשר לדני מחר')
+    expect(c.body).toContain(hebrewDateLabel(day('מחר')))
   })
 
   it('"מחר ב-12 להתקשר לדני" as a follow-up: the day is the follow-up, the time is in its note', async () => {
@@ -325,26 +358,86 @@ describe('a conversation, not a form', () => {
 
   it('an unrelated earlier message never lends its day or time to a new request', async () => {
     const o = await owner()
-    const h = harness([asks('יש לך 2 לידים חדשים היום.'), answer(followUp(o.lead, day('מחר')), [o.lead])])
-    await say(o, 'מה קורה היום ב-10?')
+    const h = harness([asks('יש לך 2 לידים חדשים מחר.'), answer(followUp(o.lead, day('מחר')), [o.lead])])
+    await say(o, 'מה קורה מחר ב-12?')
     await run(h)
-    await say(o, 'תזכיר לי לחזור לדני')
-    await run(h)
-    expect(h.last().body).toBe(TASK_COPY.askDate)
+    const c = await card(o, h, 'תזכיר לי לחזור לדני')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+    expect(c.body).not.toContain('בשעה 12:00')
+  })
+
+  it('a finished request never lends its day to the next one', async () => {
+    const o = await owner()
+    const h = harness([answer(task(o.lead), [o.lead]), answer(task(o.lead, today(), 'לבדוק הצעה'), [o.lead])])
+    await card(o, h, 'תפתח משימה לדני מחר')
+    const c = await card(o, h, 'תפתח משימה לבדוק הצעה לדני')
+    expect(c.body).toContain(hebrewDateLabel(today()))
   })
 })
 
 describe('which lead', () => {
-  it('several readable leads match: asks which one, by name, and records nothing', async () => {
+  const phone = (id: number, value: string) => db('clients').where({ id }).update({ phone: value })
+
+  it('two leads with the same name: one question with the phone\'s last digits, nothing recorded; "2" → the card', async () => {
+    const o = await owner()
+    const same = await lead(A, o.u)
+    await phone(o.lead, '0501112222')
+    await phone(same, '0503334444')
+    const h = harness([answer(followUp(o.lead), [o.lead, same]), answer(followUp(o.lead), [o.lead, same])])
+    await say(o, 'תזכיר לי לחזור לדני כהן מחר')
+    await run(h)
+    expect(h.last().body).toContain('טלפון שמסתיים ב-2222')
+    expect(h.last().body).toContain('טלפון שמסתיים ב-4444')
+    expect(h.last().body).not.toContain('0501112222')
+    expect(h.last().buttons).toBeUndefined()
+    expect(await actionsOf(A)).toHaveLength(0)
+
+    const c = await card(o, h, '2')
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect((await followUpOf(same)).at).toBe(day('מחר'))
+    expect((await followUpOf(o.lead)).at).toBeNull()
+  })
+
+  it("the owner can answer with the phone's last digits; the day they gave is not asked again", async () => {
+    const o = await owner()
+    const other = await lead(A, o.u, 'דני', 'לוי')
+    await phone(o.lead, '0505556666')
+    await phone(other, '0507778888')
+    const h = harness([answer(followUp(o.lead), [o.lead, other]), answer(followUp(o.lead), [o.lead, other])])
+    await say(o, 'תזכיר לי לחזור לדני מחר')
+    await run(h)
+    expect(h.last().body).toContain('יש כמה לידים מתאימים')
+    const c = await card(o, h, '8888')
+    expect(c.body).toContain('דני לוי')
+    expect(c.body).toContain(hebrewDateLabel(day('מחר')))
+  })
+
+  it('one full name among similar leads: no question', async () => {
     const o = await owner()
     const other = await lead(A, o.u, 'דני', 'לוי')
     const h = harness([answer(followUp(o.lead), [o.lead, other])])
-    await say(o, 'תזכיר לי לחזור לדני מחר')
+    const c = await card(o, h, 'תזכיר לי לחזור לדני לוי מחר')
+    expect(c.body).toContain('דני לוי')
+  })
+
+  it('a lead the Agent merely read, never named by the owner, does not cause a question', async () => {
+    const o = await owner()
+    const unrelated = await lead(A, o.u, 'מיכל', 'ברק')
+    const h = harness([answer(followUp(o.lead), [o.lead, unrelated])])
+    const c = await card(o, h, 'תזכיר לי לחזור לדני מחר')
+    expect(c.body).toContain('דני כהן')
+  })
+
+  it("a colleague's same-named lead is never offered to a rep", async () => {
+    const rep = await owner('AGNT')
+    const colleague = await owner('AGNT')
+    await phone(colleague.lead, '0509998888')
+    const h = harness([answer(followUp(rep.lead), [rep.lead, colleague.lead])])
+    await say(rep, 'תזכיר לי לחזור לדני כהן מחר')
     await run(h)
-    expect(h.last().body).toContain('מצאתי כמה לידים מתאימים')
-    expect(h.last().body).toContain('דני כהן')
-    expect(h.last().body).toContain('דני לוי')
-    expect(await actionsOf(A)).toHaveLength(0)
+    expect(h.last().buttons).toHaveLength(2)
+    expect(h.last().body).not.toContain('8888')
   })
 })
 

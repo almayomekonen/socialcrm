@@ -1,3 +1,4 @@
+import { businessDateString, businessInstantMs } from '@/lib/today/time'
 import { parseHebrewWhen, readTimes } from '../meetings/when'
 
 /**
@@ -10,7 +11,8 @@ import { parseHebrewWhen, readTimes } from '../meetings/when'
  * given while we were still asking for the day is kept. A detail a message
  * cannot be read with certainty is a problem to ask about, never a guess.
  *
- * Tasks and follow-ups store a DAY (date-only columns, the product's own date
+ * A day the owner did not name is left null; the caller makes it today (in the
+ * business timezone). Tasks and follow-ups store a DAY (date-only columns, the product's own date
  * control), so a time of day is kept in the wording — "להתקשר לאורן בשעה
  * 12:00" — and shown on the card, never written into the date.
  */
@@ -18,7 +20,10 @@ import { parseHebrewWhen, readTimes } from '../meetings/when'
 export type TaskKind = 'task' | 'follow_up'
 export type DraftProblem = 'ambiguous_date' | 'past_date' | 'ambiguous_time'
 export type TaskDraft = {
+  /** The day the owner named; null when they named none (the caller defaults to today). */
   date: string | null
+  /** The clock time ("12:00") the owner gave, or null. */
+  time: string | null
   /** "בשעה 12:00", or a part of the day ("בבוקר") when no clock time was given. */
   when: string | null
   /** The task / follow-up the owner named, or null when they did not (or named both). */
@@ -49,7 +54,7 @@ function kindOf(text: string): TaskKind | 'both' | null {
 }
 
 export function readDraft(newestFirst: readonly string[], nowMs: number): TaskDraft {
-  const d: TaskDraft = { date: null, when: null, kind: null, problem: null, hour: null }
+  const d: TaskDraft = { date: null, time: null, when: null, kind: null, problem: null, hour: null }
   let dateDone = false
   let timeDone = false
   let kindDone = false
@@ -70,14 +75,14 @@ export function readDraft(newestFirst: readonly string[], nowMs: number): TaskDr
       if (t.times.length > 1 || t.problem) {
         const hour = t.times.length === 1 ? Number(t.times[0].slice(0, 2)) : null
         // "ב-4" answered later by "אחר הצהריים" is one time: 16:00.
-        if (part && hour !== null) d.when = `בשעה ${pad(LATER_PARTS.has(part) && hour < 12 ? hour + 12 : hour)}:00`
+        if (part && hour !== null) d.time = `${pad(LATER_PARTS.has(part) && hour < 12 ? hour + 12 : hour)}:00`
         else {
           d.problem = d.problem ?? 'ambiguous_time'
           d.hour = hour
         }
         timeDone = true
       } else if (t.times.length === 1) {
-        d.when = `בשעה ${t.times[0]}`
+        d.time = t.times[0]
         timeDone = true
       } else if (!part) {
         part = PARTS_OF_DAY.find(([re]) => re.test(text))?.[1] ?? null
@@ -91,7 +96,7 @@ export function readDraft(newestFirst: readonly string[], nowMs: number): TaskDr
       }
     }
   }
-  if (!timeDone && part) d.when = part
+  d.when = d.time ? `בשעה ${d.time}` : timeDone ? null : part
   return d
 }
 
@@ -104,19 +109,30 @@ export function withWhen(text: string | null | undefined, when: string | null, m
   return out.slice(0, max)
 }
 
-const norm = (s: string) => s.toLocaleLowerCase().replace(/\s+/g, ' ').trim()
-
-/** The one candidate whose FULL name ("Oren Kakun") the owner wrote, or null. */
-export function namedLead<T extends { name: string }>(candidates: readonly T[], newestFirst: readonly string[]): T | null {
-  const said = norm(newestFirst.join(' '))
-  const hits = candidates.filter((c) => {
-    const n = norm(c.name)
-    return n.includes(' ') && said.includes(n)
-  })
-  return hits.length === 1 ? hits[0] : null
-}
-
 /** The Agent's own one-question reply (no findings, ends in a question mark). */
 export function isClarifyingAnswer(a: { headline: string; claims: readonly unknown[]; unknown: string | null }): boolean {
   return a.claims.length === 0 && !a.unknown && /[?？]\s*$/.test(a.headline.trim())
+}
+
+export type WhenAsk = 'ambiguous_date' | 'past_date' | 'ambiguous_time' | 'ask_time' | 'past_today'
+export type Settled =
+  | { ok: true; date: string; time: string | null }
+  | { ok: false; ask: WhenAsk; hour: number | null; time: string | null }
+
+/**
+ * The day and time to act on. A day the owner did not name is TODAY in the
+ * business timezone — never a question. Asked about only: an unclear or past
+ * day, an unclear hour, a time the action requires (a meeting) but was not
+ * given, and a time today that has already passed (never silently moved).
+ */
+export function settleWhen(d: TaskDraft, nowMs: number, opts: { timeRequired: boolean }): Settled {
+  const no = (ask: WhenAsk): Settled => ({ ok: false, ask, hour: d.hour, time: d.time })
+  const today = businessDateString(nowMs)
+  if (d.problem === 'ambiguous_date' || d.problem === 'past_date') return no(d.problem)
+  if (d.problem === 'ambiguous_time') return no('ambiguous_time')
+  if (opts.timeRequired && !d.time) return no('ask_time')
+  const date = d.date ?? today
+  if (date < today) return no('past_date')
+  if (d.time && date === today && businessInstantMs(today, d.time) <= nowMs) return no('past_today')
+  return { ok: true, date, time: d.time }
 }

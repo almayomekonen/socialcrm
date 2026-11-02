@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { businessInstantMs } from '@/lib/today/time'
-import { isClarifyingAnswer, namedLead, readDraft, withWhen } from '@/lib/waAssistant/tasks/draft'
+import { isClarifyingAnswer, readDraft, settleWhen, withWhen } from '@/lib/waAssistant/tasks/draft'
 
 /**
  * One task / follow-up request read across the owner's messages (newest
@@ -84,17 +84,46 @@ describe('withWhen: the time of day goes into the wording', () => {
   })
 })
 
-describe('namedLead: the lead the owner named in full', () => {
-  const leads = [
-    { id: 1, name: 'Oren Kakun' },
-    { id: 2, name: 'Oren Levi' },
-  ]
-  it('takes the one whose full name was written, case-insensitive', () => {
-    expect(namedLead(leads, ['לשעה 12:00 להתקשר לאורן', 'Oren kakun'])?.id).toBe(1)
+describe('settleWhen: no day named means today, in the business timezone', () => {
+  const settle = (words: string, nowMs = NOW, timeRequired = false) =>
+    settleWhen(readDraft([words], nowMs), nowMs, { timeRequired })
+
+  it.each([
+    ['תיצור משימה להתקשר לדני', '2026-11-04', null],
+    ['תקבע פגישה עם אבי בשעה 12:00', '2026-11-04', '12:00'],
+    ['תקבע לי למחר ב-12:00', '2026-11-05', '12:00'],
+    ['ביום ראשון', '2026-11-08', null],
+  ])('"%s" → %s %s', (words, date, time) => {
+    expect(settle(words)).toEqual({ ok: true, date, time })
   })
-  it('a first name alone, or two full names, picks nobody', () => {
-    expect(namedLead(leads, ['Oren'])).toBeNull()
-    expect(namedLead(leads, ['Oren Kakun או Oren Levi'])).toBeNull()
+
+  it('a time already passed today is asked about, never moved or kept in the past', () => {
+    expect(settle('תקבע פגישה עם אבי בשעה 09:00')).toMatchObject({ ok: false, ask: 'past_today', time: '09:00' })
+    expect(settle('היום ב-09:00')).toMatchObject({ ok: false, ask: 'past_today' })
+    // The same hour on an explicit later day is fine.
+    expect(settle('מחר ב-09:00')).toEqual({ ok: true, date: '2026-11-05', time: '09:00' })
+  })
+
+  it('a meeting needs a time: asked only when required, and a part of the day is not a time', () => {
+    expect(settle('תקבע פגישה עם אבי', NOW, true)).toMatchObject({ ok: false, ask: 'ask_time' })
+    expect(settle('תקבע פגישה עם אבי בבוקר', NOW, true)).toMatchObject({ ok: false, ask: 'ask_time' })
+    expect(settle('תקבע משימה', NOW, false)).toMatchObject({ ok: true })
+  })
+
+  it('"today" follows Israel, not the server: 22:30 UTC on Nov 4 is already Nov 5', () => {
+    expect(settle('תיצור משימה', Date.UTC(2026, 10, 4, 22, 30))).toEqual({ ok: true, date: '2026-11-05', time: null })
+    // 21:30 UTC is still 23:30 on Nov 4 in Israel.
+    expect(settle('תיצור משימה', Date.UTC(2026, 10, 4, 21, 30))).toEqual({ ok: true, date: '2026-11-04', time: null })
+    // 12:00 "today" at 22:30 UTC is 12:00 on Nov 5 in Israel: still ahead.
+    expect(settle('בשעה 12:00', Date.UTC(2026, 10, 4, 22, 30))).toEqual({ ok: true, date: '2026-11-05', time: '12:00' })
+  })
+
+  it('an unclear day or hour stays a question', () => {
+    expect(settle('מחר או בעוד שבוע')).toMatchObject({ ok: false, ask: 'ambiguous_date' })
+    expect(settle('מחר או מחרתיים')).toMatchObject({ ok: false, ask: 'ambiguous_date' })
+    expect(settle('מחרתיים')).toEqual({ ok: true, date: '2026-11-06', time: null })
+    expect(settle('ב-01.11')).toMatchObject({ ok: false, ask: 'past_date' })
+    expect(settle('מחר ב-4')).toMatchObject({ ok: false, ask: 'ambiguous_time', hour: 4 })
   })
 })
 

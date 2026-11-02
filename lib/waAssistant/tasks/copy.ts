@@ -17,11 +17,8 @@ const name = (lead: string) => redactContactDetails(lead).trim() || 'ליד'
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
 
 export const TASK_COPY = {
-  // Clarifications: ONE short question about the one missing detail, never a
-  // repeat of what the owner already said, never a word about how it works.
-  askDate: 'לאיזה יום?',
-  ambiguousDate: 'לאיזה יום בדיוק?',
-  pastDate: 'התאריך הזה כבר עבר. לאיזה יום?',
+  // Clarifications about WHEN live in ../whenCopy.ts. ONE short question, never
+  // a repeat of what the owner already said, never a word about how it works.
   askLead: 'לאיזה ליד?',
   askTitle: 'מה לכתוב במשימה?',
   useButtons: 'כדי לאשר או לבטל, לחצו על הכפתור בהודעה האחרונה עם פרטי הבקשה.',
@@ -37,17 +34,6 @@ export const TASK_COPY = {
   notAuthorized: 'אין לך הרשאה לליד הזה, ולכן לא נוצר דבר.',
   failed: 'הבקשה לא בוצעה. אפשר לנסות שוב או ב-SocialCRM: ' + TASKS_LINK,
 } as const
-
-/** "ב-4": morning or afternoon. */
-export function ambiguousTimeReply(hour: number | null): string {
-  return hour === null ? 'באיזו שעה?' : `ב-${hour} בבוקר או אחר הצהריים?`
-}
-
-/** Several readable leads matched: ask which one, by name (at most three), never pick. */
-export function whichLeadReply(names: readonly string[]): string {
-  const shown = names.slice(0, 3).map(name)
-  return `מצאתי כמה לידים מתאימים: ${shown.join(', ')}${names.length > 3 ? ' ועוד' : ''}. לאיזה מהם?`
-}
 
 /** "יום רביעי, 04.11.2026, בשעה 12:00" — the day, and the time of day when one was given. */
 const dateLine = (date: string, when: string | null) => `לתאריך: ${hebrewDateLabel(date)}${when ? `, ${when}` : ''}`

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * WhatsApp meeting creation against a real PostgreSQL and the REAL Action
@@ -17,11 +17,12 @@ import { db } from '@/config/db'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { updateMeetingSyncState } from '@/db/meetings'
-import { businessInstantMs } from '@/lib/today/time'
-import { parseHebrewWhen } from '@/lib/waAssistant/meetings/when'
+import { businessDateString, businessInstantMs } from '@/lib/today/time'
+import { hebrewDateLabel, parseHebrewWhen } from '@/lib/waAssistant/meetings/when'
 import { MEETING_COPY } from '@/lib/waAssistant/meetings/copy'
 import { COPY, NO_ACTIONS_NOTE } from '@/lib/waAssistant/render'
 import { CALENDAR_EVENTS_SCOPE } from '@/lib/integrations/google/calendarTokens'
+import { WA_AGENT_RULES } from '@/lib/waAssistant/agentRules'
 import { PLATFORM, TOKEN, agency, cleanup, recipient, resetBetweenTests, user } from '../ownerWhatsappReminders/reminderFixtures'
 
 const A = 103
@@ -257,34 +258,49 @@ describe('the approval is single-use, bound and expiring', () => {
 })
 
 describe('never guessed: date, time, lead, availability', () => {
-  it('the model\'s date differs from the owner\'s words: ask, record nothing', async () => {
+  it("the owner's words win over the model's date and time: the card shows what they said", async () => {
     const o = await owner()
-    const h = harness([meetingAnswer(o.lead, { date: DAY_AFTER() })])
-    await say(o, 'תקבע לי עם Itamar Am מחר ב-10:00')
+    const h = harness([meetingAnswer(o.lead, { date: DAY_AFTER(), startTime: '15:00' })])
+    const c = await card(o, h, 'תקבע לי עם Itamar Am מחר ב-10:00')
+    expect(c.body).toContain(hebrewDateLabel(TOMORROW()))
+    expect(c.body).toContain('10:00–10:45')
+    await tap(o, c.approve)
     await run(h)
-    expect(h.last().body).toBe(MEETING_COPY.mismatch)
-    expect(h.last().buttons).toBeUndefined()
-    expect(await actions()).toHaveLength(0)
+    const [m] = await meetings(o.lead)
+    expect(new Date(m.start_at).getTime()).toBe(businessInstantMs(TOMORROW(), '10:00'))
   })
 
-  it('no time given: ask; the answer completes the same request', async () => {
+  it('no time given: asks only for the time; the answer completes the same request', async () => {
     const o = await owner()
     const h = harness([meetingAnswer(o.lead), meetingAnswer(o.lead, { startTime: '11:00' })])
     await say(o, 'תקבע לי עם Itamar Am מחר')
     await run(h)
-    expect(h.last().body).toBe(MEETING_COPY.askTime)
+    expect(h.last().body).toBe('באיזו שעה?')
     await say(o, 'ב-11')
     await run(h)
     expect(h.last().buttons).toHaveLength(2)
     expect(h.last().body).toContain('11:00–11:45')
+    expect(h.last().body).toContain(hebrewDateLabel(TOMORROW()))
   })
 
-  it('an hour that could be morning or evening: ask', async () => {
+  it('an hour that could be morning or evening: asks only that, and the answer completes it', async () => {
     const o = await owner()
-    const h = harness([meetingAnswer(o.lead, { startTime: '05:00' })])
+    const h = harness([meetingAnswer(o.lead, { startTime: '05:00' }), meetingAnswer(o.lead)])
     await say(o, 'תקבע לי עם Itamar Am מחר ב-5')
     await run(h)
-    expect(h.last().body).toBe(MEETING_COPY.ambiguousTime)
+    expect(h.last().body).toBe('ב-5 בבוקר או אחר הצהריים?')
+    expect(await actions()).toHaveLength(0)
+    await say(o, 'אחר הצהריים')
+    await run(h)
+    expect(h.last().body).toContain('17:00–17:45')
+  })
+
+  it('an ambiguous day: asks only about the day', async () => {
+    const o = await owner()
+    const h = harness([meetingAnswer(o.lead)])
+    await say(o, 'תקבע לי עם Itamar Am מחר או מחרתיים ב-10:00')
+    await run(h)
+    expect(h.last().body).toBe('לאיזה יום בדיוק?')
     expect(await actions()).toHaveLength(0)
   })
 
@@ -309,6 +325,87 @@ describe('never guessed: date, time, lead, availability', () => {
     expect(h.last().body).toContain('כבר יש לך פגישה ב-SocialCRM')
     expect(await meetings(o.lead)).toHaveLength(1) // only the conflicting one
     expect((await actions().first()).approvalState).toBe('REJECTED')
+  })
+})
+
+describe('act at once when the request is complete', () => {
+  // A fixed morning, so "today at 12:00" is ahead of the clock whenever this runs. Only Date is faked.
+  const today = () => businessDateString(Date.now())
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(businessInstantMs(businessDateString(Date.now()), '10:00'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  const withEvidence = (result: ReturnType<typeof meetingAnswer>, leads: number[]) => ({ ...result, evidence: leads.map((l) => ({ kind: 'lead', refId: String(l) })) })
+  const sibling = async (o: Owner, phone: string) => {
+    const [c] = await db('clients').insert({ firstName: 'Itamar', lastName: 'Am', phone, agencyId: A, userId: o.u, createdById: o.u, lead: true }).returning('id')
+    return Number(c.id)
+  }
+
+  it('contact, day and time all given, one matching contact: the card at once, no question', async () => {
+    const o = await owner()
+    const h = harness([withEvidence(meetingAnswer(o.lead, { startTime: '12:00', durationMinutes: 60 }), [o.lead])])
+    const c = await card(o, h, 'תקבע לי לשעה 12:00 פגישה עם Itamar Am מחר')
+    expect(h.sendText).toHaveBeenCalledTimes(1)
+    expect(c.body).toContain(hebrewDateLabel(TOMORROW()))
+    expect(c.body).toContain('12:00–13:00')
+    expect(await meetings(o.lead)).toHaveLength(0)
+  })
+
+  it('no day named: today at that time, no question', async () => {
+    const o = await owner()
+    const h = harness([meetingAnswer(o.lead, { date: DAY_AFTER(), startTime: '12:00' })])
+    const c = await card(o, h, 'תקבע לי פגישה עם Itamar Am בשעה 12:00')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+    expect(c.body).toContain('12:00–12:45')
+  })
+
+  it('a time already passed today: asks about tomorrow, records nothing; "כן" → tomorrow at that time', async () => {
+    const o = await owner()
+    const h = harness([meetingAnswer(o.lead, { date: today(), startTime: '09:00' }), meetingAnswer(o.lead, { startTime: '09:00' })])
+    await say(o, 'תקבע לי פגישה עם Itamar Am בשעה 09:00')
+    await run(h)
+    expect(h.last().body).toBe('השעה 09:00 היום כבר עברה. למחר באותה שעה?')
+    expect(await actions()).toHaveLength(0)
+    const c = await card(o, h, 'כן')
+    expect(c.body).toContain(hebrewDateLabel(TOMORROW()))
+    expect(c.body).toContain('09:00–09:45')
+  })
+
+  it('two matching contacts: one question with masked phones, the day and time kept; the choice → the card for that contact', async () => {
+    const o = await owner()
+    await db('clients').where({ id: o.lead }).update({ phone: '0521112222' })
+    const second = await sibling(o, '0523334444')
+    const h = harness([
+      withEvidence(meetingAnswer(o.lead, { startTime: '12:00' }), [o.lead, second]),
+      withEvidence(meetingAnswer(o.lead, { startTime: '12:00' }), [o.lead, second]),
+    ])
+    await say(o, 'תקבע לי לשעה 12:00 פגישה עם Itamar Am מחר')
+    await run(h)
+    expect(h.last().body).toContain('יש 2 לידים בשם Itamar Am')
+    expect(h.last().body).toContain('טלפון שמסתיים ב-2222')
+    expect(h.last().body).toContain('טלפון שמסתיים ב-4444')
+    expect(h.last().body).not.toContain('0523334444')
+    expect(h.last().buttons).toBeUndefined()
+    expect(await actions()).toHaveLength(0)
+
+    const c = await card(o, h, 'השני')
+    expect(c.body).toContain(hebrewDateLabel(TOMORROW()))
+    expect(c.body).toContain('12:00–12:45')
+    await tap(o, c.approve)
+    await run(h)
+    expect(await meetings(second)).toHaveLength(1)
+    expect(await meetings(o.lead)).toHaveLength(0)
+  })
+
+  it('the Agent gets the WhatsApp rules on every turn', async () => {
+    const o = await owner()
+    const h = harness([meetingAnswer(o.lead)])
+    await card(o, h)
+    const arg = (h.runAgent.mock.calls[0] as unknown[])[0] as { surfaceRules?: string }
+    expect(arg.surfaceRules).toBe(WA_AGENT_RULES)
   })
 })
 

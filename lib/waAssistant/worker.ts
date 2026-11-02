@@ -23,7 +23,9 @@ import { COPY, NO_ACTIONS_NOTE, failureReply, refusalReply, replyForAnswer } fro
 import { proposeMeeting, type ProposeDeps } from './meetings/propose'
 import { type DecideDeps } from './meetings/decide'
 import { decideCard } from './decideCard'
-import { isTaskConversation, proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
+import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
+import { isRequestConversation } from './request'
+import { WA_AGENT_RULES } from './agentRules'
 import { isClarifyingAnswer } from './tasks/draft'
 import type { TaskDecideDeps } from './tasks/decide'
 import { MEETING_COPY } from './meetings/copy'
@@ -155,6 +157,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
+    surfaceRules: WA_AGENT_RULES,
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {
@@ -178,7 +181,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
   const proposed = result.answer.proposedAction
   if (meetingsOn && proposed?.actionType === 'create_meeting' && !result.answer.proposedBatch) {
-    const r = await proposeMeeting({ job, scope: who.scope, proposal: proposed, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.meetings?.propose })
+    const r = await proposeMeeting({ job, scope: who.scope, proposal: proposed, evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.meetings?.propose })
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
   }
   if (tasksOn && (proposed?.actionType === 'create_task' || proposed?.actionType === 'create_follow_up') && !result.answer.proposedBatch) {
@@ -188,11 +191,18 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
   const note = result.answer.proposedAction || result.answer.proposedBatch ? NO_ACTIONS_NOTE : null
   const reply = replyForAnswer(result.answer, { note })
-  // The Agent's own question inside a task request ("לאיזה ליד?") keeps that request open for the next message.
-  const continuesTask = tasksOn && !note && isClarifyingAnswer(result.answer) && (await isTaskConversation(job, startedAt.getTime()))
+  // The Agent's own question inside a request ("לאיזה ליד?") keeps that request open for the next message.
+  const asking = !note && isClarifyingAnswer(result.answer)
+  // "תקבע" opens both a meeting and a follow-up: it is a meeting only when the owner says so, or the open request already is one.
+  const continues =
+    asking && tasksOn && !/פגיש/u.test(job.question ?? '') && (await isRequestConversation('task', job))
+      ? 'task_clarify_agent'
+      : asking && meetingsOn && (await isRequestConversation('meeting', job))
+        ? 'meeting_clarify_agent'
+        : null
   return finish(job, {
     status: 'answered',
-    stopReason: continuesTask ? 'task_clarify_agent' : result.stopReason,
+    stopReason: continues ?? result.stopReason,
     answerHeadline: reply.headline,
     costUsd: result.costUsd,
     reply: await reply1(job, platform, who.phoneE164, reply.text, deps),

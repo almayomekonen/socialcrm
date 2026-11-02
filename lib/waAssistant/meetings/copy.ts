@@ -21,12 +21,7 @@ const span = (start: Date, end: Date) => `${formatBusinessTime(start)}–${forma
 const name = (lead: string) => redactContactDetails(lead).trim() || 'ליד'
 
 export const MEETING_COPY = {
-  askDate: 'לאיזה יום לקבוע את הפגישה? אפשר לכתוב למשל: מחר, יום שלישי, או 27.10',
-  askTime: 'באיזו שעה? אפשר לכתוב למשל 10:00',
-  ambiguousTime: 'לא בטוח לאיזו שעה התכוונת (בוקר או ערב). אפשר לכתוב שעה מלאה, למשל 17:00',
-  ambiguousDate: 'לא בטוח לאיזה יום התכוונת. אפשר לכתוב יום ושעה, למשל: מחר ב-10:00 או 27.10 ב-10:00',
-  pastDate: 'המועד הזה כבר עבר. לאיזה יום ושעה לקבוע?',
-  mismatch: 'רציתי לוודא את המועד לפני שקובעים. אפשר לכתוב את היום והשעה במדויק, למשל: מחר ב-10:00',
+  // Questions about WHEN live in ../whenCopy.ts; about WHICH lead in ../leadChoice.ts.
   leadNotAllowed: 'לא מצאתי את הליד הזה בין הלידים שלך, אז לא קבעתי פגישה. אפשר לבדוק את השם ולנסות שוב.',
   notPrepared: 'לא הצלחתי להכין את הפגישה הפעם, ולא נקבע דבר. אפשר לנסות שוב בעוד רגע או לקבוע ב-SocialCRM: ' + CALENDAR_LINK,
   useButtons: 'כדי לאשר או לבטל, לחצו על הכפתור בהודעה עם פרטי הפגישה.',
