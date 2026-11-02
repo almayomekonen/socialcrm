@@ -230,12 +230,22 @@ approvals table and restores the job-kind constraint.
 הבא", "תזכיר לי לבדוק את ההצעה בעוד שלושה ימים":
 
 1. **Proposal** (`lib/waAssistant/tasks/propose.ts`): the existing Agent returns a
-   `create_task` or `create_follow_up` proposal. If its reads produced several
-   readable leads, the owner is asked which one (by name, never picked). The
-   lead must be readable by this user (agency + rep visibility). The day is
-   read deterministically from the owner's words (`meetings/when.ts`, now also
-   "בעוד N ימים / שבוע / שבועיים") and must equal the Agent's argument;
-   otherwise one question. Then `submitProposedAction` records it as
+   `create_task` or `create_follow_up` proposal. A request may span several
+   messages ("תיצור לי משימה" → "Oren kakun" → "לשעה 12:00 להתקשר לאורן" →
+   "מחר"): the owner's messages that our (or the Agent's) clarifying questions
+   answered, within 15 minutes of each other, are read as ONE request
+   (`tasks/draft.ts`), the newest mention of each detail winning. The day and
+   time come from the owner's words (`meetings/when.ts`), never the Agent's
+   arithmetic; "task" / "follow-up" in their words wins over the Agent's
+   choice. If the Agent's reads produced several readable leads, the one whose
+   full name the owner wrote is taken, otherwise they are asked which (never
+   picked). The lead must be readable by this user (agency + rep visibility).
+   A missing or unclear detail gets ONE short question ("לאיזה יום?", "ב-4
+   בבוקר או אחר הצהריים?"); what is already known is carried in the stored
+   headline so the next turn continues. **Time of day:** tasks and follow-ups
+   store a date only, so a time is appended to the task title / follow-up note
+   ("להתקשר לאורן בשעה 12:00") and shown on the card next to the day; the date
+   stays date-only. Then `submitProposedAction` records it as
    AWAITING_APPROVAL and a card is sent ("לאשר וליצור" / "לאשר ולקבוע" /
    "ביטול"), bound to a single-use, recipient-bound, 15-minute token.
 2. **Decision** (`lib/waAssistant/decideCard.ts` → `tasks/decide.ts`): the token
@@ -251,7 +261,7 @@ approvals table and restores the job-kind constraint.
    by the user's agency.
 
 Tests: `__tests__/waAssistant/tasks.db.test.ts`, `__tests__/tasks/taskAccess.db.test.ts`,
-relative dates in `__tests__/waAssistant/meetingWhen.test.ts`.
+`__tests__/waAssistant/taskDraft.test.ts`, relative dates in `__tests__/waAssistant/meetingWhen.test.ts`.
 
 ## Next phases (not built)
 

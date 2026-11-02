@@ -23,7 +23,8 @@ import { COPY, NO_ACTIONS_NOTE, failureReply, refusalReply, replyForAnswer } fro
 import { proposeMeeting, type ProposeDeps } from './meetings/propose'
 import { type DecideDeps } from './meetings/decide'
 import { decideCard } from './decideCard'
-import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
+import { isTaskConversation, proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
+import { isClarifyingAnswer } from './tasks/draft'
 import type { TaskDecideDeps } from './tasks/decide'
 import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
@@ -187,9 +188,11 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
   const note = result.answer.proposedAction || result.answer.proposedBatch ? NO_ACTIONS_NOTE : null
   const reply = replyForAnswer(result.answer, { note })
+  // The Agent's own question inside a task request ("לאיזה ליד?") keeps that request open for the next message.
+  const continuesTask = tasksOn && !note && isClarifyingAnswer(result.answer) && (await isTaskConversation(job, startedAt.getTime()))
   return finish(job, {
     status: 'answered',
-    stopReason: result.stopReason,
+    stopReason: continuesTask ? 'task_clarify_agent' : result.stopReason,
     answerHeadline: reply.headline,
     costUsd: result.costUsd,
     reply: await reply1(job, platform, who.phoneE164, reply.text, deps),
