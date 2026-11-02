@@ -46,7 +46,11 @@ vi.mock('ai', async (importOriginal) => {
   return { ...actual, generateText: generateTextSpy }
 })
 
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { runAgentInvestigation } from '@/lib/agent/run'
+import { buildAgentSystemPrompt } from '@/lib/agent/prompt'
+import { WA_AGENT_RULES } from '@/lib/waAssistant/agentRules'
 import { DEFAULT_MAX_STEPS } from '@/lib/agent/budget'
 import type { AgentScope } from '@/lib/agent/types'
 import { Roles } from '@/types/roles'
@@ -170,6 +174,34 @@ describe('admission decides whether a model is called at all', () => {
 })
 
 // ── Model wiring ──────────────────────────────────────────────────────────────
+
+describe('surfaceRules: one surface\'s rules never reach another', () => {
+  const NOW = Date.UTC(2026, 10, 4, 8, 0)
+
+  it('omitted (the web Agent): the system prompt is exactly the shared prompt', async () => {
+    await runAgentInvestigation({ question: 'q', now: () => NOW })
+    expect(lastCall().system).toBe(buildAgentSystemPrompt(NOW))
+  })
+
+  it('given: appended after the shared prompt, which is otherwise untouched', async () => {
+    await runAgentInvestigation({ question: 'q', now: () => NOW, surfaceRules: 'כלל' })
+    expect(lastCall().system).toBe(`${buildAgentSystemPrompt(NOW)}\n\nכלל`)
+  })
+
+  it('the shared prompt does not carry the WhatsApp rules', () => {
+    expect(buildAgentSystemPrompt(NOW)).not.toContain(WA_AGENT_RULES)
+    expect(buildAgentSystemPrompt(NOW)).not.toContain('וואטסאפ עם בעל העסק')
+  })
+
+  it('only the WhatsApp worker passes it: the web and autonomous paths never name it', () => {
+    const files = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? files(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [],
+      )
+    const users = ['actions', 'app', 'components', 'lib'].flatMap(files).filter((f) => readFileSync(f, 'utf8').includes('surfaceRules'))
+    expect(users.sort()).toEqual(['lib/agent/run.ts', 'lib/waAssistant/agentRules.ts', 'lib/waAssistant/worker.ts'])
+  })
+})
 
 describe('the admitted model and config drive the call', () => {
   it('uses chain[0] only — B5 v1 is single-provider, no fallback', async () => {

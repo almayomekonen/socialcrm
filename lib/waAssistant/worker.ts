@@ -24,7 +24,7 @@ import { proposeMeeting, type ProposeDeps } from './meetings/propose'
 import { type DecideDeps } from './meetings/decide'
 import { decideCard } from './decideCard'
 import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
-import { isRequestConversation } from './request'
+import { isRequestConversation, startsClean } from './request'
 import { WA_AGENT_RULES } from './agentRules'
 import { isClarifyingAnswer } from './tasks/draft'
 import type { TaskDecideDeps } from './tasks/decide'
@@ -149,7 +149,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
   await (deps.typing ?? sendPlatformTypingIndicator)({ ...platform, inboundWamid: job.wamid, jobId: job.id })
 
-  const history = await recentWaAssistantTurns(job.recipientId, job.id, startedAt)
+  const history = await recentWaAssistantTurns(job.recipientId, job.id, startedAt, { withoutClarifications: startsClean(job.question) })
   const result = await (deps.runAgent ?? runAgentInvestigation)({
     question: job.question.trim().slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars),
     history,

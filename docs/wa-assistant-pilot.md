@@ -237,8 +237,11 @@ approvals table and restores the job-kind constraint.
    `create_task` or `create_follow_up` proposal. A request may span several
    messages ("תיצור לי משימה" → "Oren kakun" → "לשעה 12:00 להתקשר לאורן" →
    "מחר"): the owner's messages that our (or the Agent's) clarifying questions
-   answered, within 15 minutes of each other, are read as ONE request
-   (`request.ts`, `tasks/draft.ts`), the newest mention of each detail winning.
+   answered, within 15 minutes of each other, are read as ONE request (`request.ts`,
+   `tasks/draft.ts`), the newest mention of each detail winning. A message that
+   opens a new request (it names an action or commands one) starts clean: the
+   abandoned request lends it no lead, day, time or action, and the Agent is not
+   handed its questions unless the owner points back ("לליד הזה").
    The day and time come from the owner's words, never the Agent's arithmetic;
    **a day they did not name is today** (business timezone; agencies have no
    timezone of their own). A time today that already passed is asked about

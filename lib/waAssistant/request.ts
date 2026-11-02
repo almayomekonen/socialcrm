@@ -8,8 +8,10 @@ import type { WaAssistantJob } from '@/db/waAssistantJobs'
  * Agent's — clarifying question answered, within 15 minutes of the next, back
  * to the message that opened it. Newest first.
  *
- * A finished request (a card, a refusal) and unrelated chat end the chain, so
- * "סכם לי את היום" never lends a day to a meeting.
+ * Context carries ONLY while the owner is answering a pending question. A
+ * message that opens a new request ("תיצור משימה לרון" while a meeting with אבי
+ * still waits for a time) starts clean: the abandoned request lends it no lead,
+ * day, time or action. So do unrelated chat and a finished request.
  */
 
 export type RequestKind = 'meeting' | 'task'
@@ -20,11 +22,26 @@ export const REQUEST_WORDS: Record<RequestKind, RegExp> = {
   meeting: /פגיש|תקבע|לקבוע|קבע/u,
   task: /משימ|מעקב|תזכיר|תזכורת|לחזור|תחזור|לבדוק|תבדוק|להתקשר|תתקשר/u,
 }
-const FINISHED = /^(meeting|task|follow_up)_/
+/**
+ * Names an action, or commands one. "תקבע" alone is not here: "תקבע ב-11" answers
+ * "באיזו שעה?". A bare "משימה" answers "משימה או מעקב?", so it does not open one.
+ */
+const OPENS_REQUEST =
+  /(?:^|[^\p{L}])(?:[ולה]?(?:משימ\p{L}*|פגיש\p{L}*|מעקב|תזכורת)|תיצור|ליצור|צור|תפתח|לפתוח|פתח|תזכיר|תרשום|תוסיף)(?![\p{L}])/u
+const BARE_ACTION = /^\s*[ולה]?(?:משימה|פגישה|מעקב|תזכורת)[\s.!]*$/u
+/** "לליד הזה", "אותו ליד", "תפתח לו": the owner points back, so the Agent keeps the earlier turns. */
+const POINTS_BACK = /(?:^|[^\p{L}])(?:אותו|אותה|הזה|הזאת|הזו|אליו|אליה|איתו|איתה|לו|לה)(?![\p{L}])/u
+
+export const opensRequest = (text: string): boolean => OPENS_REQUEST.test(text) && !BARE_ACTION.test(text)
+
+/** A new request that does not point back: the Agent must not read an earlier request's questions as its context. */
+export const startsClean = (text: string): boolean => opensRequest(text) && !POINTS_BACK.test(text)
+
 /** "כן" / "יאללה" answering "…כבר עברה. למחר באותה שעה?" means tomorrow. */
 const BARE_YES = /^\s*(כן|כ|בטח|יאללה|אוקיי|אוקי|ok|okay|סבבה|נכון|למחר)[\s.!]*$/iu
 
 export async function requestMessages(kind: RequestKind, job: WaAssistantJob, current: string): Promise<string[]> {
+  if (opensRequest(current)) return [current]
   const [self, ...earlier] = (await db('wa_assistant_jobs')
     .where({ recipientId: job.recipientId })
     .where('id', '<=', job.id)
@@ -42,14 +59,12 @@ export async function requestMessages(kind: RequestKind, job: WaAssistantJob, cu
   for (const [i, r] of earlier.entries()) {
     const at = new Date(r.createdAt).getTime()
     if (r.kind !== 'text' || !r.question || next - at > CLARIFY_WINDOW_MS) break
-    const answered = r.stopReason?.startsWith(`${kind}_clarify`) ?? false
-    // An opener: a request the Agent answered with its own question — not one of ours, finished or of another kind.
-    const opener = !answered && REQUEST_WORDS[kind].test(r.question) && !FINISHED.test(r.stopReason ?? '')
-    if (!answered && !opener) break
-    if (i === 0 && r.stopReason?.endsWith('_past_today') && BARE_YES.test(current)) out[0] = 'מחר'
+    // Only a question of ours, of this kind, still waiting for this answer.
+    if (!r.stopReason?.startsWith(`${kind}_clarify`)) break
+    if (i === 0 && r.stopReason.endsWith('_past_today') && BARE_YES.test(current)) out[0] = 'מחר'
     out.push(r.question)
     next = at
-    if (opener) break
+    if (opensRequest(r.question)) break
   }
   return out
 }
