@@ -11,8 +11,9 @@ import { businessDateString, businessInstantMs, startOfBusinessDayMs } from '@/l
  * certainty is reported as missing or ambiguous, never guessed:
  *
  *   dates  היום / מחר / מחרתיים (with ל/ב/ו/ש prefixes), "יום שלישי" (+ "הבא"),
- *          27.10 or 27/10/2026. A weekday equal to today needs "הבא"; a date
- *          already past is refused.
+ *          27.10 or 27/10/2026, and relative offsets: "בעוד 3 ימים",
+ *          "בעוד שלושה ימים", "בעוד יומיים", "בעוד שבוע / שבועיים / 2 שבועות".
+ *          A weekday equal to today needs "הבא"; a date already past is refused.
  *   times  10:30, "ב-10", "בשעה 10", with בבוקר / בערב / אחה"צ. A bare hour
  *          1-7 without one of those could be morning or evening: ambiguous.
  */
@@ -31,6 +32,26 @@ const RE_WEEKDAY = new RegExp(`(?:^|[^${HEB}])[בל]?יום\\s+(${WEEKDAYS.join(
 const RE_DMY = /(?<![\d:])(\d{1,2})[./](\d{1,2})(?:[./](\d{2}|\d{4}))?(?![\d:])/g
 const RE_HHMM = /(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?!\d)/g
 const RE_BARE_HOUR = new RegExp(`(?:^|[^${HEB}])(?:ב[-־–]?\\s?|בשעה\\s+)(\\d{1,2})(?![\\d:./])`, 'gu')
+const NUMBER_WORDS: Record<string, number> = {
+  אחד: 1, אחת: 1, שניים: 2, שתיים: 2, שני: 2, שתי: 2, שלושה: 3, שלוש: 3, ארבעה: 4, ארבע: 4, חמישה: 5, חמש: 5,
+  שישה: 6, שש: 6, שבעה: 7, שבע: 7, שמונה: 8, תשעה: 9, תשע: 9, עשרה: 10, עשר: 10,
+}
+const RE_IN = new RegExp(
+  `(?:^|[^${HEB}])[וש]?בעוד\\s+(?:(\\d{1,3}|${Object.keys(NUMBER_WORDS).join('|')})\\s+)?(ימים|יום|יומיים|שבועות|שבוע|שבועיים)(?![${HEB}])`,
+  'gu',
+)
+const MAX_OFFSET_DAYS = 365
+
+/** "בעוד שלושה ימים" → 3; null when the count cannot be read with certainty. */
+function offsetDays(count: string | undefined, unit: string): number | null {
+  if (unit === 'יומיים') return count ? null : 2
+  if (unit === 'שבועיים') return count ? null : 14
+  const n = count === undefined ? 1 : /^\d+$/.test(count) ? Number(count) : NUMBER_WORDS[count]
+  if (!n || n < 1) return null
+  const days = unit === 'שבוע' || unit === 'שבועות' ? n * 7 : n
+  return days <= MAX_OFFSET_DAYS ? days : null
+}
+
 const RE_PM = /בערב|בלילה|אחה["״']?צ|אחר(?:י)? הצהריים/u
 const RE_AM = /בבוקר/u
 
@@ -63,6 +84,12 @@ function readDates(text: string, today: string): { dates: string[]; problem: Whe
       ahead = 7
     }
     dates.push(addDays(today, ahead))
+  }
+
+  for (const m of text.matchAll(RE_IN)) {
+    const days = offsetDays(m[1], m[2])
+    if (days === null) problem = problem ?? 'ambiguous_date'
+    else dates.push(addDays(today, days))
   }
 
   for (const m of text.matchAll(RE_DMY)) {

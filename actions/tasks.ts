@@ -5,6 +5,7 @@ import { getAgencyId } from '@/db/agencies'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
+import { canActOnLead, canActOnTask } from '@/lib/tasks/taskAccess'
 
 type TaskUpdateInput = {
   title?: string
@@ -27,18 +28,13 @@ function sanitizeTaskUpdate(input: any): TaskUpdateInput {
   return result
 }
 
-async function assertTaskAccess(taskId: number, user: { agencyId?: number }) {
-  if (!user.agencyId) throw new Error('Forbidden')
-  const task = await db('tasks').where('id', taskId).first()
-  if (!task) throw new Error('Forbidden')
-  const client = await db('clients').where('id', task.clientId).where('agencyId', user.agencyId).first()
-  if (!client) throw new Error('Forbidden')
+/** Agency AND role (lib/tasks/taskAccess.ts): a rep acts only on leads of reps they have permission for. */
+async function assertTaskAccess(taskId: number, user: Parameters<typeof canActOnTask>[0]) {
+  if (!(await canActOnTask(user, taskId))) throw new Error('Forbidden')
 }
 
-async function assertClientAccess(clientId: number, user: { agencyId?: number }) {
-  if (!user.agencyId) throw new Error('Forbidden')
-  const client = await db('clients').where('id', clientId).where('agencyId', user.agencyId).first()
-  if (!client) throw new Error('Forbidden')
+async function assertClientAccess(clientId: number, user: Parameters<typeof canActOnLead>[0]) {
+  if (!(await canActOnLead(user, clientId))) throw new Error('Forbidden')
 }
 
 async function assertTemplateAccess(tmpltId: number, user: { agencyId?: number }) {
