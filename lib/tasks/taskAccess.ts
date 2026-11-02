@@ -4,7 +4,8 @@ import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 
 /**
- * WHO MAY ACT ON A LEAD'S TASKS — the user-facing task actions (actions/tasks.ts).
+ * WHO MAY ACT ON A LEAD'S TASKS — the user-facing task actions (actions/tasks.ts)
+ * and the lead-page task reads (db/tasks.ts).
  *
  * Before, the asserts checked the agency only, so a rep could edit or delete a
  * colleague's task inside the same agency. Now:

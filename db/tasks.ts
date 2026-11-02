@@ -2,6 +2,7 @@ import { db } from '@/config/db'
 import { getAgencyId } from './agencies'
 import { getPerms } from './filter'
 import { requireUser } from '@/lib/requireUser'
+import { canActOnLead } from '@/lib/tasks/taskAccess'
 
 export async function getTasks(user, filter) {
   // A task's tenant is its lead's: without an agency there is nothing to list.
@@ -46,17 +47,30 @@ export async function getTasks(user, filter) {
   return res.rows
 }
 
+/**
+ * The lead-page task reads take a lead id straight from the URL. A task has no
+ * agency of its own (its tenant IS its lead's), so each read first checks the
+ * session user may see that lead — agency, then rep visibility for non-admins
+ * (lib/tasks/taskAccess.ts) — and returns nothing otherwise.
+ */
+async function canReadLeadTasks(clientId) {
+  return canActOnLead(await requireUser(), clientId)
+}
+
 export async function getTasksByClientId(clientId) {
+  if (!(await canReadLeadTasks(clientId))) return []
   const res = await db('tasks').where({ clientId }).select('id', 'title')
   return res
 }
 
 export async function get5TasksByClientId(clientId) {
+  if (!(await canReadLeadTasks(clientId))) return []
   const res = await db('tasks').where('clientId', clientId).orderBy('updatedAt', 'desc').limit(5)
   return res
 }
 
 export async function getTasksTbl(clientId) {
+  if (!(await canReadLeadTasks(clientId))) return []
   const res = await db('tasks')
     .where({ clientId })
     .leftJoin('users', 'tasks.userId', 'users.id')
