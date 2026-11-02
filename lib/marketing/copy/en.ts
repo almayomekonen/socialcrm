@@ -20,11 +20,13 @@ const MONTHLY = `${PRICING.currency}${PRICING.monthly}`
 
 export const EN_TRIAL_CTA_LABEL = `Start your ${DAYS}-day trial`
 
-/** The English counterpart of TRIAL_OFFER_FAQ_ANSWER, sentence for sentence. */
+/** The trial terms in one line, as the owner set them. "Free" appears only here and with the card requirement. */
+export const EN_TRIAL_TERMS =
+  `Card required. Your first ${DAYS} days are free. After that, your subscription renews automatically at ${MONTHLY}/month unless you cancel before the first charge.`
+
+/** The English counterpart of TRIAL_OFFER_FAQ_ANSWER. */
 export const EN_TRIAL_OFFER_FAQ_ANSWER =
-  `A ${DAYS}-day trial of the full system, with no charge. To start, you save a credit card, ` +
-  `and it isn't charged during the trial. After the ${DAYS} days the subscription costs ` +
-  `${MONTHLY} per month (ILS) and renews automatically until cancelled. You can cancel at any time before the first charge, and then you won't be charged. ` +
+  `${EN_TRIAL_TERMS} The subscription then continues monthly until cancelled, and all prices are in Israeli shekels (ILS). ` +
   `To verify the card, your card company may place a temporary hold of ${PRICING.currency}1. It isn't a charge, and the payment provider releases it within up to 10 days.`
 
 export const EN_LANGUAGE_NOTE =
@@ -74,8 +76,8 @@ export const EN: HomeCopy = {
     trial: { label: EN_TRIAL_CTA_LABEL, href: '/auth' },
   },
   hero: {
-    titleLine1: 'All your leads in one place,',
-    titleLine2: ' without missing a single inquiry',
+    titleLine1: 'Keep every lead and inquiry',
+    titleLine2: ' organized in one place.',
     subtitle: "You no longer have to remember who's waiting for an answer. Open it in the morning and see exactly who to get back to today.",
     cta: EN_TRIAL_CTA_LABEL,
     imageAlt: 'The SocialCRM interface, shown in Hebrew',
@@ -221,8 +223,8 @@ export const EN: HomeCopy = {
       individual: {
         title: `${DAYS}-day trial`,
         subtitle: 'The full system',
-        description: 'Credit card required · No charge during the trial',
-        priceSuffix: `ILS for ${DAYS} days`,
+        description: `Card required · First ${DAYS} days free`,
+        priceSuffix: `for ${DAYS} days`,
         features: [
           `Everything in Pro, for ${DAYS} days`,
           'Unlimited leads',
@@ -233,14 +235,14 @@ export const EN: HomeCopy = {
           'Drafts for follow-up messages',
           'Ask anything about the lead',
         ],
-        ctaText: `After ${DAYS} days, ${MONTHLY} per month (ILS) · Cancel any time before the first charge`,
+        ctaText: EN_TRIAL_TERMS,
         ctaButton: EN_TRIAL_CTA_LABEL,
       },
       team: {
         title: 'Pro',
         subtitle: 'When the leads start piling up',
         description: 'For a business or a sales team',
-        priceSuffix: 'ILS/month',
+        priceSuffix: '/month',
         features: [
           'Unlimited leads',
           'Smart summary on every lead',

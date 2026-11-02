@@ -15,7 +15,8 @@ import { readFileSync } from 'node:fs'
 import { cleanup } from '@testing-library/react'
 import { renderPage, structuredData, norm } from './harness'
 import { MARKETING_ROUTES, SITE_URL } from './routes'
-import { EN, EN_LANGUAGE_NOTE, EN_TRIAL_CTA_LABEL, EN_TRIAL_OFFER_FAQ_ANSWER } from '@/lib/marketing/copy/en'
+import { EN, EN_LANGUAGE_NOTE, EN_TRIAL_CTA_LABEL, EN_TRIAL_OFFER_FAQ_ANSWER, EN_TRIAL_TERMS } from '@/lib/marketing/copy/en'
+import { BUSINESS_EMAIL } from '@/lib/businessContact'
 import { PRICING } from '@/lib/pricing'
 import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 
@@ -102,6 +103,22 @@ describe('sitemap', () => {
 })
 
 describe('the rendered page', () => {
+  test('leads with the approved headline', () => {
+    expect(norm(container.querySelector('h1')?.textContent)).toBe('Keep every lead and inquiry organized in one place.')
+  })
+
+  test('"Talk to us" uses the published business address', () => {
+    const talk = [...container.querySelectorAll('a')].filter((a) => norm(a.textContent) === 'Talk to us')
+    expect(talk.length).toBeGreaterThan(0)
+    for (const link of talk) expect(link.getAttribute('href')).toBe(`mailto:${BUSINESS_EMAIL}`)
+  })
+
+  test('has no Channels link and no Meta Pixel', () => {
+    expect([...container.querySelectorAll('a')].some((a) => a.getAttribute('href') === '/channels')).toBe(false)
+    expect(readFileSync('app/(en)/layout.tsx', 'utf8')).not.toMatch(/MetaPixel/)
+    expect(readFileSync('app/(en)/en/page.tsx', 'utf8')).not.toMatch(/MetaPixel/)
+  })
+
   test('has one main landmark and one h1', () => {
     expect(container.querySelectorAll('main')).toHaveLength(1)
     expect(container.querySelectorAll('h1')).toHaveLength(1)
@@ -152,7 +169,6 @@ describe('the rendered page', () => {
 
 describe('honesty', () => {
   const FORBIDDEN: Array<[label: string, pattern: RegExp]> = [
-    ['"free" sign-up', /\bfree\b/i],
     ['"no credit card"', /no (credit )?card|without a (credit )?card/i],
     ['a promise of availability abroad', /\b(worldwide|global(ly)?|international(ly)?|anywhere|any country|every country)\b/i],
     ['a promise about cards from abroad', /\b(foreign|international|any) cards?\b/i],
@@ -166,13 +182,22 @@ describe('honesty', () => {
     expect(JSON.stringify(EN)).not.toMatch(pattern)
   })
 
+  test('"free" appears only in the trial terms, next to the card requirement', () => {
+    const allowed = /first \d+ days (are )?free/gi
+    expect(englishText().replace(allowed, '')).not.toMatch(/\bfree\b/i)
+    expect(JSON.stringify(EN).replace(allowed, '')).not.toMatch(/\bfree\b/i)
+    expect(EN_TRIAL_TERMS).toMatch(/^Card required\./)
+    expect(EN.pricing.plans.individual.description).toMatch(/^Card required/)
+  })
+
   test('states the real trial terms and the price in ILS, from the constants', () => {
     expect(EN_TRIAL_CTA_LABEL).toContain(String(TRIAL_LENGTH_DAYS))
-    expect(EN_TRIAL_OFFER_FAQ_ANSWER).toContain(`${PRICING.currency}${PRICING.monthly} per month (ILS)`)
-    expect(EN_TRIAL_OFFER_FAQ_ANSWER).toMatch(/save a credit card/)
-    expect(EN_TRIAL_OFFER_FAQ_ANSWER).toContain(`${TRIAL_LENGTH_DAYS}-day trial`)
-    expect(EN.pricing.plans.team.priceSuffix).toMatch(/ILS/)
-    expect(EN.pricing.plans.individual.priceSuffix).toMatch(/ILS/)
+    expect(EN_TRIAL_TERMS).toContain(`first ${TRIAL_LENGTH_DAYS} days are free`)
+    expect(EN_TRIAL_TERMS).toContain(`renews automatically at ${PRICING.currency}${PRICING.monthly}/month unless you cancel before the first charge`)
+    expect(EN_TRIAL_OFFER_FAQ_ANSWER).toContain(EN_TRIAL_TERMS)
+    expect(EN_TRIAL_OFFER_FAQ_ANSWER).toMatch(/Israeli shekels \(ILS\)/)
+    expect(EN.pricing.plans.team.priceSuffix).toBe('/month')
+    expect(englishText()).toContain(EN_TRIAL_TERMS)
     expect(englishText()).toMatch(/Israeli shekels \(ILS\)/)
   })
 
