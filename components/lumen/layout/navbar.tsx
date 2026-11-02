@@ -19,45 +19,37 @@ import {
 } from '@/components/lumen/ui/navigation-menu'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { cn } from '@/components/lumen/utils'
-import { TRIAL_CTA_LABEL } from '@/lib/pricing'
+import { HE } from '@/lib/marketing/copy/he'
+import type { NavCopy } from '@/lib/marketing/copy/types'
 
-export const NAV_LINKS = [
-  {
-    label: 'המוצר',
-    href: '#',
-    subitems: [
-      {
-        label: 'כל הלידים במקום אחד',
-        href: '/#features-carousel',
-        description: 'פייסבוק, אינסטגרם ווואטסאפ נכנסים לרשימה אחת',
-        icon: Inbox,
-      },
-      {
-        label: 'שיחות שמחוברות לליד',
-        href: '/#features-grid',
-        description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ונקראה',
-        icon: MessageCircle,
-      },
-      {
-        label: 'AI שמכיר כל ליד',
-        href: '/#features-showcase',
-        description: 'תקציר, נקודות מפתח והצעד הבא',
-        icon: Sparkles,
-      },
-    ],
-  },
-  // One centralized destination. No subitems, so this renders through the same
-  // plain-link branch as מחירים — no trigger, no chevron, no panel.
-  { label: 'ערוצים', href: '/channels' },
-  { label: 'מחירים', href: '/pricing' },
-  { label: 'שאלות נפוצות', href: '/faq' },
-]
+const PRODUCT_ICONS = [Inbox, MessageCircle, Sparkles]
 
-const ACTION_BUTTONS = [
-  { label: 'כניסה', href: '/auth', variant: 'ghost' as const },
-  { label: TRIAL_CTA_LABEL, href: '/auth', variant: 'default' as const },
-]
-const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolean }) => {
+function navLinksFrom(copy: NavCopy) {
+  return [
+    {
+      label: copy.product.label,
+      href: '#',
+      subitems: copy.product.subitems.map((subitem, index) => ({ ...subitem, icon: PRODUCT_ICONS[index] })),
+    },
+    // One centralized destination. No subitems, so this renders through the same
+    // plain-link branch as מחירים — no trigger, no chevron, no panel.
+    ...copy.links.map((link) => ({ ...link, subitems: undefined })),
+  ]
+}
+
+export const NAV_LINKS = navLinksFrom(HE.nav)
+
+function actionButtonsFrom(copy: NavCopy) {
+  return [
+    { label: copy.login.label, href: copy.login.href, variant: 'ghost' as const },
+    { label: copy.trial.label, href: copy.trial.href, variant: 'default' as const },
+  ]
+}
+
+const Navbar = ({ initialBannerVisible = true, copy = HE.nav }: { initialBannerVisible?: boolean; copy?: NavCopy }) => {
+  const navLinks = navLinksFrom(copy)
+  const actionButtons = actionButtonsFrom(copy)
+  const rtl = copy.dir === 'rtl'
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const { isAtLeast } = useMediaQuery()
@@ -115,22 +107,24 @@ const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolea
           // the intended arrangement — mark and wordmark on the inline-start edge,
           // navigation and actions on the inline-end edge — without reordering the
           // DOM, so tab order still follows the logo first.
-          'bg-background navbar-container relative z-50 flex h-[var(--header-height)] flex-row-reverse items-center justify-between gap-4 transition-all duration-300 ease-in-out',
+          'bg-background navbar-container relative z-50 flex h-[var(--header-height)]',
+          rtl && 'flex-row-reverse',
+          'items-center justify-between gap-4 transition-all duration-300 ease-in-out',
           isScrolled &&
             isAtLeast('lg') &&
             'h-[calc(var(--header-height)-20px)] max-w-7xl rounded-full shadow-sm backdrop-blur-md',
         )}
       >
-        <Logo className='[&_span]:font-bold' />
+        <Logo href={copy.logoHref} markFirst={!rtl} className='[&_span]:font-bold' />
 
         {/* `flex-row-reverse`: puts the action group (the trial CTA / כניסה /
             theme toggle) at the inline-start edge of this group — the right,
             in RTL — so it is read first, with the navigation links after it.
             DOM order is unchanged, so tab order still reaches the links first. */}
-        <div className='flex flex-row-reverse items-center gap-8'>
-          <NavigationMenu dir='rtl' viewport={false} className='hidden lg:block'>
+        <div className={rtl ? 'flex flex-row-reverse items-center gap-8' : 'flex items-center gap-8'}>
+          <NavigationMenu dir={copy.dir} viewport={false} className='hidden lg:block'>
             <NavigationMenuList className=''>
-              {NAV_LINKS.map((item) => (
+              {navLinks.map((item) => (
                 <NavigationMenuItem key={item.label}>
                   {item.subitems ? (
                     <>
@@ -193,9 +187,9 @@ const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolea
               sun → כניסה → the trial CTA. Reversing the row gives the intended
               reading order — the trial CTA, then כניסה, then the theme toggle —
               without reordering the DOM, so tab order is unchanged. */}
-          <div className='hidden flex-row-reverse items-center justify-end gap-4 lg:flex'>
+          <div className={rtl ? 'hidden flex-row-reverse items-center justify-end gap-4 lg:flex' : 'hidden items-center justify-end gap-4 lg:flex'}>
             <ThemeToggle />
-            {ACTION_BUTTONS.map((button) => (
+            {actionButtons.map((button) => (
               <Button key={button.label} size='sm' variant={button.variant} className='rounded-full shadow-none' asChild>
                 <Link href={button.href}>{button.label}</Link>
               </Button>
@@ -245,7 +239,7 @@ const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolea
           <div className='container'>
             <NavigationMenu orientation='vertical' className='inline-block w-full max-w-none py-10'>
               <NavigationMenuList className='w-full flex-col items-start gap-0'>
-                {NAV_LINKS.map((item) => (
+                {navLinks.map((item) => (
                   <NavigationMenuItem key={item.label} className='w-full py-2'>
                     {item.subitems ? (
                       <Accordion type='single' collapsible className=''>
@@ -296,7 +290,7 @@ const Navbar = ({ initialBannerVisible = true }: { initialBannerVisible?: boolea
           </div>
 
           <div className='flex flex-col gap-4.5 border-t px-6 py-4'>
-            {ACTION_BUTTONS.map((button) => (
+            {actionButtons.map((button) => (
               <Button
                 key={button.label}
                 variant={button.variant === 'ghost' ? 'outline' : button.variant}

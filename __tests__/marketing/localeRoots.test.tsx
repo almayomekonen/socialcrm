@@ -3,9 +3,9 @@
  *
  * Hebrew at `/`, English at `/en`, Arabic at `/ar`, each with its own root
  * layout so `lang` and `dir` are in the first server response rather than
- * patched onto <html> after hydration. `/en` and `/ar` are placeholders until
- * translated pages exist: they must be reachable signed-out, but never indexed,
- * listed in the sitemap, or linked.
+ * patched onto <html> after hydration. `/ar` is a placeholder: reachable
+ * signed-out, but never indexed, listed in the sitemap, or linked. The English
+ * homepage has its own suite, `englishHome.test.tsx`.
  */
 
 import { describe, test, expect, vi } from 'vitest'
@@ -18,7 +18,6 @@ vi.mock('@/lib/css/main.css', () => ({}))
 
 import EnglishRootLayout from '@/app/(en)/layout'
 import ArabicRootLayout from '@/app/(ar)/layout'
-import { metadata as englishMetadata } from '@/app/(en)/en/page'
 import { metadata as arabicMetadata } from '@/app/(ar)/ar/page'
 import sitemap from '@/app/sitemap'
 import { proxy } from '@/proxy'
@@ -41,17 +40,14 @@ describe('each language root sets lang and dir on the server-rendered <html>', (
   })
 })
 
-describe('the /en and /ar placeholders stay out of search', () => {
-  test.each([
-    ['/en', englishMetadata],
-    ['/ar', arabicMetadata],
-  ])('%s is noindex, nofollow', (_path, metadata) => {
-    expect(metadata.robots).toEqual({ index: false, follow: false })
+describe('the /ar placeholder stays out of search', () => {
+  test('it is noindex, nofollow', () => {
+    expect(arabicMetadata.robots).toEqual({ index: false, follow: false })
   })
 
-  test('neither is in the sitemap', () => {
+  test('it is not in the sitemap', () => {
     const paths = sitemap().map((e) => new URL(e.url).pathname)
-    expect(paths.filter((p) => p === '/en' || p.startsWith('/en/') || p === '/ar' || p.startsWith('/ar/'))).toEqual([])
+    expect(paths.filter((p) => p === '/ar' || p.startsWith('/ar/'))).toEqual([])
   })
 })
 

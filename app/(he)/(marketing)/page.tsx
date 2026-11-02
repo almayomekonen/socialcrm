@@ -1,4 +1,4 @@
-import { buildPageMetadata } from '@/lib/seo/metadata'
+import { buildPageMetadata, HOME_LANGUAGES } from '@/lib/seo/metadata'
 import { TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
 import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 import { JsonLd } from '@/components/seo/JsonLd'
@@ -17,6 +17,7 @@ import Pricing from '@/components/lumen/sections/pricing'
 
 export const metadata = buildPageMetadata({
   path: '/',
+  languages: HOME_LANGUAGES,
   title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
   description:
     `SocialCRM מרכזת את כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד. לכל ליד יש שיחה מחוברת, סטטוס ונציג, ובתוכנית Pro גם AI שמכיר את ההיסטוריה וממליץ על הצעד הבא. ${TRIAL_LENGTH_DAYS} ימי ניסיון במערכת המלאה.`,

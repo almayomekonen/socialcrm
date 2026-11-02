@@ -8,9 +8,10 @@ import Image from 'next/image';
 import Noise from '@/components/lumen/noise';
 import { Button } from '@/components/lumen/ui/button';
 import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
-import { TRIAL_CTA_LABEL } from '@/lib/pricing';
+import { HE } from '@/lib/marketing/copy/he';
+import type { HeroCopy } from '@/lib/marketing/copy/types';
 
-export default function Hero() {
+export default function Hero({ copy = HE.hero }: { copy?: HeroCopy } = {}) {
   const prefersReducedMotion = usePrefersReducedMotion();
 
   // Animation variants
@@ -103,8 +104,9 @@ export default function Hero() {
           variants={itemVariants}
           className="text-3xl leading-tight font-bold tracking-tight md:text-5xl lg:text-6xl"
         >
-          כל הלידים שלכם במקום אחד,
-          <br className="hidden md:block" /> בלי לפספס אף פנייה
+          {copy.titleLine1}
+          <br className="hidden md:block" />
+          {copy.titleLine2}
         </motion.h1>
 
         <motion.p
@@ -119,8 +121,7 @@ export default function Hero() {
              or desktop (where the line is single and balance is a no-op). */
           className="text-muted-foreground my-2 text-sm text-balance md:my-4 md:text-lg lg:my-6 lg:text-xl"
         >
-          אתם כבר לא צריכים לזכור מי מחכה לתשובה. פותחים בבוקר ורואים בדיוק
-          למי לחזור היום.
+          {copy.subtitle}
         </motion.p>
 
         <motion.div variants={itemVariants}>
@@ -130,13 +131,19 @@ export default function Hero() {
             className="mt-2 rounded-full !ps-5.5 before:rounded-full"
           >
             <Link href="/auth/register">
-            {TRIAL_CTA_LABEL}
+            {copy.cta}
             <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
               <ChevronRight className="size-4 rtl:rotate-180" />
             </div>
             </Link>
           </Button>
         </motion.div>
+
+        {copy.languageNote && (
+          <motion.p variants={itemVariants} className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm text-balance">
+            {copy.languageNote}
+          </motion.p>
+        )}
 
         <motion.div
           variants={imageVariants}
@@ -147,7 +154,7 @@ export default function Hero() {
               radii, padding, entrance variant and `priority` are unchanged. */}
           <Image
             src="/media/social-icons/hero.png"
-            alt="ממשק SocialCRM"
+            alt={copy.imageAlt}
             width={2560}
             height={1116}
             priority

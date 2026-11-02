@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next'
+import { HOME_LANGUAGES } from '@/lib/seo/metadata'
 
 const BASE_URL = 'https://getsocialcrm.com'
 
@@ -10,10 +11,15 @@ const BASE_URL = 'https://getsocialcrm.com'
  * The three acquisition pages sit deliberately outside the primary navigation:
  * search is their only entry point, so being listed here is what makes them
  * discoverable at all.
+ *
+ * `/en` is the only other language in the index, and the homepage is the only
+ * page that exists in both, so those two entries alone carry alternates. `/ar`
+ * stays out.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
-    { url: `${BASE_URL}/`, lastModified: new Date(), changeFrequency: 'monthly', priority: 1.0 },
+    { url: `${BASE_URL}/`, lastModified: new Date(), changeFrequency: 'monthly', priority: 1.0, alternates: { languages: HOME_LANGUAGES } },
+    { url: `${BASE_URL}/en`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9, alternates: { languages: HOME_LANGUAGES } },
     { url: `${BASE_URL}/channels`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.85 },
     { url: `${BASE_URL}/pricing`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.9 },
     { url: `${BASE_URL}/faq`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },

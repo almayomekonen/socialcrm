@@ -3,7 +3,12 @@ import { PRICING } from '@/lib/pricing'
 const SITE_URL = 'https://getsocialcrm.com'
 const SITE_NAME = 'SocialCRM'
 
-export function organizationSchema() {
+/**
+ * Called with no options on the Hebrew site, which is the live output. `/en`
+ * passes its English text. The software's own `inLanguage` stays Hebrew there:
+ * it describes the product, whose interface is Hebrew.
+ */
+export function organizationSchema(opts: { description?: string; inLanguage?: string } = {}) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -16,13 +21,13 @@ export function organizationSchema() {
       width: 200,
       height: 60,
     },
-    description: 'מערכת ניהול לידים ומכירות לעסקים קטנים בישראל',
-    inLanguage: 'he',
+    description: opts.description ?? 'מערכת ניהול לידים ומכירות לעסקים קטנים בישראל',
+    inLanguage: opts.inLanguage ?? 'he',
     areaServed: 'IL',
   }
 }
 
-export function softwareApplicationSchema() {
+export function softwareApplicationSchema(opts: { description?: string; featureList?: string[] } = {}) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -31,7 +36,7 @@ export function softwareApplicationSchema() {
     operatingSystem: 'Web',
     applicationCategory: 'BusinessApplication',
     url: SITE_URL,
-    description: 'מערכת ניהול לידים לעסקים קטנים — כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.',
+    description: opts.description ?? 'מערכת ניהול לידים לעסקים קטנים — כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד. בלי לפספס אף ליד.',
     inLanguage: 'he',
     // The one paid plan, from lib/pricing so it cannot drift. Not '0': there is
     // no free plan, and the 7-day trial needs a saved card (lib/trial).
@@ -47,7 +52,7 @@ export function softwareApplicationSchema() {
       },
       availability: 'https://schema.org/InStock',
     },
-    featureList: [
+    featureList: opts.featureList ?? [
       'ניהול לידים ממדיה חברתית',
       'חיבור אוטומטי לפייסבוק',
       'ייבוא לידים מאקסל',
@@ -58,20 +63,20 @@ export function softwareApplicationSchema() {
   }
 }
 
-export function websiteSchema() {
+export function websiteSchema(opts: { description?: string; inLanguage?: string } = {}) {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: SITE_NAME,
-    description: 'מערכת ניהול לידים לעסקים קטנים',
-    inLanguage: 'he',
+    description: opts.description ?? 'מערכת ניהול לידים לעסקים קטנים',
+    inLanguage: opts.inLanguage ?? 'he',
     publisher: { '@id': `${SITE_URL}/#organization` },
   }
 }
 
-export function webPageSchema(opts: { path: string; title: string; description: string }) {
+export function webPageSchema(opts: { path: string; title: string; description: string; inLanguage?: string }) {
   const url = `${SITE_URL}${opts.path}`
   return {
     '@context': 'https://schema.org',
@@ -80,7 +85,7 @@ export function webPageSchema(opts: { path: string; title: string; description: 
     url,
     name: opts.title,
     description: opts.description,
-    inLanguage: 'he',
+    inLanguage: opts.inLanguage ?? 'he',
     isPartOf: { '@id': `${SITE_URL}/#website` },
   }
 }

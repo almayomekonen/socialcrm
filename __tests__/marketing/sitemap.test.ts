@@ -14,7 +14,7 @@
 import { test, expect } from 'vitest'
 import sitemap from '@/app/sitemap'
 import robots from '@/app/robots'
-import { MARKETING_ROUTES, INDEXABLE_ROUTES, SITE_URL } from './routes'
+import { MARKETING_ROUTES, INDEXABLE_ROUTES, ENGLISH_HOME_PATH, SITE_URL } from './routes'
 
 const sitemapPaths = () => sitemap().map((e) => new URL(e.url).pathname)
 
@@ -26,7 +26,7 @@ test('every sitemap URL is absolute and on the production origin', () => {
 
 test('the sitemap lists every indexable route that canonicalises to itself', () => {
   const expected = INDEXABLE_ROUTES.filter((r) => r.canonical === `${SITE_URL}${r.path}`).map((r) => r.path)
-  expect(sitemapPaths().sort()).toEqual(expected.sort())
+  expect(sitemapPaths().sort()).toEqual([...expected, ENGLISH_HOME_PATH].sort())
 })
 
 test('the sitemap never lists a route that canonicalises elsewhere', () => {
