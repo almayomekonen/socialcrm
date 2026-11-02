@@ -238,10 +238,13 @@ approvals table and restores the job-kind constraint.
    messages ("תיצור לי משימה" → "Oren kakun" → "לשעה 12:00 להתקשר לאורן" →
    "מחר"): the owner's messages that our (or the Agent's) clarifying questions
    answered, within 15 minutes of each other, are read as ONE request (`request.ts`,
-   `tasks/draft.ts`), the newest mention of each detail winning. A message that
-   opens a new request (it names an action or commands one) starts clean: the
-   abandoned request lends it no lead, day, time or action, and the Agent is not
-   handed its questions unless the owner points back ("לליד הזה").
+   `tasks/draft.ts`), the newest mention of each detail winning. Each message is judged
+   against the question actually pending (`continuation.ts`): to a day or time
+   question, a reply continues only if it adds nothing beyond a day or time,
+   filler, this kind's action words and words already said ("תקבע ב-11"); new
+   content ("להתקשר לרון") starts clean. Then the abandoned request lends no lead,
+   day, time or action, and the Agent is not handed its questions unless the
+   owner points back ("לליד הזה").
    The day and time come from the owner's words, never the Agent's arithmetic;
    **a day they did not name is today** (business timezone; agencies have no
    timezone of their own). A time today that already passed is asked about
