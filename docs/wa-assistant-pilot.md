@@ -144,13 +144,17 @@ labelled simulation.
 1. **Proposal** (`lib/waAssistant/meetings/propose.ts`). The existing Agent
    returns a `create_meeting` proposal (lead resolved by `find_lead`, grounded in
    evidence). Nothing is created. In order:
+   - the lead (`leadChoice.ts`) must be readable by this user (agency, plus rep
+     visibility for non-admins), the same bound the executor enforces. Several
+     matching leads get ONE question with each phone's last four digits;
    - the date and time are read **deterministically** from the owner's own words
-     (`meetings/when.ts`, Asia/Jerusalem, DST-safe) and must equal the Agent's
-     arguments. A missing, ambiguous (a bare hour 1-7, two dates, a weekday
-     equal to today without "הבא"), past or mismatched value gets a short
-     question instead. The answer completes the same request (15-minute window);
-   - the lead must be readable by this user (agency, plus rep visibility for
-     non-admins), the same bound the executor enforces;
+     across the request (`request.ts`, `meetings/when.ts`, Asia/Jerusalem,
+     DST-safe) and win over the Agent's arguments. **A day not named is today.**
+     A meeting needs a time, so a missing one is asked; an ambiguous value (a
+     bare hour 1-7, two dates, a weekday equal to today without "הבא") or a past
+     one gets a short question, and a time today that already passed asks about
+     tomorrow. The Agent proposes 60 minutes when no length is given (the
+     calendar's own default), shown on the card;
    - the slot must be free among the organizer's **SocialCRM** meetings; on a
      conflict, up to two free slots that day (08:00-20:00) are offered;
    - `submitProposedAction` records the action as **AWAITING_APPROVAL**. It is
@@ -230,14 +234,34 @@ approvals table and restores the job-kind constraint.
 הבא", "תזכיר לי לבדוק את ההצעה בעוד שלושה ימים":
 
 1. **Proposal** (`lib/waAssistant/tasks/propose.ts`): the existing Agent returns a
-   `create_task` or `create_follow_up` proposal. If its reads produced several
-   readable leads, the owner is asked which one (by name, never picked). The
-   lead must be readable by this user (agency + rep visibility). The day is
-   read deterministically from the owner's words (`meetings/when.ts`, now also
-   "בעוד N ימים / שבוע / שבועיים") and must equal the Agent's argument;
-   otherwise one question. Then `submitProposedAction` records it as
-   AWAITING_APPROVAL and a card is sent ("לאשר וליצור" / "לאשר ולקבוע" /
-   "ביטול"), bound to a single-use, recipient-bound, 15-minute token.
+   `create_task` or `create_follow_up` proposal. A request may span several
+   messages ("תיצור לי משימה" → "Oren kakun" → "לשעה 12:00 להתקשר לאורן" →
+   "מחר"): the owner's messages that our (or the Agent's) clarifying questions
+   answered, within 15 minutes of each other, are read as ONE request (`request.ts`,
+   `tasks/draft.ts`), the newest mention of each detail winning. Each message is judged
+   against the question actually pending (`continuation.ts`): to a day or time
+   question, a reply continues only if it adds nothing beyond a day or time,
+   filler, this kind's action words and words already said ("תקבע ב-11"); new
+   content ("להתקשר לרון") starts clean. Then the abandoned request lends no lead,
+   day, time or action, and the Agent is not handed its questions unless the
+   owner points back ("לליד הזה").
+   The day and time come from the owner's words, never the Agent's arithmetic;
+   **a day they did not name is today** (business timezone; agencies have no
+   timezone of their own). A time today that already passed is asked about
+   ("השעה 09:00 היום כבר עברה. למחר באותה שעה?"), never moved silently; "כן"
+   means tomorrow. "task" / "follow-up" in their words wins over the Agent's
+   choice. **Which lead** (`leadChoice.ts`): readable by this user (agency + rep
+   visibility); of the leads the Agent read, those the owner named count; one →
+   that lead; several → ONE question listing each with the phone's last four
+   digits, answered by "2", "השני" or the digits. Any other unclear detail gets
+   one short question; what is settled is carried in the stored headline so the
+   next turn continues. **Time of day:** tasks and follow-ups store a date only,
+   so a time is appended to the task title / follow-up note ("להתקשר לאורן בשעה
+   12:00") and shown on the card next to the day; the date stays date-only. Then
+   `submitProposedAction` records it as AWAITING_APPROVAL and a card is sent
+   ("לאשר וליצור" / "לאשר ולקבוע" / "ביטול"), bound to a single-use,
+   recipient-bound, 15-minute token. The Agent gets WhatsApp-only rules
+   (`agentRules.ts`, via `surfaceRules`); the Copilot prompt is unchanged.
 2. **Decision** (`lib/waAssistant/decideCard.ts` → `tasks/decide.ts`): the token
    is consumed in one guarded statement (replay, expiry, supersession and
    another phone do nothing), then the existing `decideOnAction` runs the
@@ -251,7 +275,7 @@ approvals table and restores the job-kind constraint.
    by the user's agency.
 
 Tests: `__tests__/waAssistant/tasks.db.test.ts`, `__tests__/tasks/taskAccess.db.test.ts`,
-relative dates in `__tests__/waAssistant/meetingWhen.test.ts`.
+`__tests__/waAssistant/taskDraft.test.ts`, relative dates in `__tests__/waAssistant/meetingWhen.test.ts`.
 
 ## Next phases (not built)
 

@@ -88,17 +88,26 @@ export async function claimWaAssistantJobs(limit: number): Promise<WaAssistantJo
   }))
 }
 
-/** Prior exchanges for this recipient, oldest first, inside the memory window. */
-export async function recentWaAssistantTurns(recipientId: number, beforeJobId: number, now: Date): Promise<{ role: 'user' | 'assistant'; content: string }[]> {
+/**
+ * Prior exchanges for this recipient, oldest first, inside the memory window.
+ * `withoutClarifications`: leave out turns that were a request's open questions
+ * (their stored headlines carry its lead, day and time), for a message that
+ * starts a new request.
+ */
+export async function recentWaAssistantTurns(
+  recipientId: number,
+  beforeJobId: number,
+  now: Date,
+  opts: { withoutClarifications?: boolean } = {},
+): Promise<{ role: 'user' | 'assistant'; content: string }[]> {
   const pairs = Math.ceil(WA_ASSISTANT_LIMITS.historyTurns / 2)
-  const rows = (await db(T)
+  const query = db(T)
     .where({ recipientId, status: 'answered', kind: 'text' })
     .where('id', '<', beforeJobId)
     .where('createdAt', '>', new Date(now.getTime() - WA_ASSISTANT_LIMITS.historyMs))
     .whereNotNull('question')
-    .orderBy('id', 'desc')
-    .limit(pairs)
-    .select('question', 'answerHeadline')) as { question: string; answerHeadline: string | null }[]
+  if (opts.withoutClarifications) query.where((q) => q.whereNull('stopReason').orWhereNot('stopReason', 'like', '%\\_clarify\\_%'))
+  const rows = (await query.orderBy('id', 'desc').limit(pairs).select('question', 'answerHeadline')) as { question: string; answerHeadline: string | null }[]
   const turns: { role: 'user' | 'assistant'; content: string }[] = []
   for (const r of rows.reverse()) {
     turns.push({ role: 'user', content: r.question })

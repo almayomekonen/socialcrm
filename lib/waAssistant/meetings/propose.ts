@@ -1,26 +1,34 @@
 import 'server-only'
-import { db } from '@/config/db'
-import { isAdmin } from '@/types/roles'
 import { submitProposedAction } from '@/lib/agent/actions/bridge'
 import { businessInstantMs } from '@/lib/today/time'
 import { createWaApproval } from '@/db/waAssistantApprovals'
 import { getCalendarConnectionByUserId } from '@/db/googleCalendarConnections'
 import { CALENDAR_EVENTS_SCOPE } from '@/lib/integrations/google/calendarTokens'
-import type { AgentScope, ProposedAction } from '@/lib/agent/types'
+import type { AgentScope, EvidenceRef, ProposedAction } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import { findMeetingConflicts, suggestFreeSlots } from './conflicts'
 import { MEETING_COPY, confirmationCard, conflictReply, decisionButtons } from './copy'
-import { resolveWhen } from './when'
+import { hebrewDateLabel } from './when'
 import type { MeetingReply } from './types'
+import { requestMessages } from '../request'
+import { chooseLead } from '../leadChoice'
+import { whenQuestion } from '../whenCopy'
+import { readDraft, settleWhen } from '../tasks/draft'
 
 /**
- * "תקבע לי עם Itamar Am מחר ב-10:00" → a confirmation card, or a question.
+ * "תקבע לי לשעה 12:00 פגישה עם אבי כהן מחר" → the confirmation card at once
+ * whenever the request is complete, otherwise ONE short question about the one
+ * detail that is genuinely missing or ambiguous. The request is read across the
+ * owner's messages (request.ts), so nothing they said is asked for again.
  *
  * NOTHING IS CREATED HERE. In order:
- *   1. the date and time are read deterministically from the owner's words and
- *      must equal the Agent's arguments; otherwise we ask (never guess);
- *   2. the lead must be readable by THIS user (agency + rep visibility), the same
- *      bound the create_meeting executor enforces;
+ *   1. the lead (leadChoice.ts): readable by THIS user (agency + rep
+ *      visibility), the same bound the create_meeting executor enforces;
+ *      several matching leads → the owner chooses, never us;
+ *   2. the day and time come from the owner's own words, never the Agent's
+ *      arithmetic; no day named → today (business timezone); a meeting needs a
+ *      time, so a missing one is asked; a time today that already passed is
+ *      asked about, never moved silently;
  *   3. the slot must be free among the organizer's SocialCRM meetings;
  *   4. the existing Action Runtime records the action as AWAITING_APPROVAL —
  *      submitted WITHOUT the user's words, so intent is AGENT_PROPOSAL and the
@@ -28,30 +36,17 @@ import type { MeetingReply } from './types'
  *   5. a single-use token binds the card's buttons to that action + argsHash.
  */
 
-const CLARIFY_WINDOW_MS = 15 * 60 * 1000
-
 type MeetingProposal = Extract<ProposedAction, { actionType: 'create_meeting' }>
 
 export type ProposeDeps = { submit?: typeof submitProposedAction }
 
-const MEETING_WORDS = /פגיש|תקבע|לקבוע|קבע/u
-
-/**
- * The owner's previous message, if this one completes the same meeting request:
- * within 15 minutes, and either our own clarification question answered it or it
- * was itself about a meeting. Never general history ("סכם לי את היום").
- */
-async function clarifiedQuestion(job: WaAssistantJob, nowMs: number): Promise<string[]> {
-  const prev = (await db('wa_assistant_jobs')
-    .where({ recipientId: job.recipientId, kind: 'text' })
-    .where('id', '<', job.id)
-    .orderBy('id', 'desc')
-    .first('question', 'stopReason', 'createdAt')) as { question: string | null; stopReason: string | null; createdAt: Date } | undefined
-  if (!prev?.question || nowMs - new Date(prev.createdAt).getTime() > CLARIFY_WINDOW_MS) return []
-  return prev.stopReason?.startsWith('meeting_clarify') || MEETING_WORDS.test(prev.question) ? [prev.question] : []
-}
-
-const clarify = (text: string, why: string): MeetingReply => ({ status: 'answered', stopReason: `meeting_clarify_${why}`, text, headline: text })
+/** `headline` is what the Agent reads back next turn: the question plus what is already settled. */
+const clarify = (text: string, why: string, memo: string[] = []): MeetingReply => ({
+  status: 'answered',
+  stopReason: `meeting_clarify_${why}`,
+  text,
+  headline: memo.length ? `${text} (${memo.join(' · ')})` : text,
+})
 
 export async function googleCalendarConnected(userId: number): Promise<boolean> {
   const conn = await getCalendarConnectionByUserId(userId)
@@ -62,32 +57,36 @@ export async function proposeMeeting(input: {
   job: WaAssistantJob
   scope: AgentScope
   proposal: MeetingProposal
+  evidence?: readonly EvidenceRef[]
   agentRunId: string
   question: string
   nowMs: number
   deps?: ProposeDeps
 }): Promise<MeetingReply> {
-  const { job, scope, proposal, nowMs } = input
-  const args = proposal.args
+  const { job, scope, nowMs } = input
+  const said = await requestMessages('meeting', job, input.question)
+  const draft = readDraft(said, nowMs)
+  const memo = (leadName?: string) =>
+    ['פגישה', leadName ? `ליד: ${leadName}` : null, draft.date ? hebrewDateLabel(draft.date) : null, draft.when].filter((x): x is string => !!x)
 
-  const when = resolveWhen(input.question, await clarifiedQuestion(job, nowMs), nowMs)
-  if (when.problem === 'ambiguous_time') return clarify(MEETING_COPY.ambiguousTime, 'time')
-  if (when.problem === 'ambiguous_date') return clarify(MEETING_COPY.ambiguousDate, 'date')
-  if (when.problem === 'past_date') return clarify(MEETING_COPY.pastDate, 'past')
-  if (!when.date) return clarify(MEETING_COPY.askDate, 'date')
-  if (!when.time) return clarify(MEETING_COPY.askTime, 'time')
-  if (when.date !== args.date || when.time !== args.startTime) return clarify(MEETING_COPY.mismatch, 'mismatch')
+  // 1. Which lead.
+  const choice = await chooseLead({ scope, proposedId: Number(input.proposal.args.clientId), evidence: input.evidence ?? [], said })
+  if ('refused' in choice) return { status: 'refused', stopReason: 'meeting_lead_not_allowed', text: MEETING_COPY.leadNotAllowed, headline: null }
+  if ('ask' in choice) return clarify(choice.ask, 'lead', memo())
+  const leadName = choice.lead.name
+
+  // 2. When, from the owner's words; no day named → today.
+  const when = settleWhen(draft, nowMs, { timeRequired: true })
+  if (when.ok === false) return clarify(whenQuestion(when.ask, when), when.ask, memo(leadName))
+  const args = { ...input.proposal.args, clientId: choice.lead.id, date: when.date, startTime: when.time! }
+  const ref = `lead:${args.clientId}`
+  const evidenceRefs = input.proposal.evidenceRefs.includes(ref) ? input.proposal.evidenceRefs : [...input.proposal.evidenceRefs, ref]
+  const proposal: MeetingProposal = { ...input.proposal, args, evidenceRefs }
 
   const startMs = businessInstantMs(args.date, args.startTime)
-  if (!Number.isFinite(startMs) || startMs <= nowMs) return clarify(MEETING_COPY.pastDate, 'past')
+  if (!Number.isFinite(startMs) || startMs <= nowMs) return clarify(whenQuestion('past_date', { hour: null, time: when.time }), 'past', memo(leadName))
   const start = new Date(startMs)
   const end = new Date(startMs + args.durationMinutes * 60_000)
-
-  const leadQuery = db('clients').where({ id: args.clientId, agencyId: scope.agencyId })
-  if (!isAdmin(scope.role)) leadQuery.whereIn('userId', scope.gotPermIds ?? [])
-  const lead = (await leadQuery.first('firstName', 'lastName')) as { firstName: string | null; lastName: string | null } | undefined
-  if (!lead) return { status: 'refused', stopReason: 'meeting_lead_not_allowed', text: MEETING_COPY.leadNotAllowed, headline: null }
-  const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(' ')
 
   const conflicts = await findMeetingConflicts({ agencyId: scope.agencyId, organizerUserId: scope.userId, startAt: start, endAt: end })
   if (conflicts.length) {

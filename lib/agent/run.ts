@@ -145,6 +145,13 @@ export type RunAgentInput = {
    */
   history?: AgentTurn[]
   /**
+   * Extra conversation rules for one surface (the WhatsApp assistant), appended
+   * after the shared system prompt. Fixed text owned by that surface's code —
+   * never user, lead or model content. Omitted everywhere else, so the
+   * interactive Copilot prompt is unchanged.
+   */
+  surfaceRules?: string
+  /**
    * Progress observer, fired as each tool call is admitted. Used by the
    * streaming transport to show which capability is running. Purely
    * observational — see `CreateBudgetOptions.onStep`.
@@ -305,7 +312,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
    * same date. Recomputing it per call would be harmless today and exactly the
    * kind of thing that stops being harmless at midnight.
    */
-  const systemPrompt = buildAgentSystemPrompt(nowMs)
+  const systemPrompt = input.surfaceRules ? `${buildAgentSystemPrompt(nowMs)}\n\n${input.surfaceRules}` : buildAgentSystemPrompt(nowMs)
   const evidence = createEvidenceCollector()
   /**
    * Instrumentation only — the tools are wrapped, never altered. `now` is the

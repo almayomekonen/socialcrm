@@ -17,11 +17,10 @@ const name = (lead: string) => redactContactDetails(lead).trim() || 'ליד'
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
 
 export const TASK_COPY = {
-  askDate: 'לאיזה יום? אפשר לכתוב למשל: מחר, ביום ראשון הבא, בעוד שלושה ימים או 27.10',
-  ambiguousDate: 'לא בטוח לאיזה יום התכוונת. אפשר לכתוב יום אחד, למשל: מחר, ביום ראשון הבא או 27.10',
-  pastDate: 'התאריך הזה כבר עבר. לאיזה יום?',
-  mismatch: 'רציתי לוודא את היום לפני שיוצרים. אפשר לכתוב אותו במדויק, למשל: מחר או 27.10',
-  askLead: 'לאיזה ליד? אפשר לכתוב את השם המלא.',
+  // Clarifications about WHEN live in ../whenCopy.ts. ONE short question, never
+  // a repeat of what the owner already said, never a word about how it works.
+  askLead: 'לאיזה ליד?',
+  askTitle: 'מה לכתוב במשימה?',
   useButtons: 'כדי לאשר או לבטל, לחצו על הכפתור בהודעה האחרונה עם פרטי הבקשה.',
   leadNotAllowed: 'לא מצאתי את הליד הזה בין הלידים שלך, אז לא יצרתי דבר. אפשר לבדוק את השם ולנסות שוב.',
   notPrepared: 'לא הצלחתי להכין את הבקשה הפעם, ולא נוצר דבר. אפשר לנסות שוב בעוד רגע או ב-SocialCRM: ' + TASKS_LINK,
@@ -36,24 +35,21 @@ export const TASK_COPY = {
   failed: 'הבקשה לא בוצעה. אפשר לנסות שוב או ב-SocialCRM: ' + TASKS_LINK,
 } as const
 
-/** Several readable leads matched: ask which one, by name (at most three), never pick. */
-export function whichLeadReply(names: readonly string[]): string {
-  const shown = names.slice(0, 3).map(name)
-  return `מצאתי כמה לידים מתאימים: ${shown.join(', ')}${names.length > 3 ? ' ועוד' : ''}. לאיזה מהם? אפשר לכתוב את השם המלא.`
-}
+/** "יום רביעי, 04.11.2026, בשעה 12:00" — the day, and the time of day when one was given. */
+const dateLine = (date: string, when: string | null) => `לתאריך: ${hebrewDateLabel(date)}${when ? `, ${when}` : ''}`
 
-export function taskCard(input: { lead: string; title: string; dueDate: string }): string {
+export function taskCard(input: { lead: string; title: string; dueDate: string; when?: string | null }): string {
   return [
     '*ליצור משימה?*',
     `ליד: ${name(input.lead)}`,
     `משימה: ${clip(redactContactDetails(input.title), 200)}`,
-    `לתאריך: ${hebrewDateLabel(input.dueDate)}`,
+    dateLine(input.dueDate, input.when ?? null),
     'האישור בתוקף ל-15 דקות.',
   ].join('\n')
 }
 
-export function followUpCard(input: { lead: string; at: string; note: string | null }): string {
-  const lines = ['*לקבוע מעקב?*', `ליד: ${name(input.lead)}`, `לתאריך: ${hebrewDateLabel(input.at)}`]
+export function followUpCard(input: { lead: string; at: string; note: string | null; when?: string | null }): string {
+  const lines = ['*לקבוע מעקב?*', `ליד: ${name(input.lead)}`, dateLine(input.at, input.when ?? null)]
   if (input.note) lines.push(`הערה: ${clip(redactContactDetails(input.note), 200)}`)
   lines.push('אם כבר יש מעקב לליד הזה, הוא יוחלף בתאריך החדש.', 'האישור בתוקף ל-15 דקות.')
   return lines.join('\n')

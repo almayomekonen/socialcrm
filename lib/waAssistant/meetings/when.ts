@@ -73,7 +73,7 @@ function readDates(text: string, today: string): { dates: string[]; problem: Whe
   const dates: string[] = []
   let problem: WhenProblem | null = null
   if (RE_DAY_AFTER.test(text)) dates.push(addDays(today, 2))
-  else if (RE_TOMORROW.test(text)) dates.push(addDays(today, 1))
+  if (RE_TOMORROW.test(text)) dates.push(addDays(today, 1))
   if (RE_TODAY.test(text)) dates.push(today)
 
   for (const m of text.matchAll(RE_WEEKDAY)) {
@@ -106,7 +106,7 @@ function readDates(text: string, today: string): { dates: string[]; problem: Whe
   return { dates: [...new Set(dates)], problem }
 }
 
-function readTimes(text: string): { times: string[]; problem: WhenProblem | null } {
+export function readTimes(text: string): { times: string[]; problem: WhenProblem | null } {
   const pm = RE_PM.test(text)
   const am = RE_AM.test(text)
   const times: string[] = []

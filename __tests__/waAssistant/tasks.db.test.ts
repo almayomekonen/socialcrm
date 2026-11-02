@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Tasks and follow-ups from WhatsApp, against a real (local test) PostgreSQL
@@ -17,10 +17,12 @@ vi.mock('@/lib/ai/flags', async (orig) => ({
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
 
 import { db } from '@/config/db'
+import { businessDateString, businessInstantMs } from '@/lib/today/time'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
-import { parseHebrewWhen } from '@/lib/waAssistant/meetings/when'
+import { hebrewDateLabel, parseHebrewWhen } from '@/lib/waAssistant/meetings/when'
 import { TASK_COPY } from '@/lib/waAssistant/tasks/copy'
+import { answersPending, opensRequest } from '@/lib/waAssistant/continuation'
 import { COPY, NO_ACTIONS_NOTE } from '@/lib/waAssistant/render'
 import { PLATFORM, TOKEN, agency, cleanup, recipient, resetBetweenTests, user } from '../ownerWhatsappReminders/reminderFixtures'
 
@@ -145,7 +147,9 @@ afterAll(async () => {
   ])
     delete process.env[k]
   for (const t of ['wa_assistant_jobs', 'wa_assistant_approvals', 'agent_action_approvals', 'agent_actions']) await db(t).del()
+  await db('analytics_events').whereIn('agencyId', [A, B]).del()
   await db('analytics_events').where({ event: 'wa_assistant_turn' }).del()
+  await db('meetings').whereIn('agency_id', [A, B]).del()
   await db('tasks')
     .whereIn('clientId', db('clients').whereIn('agencyId', [A, B]).select('id'))
     .del()
@@ -212,15 +216,24 @@ describe("Hebrew dates from the owner's own words", () => {
     expect(c.body).toContain('לבדוק את ההצעה')
   })
 
+  it('the owner\'s day wins over the Agent\'s arithmetic: "מחר" is tomorrow, whatever the Agent proposed', async () => {
+    const o = await owner()
+    const h = harness([answer(followUp(o.lead, day('מחרתיים')), [o.lead])])
+    const c = await card(o, h, 'תזכיר לי לחזור לדני מחר')
+    expect(c.body).toContain(hebrewDateLabel(day('מחר')))
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect((await followUpOf(o.lead)).at).toBe(day('מחר'))
+  })
+
   it.each([
+    ['the owner gave two days', 'תזכיר לי לחזור לדני מחר או בעוד שבוע', () => day('מחר'), 'לאיזה יום בדיוק?'],
     [
-      'the owner said "מחר" but the Agent proposed another day',
-      'תזכיר לי לחזור לדני מחר',
-      () => day('מחרתיים'),
-      TASK_COPY.mismatch,
+      'the owner gave an hour that could be morning or afternoon',
+      'תזכיר לי לחזור לדני מחר ב-4',
+      () => day('מחר'),
+      'ב-4 בבוקר או אחר הצהריים?',
     ],
-    ['the owner gave no day', 'תזכיר לי לחזור לדני', () => day('מחר'), TASK_COPY.askDate],
-    ['the owner gave two days', 'תזכיר לי לחזור לדני מחר או בעוד שבוע', () => day('מחר'), TASK_COPY.ambiguousDate],
   ])('%s → one question, nothing recorded', async (_l, words, agentDay, expected) => {
     const o = await owner()
     const h = harness([answer(followUp(o.lead, agentDay()), [o.lead])])
@@ -232,17 +245,512 @@ describe("Hebrew dates from the owner's own words", () => {
   })
 })
 
+describe('a conversation, not a form', () => {
+  // A fixed morning, so "today at 12:00" is ahead of the clock whenever this runs. Only Date is faked.
+  const today = () => businessDateString(Date.now())
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(businessInstantMs(businessDateString(Date.now()), '10:00'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  const asks = (headline: string) => ({
+    ...answer(null, []),
+    answer: { headline, claims: [], unknown: null, proposedAction: null },
+  })
+  const bodies = (h: ReturnType<typeof harness>) => h.sendText.mock.calls.map((c) => (c[0] as { body: string }).body)
+
+  it('the reported conversation: the lead, then the time → a card for today at once, the time kept in the task', async () => {
+    const o = await owner()
+    const oren = await lead(A, o.u, 'Oren', 'Kakun')
+    const otherOren = await lead(A, o.u, 'Oren', 'Levi')
+    const call = () => answer(task(oren, today(), 'להתקשר לאורן'), [oren, otherOren])
+    const h = harness([asks('לאיזה ליד?'), asks('מה לעשות?'), call()])
+
+    await say(o, 'תיצור לי משימה ומעקב מתוך הוואטסאפ')
+    await run(h)
+    expect(h.last().body).toContain('לאיזה ליד?')
+    await say(o, 'Oren kakun')
+    await run(h)
+    await say(o, 'לשעה 12:00 להתקשר לאורן')
+    await run(h)
+
+    const c = h.last()
+    expect(c.buttons).toHaveLength(2)
+    expect(c.body).toContain('Oren Kakun')
+    expect(c.body).toContain(`${hebrewDateLabel(today())}, בשעה 12:00`)
+    expect(bodies(h).filter((b) => b.includes('לאיזה ליד'))).toHaveLength(1)
+    expect(await tasksOf(oren)).toHaveLength(0)
+
+    await tap(o.digits, c.buttons![0].id)
+    await run(h)
+    expect(h.last().body).toContain('*המשימה נוצרה ב-SocialCRM*')
+    expect(await tasksOf(oren).select('title', db.raw(`to_char("dueDate", 'YYYY-MM-DD') as "dueDate"`))).toEqual([
+      { title: 'להתקשר לאורן בשעה 12:00', dueDate: today() },
+    ])
+  })
+
+  it.each([
+    ['תיצור משימה להתקשר לדני', task],
+    ['תעשה לי מעקב עם דני', followUp],
+  ])('no day named: "%s" → a card for today, with no question', async (words, make) => {
+    const o = await owner()
+    const h = harness([answer(make(o.lead, day('מחרתיים')), [o.lead])])
+    const c = await card(o, h, words)
+    expect(c.body).toContain(hebrewDateLabel(today()))
+    expect(h.sendText).toHaveBeenCalledTimes(1)
+    expect(await actionsOf(A)).toHaveLength(1)
+  })
+
+  it('a time already passed today: asks about tomorrow, records nothing; "כן" → a card for tomorrow at that time', async () => {
+    const o = await owner()
+    const h = harness([
+      answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead]),
+      answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead]),
+    ])
+    await say(o, 'תיצור משימה להתקשר לדני בשעה 09:00')
+    await run(h)
+    expect(h.last().body).toBe('השעה 09:00 היום כבר עברה. למחר באותה שעה?')
+    expect(await actionsOf(A)).toHaveLength(0)
+
+    const c = await card(o, h, 'כן')
+    expect(c.body).toContain(`${hebrewDateLabel(day('מחר'))}, בשעה 09:00`)
+  })
+
+  it('an explicit day wins over the today default', async () => {
+    const o = await owner()
+    const h = harness([answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead])])
+    const c = await card(o, h, 'תיצור משימה להתקשר לדני מחר')
+    expect(c.body).toContain(hebrewDateLabel(day('מחר')))
+  })
+
+  it('"מחר ב-12 להתקשר לדני" as a follow-up: the day is the follow-up, the time is in its note', async () => {
+    const o = await owner()
+    const h = harness([answer(followUp(o.lead, day('מחר'), 'להתקשר לדני'), [o.lead])])
+    const c = await card(o, h, 'תקבע מעקב מחר ב-12 להתקשר לדני')
+    expect(c.body).toContain(`${hebrewDateLabel(day('מחר'))}, בשעה 12:00`)
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(await followUpOf(o.lead)).toEqual({ at: day('מחר'), followUpNote: 'להתקשר לדני בשעה 12:00' })
+  })
+
+  it('"ב-4" then "אחר הצהריים": one question, then a card at 16:00', async () => {
+    const o = await owner()
+    const h = harness([
+      answer(task(o.lead, day('מחר'), 'להתקשר לדני'), [o.lead]),
+      answer(task(o.lead, day('מחר'), 'להתקשר לדני'), [o.lead]),
+    ])
+    await say(o, 'תפתח משימה להתקשר לדני מחר ב-4')
+    await run(h)
+    expect(h.last().body).toBe('ב-4 בבוקר או אחר הצהריים?')
+    const c = await card(o, h, 'אחר הצהריים')
+    expect(c.body).toContain('בשעה 16:00')
+  })
+
+  it('the owner said "מעקב" but the Agent proposed a task: a follow-up card, with the same wording', async () => {
+    const o = await owner()
+    const h = harness([answer(task(o.lead, day('מחר'), 'לחזור לדני'), [o.lead])])
+    const c = await card(o, h, 'תקבע מעקב לדני מחר')
+    expect(c.titles).toEqual(['לאשר ולקבוע', 'ביטול'])
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(await followUpOf(o.lead)).toEqual({ at: day('מחר'), followUpNote: 'לחזור לדני' })
+    expect(await tasksOf(o.lead)).toHaveLength(0)
+  })
+
+  it('an unrelated earlier message never lends its day or time to a new request', async () => {
+    const o = await owner()
+    const h = harness([asks('יש לך 2 לידים חדשים מחר.'), answer(followUp(o.lead, day('מחר')), [o.lead])])
+    await say(o, 'מה קורה מחר ב-12?')
+    await run(h)
+    const c = await card(o, h, 'תזכיר לי לחזור לדני')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+    expect(c.body).not.toContain('בשעה 12:00')
+  })
+
+  it('a finished request never lends its day to the next one', async () => {
+    const o = await owner()
+    const h = harness([answer(task(o.lead), [o.lead]), answer(task(o.lead, today(), 'לבדוק הצעה'), [o.lead])])
+    await card(o, h, 'תפתח משימה לדני מחר')
+    const c = await card(o, h, 'תפתח משימה לבדוק הצעה לדני')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+  })
+})
+
+describe('a new request starts clean; only an answer continues', () => {
+  const today = () => businessDateString(Date.now())
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(businessInstantMs(businessDateString(Date.now()), '10:00'))
+    process.env.WA_ASSISTANT_MEETINGS_AGENCY_IDS = `${A},${B}`
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    delete process.env.WA_ASSISTANT_MEETINGS_AGENCY_IDS
+  })
+  const meeting = (clientId: number, date = day('מחר'), startTime = '12:00') => ({
+    actionType: 'create_meeting' as const,
+    args: { clientId, title: 'פגישה', date, startTime, durationMinutes: 60, note: null },
+  })
+  /** The earlier turns the Agent was handed, nothing else (its fixed rules mention example names). */
+  const agentSaw = (h: ReturnType<typeof harness>) =>
+    JSON.stringify(((h.runAgent.mock.calls.at(-1) as unknown[])[0] as { history: unknown }).history)
+  const meetingsOf = (clientId: number) => db('meetings').where({ lead_id: clientId })
+
+  it('a meeting with one lead waiting for a time, then a task for another: nothing carries over', async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([answer(meeting(avi) as never, [avi]), answer(task(ron, day('מחר'), 'להתקשר לרון'), [ron])])
+    await say(o, 'תקבע פגישה עם אבי לוי מחר')
+    await run(h)
+    expect(h.last().body).toBe('באיזו שעה?')
+
+    const c = await card(o, h, 'תיצור משימה להתקשר לרון ברק')
+    expect(c.titles).toEqual(['לאשר וליצור', 'ביטול'])
+    expect(c.body).toContain('רון ברק')
+    expect(c.body).not.toContain('אבי')
+    expect(c.body).toContain(hebrewDateLabel(today())) // not the abandoned "מחר"
+    // The Agent is not handed the abandoned request either.
+    expect(agentSaw(h)).not.toContain('אבי')
+
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(await tasksOf(ron).select('title', db.raw(`to_char("dueDate", 'YYYY-MM-DD') as "dueDate"`))).toEqual([
+      { title: 'להתקשר לרון', dueDate: today() },
+    ])
+    expect(await tasksOf(avi)).toHaveLength(0)
+    expect(await meetingsOf(avi)).toHaveLength(0)
+  })
+
+  it("an abandoned meeting's time and action never reach the new task", async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([answer(meeting(avi) as never, [avi]), answer(followUp(ron, today(), 'לחזור לרון'), [ron])])
+    await say(o, 'תקבע פגישה עם אבי לוי מחר או מחרתיים ב-12:00')
+    await run(h)
+    expect(h.last().body).toBe('לאיזה יום בדיוק?')
+
+    const c = await card(o, h, 'תקבע מעקב לרון ברק')
+    expect(c.titles).toEqual(['לאשר ולקבוע', 'ביטול'])
+    expect(c.body).not.toContain('12:00')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(await followUpOf(ron)).toEqual({ at: today(), followUpNote: 'לחזור לרון' })
+  })
+
+  it("from a task to a meeting: the task's day does not carry over", async () => {
+    const o = await owner()
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([
+      answer(task(o.lead, day('מחר'), 'להתקשר לדני'), [o.lead]),
+      answer(meeting(ron, day('מחר'), '15:00') as never, [ron]),
+    ])
+    await say(o, 'תיצור משימה להתקשר לדני מחר ב-4')
+    await run(h)
+    expect(h.last().body).toBe('ב-4 בבוקר או אחר הצהריים?')
+    const c = await card(o, h, 'תקבע פגישה עם רון ברק בשעה 15:00')
+    expect(c.body).toContain('רון ברק')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+  })
+
+  it('a second abandoned request: the answer belongs to the newest one only', async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    const h = harness([
+      answer(meeting(avi, day('מחרתיים')) as never, [avi]),
+      answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead]),
+      answer(task(o.lead, today(), 'להתקשר לדני'), [o.lead]),
+    ])
+    await say(o, 'תקבע פגישה עם אבי לוי מחרתיים')
+    await run(h)
+    await say(o, 'תיצור משימה להתקשר לדני ב-4')
+    await run(h)
+    expect(h.last().body).toBe('ב-4 בבוקר או אחר הצהריים?')
+    const c = await card(o, h, 'אחר הצהריים')
+    expect(c.body).toContain('דני כהן')
+    expect(c.body).toContain(`${hebrewDateLabel(today())}, בשעה 16:00`)
+  })
+
+  it('"תקבע ב-11" answers "באיזו שעה?": the one card has the meeting, the lead, the day and the time', async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    // The model's day and time are deliberately wrong: the owner's words decide.
+    const h = harness([answer(meeting(avi) as never, [avi]), answer(meeting(avi, day('מחרתיים'), '15:00') as never, [avi])])
+    await say(o, 'תקבע פגישה עם אבי מחר')
+    await run(h)
+    expect(h.last().body).toBe('באיזו שעה?')
+    expect(h.last().buttons).toBeUndefined()
+
+    const c = await card(o, h, 'תקבע ב-11')
+    expect(c.titles).toEqual(['לאשר ולקבוע', 'ביטול'])
+    expect(c.body).toContain('*לקבוע את הפגישה?*')
+    expect(c.body).toContain('ליד: אבי לוי')
+    expect(c.body).toContain(`מועד: ${hebrewDateLabel(day('מחר'))}, 11:00–12:00`)
+    expect(agentSaw(h)).toContain('אבי') // an answer keeps the conversation
+    expect(h.sendText).toHaveBeenCalledTimes(2)
+
+    await tap(o.digits, c.approve)
+    await run(h)
+    const made = await meetingsOf(avi)
+    expect(made).toHaveLength(1)
+    expect(new Date(made[0].start_at).getTime()).toBe(businessInstantMs(day('מחר'), '11:00'))
+    expect(await tasksOf(avi)).toHaveLength(0)
+  })
+
+  it('"להתקשר לרון" does not answer "באיזו שעה?": a fresh task, inheriting no lead, day, time or action', async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([answer(meeting(avi) as never, [avi]), answer(task(ron, day('מחר'), 'להתקשר לרון'), [ron])])
+    await say(o, 'תקבע פגישה עם אבי מחר')
+    await run(h)
+    expect(h.last().body).toBe('באיזו שעה?')
+
+    const c = await card(o, h, 'להתקשר לרון')
+    expect(c.titles).toEqual(['לאשר וליצור', 'ביטול'])
+    expect(c.body).toContain('*ליצור משימה?*')
+    expect(c.body).toContain('ליד: רון ברק')
+    expect(c.body).toContain('משימה: להתקשר לרון')
+    expect(c.body).toContain(`לתאריך: ${hebrewDateLabel(today())}`)
+    expect(c.body).not.toContain('אבי')
+    expect(c.body).not.toContain('בשעה')
+    // The Agent is not handed the abandoned meeting either.
+    expect(agentSaw(h)).not.toContain('אבי')
+
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(await tasksOf(ron).select('title', db.raw(`to_char("dueDate", 'YYYY-MM-DD') as "dueDate"`))).toEqual([
+      { title: 'להתקשר לרון', dueDate: today() },
+    ])
+    expect(await meetingsOf(avi)).toHaveLength(0)
+    expect(await meetingsOf(ron)).toHaveLength(0)
+  })
+
+  it('even if the Agent wrongly proposes a meeting for "רון ב-11", the abandoned day is not combined', async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([answer(meeting(avi) as never, [avi]), answer(meeting(ron, day('מחר'), '11:00') as never, [ron])])
+    await say(o, 'תקבע פגישה עם אבי מחר')
+    await run(h)
+    const c = await card(o, h, 'רון ב-11')
+    expect(c.body).toContain('ליד: רון ברק')
+    expect(c.body).toContain(`מועד: ${hebrewDateLabel(today())}, 11:00–12:00`)
+    expect(agentSaw(h)).not.toContain('אבי')
+  })
+
+  it('a new request between the question and the answer: the answer never reaches past it', async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([
+      answer(meeting(avi) as never, [avi]),
+      answer(meeting(ron, today()) as never, [ron]),
+      answer(meeting(ron, today(), '15:00') as never, [ron]),
+    ])
+    await say(o, 'תקבע פגישה עם אבי מחר')
+    await run(h)
+    await say(o, 'רון ברק')
+    await run(h)
+    expect(h.last().body).toBe('באיזו שעה?')
+    const c = await card(o, h, 'ב-15:00')
+    expect(c.body).toContain('ליד: רון ברק')
+    expect(c.body).toContain(`מועד: ${hebrewDateLabel(today())}, 15:00–16:00`) // not אבי's "מחר"
+  })
+
+  it('the same action for another lead: a new task inherits nothing from the abandoned task', async () => {
+    const o = await owner()
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([
+      answer(task(o.lead, day('מחר'), 'להתקשר לדני'), [o.lead]),
+      answer(task(ron, day('מחר'), 'להתקשר לרון'), [ron]),
+    ])
+    await say(o, 'תיצור משימה להתקשר לדני מחרתיים ב-4')
+    await run(h)
+    expect(h.last().body).toBe('ב-4 בבוקר או אחר הצהריים?')
+    const c = await card(o, h, 'תיצור משימה להתקשר לרון ברק')
+    expect(c.body).toContain('רון ברק')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+    expect(c.body).not.toContain('בשעה')
+    expect(agentSaw(h)).not.toContain('להתקשר לדני')
+  })
+
+  it('two abandoned tasks: the answer reads back only to the newest, never its older day', async () => {
+    const o = await owner()
+    const ron = await lead(A, o.u, 'רון', 'ברק')
+    const h = harness([
+      answer(task(o.lead, day('מחרתיים'), 'להתקשר לדני'), [o.lead]),
+      answer(task(ron, today(), 'להתקשר לרון'), [ron]),
+      answer(task(ron, today(), 'להתקשר לרון'), [ron]),
+    ])
+    await say(o, 'תיצור משימה להתקשר לדני מחרתיים ב-3')
+    await run(h)
+    await say(o, 'תיצור משימה להתקשר לרון ברק ב-4')
+    await run(h)
+    const c = await card(o, h, 'אחר הצהריים')
+    expect(c.body).toContain('רון ברק')
+    expect(c.body).toContain(`${hebrewDateLabel(today())}, בשעה 16:00`)
+  })
+
+  it('answering a pending question still continues, even with a verb: "תקבע ב-11" answers "באיזו שעה?"', async () => {
+    const o = await owner()
+    const avi = await lead(A, o.u, 'אבי', 'לוי')
+    const h = harness([answer(meeting(avi) as never, [avi]), answer(meeting(avi, day('מחר'), '11:00') as never, [avi])])
+    await say(o, 'תקבע פגישה עם אבי לוי מחר')
+    await run(h)
+    expect(h.last().body).toBe('באיזו שעה?')
+    const c = await card(o, h, 'תקבע ב-11')
+    expect(c.body).toContain(hebrewDateLabel(day('מחר')))
+    expect(c.body).toContain('11:00–12:00')
+    expect(agentSaw(h)).toContain('אבי')
+  })
+
+  it('pointing back keeps the conversation for the Agent, but not the old day: "תפתח משימה לליד הזה"', async () => {
+    const o = await owner()
+    const h = harness([
+      answer(task(o.lead, day('מחר'), 'להתקשר לדני'), [o.lead]),
+      answer(task(o.lead, today(), 'לבדוק הצעה'), [o.lead]),
+    ])
+    await say(o, 'תיצור משימה להתקשר לדני מחר ב-4')
+    await run(h)
+    const c = await card(o, h, 'תפתח משימה לבדוק הצעה לליד הזה')
+    expect(agentSaw(h)).toContain('להתקשר לדני')
+    expect(c.body).toContain(hebrewDateLabel(today()))
+  })
+
+  const MEETING_REQUEST = ['תקבע פגישה עם אבי מחר']
+  it.each([
+    // Answers: nothing beyond a day or time, filler, own action words, or words already said.
+    ['ask_time', 'תקבע ב-11', true],
+    ['ask_time', 'ב-11', true],
+    ['ask_time', 'בעצם נגיד ב-11 בבקשה', true],
+    ['ask_time', 'פגישה ב-11', true],
+    ['ask_time', 'תקבע פגישה עם אבי ב-11', true],
+    ['ask_time', 'לאבי בשעה 11:30', true],
+    ['ask_time', 'אחר הצהריים', true],
+    ['ambiguous_date', 'ביום ראשון', true],
+    ['past_today', 'כן', true],
+    ['conflict', '11:30', true],
+    ['lead', 'Oren kakun', true],
+    ['lead', 'השני', true],
+    ['lead', '2', true],
+    ['agent', 'אבי לוי', true],
+    // Something new: fresh, never merged.
+    ['ask_time', 'להתקשר לרון', false],
+    ['ask_time', 'רון ב-11', false],
+    ['ask_time', 'משימה ב-11', false],
+    ['ask_time', 'תיצור משימה לרון', false],
+    ['ask_time', 'מה הסטטוס של רון?', false],
+    ['ambiguous_date', 'לשלוח הצעה לרון', false],
+    ['lead', 'להתקשר לרון', false],
+    ['lead', 'תיצור משימה לרון', false],
+    ['agent', 'מה הסטטוס של הלידים?', false],
+  ])('pending meeting %s, "%s" answers it: %s', (asked, text, expected) => {
+    expect(
+      answersPending({ kind: 'meeting', pendingStopReason: `meeting_clarify_${asked}`, text, request: MEETING_REQUEST }),
+    ).toBe(expected)
+  })
+
+  it.each([
+    ['agent', 'Oren kakun', true],
+    ['agent', 'לשעה 12:00 להתקשר לאורן', true],
+    ['lead', 'להתקשר לרון', true], // a task answer may carry what to do
+    ['ambiguous_time', 'אחר הצהריים', true],
+    ['ambiguous_time', 'פגישה ב-4', false],
+  ])('pending task %s, "%s" answers it: %s', (asked, text, expected) => {
+    expect(answersPending({ kind: 'task', pendingStopReason: `task_clarify_${asked}`, text, request: ['תיצור לי משימה'] })).toBe(
+      expected,
+    )
+  })
+
+  it.each([
+    ['תיצור משימה לרון', true],
+    ['תקבע פגישה עם רון', true],
+    ['תקבע מעקב לרון', true],
+    ['תזכיר לי לחזור לרון', true],
+    ['תפתח משימת מעקב', true],
+    ['לפגישה עם רון', true],
+    ['Oren kakun', false],
+    ['לשעה 12:00 להתקשר לאורן', false],
+    ['מחר', false],
+    ['ב-11', false],
+    ['תקבע ב-11', false],
+    ['השני', false],
+    ['כן', false],
+    ['מעקב', false],
+    ['משימה', false],
+  ])('"%s" opens a new request: %s', (words, expected) => {
+    expect(opensRequest(words)).toBe(expected)
+  })
+})
+
 describe('which lead', () => {
-  it('several readable leads match: asks which one, by name, and records nothing', async () => {
+  const phone = (id: number, value: string) => db('clients').where({ id }).update({ phone: value })
+
+  it('two leads with the same name: one question with the phone\'s last digits, nothing recorded; "2" → the card', async () => {
+    const o = await owner()
+    const same = await lead(A, o.u)
+    await phone(o.lead, '0501112222')
+    await phone(same, '0503334444')
+    const h = harness([answer(followUp(o.lead), [o.lead, same]), answer(followUp(o.lead), [o.lead, same])])
+    await say(o, 'תזכיר לי לחזור לדני כהן מחר')
+    await run(h)
+    expect(h.last().body).toContain('טלפון שמסתיים ב-2222')
+    expect(h.last().body).toContain('טלפון שמסתיים ב-4444')
+    expect(h.last().body).not.toContain('0501112222')
+    expect(h.last().buttons).toBeUndefined()
+    expect(await actionsOf(A)).toHaveLength(0)
+
+    const c = await card(o, h, '2')
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect((await followUpOf(same)).at).toBe(day('מחר'))
+    expect((await followUpOf(o.lead)).at).toBeNull()
+  })
+
+  it("the owner can answer with the phone's last digits; the day they gave is not asked again", async () => {
+    const o = await owner()
+    const other = await lead(A, o.u, 'דני', 'לוי')
+    await phone(o.lead, '0505556666')
+    await phone(other, '0507778888')
+    const h = harness([answer(followUp(o.lead), [o.lead, other]), answer(followUp(o.lead), [o.lead, other])])
+    await say(o, 'תזכיר לי לחזור לדני מחר')
+    await run(h)
+    expect(h.last().body).toContain('יש כמה לידים מתאימים')
+    const c = await card(o, h, '8888')
+    expect(c.body).toContain('דני לוי')
+    expect(c.body).toContain(hebrewDateLabel(day('מחר')))
+  })
+
+  it('one full name among similar leads: no question', async () => {
     const o = await owner()
     const other = await lead(A, o.u, 'דני', 'לוי')
     const h = harness([answer(followUp(o.lead), [o.lead, other])])
-    await say(o, 'תזכיר לי לחזור לדני מחר')
+    const c = await card(o, h, 'תזכיר לי לחזור לדני לוי מחר')
+    expect(c.body).toContain('דני לוי')
+  })
+
+  it('a lead the Agent merely read, never named by the owner, does not cause a question', async () => {
+    const o = await owner()
+    const unrelated = await lead(A, o.u, 'מיכל', 'ברק')
+    const h = harness([answer(followUp(o.lead), [o.lead, unrelated])])
+    const c = await card(o, h, 'תזכיר לי לחזור לדני מחר')
+    expect(c.body).toContain('דני כהן')
+  })
+
+  it("a colleague's same-named lead is never offered to a rep", async () => {
+    const rep = await owner('AGNT')
+    const colleague = await owner('AGNT')
+    await phone(colleague.lead, '0509998888')
+    const h = harness([answer(followUp(rep.lead), [rep.lead, colleague.lead])])
+    await say(rep, 'תזכיר לי לחזור לדני כהן מחר')
     await run(h)
-    expect(h.last().body).toContain('מצאתי כמה לידים מתאימים')
-    expect(h.last().body).toContain('דני כהן')
-    expect(h.last().body).toContain('דני לוי')
-    expect(await actionsOf(A)).toHaveLength(0)
+    expect(h.last().buttons).toHaveLength(2)
+    expect(h.last().body).not.toContain('8888')
   })
 })
 
