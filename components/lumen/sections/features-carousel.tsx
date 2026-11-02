@@ -24,40 +24,19 @@ import {
 } from '@/components/lumen/ui/carousel';
 import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
 import { cn } from '@/components/lumen/utils';
+import { HE } from '@/lib/marketing/copy/he';
+import type { FeaturesCarouselCopy } from '@/lib/marketing/copy/types';
 
-const features = [
-  {
-    id: 1,
-    icon: Inbox,
-    title: 'כל הלידים נוחתים ברשימה אחת',
-    description: 'לידים מפייסבוק, מאינסטגרם ומוואטסאפ נכנסים יחד, כל אחד עם מקור וסטטוס.',
-    Surface: UnifiedInflow,
-  },
-  {
-    id: 2,
-    icon: MessageCircle,
-    title: 'השיחה והליד הם אותו דבר',
-    description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ומתי נקראה.',
-    Surface: ConversationWorkspace,
-  },
-  {
-    id: 3,
-    icon: CalendarClock,
-    title: 'שום מעקב לא נופל בין הכיסאות',
-    description: 'ליד שממתין מעל 24 שעות חוזר מעצמו לרשימה של היום.',
-    Surface: FollowUpQueue,
-  },
-  {
-    id: 4,
-    icon: Sparkles,
-    title: 'AI שמכיר את כל ההיסטוריה',
-    description: 'לכל ליד: תקציר קצר, שתי נקודות מפתח והצעד הבא המומלץ.',
-    Surface: CopilotPanel,
-  },
+const FEATURE_VISUALS = [
+  { id: 1, icon: Inbox, Surface: UnifiedInflow },
+  { id: 2, icon: MessageCircle, Surface: ConversationWorkspace },
+  { id: 3, icon: CalendarClock, Surface: FollowUpQueue },
+  { id: 4, icon: Sparkles, Surface: CopilotPanel },
 ];
 
 
-export default function FeaturesCarousel() {
+export default function FeaturesCarousel({ copy = HE.featuresCarousel }: { copy?: FeaturesCarouselCopy } = {}) {
+  const features = FEATURE_VISUALS.map((visual, index) => ({ ...visual, ...copy.items[index] }));
   const prefersReducedMotion = usePrefersReducedMotion();
   const [api, setApi] = useState<CarouselApi>();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -163,13 +142,13 @@ export default function FeaturesCarousel() {
             variants={headerVariants}
           >
             <h2 className="text-4xl tracking-tight text-balance lg:text-5xl">
-              מהרגע שהליד נכנס{' '}
+              {copy.titleLead}{' '}
               <span className="text-muted-foreground/80">
-                ועד שהוא נסגר
+                {copy.titleTail}
               </span>
             </h2>
             <p className="text-muted-foreground text-lg leading-snug">
-              ארבעה דברים שקורים אוטומטית בכל ליד, בלי שתצטרכו לזכור אותם.
+              {copy.subtitle}
             </p>
           </motion.div>
 
@@ -233,7 +212,7 @@ export default function FeaturesCarousel() {
             opts={{
               align: 'start',
               skipSnaps: false,
-              direction: 'rtl',
+              direction: copy.dir,
             }}
             className="cursor-grab"
           >
@@ -262,7 +241,7 @@ export default function FeaturesCarousel() {
                           differently. This wrapper reproduces the image's box
                           behaviour exactly; only the pixels inside it differ.
                         */}
-                        <div className="absolute inset-0 overflow-hidden transition-transform duration-300 hover:scale-105 [&>*]:h-full">
+                        <div lang={copy.mockupLang} className="absolute inset-0 overflow-hidden transition-transform duration-300 hover:scale-105 [&>*]:h-full">
                           <feature.Surface />
                         </div>
                       </div>

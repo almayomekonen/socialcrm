@@ -11,49 +11,22 @@ import { CopilotPanel } from '@/components/marketing/product/CopilotPanel';
 import { Card, CardContent } from '@/components/lumen/ui/card';
 import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
 import { cn } from '@/components/lumen/utils';
+import { HE } from '@/lib/marketing/copy/he';
+import type { FeaturesShowcaseCopy } from '@/lib/marketing/copy/types';
 
 /** Feature 2 shows the thread on its own — no lead-context rail. */
 const ConversationThread = () => <ConversationWorkspace chatOnly />;
 
-const features = [
-  {
-    id: 1,
-    icon: Inbox,
-    title: 'כל הלידים מכל הערוצים נוחתים ברשימה אחת',
-    description:
-      'לידים ממודעות פייסבוק ואינסטגרם נכנסים אוטומטית, ושיחות וואטסאפ מתחברות לליד. לכל פנייה יש מקור, סטטוס, נציג ותאריך לחזור אליה, כך ששום פנייה לא נשארת בלי מענה.',
-    Surface: LeadsWorkspace,
-    aspect: '1260 / 669', // features-showcase/1.webp
-  },
-  {
-    id: 2,
-    icon: MessageCircle,
-    title: 'השיחה והליד הם אותו דבר',
-    description:
-      'עונים ישירות מהמערכת ורואים מתי ההודעה נמסרה ומתי נקראה. כל הודעה נשמרת על הליד, גם כשנציג מתחלף, ולפנייה חוזרת שולחים תבנית מאושרת.',
-    Surface: ConversationThread,
-    aspect: '1755 / 892', // features-showcase/2.webp
-  },
-  {
-    id: 3,
-    icon: ListChecks,
-    title: 'כל ליד יודע איפה הוא עומד',
-    description:
-      'חדש, בטיפול, מעוניין, סגור — ואבוד כשזה נגמר. אלה הסטטוסים שהמערכת עובדת איתם בפועל, בלי שלבים מומצאים ובלי טבלה שצריך לתחזק ביד.',
-    Surface: PipelineBoard,
-  },
-  {
-    id: 4,
-    icon: Sparkles,
-    title: 'פותחים ליד, וכבר יודעים בדיוק מה לעשות הלאה',
-    description:
-      'ה-AI קורא את ההיסטוריה של הליד, מסכם איפה הוא עומד ומציע את הצעד הבא, על סמך המידע שנשמר על הליד. טיוטה נשלחת רק כשלוחצים על שליחה. זמין בתוכנית Pro.',
-    Surface: CopilotPanel,
-  },
+const FEATURE_VISUALS: Array<{ id: number; icon: typeof Inbox; Surface: () => React.JSX.Element | null; aspect?: string }> = [
+  { id: 1, icon: Inbox, Surface: LeadsWorkspace, aspect: '1260 / 669' }, // features-showcase/1.webp
+  { id: 2, icon: MessageCircle, Surface: ConversationThread, aspect: '1755 / 892' }, // features-showcase/2.webp
+  { id: 3, icon: ListChecks, Surface: PipelineBoard },
+  { id: 4, icon: Sparkles, Surface: CopilotPanel },
 ];
 
 
-export default function FeaturesShowcase() {
+export default function FeaturesShowcase({ copy = HE.featuresShowcase }: { copy?: FeaturesShowcaseCopy } = {}) {
+  const features = FEATURE_VISUALS.map((visual, index) => ({ ...visual, ...copy.items[index] }));
   const prefersReducedMotion = usePrefersReducedMotion();
 
   // Animation variants
@@ -139,11 +112,10 @@ export default function FeaturesShowcase() {
           }}
         >
           <h2 className="text-4xl tracking-tight lg:text-5xl">
-            לא צריך להאמין לנו. תראו איך זה עובד.
+            {copy.title}
           </h2>
           <p className="text-muted-foreground text-lg leading-snug">
-            כך נראים הרשימה, השיחות, הסטטוסים וה-AI בעבודה
-            היומיומית.
+            {copy.subtitle}
           </p>
         </motion.div>
 
@@ -219,7 +191,7 @@ export default function FeaturesShowcase() {
                       />
                     </>
                   )}
-                  <Card className="bg-chart-4 relative overflow-hidden !pb-0">
+                  <Card lang={copy.mockupLang} className="bg-chart-4 relative overflow-hidden !pb-0">
                     <CardContent className="!pe-0">
                       {feature.aspect ? (
                         <div

@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 import { Marquee } from '@/components/lumen/magicui/marquee';
 import Noise from '@/components/lumen/noise';
 import { cn } from '@/components/lumen/utils';
+import { HE } from '@/lib/marketing/copy/he';
+import type { LogosCopy } from '@/lib/marketing/copy/types';
 
 /**
  * Real connections only. Each one is verifiable in the codebase:
@@ -21,7 +23,7 @@ import { cn } from '@/components/lumen/utils';
 type Company = {
   name: string
   className: string
-  url: string
+  url?: string
   logo?: string
   /** Brand name shown beside the mark. */
   label?: string
@@ -59,11 +61,9 @@ const companies: Company[] = [
   },
   {
     name: 'אתר',
-    label: 'טפסים באתר',
     labelColor: '#5e6ad2',
     logo: '/media/social-icons/website-color.svg',
     className: '',
-    url: '/',
   },
   {
     name: 'Google Calendar',
@@ -86,7 +86,7 @@ const companies: Company[] = [
 
 
 
-export default function Logos() {
+export default function Logos({ copy = HE.logos }: { copy?: LogosCopy } = {}) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -96,7 +96,10 @@ export default function Logos() {
 
   // Filter out companies with dark:hidden when theme is dark
   // Only apply theme-based filtering after component is mounted to prevent hydration mismatch
-  const visibleCompanies = companies.filter((company) => {
+  const localizedCompanies = companies.map((company) =>
+    company.name === 'אתר' ? { ...company, label: copy.websiteLabel, url: copy.websiteUrl } : company,
+  );
+  const visibleCompanies = localizedCompanies.filter((company) => {
     if (
       mounted &&
       theme === 'dark' &&
@@ -111,7 +114,7 @@ export default function Logos() {
     <section className="section-padding relative">
       <Noise />
       <p className="text-foreground container text-center text-lg font-semibold">
-        הלידים שלכם מגיעים מכל מקום: וואטסאפ, פייסבוק ואינסטגרם. SocialCRM מחברת את כולם לרשימה אחת מסודרת.
+        {copy.lead}
       </p>
 
       <div>
@@ -131,7 +134,7 @@ export default function Logos() {
           {visibleCompanies.map((company) => (
             <Link
               key={company.name}
-              href={company.url}
+              href={company.url!}
               target="_blank"
               rel="noopener noreferrer"
               className="flex h-[40px] items-center gap-2.5 transition-transform duration-200 hover:scale-105"
@@ -160,7 +163,7 @@ export default function Logos() {
                 />
               </span>
               <span
-                dir={company.name === 'אתר' ? 'rtl' : 'ltr'}
+                dir={company.name === 'אתר' ? copy.websiteDir : 'ltr'}
                 className="text-base leading-none font-semibold whitespace-nowrap"
                 style={{ color: company.labelColor }}
               >

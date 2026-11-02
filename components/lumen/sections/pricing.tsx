@@ -13,7 +13,9 @@ import { Switch } from '@/components/lumen/ui/switch';
 import { cn } from '@/components/lumen/utils';
 
 import Logo from '../layout/logo';
-import { PRICING, TRIAL_CTA_LABEL } from '@/lib/pricing';
+import { HE } from '@/lib/marketing/copy/he';
+import type { PricingCopy } from '@/lib/marketing/copy/types';
+import { PRICING } from '@/lib/pricing';
 import { TRIAL_LENGTH_DAYS } from '@/lib/trial';
 
 /**
@@ -27,43 +29,9 @@ import { TRIAL_LENGTH_DAYS } from '@/lib/trial';
  *
  * Monthly only. Annual purchasing left with Payment Links.
  */
-const pricingPlans = {
-  individual: {
-    title: `${TRIAL_LENGTH_DAYS} ימי ניסיון`,
-    subtitle: 'המערכת המלאה',
-    description: 'נדרש כרטיס אשראי · ללא חיוב בתקופת הניסיון',
-    monthlyPrice: 0,
-    popular: false,
-    features: [
-      { name: `כל מה שיש ב-Pro, ${TRIAL_LENGTH_DAYS} ימים`, included: true },
-      { name: 'לידים ללא הגבלה', included: true },
-      { name: 'חיבור לפייסבוק, אינסטגרם ווואטסאפ', included: true },
-      { name: 'סטטוסים, נציגים ותאריכי מעקב', included: true },
-      { name: 'ייבוא מאקסל, ייצוא לאקסל ו-PDF', included: true },
-      { name: 'תקציר חכם ופעולה מומלצת', included: true },
-      { name: 'טיוטות להודעות מעקב', included: true },
-      { name: 'שאלות חופשיות על הליד', included: true },
-    ],
-    cta: { text: `בתום ${TRIAL_LENGTH_DAYS} הימים ${PRICING.currency}${PRICING.monthly} לחודש · אפשר לבטל לפני החיוב הראשון`, button: TRIAL_CTA_LABEL },
-  },
-  team: {
-    title: 'Pro',
-    subtitle: 'כשהלידים מתחילים להצטבר',
-    description: 'לעסק או לצוות מכירות',
-    monthlyPrice: PRICING.monthly,
-    popular: true,
-    features: [
-      { name: 'לידים ללא הגבלה', included: true },
-      { name: 'תקציר חכם על כל ליד', included: true },
-      { name: 'פעולה מומלצת עם הסיבה שלה', included: true },
-      { name: 'טיוטות להודעות מעקב', included: true },
-      { name: 'שאלות חופשיות על הליד', included: true },
-      { name: 'שיוך לידים לנציגים', included: true },
-      { name: 'חלוקת עמלות על עסקה משותפת', included: true },
-      { name: 'מחיר אחד לסביבת העבודה', included: true },
-    ],
-    cta: { text: 'בלי תוספת לכל נציג · חיוב חודשי עד לביטול', button: 'שדרגו ל-Pro' },
-  },
+const PLAN_NUMBERS = {
+  individual: { monthlyPrice: 0, popular: false },
+  team: { monthlyPrice: PRICING.monthly, popular: true },
 };
 
 
@@ -73,11 +41,15 @@ const pricingPlans = {
  * keeps this section at <h2>. Same classes, same copy: the tag is the only
  * difference, so nothing moves visually.
  */
-export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' | 'h2' } = {}) {
+export default function Pricing({
+  headingLevel = 'h2',
+  copy = HE.pricing,
+  sectionId,
+}: { headingLevel?: 'h1' | 'h2'; copy?: PricingCopy; sectionId?: string } = {}) {
   const Heading = headingLevel
 
   return (
-    <section className="section-padding relative overflow-hidden">
+    <section id={sectionId} className="section-padding relative overflow-hidden">
       {/* Background Image with Mask */}
       <div className="absolute size-full mask-t-from-50% mask-t-to-100% mask-b-from-50% mask-b-to-90%">
         <div
@@ -110,12 +82,11 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
           {/* Left side - Title and subtitle */}
           <div className="">
             <Heading className="text-center text-4xl font-semibold tracking-tighter md:text-start md:text-6xl md:leading-none lg:text-7xl">
-              נסו את המערכת המלאה שבוע שלם, <br className="hidden md:block" />
-              והחליטו לפני החיוב הראשון.
+              {copy.titleLine1}<br className="hidden md:block" />
+              {copy.titleLine2}
             </Heading>
             <p className="text-muted-foreground/70 mt-3 hidden text-lg leading-relaxed md:block lg:mt-4">
-              {TRIAL_LENGTH_DAYS} ימים עם כל מה שיש במערכת, כולל ה-AI המלא. כדי להתחיל שומרים
-              כרטיס אשראי, והוא לא מחויב בתקופת הניסיון.
+              {TRIAL_LENGTH_DAYS}{copy.subtitleAfterDays}
             </p>
           </div>
 
@@ -123,7 +94,12 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
 
         {/* Pricing Cards */}
         <div className="mx-auto mt-8 grid gap-4 lg:mt-12 lg:grid-cols-2">
-          {Object.entries(pricingPlans).map(([key, plan]) => {
+          {(['individual', 'team'] as const).map((key) => {
+            const plan = {
+              ...copy.plans[key],
+              ...PLAN_NUMBERS[key],
+              features: copy.plans[key].features.map((name) => ({ name, included: true })),
+            }
             /**
              * Free plan enters the registration funnel. The paid plan goes
              * through the retired-checkout shim, which is kept precisely
@@ -148,7 +124,7 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
                   <h3 className="text-xl">{plan.title}</h3>
                   {plan.popular && (
                     <Badge className="rounded-none bg-[#FFE6D0] px-4 py-1 text-[#8A3600]">
-                      התוכנית המומלצת
+                      {copy.recommended}
                     </Badge>
                   )}
                 </div>
@@ -170,12 +146,12 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
                       <span className="text-5xl md:text-6xl">
                         {plan.monthlyPrice}
                       </span>
-                      <span className="text-2xl">/לחודש</span>
+                      <span className="text-2xl">{plan.priceSuffix}</span>
                     </div>
                     <Button className="h-10 !pl-5.5" asChild>
                       {isFreePlan ? (
                         <Link href="/auth/register">
-                          {plan.cta.button}
+                          {plan.ctaButton}
                           <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
                             <ChevronRight className="size-4 rtl:rotate-180" />
                           </div>
@@ -185,7 +161,7 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
                            this is a route handler that issues a redirect, not a
                            page for the client router to prefetch. */
                         <a href={upgradeHref}>
-                          {plan.cta.button}
+                          {plan.ctaButton}
                           <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
                             <ChevronRight className="size-4 rtl:rotate-180" />
                           </div>
@@ -198,9 +174,9 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
                   <div className="bg-border flex-1 space-y-4 p-6">
                     <div className="flex justify-between gap-6">
                       <p className="text-card-foreground text-xs leading-none font-semibold">
-                        {plan.cta.text}
+                        {plan.ctaText}
                       </p>
-                      <Logo className="h-5 w-auto gap-1.5 [&_img]:size-4 [&_span]:text-[13px]" />
+                      <Logo href={copy.logoHref} markFirst={copy.dir === 'ltr'} className="h-5 w-auto gap-1.5 [&_img]:size-4 [&_span]:text-[13px]" />
                     </div>
                     <Button
                       variant="light"
@@ -208,7 +184,7 @@ export default function Pricing({ headingLevel = 'h2' }: { headingLevel?: 'h1' |
                       asChild
                     >
                       <Link href="mailto:alamayo274@gmail.com">
-                        דברו איתנו
+                        {copy.talkToUs}
                         <div className="bg-border border-input grid size-5.5 place-items-center rounded-full border">
                           <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.25" />
                         </div>

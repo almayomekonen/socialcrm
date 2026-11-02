@@ -22,7 +22,7 @@ const APP = 'app'
 /** Whole trees outside the i18n phases (CLAUDE.md / phaseF brief). */
 const OUT_OF_SCOPE_TREES: Record<string, string> = {
   'app/(he)/(marketing)': 'marketing site incl. the legal pages (terms, privacy, data-deletion) — out of scope',
-  'app/(en)': 'English marketing site (placeholder) — out of scope like the Hebrew one',
+  'app/(en)': 'English marketing site — out of scope like the Hebrew one',
   'app/(ar)': 'Arabic marketing site (placeholder) — out of scope like the Hebrew one',
   'app/(he)/admin': 'platform owner console — out of scope',
   'app/api': 'route handlers (incl. the wedding module) — no pages',

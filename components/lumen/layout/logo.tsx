@@ -7,12 +7,17 @@ interface LogoProps {
   className?: string;
   wrapperClassName?: string;
   onlyLogo?: boolean;
+  href?: string;
+  /** Mark before the name on a left-to-right page, where the reversed row would swap them. */
+  markFirst?: boolean;
 }
 
 const Logo: React.FC<LogoProps> = ({
   className = '',
   wrapperClassName = '',
   onlyLogo = false,
+  href = '/',
+  markFirst = false,
 }) => {
   // Lumen's auth screens use the mark alone at 58x58
   // (`_reference/.../src/components/layout/logo.tsx`, `onlyLogo`). This branch
@@ -22,7 +27,7 @@ const Logo: React.FC<LogoProps> = ({
   // and sizing with our brand.
   if (onlyLogo) {
     return (
-      <Link href="/" className={cn('block', className)} aria-label="SocialCRM">
+      <Link href={href} className={cn('block', className)} aria-label="SocialCRM">
         <Image
           src="/media/fav.svg"
           alt="SocialCRM"
@@ -38,8 +43,8 @@ const Logo: React.FC<LogoProps> = ({
   return (
     <div className={cn(``, wrapperClassName)}>
       <Link
-        href="/"
-        className={cn(`relative flex h-11 flex-row-reverse items-center gap-2`, className)}
+        href={href}
+        className={cn(`relative flex h-11 flex-row-reverse items-center gap-2`, className, markFirst && 'flex-row')}
       >
         {/*
           `fav.svg` is the SocialCRM mark: a square glyph (viewBox 275×268), not

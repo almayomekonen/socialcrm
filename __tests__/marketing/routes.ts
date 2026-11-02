@@ -41,5 +41,11 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   { path: '/thank-you', dir: 'thank-you', indexable: false, canonical: `${SITE_URL}/thank-you` },
 ]
 
+/**
+ * The one indexable page outside the Hebrew tree. Kept apart from the table,
+ * whose routes all live under `app/(he)/(marketing)`.
+ */
+export const ENGLISH_HOME_PATH = '/en'
+
 /** Routes that must appear in `app/sitemap.ts`, in the order they are listed. */
 export const INDEXABLE_ROUTES = MARKETING_ROUTES.filter((r) => r.indexable)

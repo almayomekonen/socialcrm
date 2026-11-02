@@ -19,10 +19,21 @@ export interface PageMetadataOptions {
   ogDescription?: string
   canonical?: string
   noindex?: boolean
+  /** og:locale, for a page that is not in Hebrew. */
+  locale?: string
+  /** hreflang alternates. Only for a page that really exists in another language. */
+  languages?: Record<string, string>
+}
+
+/** The one page that exists in both languages. `x-default` is the English page. */
+export const HOME_LANGUAGES = {
+  he: `${SITE_URL}/`,
+  en: `${SITE_URL}/en`,
+  'x-default': `${SITE_URL}/en`,
 }
 
 export function buildPageMetadata(opts: PageMetadataOptions): Metadata {
-  const { path, title, description, ogTitle, ogDescription, canonical, noindex } = opts
+  const { path, title, description, ogTitle, ogDescription, canonical, noindex, locale = LOCALE, languages } = opts
   const canonicalUrl = canonical ?? `${SITE_URL}${path}`
   const finalOgTitle = ogTitle ?? title
   const finalOgDescription = ogDescription ?? description
@@ -30,13 +41,13 @@ export function buildPageMetadata(opts: PageMetadataOptions): Metadata {
   const metadata: Metadata = {
     title,
     description,
-    alternates: { canonical: canonicalUrl },
+    alternates: languages ? { canonical: canonicalUrl, languages } : { canonical: canonicalUrl },
     openGraph: {
       title: finalOgTitle,
       description: finalOgDescription,
       url: canonicalUrl,
       siteName: SITE_NAME,
-      locale: LOCALE,
+      locale,
       type: 'website',
       images: [
         {

@@ -8,46 +8,19 @@ import Noise from '@/components/lumen/noise';
 import Logo from './logo';
 import { NAV_LINKS } from './navbar';
 import { BUSINESS_ADDRESS, BUSINESS_PHONE_DISPLAY, BUSINESS_PHONE_HREF } from '@/lib/businessContact';
+import { HE } from '@/lib/marketing/copy/he';
+import type { FooterCopy } from '@/lib/marketing/copy/types';
 
-// Create footer sections from NAV_LINKS and add blog links
-const FOOTER_SECTIONS = [
-  {
-    title: 'המוצר',
-    links: [
-      { name: 'ניהול לידים', href: '/' },
-      { name: 'מחירים', href: '/pricing' },
-      { name: 'שאלות נפוצות', href: '/faq' },
-    ],
-  },
-  {
-    title: 'ערוצים',
-    links: [
-      { name: 'פייסבוק', href: '/channels' },
-      { name: 'וואטסאפ', href: '/channels' },
-      { name: 'אינסטגרם', href: '/channels' },
-    ],
-  },
-  {
-    title: 'מידע',
-    links: [
-      { name: 'תנאי שימוש', href: '/terms' },
-      { name: 'מדיניות פרטיות', href: '/privacy' },
-      { name: 'מחיקת נתונים', href: '/data-deletion' },
-    ],
-  },
-];
-
-
-const SOCIAL_LINKS = [
-  { name: 'פייסבוק', href: 'https://www.facebook.com/share/1BZNFrLH9R/?mibextid=wwXIfr' },
-  { name: 'אינסטגרם', href: 'https://www.instagram.com/socialcrm.ai?igsh=cWVvc2FuMHFtM3R3&utm_source=qr' },
-  { name: 'אימייל', href: 'mailto:alamayo274@gmail.com' },
+const socialLinksFrom = (copy: FooterCopy) => [
+  { name: copy.social.facebook, href: 'https://www.facebook.com/share/1BZNFrLH9R/?mibextid=wwXIfr' },
+  { name: copy.social.instagram, href: 'https://www.instagram.com/socialcrm.ai?igsh=cWVvc2FuMHFtM3R3&utm_source=qr' },
+  { name: copy.social.email, href: 'mailto:alamayo274@gmail.com' },
 ];
 
 
 
 
-const Footer = () => {
+const Footer = ({ copy = HE.footer }: { copy?: FooterCopy } = {}) => {
   const pathname = usePathname();
 
   const hideFooter = [
@@ -68,7 +41,7 @@ const Footer = () => {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Left side - Footer sections */}
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 md:col-span-3">
-            {FOOTER_SECTIONS.map((section, index) => (
+            {copy.sections.map((section, index) => (
               <div key={index}>
                 <h3 className="text-foreground mb-4 font-bold md:mb-8">
                   {section.title}
@@ -78,6 +51,7 @@ const Footer = () => {
                     <li key={linkIndex}>
                       <Link
                         href={link.href}
+                        hrefLang={link.hrefLang}
                         className="text-muted-foreground hover:text-foreground tap-44 text-sm transition-colors"
                       >
                         {link.name}
@@ -91,9 +65,9 @@ const Footer = () => {
 
           {/* Right side - Lumen branding and social */}
           <div className="flex w-fit flex-col items-start justify-self-end md:col-span-1">
-            <Logo className="h-6 gap-2 [&_img]:size-6 [&_span]:text-lg" />
+            <Logo href={copy.logoHref} markFirst={copy.dir === 'ltr'} className="h-6 gap-2 [&_img]:size-6 [&_span]:text-lg" />
             <div className="mt-4 space-y-3 md:mt-8">
-              {SOCIAL_LINKS.map((link, index) => (
+              {socialLinksFrom(copy).map((link, index) => (
                 <Link
                   key={index}
                   href={link.href}
@@ -124,29 +98,31 @@ const Footer = () => {
               href={BUSINESS_PHONE_HREF}
               className="hover:text-foreground tap-44 transition-colors"
             >
-              טלפון:{' '}
+              {copy.phoneLabel}{' '}
               <span dir="ltr" className="inline-block">
                 {BUSINESS_PHONE_DISPLAY}
               </span>
             </a>
-            <address className="not-italic">{BUSINESS_ADDRESS}</address>
+            <address className="not-italic" {...copy.addressLang}>{BUSINESS_ADDRESS}</address>
           </div>
 
           <div className="flex flex-wrap justify-center gap-6">
             <Link
-              href="/"
+              href={copy.copyrightHref}
               className="text-muted-foreground hover:text-foreground tap-44 text-sm transition-colors"
             >
-              © SocialCRM. כל הזכויות שמורות.
+              {copy.copyright}
             </Link>
             <Link
               href="/privacy"
+              hrefLang={copy.legalHrefLang}
               className="text-muted-foreground hover:text-foreground tap-44 text-sm transition-colors"
-            >מדיניות פרטיות</Link>
+            >{copy.privacy}</Link>
             <Link
               href="/terms"
+              hrefLang={copy.legalHrefLang}
               className="text-muted-foreground hover:text-foreground tap-44 text-sm transition-colors"
-            >תנאי שימוש</Link>
+            >{copy.terms}</Link>
           </div>
         </div>
       </div>
