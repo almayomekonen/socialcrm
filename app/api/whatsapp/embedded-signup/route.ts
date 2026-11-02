@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { db } from '@/config/db'
-import { GRAPH_BASE as GRAPH } from '@/lib/facebook/graph'
 import { ensureMessagingReady } from '@/lib/whatsapp/registration'
 import { track, trackOncePerAgency } from '@/lib/analytics/track'
 import { WA_REASON, WA_REASON_NOTICE_CODE, type WaReason } from '@/lib/connections/reasons'
@@ -10,8 +9,12 @@ import {
   syncSmbAppData,
   fetchPhoneBizAppState,
   resolveOnboardingType,
+  COEXISTENCE_GRAPH_VERSION,
   type OnboardingType,
 } from '@/lib/whatsapp/coexistence'
+
+// OAuth exchange + subscribed_apps: this flow's supported version, not the expired app-wide v19.0.
+const GRAPH = `https://graph.facebook.com/${COEXISTENCE_GRAPH_VERSION}`
 
 /**
  * Return a structured failure WITHOUT persisting an operational connection.

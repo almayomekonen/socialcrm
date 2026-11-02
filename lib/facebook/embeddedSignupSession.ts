@@ -22,7 +22,7 @@ import {
  * the code arrives first. This gate settles only when BOTH are present.
  */
 
-const FB_HOSTS = new Set(['www.facebook.com', 'web.facebook.com', 'business.facebook.com'])
+const FB_HOSTS = new Set(['facebook.com', 'www.facebook.com', 'web.facebook.com', 'business.facebook.com'])
 
 export type EmbeddedSignupSession = {
   waba_id?: string

@@ -9,6 +9,7 @@ import { db } from '@/config/db'
 import { platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { splitPlatformWebhook } from '@/lib/whatsapp/platform/webhookBatch'
 import { handleDeliveryWithPlatformChanges } from '@/lib/whatsapp/platform/delivery'
+import { processAccountUpdate } from '@/lib/whatsapp/accountUpdate'
 
 export const maxDuration = 60
 
@@ -100,6 +101,17 @@ async function handleAgencyPayload(body: any): Promise<NextResponse> {
         reason: coexistence.reason,
       })
       return NextResponse.json({ ok: false, error: coexistence.reason }, { status: 503 })
+    }
+    return NextResponse.json({ ok: true })
+  }
+
+  // Account-level lifecycle (partner removed, offboarded, reconnected…). Marks
+  // matching connections; never deletes or deregisters. Always acknowledged.
+  if (incomingField === 'account_update') {
+    try {
+      await processAccountUpdate(body?.entry?.[0]?.id, change?.value)
+    } catch (err) {
+      console.error('[WhatsappWebhook][account_update] processing failed', { error: String(err) })
     }
     return NextResponse.json({ ok: true })
   }
