@@ -204,6 +204,12 @@ export type AnalyticsEventName =
    * number and left us nothing to read; that is the gap this closes.
    */
   | 'whatsapp_disconnected'
+  /**
+   * An inbound WhatsApp message was dropped because it carried no sender phone
+   * (`from`). Expected once users adopt usernames; props never carry content or
+   * identifiers. Lets us measure exposure before supporting phone-less senders.
+   */
+  | 'whatsapp_sender_unresolved'
   // --- First delivered value ---
   | 'activation_first_real_lead'
   // --- Meta Ads attribution ---

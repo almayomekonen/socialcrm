@@ -41,6 +41,8 @@ export type ParsedMessageEcho = ParsedWhatsappMessage & {
    * not a reply.
    */
   replyToExternalId: string | null
+  /** The customer's business-scoped user id (`to_user_id`), exactly as Meta sent it, or null. */
+  customerUserId: string | null
 }
 
 /** A non-empty string, or null. */
@@ -72,7 +74,7 @@ export function parseMessageEcho(raw: unknown): ParsedMessageEcho | null {
   const replyToExternalId =
     typeof context === 'object' && context !== null && !Array.isArray(context) ? str((context as Record<string, unknown>).id) : null
 
-  return { ...parsed, customerWaId, businessWaId: str(echo.from), replyToExternalId }
+  return { ...parsed, customerWaId, businessWaId: str(echo.from), replyToExternalId, customerUserId: str(echo.to_user_id) }
 }
 
 /**

@@ -31,6 +31,7 @@ import { resolveInboundLeadDecision } from '@/lib/whatsapp/resolveInboundLead'
 import { attachConversationToLead, getConversationMemory } from '@/db/inboxConversations'
 import { shouldPromoteContactToLead } from '@/lib/inbox/autoresponse/contactLeadPromotion'
 import { routeWeddingRsvpReply } from '@/lib/weddingRsvp/handleReply'
+import { recordConversationCustomerUserId } from '@/lib/inbox/customerUserId'
 
 export type InboundWebhookConnection = {
   agency_id: number | string
@@ -153,6 +154,18 @@ export async function handleInboundWebhookMessage(args: {
     console.log(
       `[WhatsappWebhook][inbox][msgId=${messageId}] conversation=${result.conversationId} message=${result.messageId} inserted=${result.inserted} leadId=${leadId ?? 'null'}`,
     )
+
+    // Record the sender's business-scoped user id next to the phone-keyed
+    // conversation (lib/inbox/customerUserId.ts). Read by nothing yet; never
+    // throws, never overwrites, and changes no routing.
+    if (message.from_user_id !== undefined) {
+      await recordConversationCustomerUserId({
+        agencyId,
+        businessPhoneNumberId: phoneNumberId,
+        customerWaId: from,
+        customerUserId: message.from_user_id,
+      })
+    }
 
     if (leadId != null && leadId > 0) {
       await attachConversationToLead(db, { conversationId: result.conversationId, agencyId, leadId }).catch((err) => {
