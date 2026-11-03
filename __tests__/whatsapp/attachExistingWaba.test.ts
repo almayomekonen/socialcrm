@@ -168,6 +168,11 @@ describe('attachExistingWabaForUser', () => {
     expect(r).toEqual({ ok: false, reason: 'phone_mismatch' })
   })
 
+  it('blocks the operator-verified platform number (0549221572) by phone id and WABA', () => {
+    expect(BLOCKED_PHONE_NUMBER_ID).toBe('1216762448189306')
+    expect(BLOCKED_WABA_ID).toBe('2060714354527399')
+  })
+
   it('0549221572 phone id is hard-blocked', async () => {
     const r = await attachExistingWabaForUser(
       ADMIN,
