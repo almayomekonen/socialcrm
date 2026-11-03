@@ -80,10 +80,14 @@ PR #134 (`20261010120000`) sorts before both; Knex applies it whenever it lands.
 0. **Merge PR B.** It must be merged, and its production deployment live,
    before any step below. The deployment is inert: no variable in this file is
    set yet.
-1. **Meta: System User.** In business portfolio `1484134075940912`: a System
-   User with WABA `2060714354527399` (full control) and app `962521689620138`
-   assigned; a never-expiring token with `whatsapp_business_messaging` and
-   `whatsapp_business_management`.
+1. **Meta: System User.** In business portfolio `1329164944820862` ("Social CRM",
+   which issues this app's tokens): a dedicated System User (role Employee) with
+   app `962521689620138` assigned (Develop app or Manage app). Assign WABA
+   `2060714354527399` (client-owned by `1484134075940912`) with full control
+   **only if it is listed under this portfolio's WhatsApp accounts**; if it is
+   not, stop: the owning portfolio must share it first, as a separate approved
+   Meta action. Then a never-expiring token for app `962521689620138` with
+   `whatsapp_business_messaging` and `whatsapp_business_management` only.
 2. **Meta: template.** Submit `lead_followup_alert` exactly as above; wait for
    APPROVED **and** category UTILITY.
 3. **Production migrations.** Apply PR A's (`20261012120000`) and PR B's
