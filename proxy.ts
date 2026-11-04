@@ -54,10 +54,11 @@ export const APP_ROUTES = [
 ]
 
 /**
- * OAuth / MCP discovery documents (ChatGPT connector). EXACT paths only — no
- * prefix match, no other /.well-known path. Public metadata with no tenant data
- * (and 404 while MCP is disabled); it must be fetchable without a session or
- * OAuth discovery fails.
+ * OAuth / MCP discovery documents (ChatGPT connector). EXACT paths only, and a
+ * test holds them equal to the route files under `app/.well-known`. Public
+ * metadata with no tenant data (and 404 while MCP is disabled); it must be
+ * fetchable without a session or OAuth discovery fails. Any other /.well-known
+ * path reaches Next like every other unknown path: a file from `public/`, or a 404.
  */
 export const OAUTH_DISCOVERY_PATHS: ReadonlySet<string> = new Set([
   '/.well-known/oauth-authorization-server',
@@ -93,10 +94,8 @@ export async function proxy(request: NextRequest) {
   if (locale) return isLocalePage(locale, pathname) ? NextResponse.next() : localeNotFoundResponse(locale)
 
   if (!user && !pathname.startsWith('/auth')) {
-    // `/.well-known` keeps the redirect: OAuth discovery opens exact paths only
-    // (OAUTH_DISCOVERY_PATHS), and the rest of that namespace is not a page.
-    const needsLogin = pathname.startsWith('/.well-known') || APP_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))
-    return needsLogin ? Response.redirect(new URL('/auth', request.url)) : NextResponse.next()
+    const isAppRoute = APP_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))
+    return isAppRoute ? Response.redirect(new URL('/auth', request.url)) : NextResponse.next()
   }
 
   if (user && pathname.startsWith('/auth')) return Response.redirect(new URL('/dashboard', request.url))

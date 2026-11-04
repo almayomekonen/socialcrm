@@ -19,6 +19,8 @@ import { APP_ROUTES, proxy } from '@/proxy'
 import sitemap from '@/app/sitemap'
 import { PRICING } from '@/lib/pricing'
 import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
+import { TOKEN_SAVE_SUM } from '@/lib/payments/cardTrial/terms'
+import { status as leadStatus } from '@/lib/i18n/messages/en/leads/table'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/thank-you' }))
 
@@ -58,8 +60,10 @@ describe('a signed-out visitor', () => {
     }
   })
 
-  test('the /.well-known namespace keeps its redirect', async () => {
-    expect((await request('/.well-known/security.txt')).headers.get('location')).toBe(`${ORIGIN}/auth`)
+  test.each(['/.well-known/security.txt', '/.well-known/assetlinks.json', '/.well-known/openid-configuration'])('%s reaches Next, not the login', async (path) => {
+    const res = await request(path)
+    expect(res.headers.get('location')).toBeNull()
+    expect(res.headers.get('x-middleware-next')).toBe('1')
   })
 
   test.each(['/auth', '/auth/register'])('%s stays open', async (path) => {
@@ -118,6 +122,12 @@ describe('llms.txt', () => {
     expect(text).toContain(`${PRICING.currency}${PRICING.monthly}/month`)
     expect(text).toMatch(/^.*Card required\..*$/m)
     expect(text).toContain('currently in Hebrew')
+    expect(text).toContain(`temporary hold of ${PRICING.currency}${TOKEN_SAVE_SUM}`)
+  })
+
+  test('lists the statuses the product actually has', () => {
+    const { new: created, contacted, interested, closed, lost } = leadStatus
+    expect(text).toContain(`${created}, ${contacted}, ${interested}, ${closed} and ${lost}`)
   })
 
   test.each([
