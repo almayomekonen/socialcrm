@@ -147,7 +147,7 @@ describe('1 · connect and disconnect own independent action state', () => {
 })
 
 describe('2 · the Embedded Signup launch is bounded', () => {
-  it('resolves with a recoverable error if FB.login never calls back', async () => {
+  it('releases the button as pending if FB.login never calls back', async () => {
     vi.useFakeTimers()
     try {
       vi.resetModules()
@@ -156,29 +156,14 @@ describe('2 · the Embedded Signup launch is bounded', () => {
         parseEmbeddedSignupMessage: () => null,
       }))
       const src = require('node:fs').readFileSync('lib/facebook/useEmbeddedSignup.ts', 'utf8')
-      // The valve exists, is generous enough not to cut a real signup short,
-      // and resolves as a mapped, retryable error rather than hanging.
+      // The valve exists, is generous enough not to cut a real signup short, and
+      // releases the button as pending, never as a failure.
       expect(src).toContain('const LAUNCH_TIMEOUT_MS = 300_000')
-      // `reason: 'timeout'` is analytics-only; the UI still maps the 'sdk' notice.
-      expect(src).toContain(
-        "timer = setTimeout(() => settle({ ok: false, error: 'sdk', reason: 'timeout' }), LAUNCH_TIMEOUT_MS)",
-      )
+      expect(src).toContain('pendingAfter(launchFlow(attempt.attemptId).then(attempt.finish), LAUNCH_TIMEOUT_MS, attempt.pending)')
+      expect(src).not.toContain("reason: 'timeout'")
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('every resolve path clears the timer via settle(), and settle() is not recursive', () => {
-    const src = require('node:fs').readFileSync('lib/facebook/useEmbeddedSignup.ts', 'utf8')
-    // The flow body is `launchFlow`; `launch` is only its reporting wrapper.
-    const launch = src.slice(
-      src.indexOf('const launchFlow = useCallback'),
-      src.indexOf('}, [appId, configId, graphVersion])'),
-    )
-    // No bare resolve( survives inside launch except settle's own single call.
-    expect(launch.match(/(?<![A-Za-z_.])resolve\(/g)?.length).toBe(1)
-    expect(launch).toContain('if (timer !== undefined) clearTimeout(timer)')
-    // settle must call resolve, never itself.
-    expect(launch).not.toMatch(/const settle[\s\S]{0,120}settle\(result\)/)
-  })
 })

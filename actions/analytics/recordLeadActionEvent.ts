@@ -7,6 +7,7 @@ import { CLIENT_CONNECT_FAILURE_REASONS } from '@/lib/connections/connectFailure
 import { EMBEDDED_SIGNUP_STEPS, META_ERROR_ID, META_SESSION_ID } from '@/lib/whatsapp/coexistenceEvents'
 import { hasServerConnectOutcomeSince } from '@/lib/analytics/connectOutcome'
 import { CONNECT_ATTEMPT_ID } from '@/lib/connections/lateCancelDetail'
+import { metaEventDetail } from '@/lib/connections/metaEventDetail'
 
 /**
  * Client bridge for the activation milestone: a rep acted on a lead.
@@ -51,6 +52,10 @@ const CLIENT_EMITTABLE = new Set<AnalyticsEventName>([
    * validated ids are kept (see `connectFailureDetail`); never Meta's text.
    */
   'whatsapp_connect_cancel_detail',
+  /** An attempt the browser stopped waiting for, with no outcome yet. Ids only. */
+  'whatsapp_connect_pending',
+  /** One message from Meta's window, rebuilt by `metaEventDetail`. */
+  'whatsapp_connect_meta_event',
   /**
    * THE CONTACT TRIAD. Client-emittable because the outcome of a contact attempt
    * is only knowable in the browser: the native-WhatsApp handoff is a plain
@@ -92,7 +97,7 @@ const ABANDONED_LOOKBACK_SLACK_MS = 5_000
  * The detail a connect failure may carry: the Meta screen it stopped on, Meta's
  * numeric error id, and how long it ran. Each field is kept only if it passes
  * its own check — a bad field is dropped, never the failure itself. Meta's error
- * TEXT is deliberately not accepted: it is shown to the customer, not stored.
+ * TEXT is not accepted here; only `whatsapp_connect_meta_event` stores it, cleaned.
  */
 function connectFailureDetail(props: Record<string, unknown> | undefined): Record<string, string | number> {
   const detail: Record<string, string | number> = {}
@@ -105,6 +110,11 @@ function connectFailureDetail(props: Record<string, unknown> | undefined): Recor
     detail.elapsedMs = Math.min(Math.round(elapsed), MAX_CONNECT_ELAPSED_MS)
   }
   return detail
+}
+
+function startedDetail(props: Record<string, unknown> | undefined): { attemptId?: string } {
+  const attemptId = connectFailureDetail(props).attemptId
+  return typeof attemptId === 'string' ? { attemptId } : {}
 }
 
 /**
@@ -139,6 +149,12 @@ export async function recordLeadActionEvent(
     if (reason !== undefined || typeof cancelDetail.attemptId !== 'string') return
     if (!cancelDetail.step && !cancelDetail.metaErrorId && !cancelDetail.metaSessionId) return
   }
+  const isMetaEvent = event === 'whatsapp_connect_meta_event'
+  const metaDetail = isMetaEvent ? metaEventDetail(props) : null
+  if (isMetaEvent && !metaDetail) return
+  const isPending = event === 'whatsapp_connect_pending'
+  const pendingDetail = isPending ? connectFailureDetail(props) : {}
+  if (isPending && typeof pendingDetail.attemptId !== 'string') return
   if (!isConnectFailure && reason !== undefined && !BLOCKED_REASONS.has(reason as LeadContactBlockedReason)) return
   if (channel !== undefined && !CHANNELS.has(channel as LeadContactChannel)) return
   if (intendedChannel !== undefined && !CHANNELS.has(intendedChannel as LeadContactChannel)) return
@@ -185,12 +201,16 @@ export async function recordLeadActionEvent(
     const inApp = () => getInAppBrowser().catch(() => null)
     const eventProps =
       event === 'whatsapp_connect_started'
-        ? { inApp: await inApp() }
+        ? { inApp: await inApp(), ...startedDetail(props) }
         : isConnectFailure
           ? { reason, stage: 'client', inApp: await inApp(), ...connectDetail }
           : isCancelDetail
             ? { stage: 'client_late', ...cancelDetail }
-            : safeProps
+            : isMetaEvent
+              ? { stage: 'client', ...metaDetail }
+              : isPending
+                ? { stage: 'client', attemptId: pendingDetail.attemptId, elapsedMs: pendingDetail.elapsedMs }
+                : safeProps
     await track({ agencyId: user.agencyId, userId: user.id, event, props: eventProps })
   } catch {
     // Analytics must never break a flow; swallow auth/db hiccups.

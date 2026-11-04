@@ -11,7 +11,7 @@ const h = vi.hoisted(() => {
   qb.first = async () => null
   qb.insert = () => qb
   qb.onConflict = () => qb
-  qb.merge = async () => [1]
+  qb.merge = () => ({ where: () => ({ returning: async () => [{ id: 1 }] }) })
   return { db: Object.assign(() => qb, { raw: async () => ({}) }) }
 })
 vi.mock('@/config/db', () => ({ db: h.db }))

@@ -186,7 +186,8 @@ export async function ensureMessagingReady(
   try {
     status = await getPhoneStatus(phoneNumberId, accessToken)
   } catch (e) {
-    console.error('[WA Registration] status probe failed:', e)
+    // The name only: this URL carries the token.
+    console.error('[WA Registration] status probe failed:', e instanceof Error ? e.name : 'unknown')
     return { ready: false, reason: 'status_probe_failed' }
   }
 

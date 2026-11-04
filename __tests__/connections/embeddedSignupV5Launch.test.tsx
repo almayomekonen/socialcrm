@@ -72,6 +72,6 @@ describe('Embedded Signup v5 launch', () => {
     })
     const post = vi.mocked(global.fetch).mock.calls.find(([url]) => String(url) === '/api/whatsapp/embedded-signup')
     expect(post).toBeTruthy()
-    expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({ code: 'oauth-code', wabaId: 'W5', phoneNumberId: 'P5', onboardingType: 'coexistence' })
+    expect(JSON.parse(String((post![1] as RequestInit).body))).toEqual({ code: 'oauth-code', wabaId: 'W5', phoneNumberId: 'P5', onboardingType: 'coexistence', attemptId: expect.any(String) })
   })
 })

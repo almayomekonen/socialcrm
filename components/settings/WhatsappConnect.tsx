@@ -4,12 +4,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Btn } from '@/lib/btns/Btn'
 import { useAction } from '@/lib/useAction'
 import { useEmbeddedSignup } from '@/lib/facebook/useEmbeddedSignup'
+import { useWhatsappSignupFlow } from '@/lib/facebook/useWhatsappSignupFlow'
 import ConfirmPop from '@/lib/modals/ConfirmPop'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
 import { whatsappHealthNoticeFor, whatsappNoticeFor } from '@/lib/connections/localizedNotices'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { translatorFor } from '@/lib/i18n/translators'
-import { whatsappLaunchNoticeCode } from '@/lib/connections/connectFailure'
 import { useInAppWarning, type InAppBrowser } from '@/lib/connections/useInAppWarning'
 import type { WhatsappHealthPrimary } from '@/lib/whatsapp/operationalStatus'
 import WhatsappPhonePicker, { type Phone } from '@/components/settings/WhatsappPhonePicker'
@@ -39,6 +39,8 @@ type Props = {
   inAppBrowser?: InAppBrowser
   /** Follow the interface language (the desktop settings page). Default Hebrew: the phone sheet is not translated yet. */
   translated?: boolean
+  /** Meta's part of an earlier signup finished and the server kept it, so the next click can finish without Meta's window. */
+  signupResumable?: boolean
 }
 
 const HEBREW = translatorFor('he')
@@ -54,6 +56,7 @@ export default function WhatsappConnect({
   connectLabel,
   inAppBrowser,
   translated = false,
+  signupResumable = false,
 }: Props) {
   const ui = useT()
   const t = translated ? ui : HEBREW
@@ -79,24 +82,26 @@ export default function WhatsappConnect({
    * protection changes.
    */
   const { loading: disconnecting, error: disconnectError, run: runDisconnect } = useAction()
-  const { launch } = useEmbeddedSignup(appId, configId, graphVersion)
   const { intercept } = useInAppWarning(inAppBrowser)
+  const { start, forgetKept } = useWhatsappSignupFlow({
+    signup: useEmbeddedSignup(appId, configId, graphVersion),
+    signupResumable,
+    connected: !!connection,
+    setError,
+    setMetaMessage,
+    onConnected: () => router.refresh(),
+  })
 
   const startEmbeddedSignup = () =>
     run(async () => {
       setError(null)
       if (intercept()) return setError('in_app_browser')
-      const result = await launch()
-      if (result.ok) {
-        router.refresh()
-        return
-      }
-      setMetaMessage(result.cancel?.errorMessage ?? null)
-      setError(whatsappLaunchNoticeCode(result, !!connection))
+      await start()
     })
 
   const performDisconnect = () => {
     setConfirmDisconnect(false)
+    forgetKept()
     runDisconnect(async () => {
       await fetch('/api/auth/whatsapp/disconnect', { method: 'POST' })
       router.refresh()

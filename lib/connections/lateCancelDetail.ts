@@ -6,10 +6,11 @@ import type { EmbeddedSignupStep } from '@/lib/whatsapp/coexistenceEvents'
  * ALREADY ENDED on our side.
  *
  * The launch waits one second after a login callback without a code
- * (`CANCEL_DETAIL_GRACE_MS`), and gives up after five minutes when no callback
- * comes at all (`LAUNCH_TIMEOUT_MS`). A CANCEL arriving after either is dropped
- * by the gate, so the failure is recorded without Meta's step, error id or
- * session id — which is exactly what production failures have always lacked.
+ * (`CANCEL_DETAIL_GRACE_MS`). A CANCEL arriving after that is dropped by the gate,
+ * so the failure is recorded without Meta's step, error id or session id — which
+ * is exactly what production failures have always lacked. After five minutes with
+ * no callback (`LAUNCH_TIMEOUT_MS`) the attempt is `pending`: it has no failure
+ * event, so a CANCEL arriving then is reported here, in case no callback follows.
  *
  * This tracker attributes such a late CANCEL to the attempt that ended, so its
  * ids can be reported once as a follow-up event. Pure: no I/O, injectable clock.
@@ -19,7 +20,7 @@ import type { EmbeddedSignupStep } from '@/lib/whatsapp/coexistenceEvents'
  *     previous one, so nothing late can be attached to an attempt that is no
  *     longer the most recent.
  *   - While an attempt is live, the gate owns its CANCEL and this returns null.
- *   - Only a FAILED attempt accepts late detail; a CANCEL after a success is noise.
+ *   - Only a FAILED or PENDING attempt accepts late detail; a CANCEL after a success is noise.
  *   - At most one late report per attempt, and only within `LATE_CANCEL_WINDOW_MS`.
  *   - Only ids the attempt's own failure event did not already carry are sent.
  */
@@ -45,24 +46,34 @@ export type LateCancelTracker = {
   begin: (attemptId: string) => void
   /** The attempt ended. `known` is what its own failure event already carried. */
   end: (attemptId: string, outcome: { failed: boolean; known: CancelIds }) => void
+  /** No outcome yet, but the gate has stopped being the only record of a CANCEL. */
+  pending: (attemptId: string) => void
   /** A CANCEL arrived. Returns what to report for an ended attempt, or null. */
   late: (cancel: EmbeddedSignupCancel) => LateCancelReport | null
 }
 
-type Tracked = { id: string; endedAt: number | null; failed: boolean; known: CancelIds; reported: boolean }
+type Tracked = { id: string; endedAt: number | null; failed: boolean; known: CancelIds; reported: boolean; pending: boolean }
 
 export function createLateCancelTracker(now: () => number = Date.now): LateCancelTracker {
   let current: Tracked | null = null
   return {
     begin(attemptId) {
-      current = { id: attemptId, endedAt: null, failed: false, known: {}, reported: false }
+      current = { id: attemptId, endedAt: null, failed: false, known: {}, reported: false, pending: false }
     },
     end(attemptId, outcome) {
       // A stale end (an older attempt settling after a newer one began) is ignored.
-      if (!current || current.id !== attemptId || current.endedAt !== null) return
+      if (!current || current.id !== attemptId) return
+      if (current.endedAt !== null && !current.pending) return
       current.endedAt = now()
+      current.pending = false
       current.failed = outcome.failed
       current.known = outcome.known
+    },
+    pending(attemptId) {
+      if (!current || current.id !== attemptId || current.endedAt !== null) return
+      current.endedAt = now()
+      current.pending = true
+      current.failed = true
     },
     late(cancel) {
       const a = current

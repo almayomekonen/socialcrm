@@ -197,6 +197,19 @@ export type AnalyticsEventName =
    */
   | 'whatsapp_connect_cancel_detail'
   /**
+   * The browser stopped waiting for an attempt whose Meta window may still be
+   * open. NOT a failure: a later outcome with the same `attemptId` settles it,
+   * and no later outcome means unknown. { attemptId, elapsedMs }
+   */
+  | 'whatsapp_connect_pending'
+  /**
+   * One message from Meta's window, as it arrived, so a page that never reaches
+   * an outcome still leaves Meta's ids behind. Field names and validated ids only,
+   * plus Meta's error text with phone numbers and emails removed. Never tokens,
+   * codes or account ids. See lib/connections/metaEventDetail.ts.
+   */
+  | 'whatsapp_connect_meta_event'
+  /**
    * Terminal end of the WhatsApp lifecycle. The connection row is HARD
    * deleted, so once it is gone the database holds no trace of when the
    * disconnect happened, who did it, or from where — this event is the only

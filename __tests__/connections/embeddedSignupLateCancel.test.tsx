@@ -79,17 +79,14 @@ describe('Meta CANCEL ids reach analytics', () => {
     expect(details()[0].props).toEqual({ attemptId: failures()[0].props!.attemptId, metaErrorId: '524126', metaSessionId: 'sessLate' })
   })
 
-  it('timeout, then a stale login callback, then a late CANCEL: one failure, one follow-up, no Meta text', async () => {
-    const { done, callback } = launch()
+  it('five minutes, then a CANCEL with no callback: pending, one follow-up, no failure', async () => {
+    const { done } = launch()
     await act(async () => { await vi.advanceTimersByTimeAsync(300_000); await done })
-    expect(failures()).toHaveLength(1)
-    expect(failures()[0].props).toMatchObject({ reason: 'timeout' })
-    callback({ authResponse: null }) // the popup finally reports, out of order
-    await act(async () => { await vi.advanceTimersByTimeAsync(2_000) })
+    expect(failures()).toHaveLength(0)
+    const pending = h.events.find((e) => e.event === 'whatsapp_connect_pending')
     metaCancel({ current_step: 'PHONE_NUMBER_SETUP', session_id: 'sessT' })
-    expect(failures()).toHaveLength(1)
     expect(details()).toHaveLength(1)
-    expect(details()[0].props).toEqual({ attemptId: failures()[0].props!.attemptId, step: 'PHONE_NUMBER_SETUP', metaSessionId: 'sessT' })
+    expect(details()[0].props).toEqual({ attemptId: pending!.props!.attemptId, step: 'PHONE_NUMBER_SETUP', metaSessionId: 'sessT' })
     expect(JSON.stringify(h.events)).not.toContain('shared')
   })
 

@@ -25,9 +25,9 @@ const h = vi.hoisted(() => {
     return qb
   }
   qb.onConflict = () => qb
-  qb.merge = async (obj: unknown) => {
+  qb.merge = (obj: unknown) => {
     state.merged.push(obj)
-    return [1]
+    return { where: () => ({ returning: async () => [{ id: 1 }] }) }
   }
   const db = Object.assign((_table: string) => qb, { raw: async () => ({}) })
   return { state, db }
@@ -297,17 +297,17 @@ describe('every server exit leaves an outcome', () => {
     expect(failures().map((e) => e.props)).toEqual([{ reason: 'MISSING_CODE', stage: 'request' }])
   })
 
-  it('a failed save is recorded, response unchanged, nothing persisted', async () => {
+  it('a failed save is recorded, nothing persisted, and the signup can be resumed', async () => {
     mockFetch({ subscribedOk: true })
     const merge = h.db('whatsapp_connections') as unknown as { merge: unknown }
     const original = merge.merge
-    merge.merge = async () => {
+    merge.merge = () => {
       throw new Error('db down')
     }
     try {
       const r = await POST(req({ code: 'c', wabaId: 'W1', phoneNumberId: 'P1' }))
       expect(r.status).toBe(500)
-      expect(await r.json()).toEqual({ error: 'DB error' })
+      expect(await r.json()).toEqual({ error: 'DB error', resumable: true })
       expect(failures().map((e) => e.props)).toEqual([{ reason: 'SAVE_FAILED', stage: 'persist' }])
     } finally {
       merge.merge = original
