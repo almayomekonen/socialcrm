@@ -11,6 +11,8 @@ import type { MobileLeadDetail } from '@/modules/leads/queries'
 import { followUpBadge } from './followUpBadge'
 import LeadDetailActions from './LeadDetailActions'
 import LeadProvenance from './LeadProvenance'
+import LeadNotes from '@/components/leads/LeadNotes'
+import type { LeadNote } from '@/lib/leads/leadNotes'
 import { startOfBusinessDayMs } from '@/lib/today/time'
 
 /**
@@ -22,12 +24,14 @@ import { startOfBusinessDayMs } from '@/lib/today/time'
  */
 export default function LeadDetailMobile({
   lead,
+  notes = [],
   nowMs,
   firstLead = false,
   whatsappConnected,
   locale = 'he',
 }: {
   lead: MobileLeadDetail
+  notes?: LeadNote[]
   nowMs: number
   /** Arrived straight from creating/importing the workspace's first lead. */
   firstLead?: boolean
@@ -73,6 +77,11 @@ export default function LeadDetailMobile({
           {lead.followUpNote && <InfoRow label={t('leads.mobile.detail.note')} value={lead.followUpNote} />}
           {lastOutcome && <InfoRow label={t('leads.mobile.detail.lastOutcome')} value={lastOutcome} />}
           {lead.lastActivityAt && <InfoRow label={t('leads.mobile.detail.lastActivity')} value={formatLeadDate(locale, lead.lastActivityAt)} />}
+        </section>
+
+        <section className='mt-4'>
+          <h3 className='mb-2 text-[14px] font-semibold text-ink'>{t('leadDetail.activity.title')}</h3>
+          <LeadNotes key={lead.id} leadId={lead.id} notes={notes} surface='mobile' />
         </section>
 
         <div className='mt-4'>

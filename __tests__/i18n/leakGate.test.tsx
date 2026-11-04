@@ -89,6 +89,7 @@ vi.mock('@/components/mobile/MobileHeaderAction', async () => ({ useSetMobileHea
 
 // /clients/[clientId] layout + summary reads (I/O only; the layout, page, cards and producers run for real).
 vi.mock('@/lib/requireUser', async () => (await import('./leakGateQuestionnaireMocks')).requireUserModule()) // FIXTURE_USER; the Builder's access check (E5c)
+vi.mock('@/db/leadNotes', () => ({ getLeadNotes: async () => [] }))
 vi.mock('@/db/tasks', async () => (await import('./leakGateAdminMocks')).tasksDbModule())
 vi.mock('@/modules/inbox/queries', async () => {
   const { detailEnv } = await import('./leadDetailEnv')

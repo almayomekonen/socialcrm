@@ -44,8 +44,18 @@ export const tasks: L['tasks'] = {
 }
 
 export const activity: L['activity'] = {
-  title: 'Activity',
-  empty: 'No activity for this lead yet',
+  title: 'Notes and calls',
+  empty: 'No notes on this lead yet. Write down what was said on the call, so you can pick up exactly where you left off.',
+  placeholder: 'What was said on the call? What did you agree with the lead?',
+  add: 'Add note',
+  saving: 'Saving…',
+  delete: 'Delete note',
+  confirmDelete: 'Delete this note? It cannot be restored.',
+  errors: {
+    empty: 'Enter the note text',
+    tooLong: 'This note is too long. Shorten it and try again.',
+    notFound: 'The lead or note was not found. Refresh the page and try again.',
+  },
 }
 
 export const readyMessage: L['readyMessage'] = {

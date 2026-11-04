@@ -51,6 +51,7 @@ vi.mock('@/db/usersNTeams', async () => {
   return { getUserNameById: async () => env.handlerName, getUsers: async () => [] }
 })
 vi.mock('@/db/filter', () => ({ getPerms: async () => ({ gotPermIds: [], gotPermUsers: [], allPermUsers: [] }) }))
+vi.mock('@/db/leadNotes', () => ({ getLeadNotes: async () => [] }))
 vi.mock('@/db/tasks', async () => ({ get5TasksByClientId: async () => (await import('./leadDetailEnv')).detailEnv.tasks }))
 vi.mock('@/modules/inbox/queries', async () => {
   const { detailEnv: env } = await import('./leadDetailEnv')
@@ -202,8 +203,8 @@ describe('summary — English', () => {
       'Based on: Lead status · Recent activity',
       'Tasks',
       'All tasks >>',
-      'Activity',
-      'No activity for this lead yet',
+      'Notes and calls',
+      'No notes on this lead yet. Write down what was said on the call, so you can pick up exactly where you left off.',
       '10/29/2026',
     )
     // Customer data and AI output are untouched.

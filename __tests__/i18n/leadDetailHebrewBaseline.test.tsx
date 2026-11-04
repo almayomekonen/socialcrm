@@ -56,6 +56,7 @@ vi.mock('@/db/usersNTeams', async () => {
   return { getUserNameById: async () => env.handlerName, getUsers: async () => [] }
 })
 vi.mock('@/db/filter', () => ({ getPerms: async () => ({ gotPermIds: [], gotPermUsers: [], allPermUsers: [] }) }))
+vi.mock('@/db/leadNotes', () => ({ getLeadNotes: async () => [] }))
 vi.mock('@/db/tasks', async () => {
   const { detailEnv: env } = await import('./leadDetailEnv')
   return { get5TasksByClientId: async () => env.tasks }

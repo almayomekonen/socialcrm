@@ -45,8 +45,18 @@ export const tasks = {
 } as const
 
 export const activity = {
-  title: 'פעילות',
-  empty: 'עדיין אין פעילות ללקוח זה',
+  title: 'הערות ושיחות',
+  empty: 'עדיין אין הערות על הליד הזה. כתבו מה נאמר בשיחה, כדי שתוכלו להמשיך בדיוק מאותה נקודה.',
+  placeholder: 'מה נאמר בשיחה? מה סוכם עם הליד?',
+  add: 'הוסף הערה',
+  saving: 'שומר…',
+  delete: 'מחק הערה',
+  confirmDelete: 'למחוק את ההערה? לא ניתן לשחזר אותה.',
+  errors: {
+    empty: 'יש לכתוב תוכן להערה',
+    tooLong: 'ההערה ארוכה מדי. קצרו אותה ונסו שוב.',
+    notFound: 'הליד או ההערה לא נמצאו. רעננו את העמוד ונסו שוב.',
+  },
 } as const
 
 export const readyMessage = {

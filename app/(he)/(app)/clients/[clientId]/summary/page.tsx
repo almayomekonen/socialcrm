@@ -3,6 +3,7 @@ import { after } from 'next/server'
 import Activity from '@/components/summary/Activity'
 import Tasks from '@/components/summary/Tasks'
 import { get5TasksByClientId } from '@/db/tasks'
+import { getLeadNotes } from '@/db/leadNotes'
 import { getFullLead } from '@/db/clients'
 import { getUser } from '@/db/auth'
 import LeadIntelligenceCard from '@/components/ai/LeadIntelligenceCard'
@@ -40,7 +41,7 @@ export default async function page({ params, searchParams }) {
   if ((await isMobileRequest()) && canEnterMobileWorkspace(user?.agencyId)) {
     // The layout's request-memoised read: the phone detail is worded in it.
     const { locale: mobileLocale } = await getUiLocaleState(user)
-    const lead = await getMobileLeadDetail(Number(clientId))
+    const [lead, notes] = await Promise.all([getMobileLeadDetail(Number(clientId)), getLeadNotes(user, Number(clientId))])
     if (!lead)
       return (
         <div className='px-4 py-14 text-center text-gray-500' {...regionAttrs(mobileLocale)}>
@@ -70,6 +71,7 @@ export default async function page({ params, searchParams }) {
     return (
       <LeadDetailMobile
         lead={lead}
+        notes={notes}
         nowMs={Date.now()}
         firstLead={sp.firstLead === '1'}
         whatsappConnected={wa.connected}
@@ -82,8 +84,9 @@ export default async function page({ params, searchParams }) {
   // the server-rendered chrome and the client provider agree.
   const { locale } = await getUiLocaleState(user)
   const t = translatorFor(locale)
-  const [tasks, lead] = await Promise.all([
+  const [tasks, notes, lead] = await Promise.all([
     get5TasksByClientId(clientId),
+    getLeadNotes(user, Number(clientId)),
     getFullLead({
       id: Number(clientId),
       select: ['status', 'nextFollowUpAt', 'followUpNote', 'lastOutcomeType', 'lastActivityAt', 'leadSource', 'createdAt', 'firstName', 'lastName', 'phone', 'email'],
@@ -157,7 +160,7 @@ export default async function page({ params, searchParams }) {
       </Suspense>
       <div className='grid xl:grid-cols-2 gap-8'>
         <Tasks tasks={tasks} clientId={clientId} locale={locale} />
-        <Activity clientId={clientId} locale={locale} />
+        <Activity clientId={clientId} notes={notes} locale={locale} />
       </div>
     </div>
   )
