@@ -170,6 +170,7 @@ export async function fetchPhoneBizAppState(phoneNumberId: string, accessToken: 
   try {
     const res = await fetch(
       `${COEXISTENCE_GRAPH_BASE}/${encodeURIComponent(phoneNumberId)}?fields=is_on_biz_app,platform_type&access_token=${encodeURIComponent(accessToken)}`,
+      { signal: AbortSignal.timeout(6_000) },
     )
     if (!res.ok) {
       console.error('[WA Coexistence] phone biz-app lookup failed:', res.status)
@@ -180,7 +181,8 @@ export async function fetchPhoneBizAppState(phoneNumberId: string, accessToken: 
     if (!known) console.error('[WA Coexistence] phone biz-app lookup returned no is_on_biz_app')
     return { isOnBizApp: data.is_on_biz_app === true, known, platformType: data.platform_type }
   } catch (e) {
-    console.error('[WA Coexistence] phone biz-app lookup threw:', e)
+    // The name only: this URL carries the token.
+    console.error('[WA Coexistence] phone biz-app lookup threw:', e instanceof Error ? e.name : 'unknown')
     return { isOnBizApp: false, known: false }
   }
 }
@@ -220,6 +222,7 @@ export async function resolvePhoneNumberIdForWaba(wabaId: string, accessToken: s
   try {
     const res = await fetch(
       `${COEXISTENCE_GRAPH_BASE}/${encodeURIComponent(wabaId)}/phone_numbers?fields=id,display_phone_number,platform_type,is_on_biz_app&access_token=${encodeURIComponent(accessToken)}`,
+      { signal: AbortSignal.timeout(6_000) },
     )
     if (!res.ok) {
       console.error('[WA Coexistence] phone_numbers lookup failed:', res.status)
@@ -235,7 +238,8 @@ export async function resolvePhoneNumberIdForWaba(wabaId: string, accessToken: s
     if (onBizApp.length === 1) return { phoneNumberId: onBizApp[0].id }
     return { reason: 'ambiguous' }
   } catch (e) {
-    console.error('[WA Coexistence] phone_numbers lookup threw:', e)
+    // The name only: this URL carries the token.
+    console.error('[WA Coexistence] phone_numbers lookup threw:', e instanceof Error ? e.name : 'unknown')
     return { reason: 'lookup_failed' }
   }
 }

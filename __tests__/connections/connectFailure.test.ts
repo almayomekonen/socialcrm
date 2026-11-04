@@ -25,12 +25,17 @@ describe('clientConnectFailureReason', () => {
   it.each([
     [{ ok: false, error: 'cancelled' }, 'cancelled'],
     [{ ok: false, error: 'sdk' }, 'sdk'],
-    [{ ok: false, error: 'sdk', reason: 'timeout' }, 'timeout'],
     [{ ok: false, error: 'config' }, 'config'],
     [{ ok: false, error: 'network' }, 'network'],
     [{ ok: false, error: 'missing_details' }, 'session'],
   ])('%o → %s', (result, expected) => {
     expect(clientConnectFailureReason(result)).toBe(expected)
+  })
+
+  it('pending is not a failure: the window may still be open', () => {
+    expect(clientConnectFailureReason({ ok: false, error: 'pending' })).toBeNull()
+    expect(whatsappLaunchNoticeCode({ ok: false, error: 'pending' }, false)).toBe('pending')
+    expect(whatsappLaunchNoticeCode({ ok: false, error: 'pending' }, true)).toBe('pending')
   })
 
   it.each(['token', 'no_phones', 'no_accounts', 'denied', 'resource_claimed', 'subscribe_incomplete', 'server'])(
@@ -44,7 +49,6 @@ describe('clientConnectFailureReason', () => {
     const produced = [
       { ok: false, error: 'cancelled' },
       { ok: false, error: 'sdk' },
-      { ok: false, error: 'sdk', reason: 'timeout' },
       { ok: false, error: 'config' },
       { ok: false, error: 'network' },
       { ok: false, error: 'missing_details' },
@@ -52,7 +56,8 @@ describe('clientConnectFailureReason', () => {
     ].map(clientConnectFailureReason)
     // `abandoned` is not produced by this mapper: it is reported on the next
     // visit by useEmbeddedSignup from lib/connections/pendingConnectAttempt.ts.
-    expect(new Set([...produced, 'abandoned'])).toEqual(new Set(CLIENT_CONNECT_FAILURE_REASONS))
+    // `timeout` is no longer produced: only a tab from before pending can send it.
+    expect(new Set([...produced, 'abandoned', 'timeout'])).toEqual(new Set(CLIENT_CONNECT_FAILURE_REASONS))
   })
 })
 

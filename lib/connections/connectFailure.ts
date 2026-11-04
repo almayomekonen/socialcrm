@@ -20,6 +20,8 @@ import type { EmbeddedSignupResult } from '@/lib/facebook/useEmbeddedSignup'
 export const CLIENT_CONNECT_FAILURE_REASONS = [
   'cancelled',
   'sdk',
+  // No longer sent: the five-minute valve now reports `whatsapp_connect_pending`.
+  // Kept so a tab loaded before the change can still report it.
   'timeout',
   'config',
   'network',
@@ -38,7 +40,7 @@ export function clientConnectFailureReason(result: EmbeddedSignupResult): Client
     case 'cancelled':
       return result.cancel?.errorReported ? 'meta_error' : 'cancelled'
     case 'sdk':
-      return result.reason === 'timeout' ? 'timeout' : 'sdk'
+      return 'sdk'
     case 'config':
       return 'config'
     case 'network':
@@ -46,6 +48,8 @@ export function clientConnectFailureReason(result: EmbeddedSignupResult): Client
     // Code arrived but Meta's session message (waba_id / phone_number_id) never did.
     case 'missing_details':
       return 'session'
+    // `pending` is not a failure: the window may still be open. Server failures
+    // are recorded by the route.
     default:
       return null
   }

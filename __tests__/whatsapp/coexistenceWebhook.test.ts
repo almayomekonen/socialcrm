@@ -84,3 +84,27 @@ describe('whatsapp webhook — coexistence fields reach the processing pipeline'
     expect(runWorker).not.toHaveBeenCalled()
   })
 })
+
+describe('whatsapp webhook — inbound messages and echoes stay apart', () => {
+  it('an inbound message never reaches the coexistence pipeline', async () => {
+    const res = await POST(signed(coexistencePayload('messages', { messages: [{ id: 'wamid.IN', from: '16505551234', type: 'text', text: { body: 'hi' } }] })) as never)
+    expect(res.status).toBe(200)
+    expect(processCoexistence).not.toHaveBeenCalled()
+  })
+
+  it('an echo with an inbound-shaped `messages` array is still an echo', async () => {
+    const res = await POST(signed(coexistencePayload('smb_message_echoes', { messages: [{ id: 'wamid.X', from: '16505551234', type: 'text', text: { body: 'hi' } }] })) as never)
+    expect(res.status).toBe(200)
+    expect(processCoexistence).toHaveBeenCalledTimes(1)
+    expect(createLead).not.toHaveBeenCalled()
+    expect(ingestInbound).not.toHaveBeenCalled()
+  })
+
+  it('KNOWN LIMIT: only the first change is read, so an echo in a second change is dropped, never made inbound', async () => {
+    const payload = coexistencePayload('messages', { messages: [{ id: 'wamid.IN', from: '16505551234', type: 'text', text: { body: 'hi' } }] })
+    payload.entry[0].changes.push(coexistencePayload('smb_message_echoes', { message_echoes: [] }).entry[0].changes[0])
+    const res = await POST(signed(payload) as never)
+    expect(res.status).toBe(200)
+    expect(processCoexistence).not.toHaveBeenCalled()
+  })
+})

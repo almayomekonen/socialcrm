@@ -261,8 +261,20 @@ export const WHATSAPP_NOTICES: Record<string, ConnectionNotice> = {
     action: SHARED.retry,
   },
   /**
+   * Five minutes with no outcome from Meta's window, which may still be open. Not
+   * a failure, and worded so it does not claim one: a late finish clears it.
+   */
+  pending: {
+    tone: 'attention',
+    title: 'ממתינים לסיום החיבור',
+    explanation: 'עדיין לא קיבלנו תשובה מחלון החיבור של Meta. ייתכן שהוא עדיין פתוח.',
+    reasons: [],
+    nextStep: 'אם החלון פתוח, אפשר לסיים בו את החיבור. אם הוא נסגר, אפשר לנסות שוב.',
+    action: SHARED.retry,
+  },
+  /**
    * Meta showed an error inside its own window and the customer reported it
-   * (Embedded Signup CANCEL with `error_message`). Retrying unchanged usually
+   * (Embedded Signup ERROR, or CANCEL with `error_message`). Retrying unchanged usually
    * fails the same way, so the explanation carries Meta's words and, for an
    * error Meta documents, the next step comes from `metaSignupErrorSteps.ts` —
    * see `whatsappNotice`. The title stays neutral: the owner needs the step, not

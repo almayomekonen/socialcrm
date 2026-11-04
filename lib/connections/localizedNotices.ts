@@ -41,6 +41,7 @@ const FB_KEYS: Record<string, Keys> = {
 
 const WA_KEYS: Record<string, Keys> = {
   not_completed: { title: 'settings.wa.not_completed.title', explanation: 'settings.wa.not_completed.explanation', reasons: ['settings.wa.not_completed.reason1', 'settings.wa.not_completed.reason2'], nextStep: 'settings.wa.not_completed.nextStep', action: 'settings.wa.not_completed.action' },
+  pending: { title: 'settings.wa.pending.title', explanation: 'settings.wa.pending.explanation', reasons: [], nextStep: 'settings.wa.pending.nextStep', action: 'settings.wa.pending.action' },
   meta_error: { title: 'settings.wa.meta_error.title', explanation: 'settings.wa.meta_error.explanation', reasons: [], nextStep: 'settings.wa.meta_error.nextStep', action: 'settings.wa.meta_error.action' },
   verification_incomplete: { title: 'settings.wa.verification_incomplete.title', explanation: 'settings.wa.verification_incomplete.explanation', reasons: ['settings.wa.verification_incomplete.reason1', 'settings.wa.verification_incomplete.reason2'], nextStep: 'settings.wa.verification_incomplete.nextStep', action: 'settings.wa.verification_incomplete.action' },
   sdk: { title: 'settings.wa.sdk.title', explanation: 'settings.wa.sdk.explanation', reasons: ['settings.wa.sdk.reason1', 'settings.wa.sdk.reason2'], nextStep: 'settings.wa.sdk.nextStep', action: 'settings.wa.sdk.action' },

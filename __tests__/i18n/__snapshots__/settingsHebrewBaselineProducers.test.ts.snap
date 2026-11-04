@@ -334,6 +334,14 @@ exports[`Hebrew baseline — settings label producers > connection notices 1`] =
       "title": "הגדרת מספר ה-WhatsApp עדיין לא הושלמה",
       "tone": "attention",
     },
+    "pending": {
+      "action": "לנסות שוב",
+      "explanation": "עדיין לא קיבלנו תשובה מחלון החיבור של Meta. ייתכן שהוא עדיין פתוח.",
+      "nextStep": "אם החלון פתוח, אפשר לסיים בו את החיבור. אם הוא נסגר, אפשר לנסות שוב.",
+      "reasons": [],
+      "title": "ממתינים לסיום החיבור",
+      "tone": "attention",
+    },
     "resource_claimed": {
       "explanation": "מספר ה-WhatsApp הזה כבר מחובר לחשבון SocialCRM אחר. אי אפשר לחבר אותו לשני חשבונות במקביל.",
       "nextStep": "אם המספר שייך לכם, יש לנתקו מהחשבון האחר תחילה ואז לחבר כאן.",

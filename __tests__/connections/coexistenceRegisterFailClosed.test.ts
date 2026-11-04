@@ -21,9 +21,9 @@ const h = vi.hoisted(() => {
     return qb
   }
   qb.onConflict = () => qb
-  qb.merge = async (obj: unknown) => {
+  qb.merge = (obj: unknown) => {
     state.merged.push(obj)
-    return [1]
+    return { where: () => ({ returning: async () => [{ id: 1 }] }) }
   }
   const db = Object.assign((_table: string) => qb, { raw: async () => ({}) })
   return { state, db }

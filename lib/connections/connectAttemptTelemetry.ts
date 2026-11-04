@@ -7,7 +7,8 @@ import {
   takeAbandonedAttempt,
 } from '@/lib/connections/pendingConnectAttempt'
 import type { EmbeddedSignupResult } from '@/lib/facebook/useEmbeddedSignup'
-import type { EmbeddedSignupCancel } from '@/lib/facebook/embeddedSignupSession'
+import type { EmbeddedSignupCancel, EmbeddedSignupMessageShape } from '@/lib/facebook/embeddedSignupSession'
+import { storableMetaErrorText } from '@/lib/whatsapp/coexistenceEvents'
 import { cancelIds, createLateCancelTracker, newConnectAttemptId } from '@/lib/connections/lateCancelDetail'
 
 /**
@@ -15,7 +16,10 @@ import { cancelIds, createLateCancelTracker, newConnectAttemptId } from '@/lib/c
  * `useEmbeddedSignup` so the hook stays about launching Meta's flow.
  *
  * Every attempt ends in exactly one of: the result reported by `finish`, or —
- * when the page did not survive the attempt — `abandoned` on the next visit.
+ * when the page did not survive the attempt — `abandoned` on the next visit. One
+ * still open after five minutes is reported as `whatsapp_connect_pending` first,
+ * and keeps its marker and its live count until it really ends. A retry replaces
+ * it, and it then stays unknown: nothing later can say how it would have ended.
  * All reporting is fire and forget; analytics must never affect the flow.
  *
  * `abandoned` is reported only when no attempt is live in this page: a second
@@ -28,22 +32,47 @@ import { cancelIds, createLateCancelTracker, newConnectAttemptId } from '@/lib/c
 let liveAttempts = 0
 // One per page, shared by every connect surface, so a late CANCEL is reported once.
 const lateCancels = createLateCancelTracker()
+let currentAttemptId: string | null = null
+let replacePendingAttempt: (() => void) | null = null
+// The same Meta message can arrive twice; each is stored once per attempt.
+let reportedMetaEvents = new Set<string>()
 
 /**
  * Call synchronously in the click handler, before launching. Only synchronous
  * work happens here, so FB.login still runs inside the click task.
  */
-export function beginConnectAttempt(): { finish: (result: EmbeddedSignupResult) => EmbeddedSignupResult } {
+export function beginConnectAttempt(): {
+  attemptId: string
+  pending: () => void
+  finish: (result: EmbeddedSignupResult) => EmbeddedSignupResult
+} {
+  replacePendingAttempt?.()
   const startedAt = Date.now()
   // Random and meaningless: it only ties a later cancel-detail event to this failure.
   const attemptId = newConnectAttemptId()
   lateCancels.begin(attemptId)
+  currentAttemptId = attemptId
+  reportedMetaEvents = new Set()
   const storage = browserStorage()
   if (storage) markPendingAttempt(storage, startedAt)
   liveAttempts += 1
+  let replaced = false
 
   return {
+    attemptId,
+    pending() {
+      replacePendingAttempt = () => {
+        replaced = true
+        replacePendingAttempt = null
+        liveAttempts = Math.max(0, liveAttempts - 1)
+      }
+      lateCancels.pending(attemptId)
+      void recordLeadActionEvent('whatsapp_connect_pending', { attemptId, elapsedMs: Date.now() - startedAt })
+    },
     finish(result) {
+      // Replaced by a retry: its marker and outcome now belong to the new attempt.
+      if (replaced) return result
+      replacePendingAttempt = null
       liveAttempts = Math.max(0, liveAttempts - 1)
       if (storage) clearPendingAttempt(storage)
       const reason = clientConnectFailureReason(result)
@@ -83,4 +112,26 @@ export function reportAbandonedConnectAttempt(): void {
 export function reportLateCancel(cancel: EmbeddedSignupCancel): void {
   const late = lateCancels.late(cancel)
   if (late) void recordLeadActionEvent('whatsapp_connect_cancel_detail', { attemptId: late.attemptId, ...late.detail })
+}
+
+/**
+ * One message from Meta's window, reported as it arrives. A failure event only
+ * exists if the attempt reaches an outcome in this page; this does not depend on
+ * that, so Meta's error code and session id survive a window left open or a page
+ * that went away. Tied to the latest attempt; dropped if this page started none.
+ */
+export function reportMetaEvent(shape: EmbeddedSignupMessageShape, cancel: EmbeddedSignupCancel | null): void {
+  if (!currentAttemptId) return
+  const detail = {
+    attemptId: currentAttemptId,
+    ...shape,
+    ...(cancel ? cancelIds(cancel) : {}),
+    metaTraceId: cancel?.traceId,
+    metaTimestamp: cancel?.timestamp,
+    metaErrorMessage: storableMetaErrorText(cancel?.errorMessage),
+  }
+  const key = JSON.stringify(detail)
+  if (reportedMetaEvents.has(key)) return
+  reportedMetaEvents.add(key)
+  void recordLeadActionEvent('whatsapp_connect_meta_event', detail)
 }

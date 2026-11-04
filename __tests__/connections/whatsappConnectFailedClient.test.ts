@@ -198,3 +198,79 @@ describe('neighbouring events are unchanged', () => {
     expect(h.tracked.map((t) => t.props?.reason)).toEqual(['no_phone'])
   })
 })
+
+describe('whatsapp_connect_pending', () => {
+  it('stores the attempt id and elapsed time, stamped client-stage, and nothing else', async () => {
+    await recordLeadActionEvent('whatsapp_connect_pending', { attemptId: 'attempt-1234', elapsedMs: 300000, stage: 'forged', reason: undefined, junk: 'x' })
+    expect(h.tracked[0]).toMatchObject({ agencyId: 42, userId: 5, event: 'whatsapp_connect_pending', props: { stage: 'client', attemptId: 'attempt-1234', elapsedMs: 300000 } })
+    expect(h.tracked[0].props).not.toHaveProperty('junk')
+  })
+
+  it('no valid attempt id, no record', async () => {
+    await recordLeadActionEvent('whatsapp_connect_pending', { attemptId: 'bad id!', elapsedMs: 1 })
+    expect(h.tracked).toHaveLength(0)
+  })
+})
+
+describe('whatsapp_connect_started', () => {
+  it('carries the attempt id when it is valid', async () => {
+    await recordLeadActionEvent('whatsapp_connect_started', { attemptId: 'attempt-1234', junk: 'x' })
+    expect(h.tracked[0].props).toEqual({ inApp: null, attemptId: 'attempt-1234' })
+  })
+})
+
+describe('whatsapp_connect_meta_event', () => {
+  const VALID = {
+    attemptId: 'attempt-1234',
+    metaEvent: 'ERROR',
+    metaPayloadKeys: ['error_code', 'session_id', 'bad key!', 7],
+    metaErrorId: '3441061',
+    metaSessionId: '01a1a605-80f9-7ba2-a2cc-f13d153deafd',
+    metaTimestamp: '1746041036000',
+    metaTraceId: 'AbC_1',
+    metaErrorMessage: 'Call +972 50 123 4567 or a@b.co now',
+    step: 'PHONE_NUMBER_SETUP',
+    isOnBizApp: true,
+    accountCount: 2,
+  }
+
+  it('is stored against the signed-in agency, field by field', async () => {
+    await recordLeadActionEvent('whatsapp_connect_meta_event', { ...VALID, agencyId: 999, code: 'oauth', access_token: 'tok', junk: 'x' })
+    expect(h.tracked[0]).toMatchObject({ agencyId: 42, userId: 5 })
+    expect(h.tracked[0].props).toEqual({
+      stage: 'client',
+      attemptId: 'attempt-1234',
+      metaEvent: 'ERROR',
+      metaPayloadKeys: ['error_code', 'session_id'],
+      metaErrorId: '3441061',
+      metaSessionId: '01a1a605-80f9-7ba2-a2cc-f13d153deafd',
+      metaTimestamp: '1746041036000',
+      metaTraceId: 'AbC_1',
+      metaErrorMessage: 'Call [number] or [email] now',
+      step: 'PHONE_NUMBER_SETUP',
+      isOnBizApp: true,
+      accountCount: 2,
+    })
+  })
+
+  it.each([
+    ['no attempt id', { metaEvent: 'ERROR' }],
+    ['an unknown event', { attemptId: 'attempt-1234', metaEvent: 'FORGED' }],
+  ])('%s: no record', async (_label, props) => {
+    await recordLeadActionEvent('whatsapp_connect_meta_event', props)
+    expect(h.tracked).toHaveLength(0)
+  })
+
+  it('drops a bad field and keeps the rest', async () => {
+    await recordLeadActionEvent('whatsapp_connect_meta_event', { ...VALID, metaErrorId: 'abc', metaSessionId: 'has space', metaTimestamp: 'soon' })
+    expect(h.tracked[0].props).not.toHaveProperty('metaErrorId')
+    expect(h.tracked[0].props).not.toHaveProperty('metaSessionId')
+    expect(h.tracked[0].props).not.toHaveProperty('metaTimestamp')
+    expect(h.tracked[0].props).toMatchObject({ metaErrorMessage: 'Call [number] or [email] now' })
+  })
+
+  it('bounds Meta’s text', async () => {
+    await recordLeadActionEvent('whatsapp_connect_meta_event', { ...VALID, metaErrorMessage: 'x'.repeat(2000) })
+    expect(String(h.tracked[0].props!.metaErrorMessage)).toHaveLength(300)
+  })
+})

@@ -126,6 +126,12 @@ export const wa: S['wa'] = {
     nextStep: 'Try again and complete the steps in one go, or complete the connection from a computer.',
     action: 'Try again',
   },
+  pending: {
+    title: 'Waiting for the connection to finish',
+    explanation: "We haven't heard back from Meta's connection window yet. It may still be open.",
+    nextStep: 'If the window is open, finish connecting there. If it closed, try again.',
+    action: 'Try again',
+  },
   meta_error: {
     title: "We couldn't complete the WhatsApp connection",
     explanation: "An error was shown in Meta's sign-up window, so the connection wasn't completed.",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { deleteWhatsappConnectionsForAgency, getWhatsappConnectionAuditForAgency } from '@/db/whatsapp'
 import { track } from '@/lib/analytics/track'
+import { SIGNUP_RESUME_COOKIE } from '@/lib/whatsapp/signupResume'
 
 /**
  * User-initiated WhatsApp disconnect — the ONLY delete path for
@@ -56,5 +57,8 @@ export async function POST(_req: NextRequest) {
     },
   })
 
-  return NextResponse.json({ ok: true })
+  // A signup kept after a failure must not bring back a number just disconnected.
+  const res = NextResponse.json({ ok: true })
+  res.cookies.delete(SIGNUP_RESUME_COOKIE)
+  return res
 }

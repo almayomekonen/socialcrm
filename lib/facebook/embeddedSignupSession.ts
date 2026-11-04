@@ -1,55 +1,24 @@
-// Imported from the PURE events module, never from `coexistence.ts`: this file
-// is reachable from `useEmbeddedSignup` ('use client'), and importing the
-// server-only module here pulls db/auth.ts and knex into the browser bundle.
-import {
-  EMBEDDED_SIGNUP_STEPS,
-  ES_EVENT_CANCEL,
-  ES_EVENT_FINISH,
-  ES_EVENT_FINISH_COEXISTENCE,
-  metaErrorId,
-  metaSessionId,
-  type EmbeddedSignupStep,
-  type OnboardingType,
-} from '@/lib/whatsapp/coexistenceEvents'
+import type { EmbeddedSignupCancel, EmbeddedSignupSession } from '@/lib/facebook/embeddedSignupMessages'
+
+export {
+  isFacebookOrigin,
+  parseEmbeddedSignupCancel,
+  parseEmbeddedSignupMessage,
+  parseEmbeddedSignupShape,
+  type EmbeddedSignupCancel,
+  type EmbeddedSignupMessageShape,
+  type EmbeddedSignupSession,
+} from '@/lib/facebook/embeddedSignupMessages'
 
 /**
  * Embedded Signup completion is two independent browser events:
- *   1. `WA_EMBEDDED_SIGNUP` postMessage (session-info) carrying waba_id
+ *   1. `WA_EMBEDDED_SIGNUP` postMessage (session-info) carrying the account id
  *   2. `FB.login` callback carrying the OAuth code
  *
  * Meta does not document a guaranteed order. Reading the session ref inside
  * the login callback therefore loses a successful Meta onboarding whenever
  * the code arrives first. This gate settles only when BOTH are present.
  */
-
-const FB_HOSTS = new Set(['facebook.com', 'www.facebook.com', 'web.facebook.com', 'business.facebook.com'])
-
-export type EmbeddedSignupSession = {
-  waba_id?: string
-  phone_number_id?: string
-  onboardingType: OnboardingType
-}
-
-/**
- * Why Meta says the flow ended without finishing: either the screen the customer
- * left on, or an error Meta showed them and they reported from inside the flow.
- */
-export type EmbeddedSignupCancel = {
-  step?: EmbeddedSignupStep
-  errorReported: boolean
-  /**
-   * Meta's own wording, shown to the customer. Cleaned (no control or bidi
-   * formatting characters), bounded, and never stored or logged.
-   */
-  errorMessage?: string
-  /** Meta's numeric support id for the report. Stored. */
-  errorId?: string
-  /**
-   * Meta's opaque id for this Embedded Signup session, for a Meta support
-   * ticket. Stored. Not a credential and not customer data.
-   */
-  sessionId?: string
-}
 
 /** What one launch of Embedded Signup resolved to. Re-exported by useEmbeddedSignup. */
 export type EmbeddedSignupResult = {
@@ -59,11 +28,56 @@ export type EmbeddedSignupResult = {
   reason?: string
   /** Meta's own account of a cancel: the screen left, or the error shown. */
   cancel?: EmbeddedSignupCancel
+  /** Meta finished and the server kept the connection details: finishing needs no new Meta flow. */
+  resumable?: boolean
+  /**
+   * Set on `error: 'pending'`: no outcome yet, the window may still be open.
+   * Resolves with the real outcome if one ever arrives.
+   */
+  late?: Promise<EmbeddedSignupResult>
 }
 
 /** A cancelled launch, carrying Meta's reason only when Meta gave one. */
 export function cancelledResult(detail?: EmbeddedSignupCancel): EmbeddedSignupResult {
   return detail ? { ok: false, error: 'cancelled', cancel: detail } : { ok: false, error: 'cancelled' }
+}
+
+/**
+ * Stops waiting after `ms` WITHOUT inventing an outcome.
+ *
+ * `FB.login` gives no handle on its window and no signal when it closes through
+ * browser chrome, so after a while we cannot tell a blocked popup from a customer
+ * still working through Meta's screens. Agency 149 finished 28 seconds after the
+ * old timer had told them it failed. So the button is released and the state is
+ * reported as unknown, and the real outcome stays attached as `late`.
+ */
+export function pendingAfter(
+  outcome: Promise<EmbeddedSignupResult>,
+  ms: number,
+  onPending: () => void,
+): Promise<EmbeddedSignupResult> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      onPending()
+      resolve({ ok: false, error: 'pending', late: outcome })
+    }, ms)
+    void outcome.then((result) => {
+      clearTimeout(timer)
+      resolve(result)
+    })
+  })
+}
+
+/** The embedded-signup routes' response, as a launch result. */
+export async function signupResponseResult(res: Response): Promise<EmbeddedSignupResult> {
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string
+    messagingReady?: boolean
+    reason?: string
+    resumable?: boolean
+  }
+  if (!res.ok) return { ok: false, error: body.error ?? 'server', resumable: body.resumable === true }
+  return { ok: true, messagingReady: body.messagingReady, reason: body.reason }
 }
 
 export type EmbeddedSignupOutcome =
@@ -74,7 +88,7 @@ export type EmbeddedSignupOutcome =
 export type EmbeddedSignupGate = {
   acceptSession: (session: EmbeddedSignupSession) => void
   acceptCode: (code: string) => void
-  /** Meta's CANCEL message. Order relative to the login callback is not guaranteed. */
+  /** Meta's CANCEL or ERROR message. Order relative to the login callback is not guaranteed. */
   acceptCancel: (detail: EmbeddedSignupCancel) => void
   /**
    * The login callback came back without a code. Settles as cancelled — at once
@@ -87,97 +101,18 @@ export type EmbeddedSignupGate = {
   outcome: Promise<EmbeddedSignupOutcome>
 }
 
-/**
- * Meta's sample accepts any origin where `origin.endsWith('facebook.com')`,
- * which also matches `https://evilfacebook.com`. Exact hosts, or a true
- * `*.facebook.com` subdomain, over HTTPS.
- */
-export function isFacebookOrigin(origin: string): boolean {
-  try {
-    const { protocol, hostname } = new URL(origin)
-    if (protocol !== 'https:') return false
-    return FB_HOSTS.has(hostname) || hostname.endsWith('.facebook.com')
-  } catch {
-    return false
-  }
-}
-
 export function hasUsableWaba(session: EmbeddedSignupSession | null | undefined): boolean {
-  return typeof session?.waba_id === 'string' && session.waba_id.length > 0
-}
-
-/** A `WA_EMBEDDED_SIGNUP` message from a Facebook origin, or null. */
-function readSignupMessage(origin: string, data: unknown): Record<string, unknown> | null {
-  if (!isFacebookOrigin(origin)) return null
-  let parsed: unknown = data
-  if (typeof parsed === 'string') {
-    try {
-      parsed = JSON.parse(parsed)
-    } catch {
-      return null
-    }
-  }
-  if (!parsed || typeof parsed !== 'object') return null
-  const msg = parsed as Record<string, unknown>
-  return msg.type === 'WA_EMBEDDED_SIGNUP' ? msg : null
-}
-
-const MAX_META_ERROR_LENGTH = 300
-const STEP_SET = new Set<string>(EMBEDDED_SIGNUP_STEPS)
-// C0/C1 controls, and the bidi marks, embeddings, overrides and isolates that
-// could reorder the surrounding Hebrew line. Plain text is all that is kept.
-const UNSAFE_TEXT = /[\u0000-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/g
-
-/** Meta's error text as one bounded line of plain text; empty when nothing is left. */
-function cleanMetaText(raw: string): string {
-  return raw.replace(UNSAFE_TEXT, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_META_ERROR_LENGTH)
+  if (typeof session?.waba_id === 'string' && session.waba_id.length > 0) return true
+  return (session?.wabaCandidates?.length ?? 0) > 0
 }
 
 /**
- * Meta's CANCEL message: `{ data: { current_step } }` when the customer left a
- * screen, `{ data: { error_message, error_code, session_id } }` when they reported
- * an error Meta showed them. Values are cleaned and bounded here because they
- * come from another window. The error code and `session_id` are kept whenever
- * well-formed, with or without a message, for a Meta support ticket.
+ * A later message adds to what Meta already said and never erases it: a customer
+ * who reports an error and then closes the window sends ERROR, then CANCEL.
  */
-export function parseEmbeddedSignupCancel(origin: string, data: unknown): EmbeddedSignupCancel | null {
-  const msg = readSignupMessage(origin, data)
-  if (!msg || msg.event !== ES_EVENT_CANCEL) return null
-  const d = (msg.data && typeof msg.data === 'object' ? msg.data : {}) as Record<string, unknown>
-
-  const errorMessage = typeof d.error_message === 'string' ? cleanMetaText(d.error_message) : ''
-  const cancel: EmbeddedSignupCancel = errorMessage
-    ? { errorReported: true, errorMessage }
-    : typeof d.current_step === 'string'
-      ? { step: (STEP_SET.has(d.current_step) ? d.current_step : 'OTHER') as EmbeddedSignupStep, errorReported: false }
-      : { errorReported: false }
-  // Meta's docs now say `error_code`; older payloads used `error_id`.
-  const errorId = metaErrorId(d.error_code) ?? metaErrorId(d.error_id)
-  if (errorId) cancel.errorId = errorId
-  const sessionId = metaSessionId(d.session_id)
-  if (sessionId) cancel.sessionId = sessionId
-  return cancel
-}
-
-export function parseEmbeddedSignupMessage(origin: string, data: unknown): EmbeddedSignupSession | null {
-  const parsed = readSignupMessage(origin, data)
-  if (!parsed) return null
-  const msg = parsed as {
-    type?: string
-    event?: string
-    data?: { waba_id?: string; phone_number_id?: string; messaging_account_ids?: unknown }
-  }
-  if (msg.type !== 'WA_EMBEDDED_SIGNUP') return null
-  if (msg.event !== ES_EVENT_FINISH && msg.event !== ES_EVENT_FINISH_COEXISTENCE) return null
-  // v4 sends `waba_id`; v5 sends `messaging_account_ids` ("Replaces waba_id").
-  // Only an unambiguous single id is used; several would be a guess.
-  const ids = msg.data?.messaging_account_ids
-  const v5Waba = Array.isArray(ids) && ids.length === 1 && typeof ids[0] === 'string' ? ids[0] : undefined
-  return {
-    waba_id: typeof msg.data?.waba_id === 'string' ? msg.data.waba_id : v5Waba,
-    phone_number_id: typeof msg.data?.phone_number_id === 'string' ? msg.data.phone_number_id : undefined,
-    onboardingType: msg.event === ES_EVENT_FINISH_COEXISTENCE ? 'coexistence' : 'cloud_api',
-  }
+function mergeCancel(previous: EmbeddedSignupCancel | null, next: EmbeddedSignupCancel): EmbeddedSignupCancel {
+  if (!previous) return next
+  return { ...previous, ...next, errorReported: previous.errorReported || next.errorReported }
 }
 
 export function createEmbeddedSignupGate(): EmbeddedSignupGate {
@@ -221,7 +156,7 @@ export function createEmbeddedSignupGate(): EmbeddedSignupGate {
     },
     acceptCancel(detail) {
       if (settled) return
-      cancelDetail = detail
+      cancelDetail = mergeCancel(cancelDetail, detail)
       if (cancelPending) settleCancelled()
     },
     cancel(graceMs = 0) {

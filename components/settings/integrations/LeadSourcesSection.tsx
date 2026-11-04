@@ -9,6 +9,7 @@ import WhatsappConnect from '@/components/settings/WhatsappConnect'
 import { checkFacebookConnection, type FacebookHealthStatus } from '@/lib/facebook/health'
 import { resolvePageAccessToken } from '@/lib/facebook/pageToken'
 import { PENDING_PAGES_COOKIE, readPendingPages, toClientPages } from '@/lib/facebook/pendingPages'
+import { readSignupResume, SIGNUP_RESUME_COOKIE } from '@/lib/whatsapp/signupResume'
 import { getFacebookCommentTextCapability } from '@/db/facebook'
 import { isFacebookCommentsEnabledForAgency } from '@/lib/facebook/comments/capability'
 import { GRAPH_VERSION } from '@/lib/facebook/graph'
@@ -173,6 +174,7 @@ export default async function LeadSourcesSection({
             status={waStatus}
             inAppBrowser={inAppBrowser}
             translated={translated}
+            signupResumable={!waConnection && readSignupResume(cookieStore.get(SIGNUP_RESUME_COOKIE)?.value, { agencyId: user.agencyId, userId: user.id }) !== null}
           />
         </Suspense>
       </AccordionItem>

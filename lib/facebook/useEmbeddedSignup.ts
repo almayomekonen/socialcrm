@@ -1,12 +1,15 @@
 'use client'
 import { useCallback, useEffect, useRef } from 'react'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
-import { beginConnectAttempt, reportAbandonedConnectAttempt, reportLateCancel } from '@/lib/connections/connectAttemptTelemetry'
+import { beginConnectAttempt, reportAbandonedConnectAttempt, reportLateCancel, reportMetaEvent } from '@/lib/connections/connectAttemptTelemetry'
 import {
   cancelledResult,
   createEmbeddedSignupGate,
   parseEmbeddedSignupCancel,
   parseEmbeddedSignupMessage,
+  parseEmbeddedSignupShape,
+  pendingAfter,
+  signupResponseResult,
   type EmbeddedSignupGate,
   type EmbeddedSignupResult,
 } from '@/lib/facebook/embeddedSignupSession'
@@ -33,22 +36,16 @@ const SDK_READY_TIMEOUT_MS = 15_000
 const SESSION_INFO_WAIT_MS = 8_000
 
 /**
- * Outer bound on the WHOLE launch promise.
+ * When the button is released if no outcome has arrived.
  *
- * Every `resolve` path lives inside `FB.login`'s callback. If the SDK never
- * invokes it — a blocked popup, a dialog dismissed through browser chrome
- * rather than Meta's own control, a dropped callback — the promise never
- * settles, `useAction`'s `finally` never runs, and the button spins forever
- * with no way back except reloading the page. Observed in production on
- * 2026-08-30.
+ * Every outcome lives inside `FB.login`'s callback. If the SDK never invokes it —
+ * a blocked popup, a dialog dismissed through browser chrome rather than Meta's
+ * own control, a dropped callback — the button would spin forever with no way
+ * back except reloading the page. Observed in production on 2026-08-30.
  *
- * Five minutes, not one: a real Coexistence signup has the customer reading
- * screens, picking a business and entering an OTP inside Meta's popup. This is
- * a stuck-state valve, NOT a deadline for the customer, and cutting a genuine
- * flow short would be the worse failure.
- *
- * It resolves as `sdk`, whose existing notice already says exactly this —
- * "חלון ההתחברות לא נפתח", blocker/privacy reasons, retry action.
+ * This is NOT a deadline for the customer and NOT a failure: see `pendingAfter`.
+ * The window may still be open, and a callback after this still completes the
+ * signup and updates the page.
  */
 const LAUNCH_TIMEOUT_MS = 300_000
 
@@ -79,9 +76,12 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
+      const shape = parseEmbeddedSignupShape(event.origin, event.data)
+      if (!shape) return
+      const cancel = parseEmbeddedSignupCancel(event.origin, event.data)
+      reportMetaEvent(shape, cancel)
       const session = parseEmbeddedSignupMessage(event.origin, event.data)
       if (session) return gateRef.current?.acceptSession(session)
-      const cancel = parseEmbeddedSignupCancel(event.origin, event.data)
       if (!cancel) return
       gateRef.current?.acceptCancel(cancel)
       reportLateCancel(cancel)
@@ -90,7 +90,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
-  const launchFlow = useCallback(async (): Promise<EmbeddedSignupResult> => {
+  const launchFlow = useCallback(async (attemptId: string): Promise<EmbeddedSignupResult> => {
     /**
      * DENOMINATOR of the WhatsApp connect funnel, and the only honest place for
      * it: this is the click, before the Meta dialog opens. `/api/auth/whatsapp`
@@ -102,7 +102,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
      * spells out that an await here spends the user-activation token and the
      * browser blocks the popup. Fire and forget only.
      */
-    void recordLeadActionEvent('whatsapp_connect_started')
+    void recordLeadActionEvent('whatsapp_connect_started', { attemptId })
 
     // `window.FB` existing proves nothing: the loader stub installs a buffering
     // shim under that name, and FB.login on the shim is queued into
@@ -117,20 +117,7 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
     if (!facebookSdkIsReady() && !(await waitForFacebookSdk(SDK_READY_TIMEOUT_MS))) {
       return { ok: false, error: 'sdk' }
     }
-    return new Promise((resolve) => {
-      // A Promise ignores every resolve after the first, so the timeout and a
-      // late callback cannot fight: whichever lands first wins and the other is
-      // a no-op. `settle` exists only to clear the timer so a completed launch
-      // leaves nothing pending.
-      let timer: ReturnType<typeof setTimeout> | undefined
-      const settle = (result: EmbeddedSignupResult) => {
-        if (timer !== undefined) clearTimeout(timer)
-        resolve(result)
-      }
-      // `reason: 'timeout'` keeps the 'sdk' notice but lets analytics tell a
-      // flow that never opened from one that opened and never came back.
-      timer = setTimeout(() => settle({ ok: false, error: 'sdk', reason: 'timeout' }), LAUNCH_TIMEOUT_MS)
-
+    return new Promise((settle) => {
       try {
         if (!facebookSdkIsReady() || !window.FB) return settle({ ok: false, error: 'sdk' })
         if (!configId) return settle({ ok: false, error: 'config' })
@@ -138,6 +125,9 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
         // as the click. Another consumer may have bound AUTH_FACEBOOK_APP_ID.
         const launchParams = embeddedSignupLaunch(graphVersion)
         initFacebookApp(appId, launchParams.sdkVersion)
+        // A retry replaces a pending attempt: its window is no longer the one we
+        // are waiting for, so its gate stops accepting anything.
+        gateRef.current?.cancel()
         const gate = createEmbeddedSignupGate()
         gateRef.current = gate
         // FB.login requires a SYNCHRONOUS callback. Handing the SDK an async
@@ -170,19 +160,13 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
                   body: JSON.stringify({
                     code: outcome.code,
                     wabaId: outcome.session.waba_id,
+                    wabaCandidates: outcome.session.wabaCandidates,
+                    attemptId,
                     phoneNumberId: outcome.session.phone_number_id,
                     onboardingType: outcome.session.onboardingType,
                   }),
                 })
-                const body = (await res.json().catch(() => ({}))) as {
-                  error?: string
-                  messagingReady?: boolean
-                  reason?: string
-                }
-                if (!res.ok) {
-                  return settle({ ok: false, error: body.error ?? 'server' })
-                }
-                settle({ ok: true, messagingReady: body.messagingReady, reason: body.reason })
+                settle(await signupResponseResult(res))
               } catch {
                 settle({ ok: false, error: 'network' })
               }
@@ -210,8 +194,25 @@ export function useEmbeddedSignup(appId: string, configId: string, graphVersion:
    */
   const launch = useCallback((): Promise<EmbeddedSignupResult> => {
     const attempt = beginConnectAttempt()
-    return launchFlow().then(attempt.finish)
+    return pendingAfter(launchFlow(attempt.attemptId).then(attempt.finish), LAUNCH_TIMEOUT_MS, attempt.pending)
   }, [launchFlow])
 
-  return { launch }
+  /**
+   * Finishes a signup whose Meta part is already done (`result.resumable`). No
+   * popup and no Meta flow: the server holds what it needs in a sealed cookie.
+   */
+  const resume = useCallback(async (): Promise<EmbeddedSignupResult> => {
+    try {
+      return await signupResponseResult(await fetch('/api/whatsapp/embedded-signup/resume', { method: 'POST' }))
+    } catch {
+      return { ok: false, error: 'network' }
+    }
+  }, [])
+
+  /** Forgets a kept signup. Fire and forget, so a launch stays inside its click task. */
+  const discardKept = useCallback(() => {
+    void fetch('/api/whatsapp/embedded-signup/resume', { method: 'DELETE' }).catch(() => {})
+  }, [])
+
+  return { launch, resume, discardKept }
 }
