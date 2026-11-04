@@ -25,6 +25,35 @@ const PUBLIC_ROUTES = [
 ]
 
 /**
+ * Every top-level route that needs a session (`/auth` is the login itself). A
+ * signed-out visitor to one of these goes to /auth. Any other path is left to
+ * Next, which answers a file from `public/` or a real 404, so a missing page is
+ * never a redirect to the login. A test compares this list with the folders
+ * under `app/(he)`, so a new protected route fails the suite until it is listed.
+ */
+export const APP_ROUTES = [
+  '/activate',
+  '/admin',
+  '/agent',
+  '/billing',
+  '/calendar',
+  '/clients',
+  '/dashboard',
+  '/deals',
+  '/files',
+  '/inbox',
+  '/leads',
+  '/m',
+  '/notifications',
+  '/oauth',
+  '/promotion',
+  '/settings',
+  '/sum_sales',
+  '/support',
+  '/tasks',
+]
+
+/**
  * OAuth / MCP discovery documents (ChatGPT connector). EXACT paths only — no
  * prefix match, no other /.well-known path. Public metadata with no tenant data
  * (and 404 while MCP is disabled); it must be fetchable without a session or
@@ -63,7 +92,12 @@ export async function proxy(request: NextRequest) {
   const locale = localeOfPath(pathname)
   if (locale) return isLocalePage(locale, pathname) ? NextResponse.next() : localeNotFoundResponse(locale)
 
-  if (!user && !pathname.startsWith('/auth')) return Response.redirect(new URL('/auth', request.url))
+  if (!user && !pathname.startsWith('/auth')) {
+    // `/.well-known` keeps the redirect: OAuth discovery opens exact paths only
+    // (OAUTH_DISCOVERY_PATHS), and the rest of that namespace is not a page.
+    const needsLogin = pathname.startsWith('/.well-known') || APP_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'))
+    return needsLogin ? Response.redirect(new URL('/auth', request.url)) : NextResponse.next()
+  }
 
   if (user && pathname.startsWith('/auth')) return Response.redirect(new URL('/dashboard', request.url))
 

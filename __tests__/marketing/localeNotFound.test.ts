@@ -81,16 +81,13 @@ describe('everything else is left to Next', () => {
     expect(await passesThrough('/faq/does-not-exist')).toBe(true)
   })
 
-  test.each([false, true])('/does-not-exist keeps its old behaviour (signed in: %s)', async (signedIn) => {
-    const res = await request('/does-not-exist', signedIn)
-    if (signedIn) expect(res.headers.get('location')).toBeNull()
-    else expect(res.headers.get('location')).toBe(`${ORIGIN}/auth`)
-    expect(res.status).not.toBe(404)
+  test.each([false, true])('/does-not-exist is left to Next, which answers the Hebrew 404 (signed in: %s)', async (signedIn) => {
+    expect(await passesThrough('/does-not-exist', signedIn)).toBe(true)
   })
 
   test.each(['/enterprise', '/archive', '/english', '/arabic'])('%s is not a locale path', async (path) => {
     expect(localeOfPath(path)).toBeNull()
-    expect((await request(path)).headers.get('location')).toBe(`${ORIGIN}/auth`)
+    expect(await passesThrough(path)).toBe(true)
   })
 })
 

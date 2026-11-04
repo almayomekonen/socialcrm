@@ -1,129 +1,37 @@
 # SocialCRM
 
-> מערכת ניהול לידים לעסקים קטנים בישראל — כל הלידים מפייסבוק, אינסטגרם ווואטסאפ במקום אחד.
+> A lead management CRM for small businesses. Leads from Facebook Lead Ads, Instagram ads and WhatsApp land in one list, each with a source, a status and a rep.
 
-SocialCRM is a Hebrew-language lead management CRM (Customer Relationship Management) system built for small businesses in Israel. It centralizes leads from Facebook Lead Ads, WhatsApp, and Instagram into one platform, replacing scattered Excel sheets and WhatsApp groups.
+Website: https://getsocialcrm.com
 
-## About
+## Language
 
-**URL**: https://socialcrm.vercel.app
-**Language**: Hebrew (he-IL), RTL interface
-**Market**: Israel
-**Category**: CRM / Lead Management SaaS
+The SocialCRM app, including sign-up, is currently in Hebrew. Other interface languages are limited to an authorized multilingual pilot.
 
-The core problem SocialCRM solves: small business owners receive leads from Facebook forms, WhatsApp messages, and Instagram DMs — but have no unified system. Leads get buried in chat histories, forgotten in Excel files, or never followed up. SocialCRM is the single place where every lead lands and gets tracked to close.
+## What it does
 
----
+- Facebook and Instagram Lead Ads: connect a Facebook business page and leads from Lead Ad forms enter the system automatically, with a source and a status.
+- Instagram direct messages: these do not come in automatically. They are added by hand.
+- WhatsApp: connect a WhatsApp Business account. Conversations connect to the lead, and replies are sent from the system with delivery and read status.
+- Lead statuses: New, In progress, Interested, Closed and Lost.
+- Reps: assign leads to reps.
+- Excel: import existing leads from Excel, and export to Excel or PDF.
+- AI, on the Pro plan: a summary of each lead, key points, a recommended next step and draft follow-up messages. A draft is sent only when a person clicks send.
 
-## Core Entities Defined
+## Pricing
 
-**Lead (ליד)**: A prospective customer who has expressed interest — filled a Facebook form, sent a WhatsApp message, or clicked a contact link. A lead is not yet a paying customer; they are an opportunity.
+Card required. The first 7 days are free. After that, the subscription renews automatically at ₪89/month unless cancelled before the first charge. Prices are in Israeli shekels (ILS). To verify the card, the card company may place a temporary hold of ₪1. It is not a charge.
 
-**CRM (ניהול קשרי לקוחות)**: Software that centralizes all leads and customer interactions, allowing status tracking, rep assignment, notes, follow-ups, and sales reporting.
+## Pages
 
-**Lead Status (סטטוס ליד)**: Each lead moves through stages:
-- חדש (New) — just arrived, not yet contacted
-- בטיפול (In Progress) — being worked
-- הצעת מחיר (Quote Sent) — offer made
-- סגור (Closed/Won) — deal completed
-- אבוד (Lost) — did not convert
-
-**Agent / Sales Rep (נציג)**: A team member assigned to specific leads. They see only their own leads; managers see all.
-
-**Facebook Lead Ad**: A Facebook advertising format where users fill a form inside Facebook. SocialCRM connects to the Facebook Lead Ads API and imports leads automatically when a form is submitted.
-
-**Pipeline**: The full set of active leads at various stages, representing the business's potential revenue.
-
----
-
-## Key Features
-
-- **Facebook Lead Ads integration** — Connect a Facebook Business page once. Every new lead from a Facebook form arrives in SocialCRM automatically within seconds. No manual copying.
-- **Excel import** — Upload an existing Excel file (name, phone, email columns). All leads imported instantly.
-- **WhatsApp leads** — Add leads from WhatsApp manually in 10 seconds, or import via phone number list.
-- **Lead status management** — Update each lead's status with one click.
-- **Agent assignment** — Assign leads to sales reps. Each rep sees only their leads; managers see everything.
-- **Follow-up reminders** — Add a reminder to any lead. System notifies when it's time to follow up.
-- **Notes and history** — Every note, status change, and update is saved on the lead permanently.
-- **Sales reports** — See closed leads, conversion rates, and performance by agent and source.
-
----
-
-## Public Pages (Crawlable)
-
-- /auth — Login page (main entry point for new and returning users)
-- /auth/register — New account registration
-- /features — Full product feature list for small businesses
-- /crm — Complete guide: what is lead management, what is CRM, how to start (pillar page)
-- /facebook-leads — How to manage Facebook leads automatically with SocialCRM
-- /whatsapp-leads — How to manage leads received via WhatsApp
-- /crm-vs-excel — Direct comparison: CRM vs Excel for lead management
-
----
-
-## Frequently Asked Questions
-
-**What is SocialCRM?**
-SocialCRM is a lead management system for small businesses in Israel. It centralizes leads from Facebook, Instagram, and WhatsApp into one Hebrew-language platform so nothing gets lost and every lead gets followed up.
-
-**What is a lead (ליד)?**
-A lead is a person who showed interest in a product or service — filled a form, sent a message, or responded to an ad. They are not yet a paying customer. Lead management is the process of tracking and converting these opportunities.
-
-**What is CRM?**
-CRM (Customer Relationship Management) is software that helps businesses manage relationships with potential and existing customers. For small businesses, a CRM primarily organizes leads, tracks their status through the sales pipeline, and ensures follow-up happens.
-
-**Does SocialCRM integrate with Facebook?**
-Yes. SocialCRM connects directly to the Facebook Lead Ads API. Every lead who fills a Facebook Lead Ad form arrives in SocialCRM automatically within seconds — including their name, phone, and any custom fields from the form.
-
-**Can I import leads from Excel?**
-Yes. Upload an Excel file with columns for name, phone, and optionally email and source. All leads are imported instantly.
-
-**How is CRM different from Excel for lead management?**
-Excel lacks: automatic Facebook connection, follow-up reminders, agent assignment, duplicate prevention, conversation history, and real-time reporting. CRM handles all of these. Excel is sufficient for fewer than 20 leads/month. Beyond that, leads get lost.
-
-**When should a small business switch from Excel to CRM?**
-Switch when: (1) receiving more than 30 leads/month, (2) there is more than one sales rep, (3) leads are being forgotten, (4) leads arrive from Facebook automatically, or (5) you need conversion reporting.
-
-**What is a Facebook Lead Ad?**
-A Facebook Lead Ad is an advertising format where a contact form appears directly inside Facebook or Instagram. When a user submits the form, their data is sent to Facebook's Lead Ads API. SocialCRM connects to this API and receives the lead data automatically.
-
-**Is SocialCRM free?**
-Registration and initial use is free. No credit card required to start.
-
-**What languages does SocialCRM support?**
-Hebrew (primary). The interface is fully RTL (right-to-left).
-
----
-
-## Target Users
-
-- Small business owners in Israel running their own sales (1–10 person businesses)
-- Sales representatives managing inbound leads from social media advertising
-- Businesses running Facebook or Instagram Lead Ads campaigns
-- Teams of 1–20 people who need a simple, fast, Hebrew CRM
-
----
-
-## How SocialCRM Compares
-
-SocialCRM vs Excel/Google Sheets:
-- SocialCRM has automatic Facebook integration; Excel requires manual copying
-- SocialCRM has reminders and follow-up tracking; Excel does not
-- SocialCRM supports team assignment; Excel has limited sharing
-- SocialCRM has built-in reporting; Excel requires manual calculations
-- Excel is free; SocialCRM has a low monthly cost
-
-SocialCRM vs enterprise CRM (Salesforce, HubSpot):
-- SocialCRM is simpler and faster to start (under 5 minutes)
-- SocialCRM is in Hebrew and designed for the Israeli market
-- SocialCRM focuses on social media lead sources
-- Enterprise CRMs are designed for larger teams with complex workflows
-
----
-
-## Statistics Relevant to Lead Management
-
-- Lead contact probability drops 80% after 5 minutes from form submission
-- 44% of leads never receive a follow-up after first contact
-- Businesses that respond to leads within 1 hour are 3x more likely to close
-- Source: Harvard Business Review, InsideSales research
+- [Home (Hebrew)](https://getsocialcrm.com/)
+- [Home (English)](https://getsocialcrm.com/en)
+- [Pricing (Hebrew)](https://getsocialcrm.com/pricing)
+- [Channels (Hebrew)](https://getsocialcrm.com/channels)
+- [FAQ (Hebrew)](https://getsocialcrm.com/faq)
+- [Instagram leads CRM (Hebrew)](https://getsocialcrm.com/instagram-leads-crm)
+- [WhatsApp Business CRM (Hebrew)](https://getsocialcrm.com/crm-for-whatsapp-business)
+- [CRM vs Excel (Hebrew)](https://getsocialcrm.com/crm-vs-excel)
+- [Privacy policy (Hebrew)](https://getsocialcrm.com/privacy)
+- [Terms of use (Hebrew)](https://getsocialcrm.com/terms)
+- [Data deletion (Hebrew)](https://getsocialcrm.com/data-deletion)

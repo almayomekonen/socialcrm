@@ -9,11 +9,12 @@ export const metadata = buildPageMetadata({
   noindex: true,
 })
 
-export default async function ThankYouPage({ searchParams }) {
-  const params = await searchParams
-  const title = params.title || 'תודה!'
-  const description = params.description || 'הפעולה בוצעה בהצלחה'
-
+/**
+ * Fixed copy. This used to print `?title=` and `?description=` straight into the
+ * <h1> and the body, so anyone could send a link to our domain that said
+ * whatever they wanted. Nothing in the product links here with parameters.
+ */
+export default function ThankYouPage() {
   return (
     <div className='h-screen flex flex-col'>
       <div className='flex-1 flex items-center justify-center px-4'>
@@ -22,9 +23,9 @@ export default async function ThankYouPage({ searchParams }) {
             <Icon name='check' className='size-8' />
           </div>
 
-          <h1 className='text-3xl md:text-4xl font-bold  mb-4'>{title}</h1>
+          <h1 className='text-3xl md:text-4xl font-bold  mb-4'>תודה!</h1>
 
-          <p className='text-lg mb-8'>{description}</p>
+          <p className='text-lg mb-8'>הפעולה בוצעה בהצלחה</p>
         </div>
       </div>
       <PoweredBySocialCRM />

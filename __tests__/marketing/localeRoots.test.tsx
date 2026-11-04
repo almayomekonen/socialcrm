@@ -59,7 +59,7 @@ describe('the proxy lets signed-out visitors reach /en and /ar, and nothing else
     expect(res.headers.get('location')).toBeNull()
   })
 
-  test.each(['/enterprise', '/archive', '/dashboard'])('%s still redirects to /auth', async (path) => {
+  test.each(['/dashboard', '/settings'])('%s still redirects to /auth', async (path) => {
     const res = await signedOut(path)
     expect(res.headers.get('location')).toBe('https://getsocialcrm.com/auth')
   })
