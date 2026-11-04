@@ -10,7 +10,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import { formatDateTime } from '@/lib/i18n/format'
 import { BUSINESS_TZ } from '@/lib/today/constants'
 import type { Translator } from '@/lib/i18n/translate'
-import { addLeadNote, deleteLeadNote, type LeadNoteErrorCode } from '@/actions/leadNotes'
+import { addLeadNote, deleteLeadNote, editLeadNote, type LeadNoteErrorCode } from '@/actions/leadNotes'
 import { recordLeadActionEvent } from '@/actions/analytics/recordLeadActionEvent'
 import { LEAD_NOTE_MAX_LENGTH, type LeadNote } from '@/lib/leads/leadNotes'
 
@@ -28,7 +28,8 @@ function errorMessage(t: Translator, code: LeadNoteErrorCode): string {
 /**
  * Notes on a lead: what was said, what was agreed. The note card and the text
  * box follow TaskNotes. Unlike it, the draft is kept until the server has saved
- * it, so a failed save never loses what the rep typed.
+ * it, so a failed save never loses what the rep typed. Editing loads the note into
+ * the same box, as TaskNotes does.
  *
  * The time is formatted in BUSINESS_TZ for every language. This component is
  * server-rendered, and the server and the browser sit in different timezones, so
@@ -46,20 +47,43 @@ export default function LeadNotes({
   const t = useT()
   const [notes, setNotes] = useState(initialNotes)
   const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState<LeadNote | null>(null)
   const [pendingDelete, setPendingDelete] = useState<LeadNote | null>(null)
   const boxRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null)
   const { loading, error, setError, run } = useAction({ translated: true })
   const shownError = error === ENTITLEMENT_ERROR ? t('common.actionFailed') : error
 
-  async function add() {
+  function resetBox() {
+    setEditing(null)
+    setDraft('')
+    setError(null)
+    if (boxRef.current) boxRef.current.style.height = ''
+  }
+
+  function startEdit(note: LeadNote) {
+    setEditing(note)
+    setDraft(note.content)
+    setError(null)
+    boxRef.current?.focus()
+  }
+
+  async function submit() {
     const submitted = draft
+    const target = editing
     await run(async () => {
-      const res = await addLeadNote({ leadId, content: submitted })
+      const res = target
+        ? await editLeadNote({ id: target.id, content: submitted })
+        : await addLeadNote({ leadId, content: submitted })
       if ('err' in res) {
         setError(errorMessage(t, res.err))
         return
       }
-      setNotes((current) => [res.note, ...current])
+      // An edit takes the edit time, so the note moves to the top of the list.
+      setNotes((current) => [res.note, ...current.filter((n) => n.id !== res.note.id)])
+      if (target) {
+        resetBox()
+        return
+      }
       // Anything typed while this one was saving is the next note: keep it.
       setDraft((current) => {
         if (current !== submitted) return current
@@ -81,6 +105,7 @@ export default function LeadNotes({
         return
       }
       setNotes((current) => current.filter((n) => n.id !== note.id))
+      if (editing?.id === note.id) resetBox()
     })
   }
 
@@ -101,12 +126,13 @@ export default function LeadNotes({
           ref={boxRef}
         />
         {shownError && <p className='text-sm text-red-500'>{shownError}</p>}
-        <div className='flex justify-end'>
+        <div className='flex gap-2 justify-end items-center'>
+          {editing && <Btn lbl={t('common.dialog.cancel')} variant='ghost' size='small' onClick={resetBox} disabled={loading} />}
           <Btn
-            lbl={loading ? t('leadDetail.activity.saving') : t('leadDetail.activity.add')}
-            icon='plus'
+            lbl={loading ? t('leadDetail.activity.saving') : editing ? t('leadDetail.activity.saveEdit') : t('leadDetail.activity.add')}
+            icon={editing ? 'floppy-disk' : 'plus'}
             size='small'
-            onClick={add}
+            onClick={submit}
             disabled={loading || !draft.trim()}
           />
         </div>
@@ -122,15 +148,26 @@ export default function LeadNotes({
                 <p dir='auto' className='whitespace-pre-wrap wrap-anywhere flex-1 text-gray-800'>
                   {note.content}
                 </p>
-                <button
-                  type='button'
-                  onClick={() => setPendingDelete(note)}
-                  disabled={loading}
-                  aria-label={t('leadDetail.activity.delete')}
-                  className='shrink-0 -m-2 size-9 inline-flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50'
-                >
-                  <Icon name='trash' className='size-3' />
-                </button>
+                <div className='shrink-0 -m-2 flex'>
+                  <button
+                    type='button'
+                    onClick={() => startEdit(note)}
+                    disabled={loading}
+                    aria-label={t('leadDetail.activity.edit')}
+                    className='size-9 inline-flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-50'
+                  >
+                    <Icon name='pen' className='size-3' />
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => setPendingDelete(note)}
+                    disabled={loading}
+                    aria-label={t('leadDetail.activity.delete')}
+                    className='size-9 inline-flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50'
+                  >
+                    <Icon name='trash' className='size-3' />
+                  </button>
+                </div>
               </div>
               <p className='text-xs text-gray-400 mt-2 text-end tabular-nums'>
                 {note.userName ? `${note.userName} · ` : ''}

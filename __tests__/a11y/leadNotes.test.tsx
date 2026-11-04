@@ -10,9 +10,11 @@ import React from 'react'
 
 const addLeadNote = vi.fn()
 const deleteLeadNote = vi.fn()
+const editLeadNote = vi.fn()
 vi.mock('@/actions/leadNotes', () => ({
   addLeadNote: (...a: unknown[]) => addLeadNote(...a),
   deleteLeadNote: (...a: unknown[]) => deleteLeadNote(...a),
+  editLeadNote: (...a: unknown[]) => editLeadNote(...a),
 }))
 vi.mock('@/actions/analytics/recordLeadActionEvent', () => ({ recordLeadActionEvent: vi.fn(() => Promise.resolve()) }))
 vi.mock('@/lib/useAction', async () => {
@@ -57,6 +59,7 @@ describe('LeadNotes', () => {
   beforeEach(() => {
     addLeadNote.mockReset()
     deleteLeadNote.mockReset()
+    editLeadNote.mockReset()
   })
   afterEach(cleanup)
 
@@ -102,6 +105,46 @@ describe('LeadNotes', () => {
 
     await screen.findByText('משהו השתבש, נסה שוב')
     expect(box.value).toBe('טקסט חשוב')
+  })
+
+  it('edits a note in the box and replaces it in the list', async () => {
+    editLeadNote.mockResolvedValue({ note: { id: 1, userName: 'דן', content: 'דיברנו בצהריים', createdAt: '2026-11-04T10:00:00.000Z' } })
+    render(<LeadNotes leadId={5} notes={[existing]} surface='desktop' />)
+    fireEvent.click(screen.getByRole('button', { name: 'ערוך הערה' }))
+    const box = screen.getByRole('textbox') as HTMLTextAreaElement
+    expect(box.value).toBe('דיברנו בבוקר')
+
+    fireEvent.change(box, { target: { value: 'דיברנו בצהריים' } })
+    fireEvent.click(screen.getByRole('button', { name: /שמור שינויים/ }))
+
+    await screen.findByText('דיברנו בצהריים')
+    expect(editLeadNote).toHaveBeenCalledWith({ id: 1, content: 'דיברנו בצהריים' })
+    expect(addLeadNote).not.toHaveBeenCalled()
+    expect(screen.queryByText('דיברנו בבוקר')).toBeNull()
+    expect(box.value).toBe('')
+    expect(screen.getByRole('button', { name: /הוסף הערה/ })).toBeTruthy()
+  })
+
+  it('cancelling an edit leaves the note untouched', () => {
+    render(<LeadNotes leadId={5} notes={[existing]} surface='desktop' />)
+    fireEvent.click(screen.getByRole('button', { name: 'ערוך הערה' }))
+    fireEvent.click(screen.getByRole('button', { name: /ביטול/ }))
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
+    expect(screen.getByText('דיברנו בבוקר')).toBeTruthy()
+    expect(editLeadNote).not.toHaveBeenCalled()
+  })
+
+  it('keeps the edit open with its text when the save fails', async () => {
+    editLeadNote.mockRejectedValue(new Error('network'))
+    render(<LeadNotes leadId={5} notes={[existing]} surface='desktop' />)
+    fireEvent.click(screen.getByRole('button', { name: 'ערוך הערה' }))
+    const box = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(box, { target: { value: 'נוסח חדש' } })
+    fireEvent.click(screen.getByRole('button', { name: /שמור שינויים/ }))
+
+    await screen.findByText('משהו השתבש, נסה שוב')
+    expect(box.value).toBe('נוסח חדש')
+    expect(screen.getByText('דיברנו בבוקר')).toBeTruthy()
   })
 
   it('asks before deleting, then removes the note', async () => {

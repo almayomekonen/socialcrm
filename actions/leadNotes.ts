@@ -3,11 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { canActOnLead } from '@/lib/tasks/taskAccess'
-import { findLeadNoteLeadId, insertLeadNote, removeLeadNote } from '@/db/leadNotes'
+import { findLeadNoteLeadId, insertLeadNote, removeLeadNote, updateLeadNote } from '@/db/leadNotes'
 import { validateLeadNoteContent, type LeadNote, type LeadNoteContentError } from '@/lib/leads/leadNotes'
 
 export type LeadNoteErrorCode = LeadNoteContentError | 'notFound'
-export type AddLeadNoteResult = { note: LeadNote } | { err: LeadNoteErrorCode }
+export type SaveLeadNoteResult = { note: LeadNote } | { err: LeadNoteErrorCode }
 export type DeleteLeadNoteResult = { ok: true } | { err: 'notFound' }
 
 /**
@@ -16,7 +16,7 @@ export type DeleteLeadNoteResult = { ok: true } | { err: 'notFound' }
  * to what it wrote. Tenant and rep scoping come from canActOnLead, the same
  * check the lead's tasks use.
  */
-export async function addLeadNote(input: { leadId: number; content: string }): Promise<AddLeadNoteResult> {
+export async function addLeadNote(input: { leadId: number; content: string }): Promise<SaveLeadNoteResult> {
   const leadId = Number(input?.leadId)
   const validated = validateLeadNoteContent(input?.content)
   if ('error' in validated) return { err: validated.error }
@@ -27,6 +27,25 @@ export async function addLeadNote(input: { leadId: number; content: string }): P
   const note = await insertLeadNote({
     agencyId: user.agencyId,
     leadId,
+    userId: user.id,
+    userName: user.name ?? '',
+    content: validated.content,
+  })
+  revalidatePath(`/clients/${leadId}`, 'layout')
+  return { note }
+}
+
+export async function editLeadNote(input: { id: number; content: string }): Promise<SaveLeadNoteResult> {
+  const id = Number(input?.id)
+  if (!Number.isSafeInteger(id) || id <= 0) return { err: 'notFound' }
+  const validated = validateLeadNoteContent(input?.content)
+  if ('error' in validated) return { err: validated.error }
+
+  const user = await requireBasicCrmAccess()
+  const leadId = await findLeadNoteLeadId(user.agencyId, id)
+  if (leadId === null || !(await canActOnLead(user, leadId))) return { err: 'notFound' }
+
+  const note = await updateLeadNote(user.agencyId, id, {
     userId: user.id,
     userName: user.name ?? '',
     content: validated.content,

@@ -49,6 +49,8 @@ export const activity: L['activity'] = {
   placeholder: 'ماذا قيل في المكالمة؟ وعلى ماذا اتفقتم؟',
   add: 'إضافة ملاحظة',
   saving: 'جارٍ الحفظ…',
+  edit: 'تعديل الملاحظة',
+  saveEdit: 'حفظ التغييرات',
   delete: 'حذف الملاحظة',
   confirmDelete: 'هل تريد حذف هذه الملاحظة؟ لا يمكن استعادتها.',
   errors: {

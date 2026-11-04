@@ -16,7 +16,7 @@ vi.mock('@/db/filter', () => ({ getPerms: vi.fn() }))
 import { requireBasicCrmAccess } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { db } from '@/config/db'
-import { addLeadNote, deleteLeadNote } from '@/actions/leadNotes'
+import { addLeadNote, deleteLeadNote, editLeadNote } from '@/actions/leadNotes'
 import { getLeadNotes } from '@/db/leadNotes'
 import { LEAD_NOTE_MAX_LENGTH } from '@/lib/leads/leadNotes'
 
@@ -114,6 +114,24 @@ describe.skipIf(process.env.VITEST_NO_DB === '1')('lead notes', () => {
     actAs(repA, [repA.id, adminA.id])
     expect(await getLeadNotes(repA, leadId)).toHaveLength(1)
     expect(await addLeadNote({ leadId, content: 'מורשה' })).toMatchObject({ note: { userName: repA.name } })
+  })
+
+  it('edits a note under the editor name, and only with access to the lead', async () => {
+    actAs(adminA)
+    const added = await addLeadNote({ leadId, content: 'טעות כתיב' })
+    const id = 'note' in added ? added.note.id : -1
+
+    actAs(adminB)
+    expect(await editLeadNote({ id, content: 'חדירה' })).toEqual({ err: 'notFound' })
+    actAs(repA)
+    expect(await editLeadNote({ id, content: 'לא מורשה' })).toEqual({ err: 'notFound' })
+    actAs(adminA)
+    expect(await editLeadNote({ id, content: '   ' })).toEqual({ err: 'empty' })
+    expect((await getLeadNotes(adminA, leadId))[0].content).toBe('טעות כתיב')
+
+    actAs(repA, [repA.id, adminA.id])
+    expect(await editLeadNote({ id, content: 'נוסח מתוקן' })).toMatchObject({ note: { id, content: 'נוסח מתוקן', userName: repA.name } })
+    expect(await db('lead_notes').where({ leadId })).toHaveLength(1)
   })
 
   it('deletes a note, and a deleted lead takes its notes with it', async () => {

@@ -49,6 +49,8 @@ export const activity: L['activity'] = {
   placeholder: 'What was said on the call? What did you agree with the lead?',
   add: 'Add note',
   saving: 'Saving…',
+  edit: 'Edit note',
+  saveEdit: 'Save changes',
   delete: 'Delete note',
   confirmDelete: 'Delete this note? It cannot be restored.',
   errors: {

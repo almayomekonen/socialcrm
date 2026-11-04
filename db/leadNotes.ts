@@ -41,6 +41,22 @@ export async function insertLeadNote(input: {
   })
 }
 
+/**
+ * Same rule as TaskNotes: an edited note carries the editor's name and the edit
+ * time, so nobody's words change silently under someone else's name.
+ */
+export async function updateLeadNote(
+  agencyId: number,
+  noteId: number,
+  input: { userId: number; userName: string; content: string },
+): Promise<LeadNote> {
+  const [note] = await db('lead_notes')
+    .where({ id: noteId, agencyId })
+    .update({ ...input, createdAt: new Date() })
+    .returning([...COLUMNS])
+  return note as LeadNote
+}
+
 export async function findLeadNoteLeadId(agencyId: number, noteId: number): Promise<number | null> {
   const row = await db('lead_notes').where({ id: noteId, agencyId }).first('leadId')
   return row ? Number(row.leadId) : null
