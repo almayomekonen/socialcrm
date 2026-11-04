@@ -270,7 +270,7 @@ describe('whatsapp_connect_meta_event', () => {
   })
 
   it('bounds Meta’s text', async () => {
-    await recordLeadActionEvent('whatsapp_connect_meta_event', { ...VALID, metaErrorMessage: 'x'.repeat(2000) })
+    await recordLeadActionEvent('whatsapp_connect_meta_event', { ...VALID, metaErrorMessage: 'ab '.repeat(1000) })
     expect(String(h.tracked[0].props!.metaErrorMessage)).toHaveLength(300)
   })
 })

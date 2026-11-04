@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/config/db'
 import { requireAgencyAdmin, statusFor } from '@/lib/api/routeAuth'
 import { finishEmbeddedSignup } from '@/lib/whatsapp/finishEmbeddedSignup'
 import { signupResponse } from '@/lib/whatsapp/signupResponse'
@@ -24,6 +25,22 @@ export async function POST(req: NextRequest) {
     res.cookies.delete(SIGNUP_RESUME_COOKIE)
     return res
   }
+
+  // A kept signup is only for what it was kept for. If this agency has since
+  // connected a different number (another tab or browser), finishing it would add
+  // a second connection nobody chose just now. Forget it.
+  let live: { phone_number_id: string } | undefined
+  try {
+    live = await db('whatsapp_connections').where({ agency_id: owner.agencyId }).first('phone_number_id')
+  } catch {
+    return NextResponse.json({ ok: false, error: 'network', resumable: true }, { status: 503 })
+  }
+  if (live && live.phone_number_id !== state.phoneNumberId) {
+    const res = NextResponse.json({ ok: false, error: 'not_completed' }, { status: 410 })
+    res.cookies.delete(SIGNUP_RESUME_COOKIE)
+    return res
+  }
+
   return signupResponse(await finishEmbeddedSignup(owner, state), owner, state)
 }
 

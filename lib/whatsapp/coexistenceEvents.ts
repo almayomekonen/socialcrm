@@ -98,6 +98,8 @@ const MAX_META_PAYLOAD_KEYS = 30
 const MAX_STORED_META_TEXT = 300
 const UNSAFE_META_TEXT = /[\u0000-\u001F\u007F-\u009F\u200E\u200F\u202A-\u202E\u2066-\u2069]/g
 const EMAIL_LIKE = /[^\s@]+@[^\s@]+\.[^\s@]+/g
+// A long unbroken run is an id or a credential, never a word in an error message.
+const CREDENTIAL_LIKE = /[A-Za-z0-9_-]{32,}/g
 const PHONE_LIKE = /\+?\d[\d\s().-]{5,}\d/g
 
 export function metaTraceId(raw: unknown): string | undefined {
@@ -116,13 +118,14 @@ export function metaPayloadKeys(raw: unknown[]): string[] {
 
 /**
  * Meta's error text in the form that may be stored: one bounded line, with
- * anything resembling a phone number or email replaced, because the customer's
- * own details could appear in it. Empty becomes undefined.
+ * anything resembling a phone number, email or credential replaced, because the
+ * customer's own details could appear in it. Empty becomes undefined.
  */
 export function storableMetaErrorText(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined
   const text = raw
     .replace(UNSAFE_META_TEXT, ' ')
+    .replace(CREDENTIAL_LIKE, '[redacted]')
     .replace(EMAIL_LIKE, '[email]')
     .replace(PHONE_LIKE, '[number]')
     .replace(/\s+/g, ' ')

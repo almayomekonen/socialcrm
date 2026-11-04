@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server'
 
 const h = vi.hoisted(() => {
   const state = {
-    existing: null as { agency_id: number; onboarding_type?: string | null } | null,
+    existing: null as { agency_id: number; onboarding_type?: string | null; phone_number_id?: string } | null,
     saved: [] as Record<string, unknown>[],
     conditions: [] as unknown[][],
     saveFailures: 0,
@@ -27,7 +27,7 @@ const h = vi.hoisted(() => {
   qb.merge = () => {
     if (state.saveFailures > 0) {
       state.saveFailures -= 1
-      if (state.commitThenFail) state.existing = { agency_id: 69, onboarding_type: 'coexistence' }
+      if (state.commitThenFail) state.existing = { agency_id: 69, onboarding_type: 'coexistence', phone_number_id: 'P1' }
       throw new Error('db down')
     }
     return {
@@ -227,6 +227,49 @@ describe('the kept token', () => {
     expect(h.state.saved).toHaveLength(0)
   })
 
+  it('the agency has since connected a different number: forgotten, nothing subscribed or saved', async () => {
+    mockGraph()
+    h.state.existing = { agency_id: OWNER.agencyId, phone_number_id: 'P-OTHER' }
+    const sealed = sealSignupResume({ accessToken: TOKEN, wabaId: 'W1', phoneNumberId: 'P1', browserOnboardingType: 'cloud_api' }, OWNER)!
+    const r = await resume(sealed)
+    expect(r.status).toBe(410)
+    expect(r.cookies.get(SIGNUP_RESUME_COOKIE)?.value).toBeFalsy()
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(h.state.saved).toHaveLength(0)
+  })
+
+  it('the same number is already connected: it still finishes', async () => {
+    mockGraph()
+    h.state.existing = { agency_id: OWNER.agencyId, phone_number_id: 'P1' }
+    const sealed = sealSignupResume({ accessToken: TOKEN, wabaId: 'W1', phoneNumberId: 'P1', browserOnboardingType: 'cloud_api' }, OWNER)!
+    expect((await resume(sealed)).status).toBe(200)
+    expect(h.state.saved).toHaveLength(1)
+  })
+
+  it('the cookie: httpOnly, lax, path /, secure in production, and the token is in no response', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      mockGraph({ subscribe: [() => json(500, GRAPH_DOWN), () => json(500, GRAPH_DOWN), () => json(500, GRAPH_DOWN)] })
+      const r = await signup({ wabaId: 'W1', phoneNumberId: 'P1' })
+      const header = r.headers.get('set-cookie')!
+      expect(header).toMatch(/HttpOnly/i)
+      expect(header).toMatch(/Secure/i)
+      expect(header).toMatch(/SameSite=lax/i)
+      expect(header).toMatch(/Path=\//i)
+      expect(header).toMatch(/Max-Age=86400/i)
+      expect(header).not.toContain(TOKEN)
+      expect(await r.text()).not.toContain(TOKEN)
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('deleting it clears the same path, so the browser really drops it', async () => {
+    mockGraph()
+    const r = await signup({ wabaId: 'W1', phoneNumberId: 'P1' })
+    expect(r.headers.get('set-cookie')).toMatch(new RegExp(`${SIGNUP_RESUME_COOKIE}=;.*Path=/;.*(Expires=Thu, 01 Jan 1970|Max-Age=0)`, 'i'))
+  })
+
   it('a failed resume does not extend its life', async () => {
     mockGraph({ subscribe: [() => json(500, GRAPH_DOWN), () => json(500, GRAPH_DOWN), () => json(500, GRAPH_DOWN)] })
     const expiresAt = Date.now() + 3_600_000
@@ -381,6 +424,12 @@ describe('nothing secret leaves the route', () => {
     expect(failureProps().at(-1)).toMatchObject({ reason: 'TOKEN_EXCHANGE_FAILED', networkError: 'TypeError' })
     const everything = JSON.stringify([vi.mocked(track).mock.calls, logged.map((args) => args.map(String))])
     expect(everything).not.toContain('SECRET')
+  })
+
+  it('Meta’s text is stored without anything resembling a credential', async () => {
+    mockGraph({ subscribe: [() => json(400, { error: { message: 'Bad token EAAGm0PX4ZCpsBAOabcdefghijklmnopqrstuvwxyz0123', code: 190 } })] })
+    await signup({ wabaId: 'W1', phoneNumberId: 'P1' })
+    expect(failureProps()[0].metaErrorMessage).toBe('Bad token [redacted]')
   })
 
   it('Meta’s text is stored without phone numbers or emails', async () => {
