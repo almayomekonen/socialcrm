@@ -33,6 +33,7 @@ export function LinesTable({ lines }: { lines: BillInvoiceLineRow[] }) {
             <tr
               key={line.id}
               style={{
+                breakInside: 'avoid',
                 borderBottom: isLast ? 'none' : `1px solid ${COLOR.ruleSoft}`,
               }}
             >

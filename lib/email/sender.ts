@@ -22,6 +22,8 @@ type SendInput = {
    * byte-for-byte unchanged.
    */
   headers?: Record<string, string>
+  /** Files sent with the message, for example a private invoice PDF. Never logged. */
+  attachments?: { filename: string; content: Buffer }[]
 }
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string }
@@ -31,19 +33,19 @@ function isTransient(error: unknown): boolean {
   return typeof status === 'number' && TRANSIENT_RESEND_STATUSES.has(status)
 }
 
+/** Provider text can quote the address it refused, and callers log what they get back. */
 function errorMessage(error: unknown): string {
-  return (error as { message?: string })?.message ?? 'Email send failed'
+  const message = (error as { message?: string })?.message ?? 'Email send failed'
+  return message.replace(/[^\s<>"'(),;:]+@[^\s<>"'(),;:]+/g, '[email]')
 }
 
-function keyPrefix(): string {
-  // The client is constructed from `RESEND` (config/resend.ts), which is the
-  // canonical name — see lib/email/config.ts. Reading RESEND_API_KEY here, a
-  // variable set nowhere, made this line report `(missing)` on every send even
-  // with Resend correctly configured, which is exactly backwards for a
-  // diagnostic. Logging only; sending is untouched.
-  const k = process.env.RESEND?.trim() ?? ''
-  if (!k) return '(missing)'
-  return `${k.slice(0, 6)}…(len=${k.length})`
+/**
+ * What may be logged about a failure. The Vercel logs drain to Axiom, so a recipient, a
+ * subject (it can name a customer) or part of the API key logged here is kept there too.
+ */
+function errorFields(error: unknown) {
+  const e = error as { name?: string; statusCode?: number } | null
+  return { errorName: e?.name ?? null, errorStatusCode: e?.statusCode ?? null }
 }
 
 function fromSource(): string {
@@ -60,17 +62,15 @@ export async function sendEmail({
   replyTo,
   from: explicitFrom,
   headers,
+  attachments,
 }: SendInput): Promise<SendResult> {
   const from = explicitFrom?.trim() || getEmailFrom()
 
   console.log(`${LOG_PREFIX} attempt`, {
-    from,
     fromSource: explicitFrom?.trim() ? 'explicit-caller' : fromSource(),
-    to,
-    subject,
     htmlBytes: html.length,
     textBytes: text?.length ?? 0,
-    apiKey: keyPrefix(),
+    attachments: attachments?.length ?? 0,
     nodeEnv: process.env.NODE_ENV ?? null,
   })
 
@@ -79,48 +79,33 @@ export async function sendEmail({
     if (text) payload.text = text
     if (replyTo) payload.replyTo = replyTo
     if (headers && Object.keys(headers).length > 0) payload.headers = headers
+    if (attachments?.length) payload.attachments = attachments
     return resend.emails.send(payload)
   }
 
   let res = await attempt()
 
-  console.log(`${LOG_PREFIX} response.raw`, {
-    hasData: !!res.data,
-    hasError: !!res.error,
-    dataId: res.data?.id ?? null,
-    errorName: (res.error as { name?: string } | null)?.name ?? null,
-    errorMessage: (res.error as { message?: string } | null)?.message ?? null,
-    errorStatusCode: (res.error as { statusCode?: number } | null)?.statusCode ?? null,
-  })
+  console.log(`${LOG_PREFIX} response.raw`, { hasData: !!res.data, dataId: res.data?.id ?? null, ...errorFields(res.error) })
 
   if (res.error && isTransient(res.error)) {
-    console.log(`${LOG_PREFIX} retry.transient`, { errorMessage: errorMessage(res.error) })
+    console.log(`${LOG_PREFIX} retry.transient`, errorFields(res.error))
     await new Promise((r) => setTimeout(r, RETRY_DELAY_MS))
     res = await attempt()
-    console.log(`${LOG_PREFIX} response.raw.retry`, {
-      hasData: !!res.data,
-      hasError: !!res.error,
-      dataId: res.data?.id ?? null,
-      errorMessage: (res.error as { message?: string } | null)?.message ?? null,
-    })
+    console.log(`${LOG_PREFIX} response.raw.retry`, { hasData: !!res.data, dataId: res.data?.id ?? null, ...errorFields(res.error) })
   }
 
   if (res.error) {
     const msg = errorMessage(res.error)
-    console.error(`${LOG_PREFIX} failed`, { to, subject, reason: msg })
+    console.error(`${LOG_PREFIX} failed`, errorFields(res.error))
     return { ok: false, error: msg }
   }
 
   const id = res.data?.id ?? ''
   if (!id) {
-    console.error(`${LOG_PREFIX} failed.no_id`, {
-      to,
-      subject,
-      reason: 'Resend returned no error and no message id — treating as failure to avoid silent loss',
-    })
+    console.error(`${LOG_PREFIX} failed.no_id`, { reason: 'Resend returned no error and no message id — treating as failure to avoid silent loss' })
     return { ok: false, error: 'no_message_id' }
   }
 
-  console.log(`${LOG_PREFIX} sent`, { to, subject, id })
+  console.log(`${LOG_PREFIX} sent`, { id })
   return { ok: true, id }
 }

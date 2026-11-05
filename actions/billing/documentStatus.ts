@@ -1,10 +1,12 @@
 'use server'
 
-import { HeadObjectCommand } from '@aws-sdk/client-s3'
-import { s3 } from '@/config/s3'
 import { db } from '@/config/db'
 import { requireProductAccess } from '@/lib/requireUser'
 import { markDocumentReady, markDocumentFailed, appendDocumentDiagStep } from '@/db/billing/documents'
+import { isRenderStale } from '@/lib/billing/pdf/renderStatus'
+import { StorageConfigError } from '@/lib/storage/config'
+import { logStorageEvent } from '@/lib/storage/events'
+import { headObject, StorageNotFoundError } from '@/lib/storage/objects'
 
 export type InvoicePdfStatusValue = 'rendering' | 'ready' | 'failed' | 'none'
 
@@ -13,8 +15,6 @@ export type InvoicePdfStatusSnapshot = {
   url: string | null
   errorReason: string | null
 }
-
-const HEAD_OBJECT_TIMEOUT_MS = 5 * 60 * 1000
 
 type DocRow = {
   id: number
@@ -28,39 +28,27 @@ type DocRow = {
 }
 
 /**
- * Read-only probe used by the client poller while a fresh PDF is being
- * rendered.
+ * What the client poller asks while a PDF is being produced.
  *
- * Returns the current row's view if the doc is already terminal
- * (ready/failed). Otherwise, since Gotenberg uploads the PDF directly
- * to S3 outside of Vercel's request path, we have no inline callback
- * to mark the doc ready. Instead we head_object the predicted S3 key:
- *   - if the object exists: flip the row to 'ready' here and return ready
- *   - if it doesn't and the row is older than HEAD_OBJECT_TIMEOUT_MS:
- *     flip the row to 'failed' (timeout)
- *   - otherwise: return 'rendering' and let the client poll again
+ * A terminal row answers as it is. A `rendering` row usually just means the render
+ * is still running, and two things can close it here:
+ *   - the object is already stored (the process died after uploading): mark it ready;
+ *   - the row is stale, for ANY reason (a dead process, storage down, missing
+ *     configuration): mark it failed. Only a row that can still finish stays
+ *     `rendering`, so the UI always reaches its retry button.
  */
 export async function getInvoicePdfStatusAction(invoiceId: number): Promise<InvoicePdfStatusSnapshot> {
   const user = await requireProductAccess()
   const doc = await loadLatestDoc(user.agencyId, invoiceId)
   if (!doc) return { status: 'none', url: null, errorReason: null }
+  if (doc.status === 'ready' || doc.status === 'failed') return shape(doc)
 
-  if (doc.status === 'ready' || doc.status === 'failed') {
-    return shape(doc)
-  }
-
-  // status is 'rendering'. Check S3 for the predicted object.
-  if (!doc.path) return shape(doc)
-
-  const bucket = process.env.S3_BUCKET_NAME
-  if (!bucket) return shape(doc)
-
+  let closeReason = 'render_timeout'
   try {
-    const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: doc.path }))
-    // Object landed - flip to ready idempotently. ETag is the MD5 of the
-    // body for non-multipart PUTs - perfectly suitable as our contentHash.
-    const etag = (head.ETag ?? '').replace(/^"|"$/g, '')
-    const byteSize = Number(head.ContentLength ?? 0)
+    // A row with no path has no object to find, and goes straight to the staleness check.
+    if (!doc.path) throw new StorageNotFoundError()
+    const head = await headObject(doc.path)
+    const contentHash = head.metadata.sha256 ?? head.etag ?? ''
     try {
       await markDocumentReady({
         documentId: doc.id,
@@ -68,35 +56,25 @@ export async function getInvoicePdfStatusAction(invoiceId: number): Promise<Invo
         invoiceId: doc.invoiceId,
         path: doc.path,
         url: doc.url ?? '',
-        contentHash: etag,
-        byteSize,
+        contentHash,
+        byteSize: head.size,
       })
-      void appendDocumentDiagStep(doc.id, doc.agencyId, 'polling.detected_ready', { byteSize, etag })
+      void appendDocumentDiagStep(doc.id, doc.agencyId, 'polling.detected_ready', { byteSize: head.size })
     } catch (err) {
-      // Race: another poll may have already flipped the row. Treat as ready.
-      const msg = err instanceof Error ? err.message : String(err)
-      if (!msg.includes('mark_ready_failed')) throw err
+      // Another poll already flipped the row.
+      if (!(err instanceof Error) || !err.message.includes('mark_ready_failed')) throw err
     }
     return { status: 'ready', url: doc.url, errorReason: null }
   } catch (err) {
-    const name = (err as { name?: string })?.name
-    if (name === 'NotFound' || name === 'NoSuchKey' || name === '404') {
-      // Not landed yet. Check render timeout.
-      const ageMs = Date.now() - new Date(doc.createdAt).getTime()
-      if (ageMs > HEAD_OBJECT_TIMEOUT_MS) {
-        try {
-          await markDocumentFailed(doc.id, doc.agencyId, 'render_timeout')
-          void appendDocumentDiagStep(doc.id, doc.agencyId, 'polling.timeout', { ageMs })
-        } catch {}
-        return { status: 'failed', url: null, errorReason: 'render_timeout' }
-      }
-      return shape(doc)
-    }
-    // Any other error (transient S3, network) - keep showing rendering;
-    // next poll will retry. Don't swallow silently - log it.
-    console.warn('[billing.pdf-status] head_object error', { invoiceId, name, message: (err as { message?: string })?.message })
-    return shape(doc)
+    if (err instanceof StorageConfigError) closeReason = 'storage_config_missing'
+    else if (!(err instanceof StorageNotFoundError)) closeReason = 'storage_unavailable'
   }
+
+  if (!isRenderStale(doc.createdAt, Date.now())) return shape(doc)
+
+  await markDocumentFailed(doc.id, doc.agencyId, closeReason)
+  logStorageEvent('pdf.stale_render_closed', { agencyId: doc.agencyId, invoiceId, documentId: doc.id, reason: closeReason })
+  return { status: 'failed', url: null, errorReason: closeReason }
 }
 
 async function loadLatestDoc(agencyId: number, invoiceId: number): Promise<DocRow | null> {

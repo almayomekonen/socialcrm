@@ -1,5 +1,8 @@
 import { db } from '@/config/db'
-import { s3PublicUrl } from '@/config/s3'
+import { contentDisposition } from '@/lib/storage/disposition'
+import { isStorageKey } from '@/lib/storage/keys'
+import { presignDownload } from '@/lib/storage/objects'
+import { servingOf } from '@/lib/storage/policy'
 import {
   COPILOT_ATTACHMENT_PER_FILE_CHAR_CAP,
   COPILOT_ATTACHMENT_TOTAL_CHAR_CAP,
@@ -9,6 +12,26 @@ import {
 } from '@/lib/copilot/attachments'
 import type { LeadQuestionAttachmentContext } from '@/lib/ai/prompts/leadAskQuestion'
 import type { RunStructuredImageAttachment } from '@/lib/ai/router'
+
+/**
+ * A short-lived read URL for the model provider to fetch an image the query above
+ * already scoped to this agency and lead. Null when the object cannot be offered: a
+ * row from before R2, or storage being down, which leaves the image out of the
+ * question instead of failing it. The URL is handed to the provider and never stored.
+ */
+async function imageUrlForModel(path: unknown, type: string): Promise<string | null> {
+  if (!isStorageKey(path)) return null
+  try {
+    return await presignDownload({
+      key: path,
+      contentType: servingOf(type.toLowerCase()).contentType,
+      contentDisposition: contentDisposition('image', 'inline'),
+      expiresInSeconds: 300,
+    })
+  } catch {
+    return null
+  }
+}
 
 /**
  * Loads file rows for the given attachment payloads, applies per-file +
@@ -35,13 +58,13 @@ export async function hydrateAttachments({
 
   const byId = new Map<number, { id: number; name: string; type: string; size: number; url: string | null }>()
   for (const row of rows) {
-    const path = row.path ? String(row.path) : null
+    const type = String(row.type ?? '')
     byId.set(Number(row.id), {
       id: Number(row.id),
       name: String(row.name ?? ''),
-      type: String(row.type ?? ''),
+      type,
       size: Number(row.size ?? 0),
-      url: path ? `${s3PublicUrl}${path}` : null,
+      url: isCopilotImageMime(type) ? await imageUrlForModel(row.path, type) : null,
     })
   }
 

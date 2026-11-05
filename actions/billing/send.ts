@@ -19,6 +19,8 @@ import type { DocumentKind } from '@/db/billing/invoices'
 import { formatCurrency } from '@/lib/funcs'
 import { formatDate } from '@/lib/dates'
 import InvoiceSentEmail from '@/emails/templates/InvoiceSentEmail'
+import { invoicePdfFilename } from '@/lib/billing/pdf/filename'
+import { getObjectBytes, StorageNotFoundError } from '@/lib/storage/objects'
 
 export type SendInvoiceResult = { success: true } | { error: true; reason: SendInvoiceErrorReason }
 
@@ -45,7 +47,6 @@ export async function sendInvoiceEmailAction(input: {
   console.log('[billing.send] action.start', {
     invoiceId: input.invoiceId,
     leadId: input.leadId,
-    recipientInput: input.recipientEmail,
     userId: user.id,
     agencyId: user.agencyId,
   })
@@ -56,7 +57,7 @@ export async function sendInvoiceEmailAction(input: {
 
   const recipient = String(input.recipientEmail ?? '').trim()
   if (!isValidEmail(recipient)) {
-    console.log('[billing.send] gate.invalid_email', { recipient })
+    console.log('[billing.send] gate.invalid_email', { invoiceId: input.invoiceId })
     return { error: true, reason: 'invalid_email' }
   }
 
@@ -117,7 +118,7 @@ export async function sendInvoiceEmailAction(input: {
   const document = await db('bill_documents')
     .where({ agencyId: user.agencyId, invoiceId: input.invoiceId, isCurrent: true, status: 'ready' })
     .first('url', 'path')
-  if (!document?.url) {
+  if (!document?.path) {
     const latestDoc = await db('bill_documents')
       .where({ agencyId: user.agencyId, invoiceId: input.invoiceId })
       .orderBy('id', 'desc')
@@ -125,13 +126,12 @@ export async function sendInvoiceEmailAction(input: {
     console.log('[billing.send] gate.pdf_not_ready', {
       invoiceId: input.invoiceId,
       readyRow: !!document,
-      hadUrl: !!document?.url,
+      hadPath: !!document?.path,
       latestDoc: latestDoc
         ? {
             id: latestDoc.id,
             status: latestDoc.status,
             isCurrent: latestDoc.isCurrent,
-            hasUrl: !!latestDoc.url,
             errorReason: latestDoc.errorReason ?? null,
             createdAt: latestDoc.createdAt,
           }
@@ -203,35 +203,52 @@ export async function sendInvoiceEmailAction(input: {
       totalDisplay: String(formatCurrency(Number(invoice.totalAmount))),
       issuedDate: invoice.issuedAt ? formatDate(invoice.issuedAt) : '',
       agencyName,
-      pdfUrl: String(document.url),
       customMessage: input.customMessage?.trim() || undefined,
     }),
   )
 
   const subject = `${documentIdentity} מ-${agencyName}`
 
+  /**
+   * THE PDF TRAVELS WITH THE EMAIL. Invoices are private objects, and a link good
+   * enough for someone with no account would be a permanent public URL. A file that
+   * cannot be read fails the send here, before anything reaches the customer.
+   */
+  let pdf: Uint8Array
+  try {
+    pdf = await getObjectBytes(String(document.path))
+  } catch (err) {
+    console.log('[billing.send] gate.pdf_unreadable', { invoiceId: input.invoiceId, name: (err as Error)?.name ?? null })
+    return { error: true, reason: err instanceof StorageNotFoundError ? 'pdf_not_ready' : 'transport_failed' }
+  }
+  const filename = invoicePdfFilename({
+    kind: invoice.kind ?? null,
+    documentNumber: invoice.documentNumber == null ? null : Number(invoice.documentNumber),
+    legalNameSnapshot: invoice.legalNameSnapshot ?? null,
+  })
+
   console.log('[billing.send] before.sendEmail', {
     invoiceId: input.invoiceId,
-    to: recipient,
-    subject,
-    agencyName,
-    documentIdentity,
     htmlBytes: html.length,
+    pdfBytes: pdf.byteLength,
   })
 
   try {
-    const result = await sendEmail({ to: recipient, subject, html })
+    const result = await sendEmail({
+      to: recipient,
+      subject,
+      html,
+      attachments: [{ filename, content: Buffer.from(pdf) }],
+    })
     console.log('[billing.send] after.sendEmail', {
       invoiceId: input.invoiceId,
       ok: result.ok,
       id: 'id' in result ? result.id : null,
-      error: 'error' in result ? result.error : null,
     })
     if (!result.ok) {
       const transportError = 'error' in result ? result.error : 'unknown_send_failure'
       logActionError('billing.action.send.transport_fail', new Error(transportError), {
         invoiceId: input.invoiceId,
-        recipient,
       })
       return { error: true, reason: 'transport_failed' }
     }
@@ -253,7 +270,7 @@ export async function sendInvoiceEmailAction(input: {
     revalidatePath(`/clients/${input.leadId}/billing/${input.invoiceId}`)
     return { success: true }
   } catch (err) {
-    logActionError('billing.action.send', err, { invoiceId: input.invoiceId, recipient })
+    logActionError('billing.action.send', err, { invoiceId: input.invoiceId })
     return { error: true, reason: 'failed' }
   }
 }

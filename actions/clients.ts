@@ -23,6 +23,7 @@ import { emitLeadCreated } from '@/lib/notifications/emitLeadCreated'
 import { leadDisplayName } from '@/lib/notifications/leadName'
 import { createOriginForUpsert } from '@/lib/leads/createOrigin'
 import { type DeleteManyLeadsResult, type BlockedLead, type LeadBlockReason } from '@/lib/leads/deleteResult'
+import { filePathsForLeads, removeUnreferencedObjects } from '@/lib/storage/cleanup'
 
 export type { DeleteManyLeadsResult } from '@/lib/leads/deleteResult'
 
@@ -135,6 +136,7 @@ export async function deleteLead(clientId): Promise<DeleteLeadResult> {
   const user = await requireProductAccess()
   const { gotPermIds } = await getPerms(user)
 
+  let filePaths: string[] = []
   try {
     const result = await db.transaction(async (trx) => {
       const scopeQ = trx('clients').where({ id: clientId, agencyId: user.agencyId })
@@ -150,12 +152,17 @@ export async function deleteLead(clientId): Promise<DeleteLeadResult> {
       const block = (await findBillingBlocks(trx, [Number(scoped.id)])).get(Number(scoped.id))
       if (block) return { error: true, reason: 'has_billing', block } as const
 
+      // Read before the cascade removes the rows; used only once this commits.
+      filePaths = await filePathsForLeads(trx, user.agencyId, [Number(scoped.id)])
       await hardDeleteSalesForClients(trx, [Number(scoped.id)], user.agencyId)
       await trx('clients').where({ id: clientId, agencyId: user.agencyId }).del()
       return { success: true } as const
     })
 
-    if ('success' in result) revalidatePath('/leads')
+    if ('success' in result) {
+      await removeUnreferencedObjects(user.agencyId, filePaths)
+      revalidatePath('/leads')
+    }
     return result
   } catch (err: any) {
     // Defense in depth: an unknown RESTRICT FK must never reach the UI as a raw error.
@@ -170,6 +177,7 @@ export async function deleteManyLeads(ids: number[], leads: boolean = true): Pro
 
   const { gotPermIds } = await getPerms(user)
 
+  let filePaths: string[] = []
   try {
     const result = await db.transaction(async (trx): Promise<DeleteManyLeadsResult> => {
       const inScopeQ = trx('clients').whereIn('id', ids).andWhere({ agencyId: user.agencyId, lead: leads })
@@ -183,6 +191,8 @@ export async function deleteManyLeads(ids: number[], leads: boolean = true): Pro
       const deletableIds = inScopeIds.filter((id) => !blocks.has(id))
 
       if (deletableIds.length > 0) {
+        // Read before the cascade removes the rows; used only once this commits.
+        filePaths = await filePathsForLeads(trx, user.agencyId, deletableIds)
         await hardDeleteSalesForClients(trx, deletableIds, user.agencyId)
         const deleteQ = trx('clients').whereIn('id', deletableIds).andWhere({ agencyId: user.agencyId, lead: leads })
         if (!isAdmin(user.role)) deleteQ.whereIn('userId', gotPermIds)
@@ -200,6 +210,7 @@ export async function deleteManyLeads(ids: number[], leads: boolean = true): Pro
     })
 
     if (result.deletedCount > 0) {
+      await removeUnreferencedObjects(user.agencyId, filePaths)
       revalidatePath('/leads')
       revalidatePath('/clients')
     }

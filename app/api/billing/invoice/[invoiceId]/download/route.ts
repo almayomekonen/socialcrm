@@ -1,29 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GetObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { s3 } from '@/config/s3'
 import { db } from '@/config/db'
-import { requireProductAccess } from '@/lib/requireUser'
+import { AuthError, ProductAccessError, requireProductAccess, type AuthenticatedAgencyUser } from '@/lib/requireUser'
 import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
-
-// Short-lived: the presigned URL is only used during the 302 hop the
-// browser performs in response to this route. Long expiries would
-// only leak signed URLs into browser history for no benefit.
-const PRESIGN_EXPIRES_S = 60
+import { invoicePdfFilename } from '@/lib/billing/pdf/filename'
+import { contentDisposition } from '@/lib/storage/disposition'
+import { logStorageEvent } from '@/lib/storage/events'
+import { headObject, presignDownload, StorageNotFoundError } from '@/lib/storage/objects'
 
 /**
- * Authenticated download URL for an invoice's current PDF. Looks up the
- * current ready bill_documents row, generates a presigned GET URL with
- * ResponseContentDisposition so S3 returns a meaningful filename
- * (Invoice-00042-David_Cohen.pdf) instead of the random storage key,
- * then 302s the browser to S3.
- *
- * The S3 storage key itself is unchanged - this only overrides how S3
- * presents the file to the client for this specific GET.
+ * The authenticated way to download an invoice's current PDF: session, agency and
+ * lead checks, then a 60-second redirect to R2 with a meaningful filename. Short,
+ * because the URL is only used for the redirect hop and would otherwise linger in
+ * browser history.
  */
+const refused = (reason: string, status: number) =>
+  NextResponse.json({ ok: false, reason }, { status, headers: { 'Cache-Control': 'private, no-store' } })
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ invoiceId: string }> }) {
-  const user = await requireProductAccess()
+  let user: AuthenticatedAgencyUser
+  try {
+    user = await requireProductAccess()
+  } catch (err) {
+    if (err instanceof AuthError) return refused('unauthorized', 401)
+    if (err instanceof ProductAccessError) return refused(err.reason, 403)
+    throw err
+  }
+
   const { invoiceId: rawInvoiceId } = await params
   const invoiceId = Number(rawInvoiceId)
   if (!Number.isFinite(invoiceId)) {
@@ -44,6 +47,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ inv
       .whereIn('userId', gotPermIds)
       .first('id')
     if (!leadCheck) {
+      logStorageEvent('download.denied', { agencyId: user.agencyId, userId: user.id, invoiceId, reason: 'no_access' })
       return NextResponse.json({ ok: false, reason: 'no_access' }, { status: 403 })
     }
   }
@@ -55,50 +59,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ inv
     return NextResponse.json({ ok: false, reason: 'pdf_not_ready' }, { status: 404 })
   }
 
-  const bucket = process.env.S3_BUCKET_NAME
-  if (!bucket) {
-    return NextResponse.json({ ok: false, reason: 's3_not_configured' }, { status: 500 })
+  try {
+    await headObject(doc.path)
+    const url = await presignDownload({
+      key: doc.path,
+      contentType: 'application/pdf',
+      contentDisposition: contentDisposition(invoicePdfFilename(invoice)),
+    })
+    logStorageEvent('download.authorized', { agencyId: user.agencyId, userId: user.id, invoiceId, mime: 'application/pdf' })
+    return NextResponse.redirect(url, { status: 302, headers: { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer' } })
+  } catch (err) {
+    if (err instanceof StorageNotFoundError) {
+      logStorageEvent('download.missing_object', { agencyId: user.agencyId, invoiceId })
+      return NextResponse.json({ ok: false, reason: 'pdf_not_ready' }, { status: 404 })
+    }
+    return NextResponse.json({ ok: false, reason: 'storage_unavailable' }, { status: 503 })
   }
-
-  const filename = buildFilename(invoice)
-  const ascii = asciiFallback(filename)
-  // RFC 5987 encoding: both filename= (ASCII fallback) and filename*= (UTF-8)
-  // so Hebrew names render correctly in modern browsers, while older clients
-  // still get a readable name.
-  const disposition = `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`
-
-  const presigned = await getSignedUrl(
-    s3,
-    new GetObjectCommand({
-      Bucket: bucket,
-      Key: doc.path,
-      ResponseContentDisposition: disposition,
-      ResponseContentType: 'application/pdf',
-    }),
-    { expiresIn: PRESIGN_EXPIRES_S },
-  )
-
-  return NextResponse.redirect(presigned, 302)
-}
-
-function buildFilename(invoice: { kind: string | null; documentNumber: number | null; legalNameSnapshot: string | null }): string {
-  const prefix = invoice.kind === 'invoice_receipt' ? 'Receipt' : 'Invoice'
-  const num = invoice.documentNumber != null ? String(invoice.documentNumber).padStart(5, '0') : 'pending'
-  const name = sanitizeName(invoice.legalNameSnapshot ?? '')
-  return `${prefix}-${num}-${name}.pdf`
-}
-
-function sanitizeName(s: string): string {
-  return (
-    s
-      .trim()
-      .replace(/\s+/g, '_')
-      // Strip filesystem-hostile chars; keep Hebrew/Unicode letters.
-      .replace(/[\\/:*?"<>|]/g, '')
-      .slice(0, 80) || 'Customer'
-  )
-}
-
-function asciiFallback(s: string): string {
-  return s.replace(/[^\x20-\x7E]/g, '_')
 }

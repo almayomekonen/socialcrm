@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireBasicCrmAccess, requireProductAccess } from '@/lib/requireUser'
 import { canActOnLead, canActOnTask } from '@/lib/tasks/taskAccess'
+import { filePathsForTask, removeUnreferencedObjects } from '@/lib/storage/cleanup'
+import { isOwnUploadKey } from '@/lib/storage/keys'
 
 type TaskUpdateInput = {
   title?: string
@@ -46,10 +48,14 @@ async function assertTemplateAccess(tmpltId: number, user: { agencyId?: number }
 export async function deleteTask(task) {
   const user = await requireProductAccess()
   await assertTaskAccess(task.id, user)
-  await db.transaction(async (trx) => {
+  const agencyId = user.agencyId as number
+  const paths = await db.transaction(async (trx) => {
+    const found = await filePathsForTask(trx, agencyId, task.id)
     await trx('tasks').where({ id: task.id }).del()
     await trx('files').where({ taskId: task.id }).del()
+    return found
   })
+  await removeUnreferencedObjects(agencyId, paths)
   redirect(`/clients/${task.clientId}/tasks`)
 }
 
@@ -120,7 +126,7 @@ export async function saveFiles(uploadFiles, isTmplt, task) {
     await assertTemplateAccess(task.id, user)
 
     const safeFiles = uploadFiles.map((f) => {
-      if (!f.name || !f.path) throw new Error('Invalid file')
+      if (!f.name || !isOwnUploadKey(f.path, user.agencyId as number)) throw new Error('Invalid file')
       return {
         name: String(f.name),
         type: String(f.type ?? ''),
@@ -138,7 +144,7 @@ export async function saveFiles(uploadFiles, isTmplt, task) {
     await assertClientAccess(task.clientId, user)
 
     const safeFiles = uploadFiles.map((f) => {
-      if (!f.name || !f.path) throw new Error('Invalid file')
+      if (!f.name || !isOwnUploadKey(f.path, user.agencyId as number)) throw new Error('Invalid file')
       return {
         name: String(f.name),
         type: String(f.type ?? ''),
@@ -251,13 +257,18 @@ export async function updateFullTaskTmplt(taskTmplt) {
     })
 }
 export async function saveFilesTmplt(uploadFiles) {
-  await requireProductAccess()
-  const safeFiles = uploadFiles.map((f: any) => ({
-    name: String(f.name ?? ''),
-    path: String(f.path ?? ''),
-    size: Number(f.size ?? 0),
-    type: String(f.type ?? ''),
-  }))
+  const user = await requireProductAccess()
+  const safeFiles = uploadFiles.map((f: any) => {
+    if (!isOwnUploadKey(f.path, user.agencyId as number)) throw new Error('Invalid file')
+    return {
+      name: String(f.name ?? ''),
+      path: String(f.path),
+      size: Number(f.size ?? 0),
+      type: String(f.type ?? ''),
+      agencyId: user.agencyId,
+      createdById: user.id,
+    }
+  })
   await db('files').insert(safeFiles)
 }
 

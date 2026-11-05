@@ -1,6 +1,5 @@
-import { Heading, Section, Text } from '@react-email/components'
+import { Heading, Text } from '@react-email/components'
 import { EmailLayout } from '../components/EmailLayout'
-import { EmailButton } from '../components/EmailButton'
 
 
 export type InvoiceSentEmailProps = {
@@ -10,7 +9,6 @@ export type InvoiceSentEmailProps = {
   totalDisplay: string
   issuedDate: string
   agencyName: string
-  pdfUrl: string
   customMessage?: string  
 }
 
@@ -21,7 +19,6 @@ export default function InvoiceSentEmail({
   totalDisplay,
   issuedDate,
   agencyName,
-  pdfUrl,
   customMessage,
 }: InvoiceSentEmailProps) {
   const safeName = recipientName?.trim() || 'שלום'
@@ -73,10 +70,6 @@ export default function InvoiceSentEmail({
           {customMessage}
         </Text>
       )}
-
-      <Section style={{ textAlign: 'center', marginTop: '32px' }}>
-        <EmailButton href={pdfUrl}>פתח את החשבונית</EmailButton>
-      </Section>
 
       <Text
         dir='rtl'

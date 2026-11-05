@@ -2,77 +2,97 @@
 
 import { getUser } from '@/db/auth'
 import { db } from '@/config/db'
-import { s3 } from '@/config/s3'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { revalidatePath } from 'next/cache'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { genId } from '@/lib/funcs'
-import { getAgencyId } from '@/db/agencies'
 import { daysFromNow } from '@/lib/dates'
 import { requireProductAccess } from '@/lib/requireUser'
+import { logStorageEvent } from '@/lib/storage/events'
+import { removeUnreferencedObjects } from '@/lib/storage/cleanup'
+import { canDeleteFile, type FileRow } from '@/lib/storage/fileAccess'
+import { isOwnUploadKey, uploadKey } from '@/lib/storage/keys'
+import { deleteObject, headObject, presignUpload, StorageNotFoundError } from '@/lib/storage/objects'
+import { checkUpload, isAllowedUploadType, MAX_UPLOAD_BYTES, type UploadMeta } from '@/lib/storage/policy'
+import { canActOnLead, canActOnTask } from '@/lib/tasks/taskAccess'
 
-const Bucket = process.env.S3_BUCKET_NAME
-
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'image/png',
-  'image/jpg',
-  'image/jpeg',
-  'image/webp',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
-]
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
-
-function trunc(s: unknown, n = 200): string {
-  const v = typeof s === 'string' ? s : String(s ?? '')
-  return v.length > n ? v.slice(0, n) + '…' : v
+/** The error's kind only. A message can carry a filename or a value from the failed query. */
+function errorKind(err: unknown) {
+  const e = err as { name?: string; code?: string }
+  return { name: e?.name ?? null, code: e?.code ?? null }
 }
 
-export async function getPresigned({ metadat, folderPath }: Props) {
-  await requireProductAccess()
+/**
+ * Step 1 of an upload: validate, choose the key on the SERVER, and sign a 60-second
+ * PUT bound to this exact type and size. The browser never holds a credential.
+ */
+export async function getPresigned({ metadat }: { metadat: UploadMeta[] }) {
+  const user = await requireProductAccess()
+  const agencyId = user.agencyId as number
   for (const m of metadat) {
-    if (!ALLOWED_MIME_TYPES.includes(m.type)) {
-      console.warn('[upload] presign.validation.fail', JSON.stringify({ reason: 'mime-not-allowed', mime: m.type, size: m.size }))
-      throw new Error(`File type "${m.type}" is not allowed. Allowed types: PDF, PNG, JPG.`)
-    }
-    if (m.size > MAX_FILE_SIZE) {
-      console.warn(
-        '[upload] presign.validation.fail',
-        JSON.stringify({ reason: 'size-too-large', size: m.size, max: MAX_FILE_SIZE }),
+    const refusal = checkUpload(m)
+    if (refusal) {
+      logStorageEvent('upload.refused', { agencyId, userId: user.id, reason: refusal, mime: isAllowedUploadType(m.type) ? m.type : 'other', size: Number(m.size) || null })
+      throw new Error(
+        refusal === 'too_large'
+          ? `File "${m.name}" exceeds the 10 MiB size limit.`
+          : `File type "${m.type}" is not allowed. Allowed types: PDF, PNG, JPG.`,
       )
-      throw new Error(`File "${m.name}" exceeds the 10 MB size limit.`)
     }
   }
 
-  try {
-    return await Promise.all(
-      metadat.map((m) => {
-        const path = `uploads/${folderPath}/${genId()}_${m.name}`
-        const cmd = new PutObjectCommand({ Bucket, Key: path, ContentType: m.type, ContentLength: m.size })
-        return getSignedUrl(s3 as any, cmd as any, { expiresIn: 60 }).then((url) => ({ url, path, ...m }))
-      }),
-    )
-  } catch (err) {
-    // S3 SDK errors carry useful $metadata.httpStatusCode + name (e.g.
-    // 'CredentialsProviderError', 'AccessDenied', 'NoSuchBucket').
-    const e = err as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } }
-    console.error(
-      '[upload] presign.s3.fail',
-      JSON.stringify({
-        count: metadat.length,
-        name: e?.name ?? null,
-        httpStatus: e?.$metadata?.httpStatusCode ?? null,
-        message: trunc(e?.message),
-      }),
-    )
-    throw err
-  }
+  const presigned = await Promise.all(
+    metadat.map(async (m) => {
+      const path = uploadKey(agencyId, m.type)
+      const url = await presignUpload({ key: path, contentType: m.type, contentLength: m.size })
+      return { url, path, ...m }
+    }),
+  )
+  logStorageEvent('upload.presigned', { agencyId, userId: user.id, count: presigned.length })
+  return presigned
 }
 
-interface Props {
-  metadat: { name: string; type: string; size: number }[]
-  folderPath?: string
+/** The browser's PUT goes straight to R2, so its failure is only visible if the browser says so. */
+export async function reportUploadFailure(input: { stage: string; httpStatus?: number | null; code?: string | null }) {
+  const user = await getUser()
+  if (!user) return
+  const code = typeof input.code === 'string' && /^[A-Za-z0-9_.-]{1,60}$/.test(input.code) ? input.code : null
+  const reason = /^[a-z_]{1,30}$/.test(String(input.stage)) ? input.stage : 'unknown'
+  logStorageEvent('upload.failed', {
+    agencyId: user.agencyId,
+    userId: user.id,
+    reason,
+    code,
+    httpStatus: Number.isInteger(input.httpStatus) ? input.httpStatus : null,
+  })
+}
+
+/**
+ * Step 2: register what was uploaded. The input comes from the browser, so nothing in
+ * it is trusted. Ownership decides reads (/api/files/[fileId]), so a key this agency
+ * was not issued would otherwise let one tenant claim another's object. Only known
+ * fields are copied, and the object itself must be what was declared.
+ */
+type AddFilesInput = { presigned: unknown; taskId?: number | null; clientId?: number | null }
+
+async function verifiedFileRows(presigned: unknown, agencyId: number, userId: number) {
+  if (!Array.isArray(presigned) || presigned.length === 0) throw new Error('Invalid files')
+  return Promise.all(
+    presigned.map(async (p) => {
+      const meta = { name: String(p?.name ?? ''), type: String(p?.type ?? ''), size: Number(p?.size) }
+      if (checkUpload(meta) || !isOwnUploadKey(p?.path, agencyId)) {
+        logStorageEvent('upload.refused', { agencyId, userId, reason: 'invalid_registration' })
+        throw new Error('Forbidden')
+      }
+      const head = await headObject(p.path).catch((err) => {
+        if (err instanceof StorageNotFoundError) logStorageEvent('upload.refused', { agencyId, userId, reason: 'object_missing' })
+        throw err
+      })
+      if (head.size !== meta.size || head.size > MAX_UPLOAD_BYTES || head.contentType !== meta.type) {
+        await deleteObject(p.path).catch(() => undefined)
+        logStorageEvent('upload.refused', { agencyId, userId, reason: 'object_mismatch', size: head.size })
+        throw new Error('Forbidden')
+      }
+      return { ...meta, path: p.path as string }
+    }),
+  )
 }
 
 export async function addFilesToTask(data, clientId) {
@@ -97,13 +117,9 @@ export async function addFilesToTask(data, clientId) {
 
     revalidatePath(`/clients/${clientId}/files`)
   } catch (err) {
-    const e = err as { message?: string }
     // Avoid double-logging Forbidden errors we already logged above.
-    if (e?.message !== 'Forbidden') {
-      console.error(
-        '[upload] addFilesToTask.fail',
-        JSON.stringify({ reason: 'throw', taskId: data?.taskId, fileCount, message: trunc(e?.message) }),
-      )
+    if ((err as Error)?.message !== 'Forbidden') {
+      console.error('[upload] addFilesToTask.fail', JSON.stringify({ reason: 'throw', taskId: data?.taskId, fileCount, ...errorKind(err) }))
     }
     throw err
   }
@@ -117,33 +133,27 @@ export async function getUserImgs(userId) {
   return images
 }
 
-export async function addFiles({ presigned, taskId = null, clientId }) {
-  await requireProductAccess()
-  const count = Array.isArray(presigned) ? presigned.length : 0
-  const user = await getUser()
-
-  if (!user) {
-    console.warn('[upload] addFiles.fail', JSON.stringify({ reason: 'no-user', count }))
-    throw new Error('Forbidden')
-  }
+export async function addFiles({ presigned, taskId = null, clientId }: AddFilesInput) {
+  const user = await requireProductAccess()
+  const agencyId = user.agencyId as number
+  if (clientId && !(await canActOnLead(user, clientId))) throw new Error('Forbidden')
+  if (taskId && !(await canActOnTask(user, taskId))) throw new Error('Forbidden')
 
   try {
-    presigned.map((p) => delete p.url)
-    const agencyId = await getAgencyId()
-    const files = presigned.map((p) => ({
-      ...p,
+    const verified = await verifiedFileRows(presigned, agencyId, user.id)
+    const files = verified.map((f) => ({
+      ...f,
       taskId,
       clientId,
       createdById: user.id,
       createdAt: new Date(),
       agencyId,
     }))
-
     const newFiles = await db('files').insert(files).returning('*')
+    for (const f of verified) logStorageEvent('upload.completed', { agencyId, userId: user.id, mime: f.type, size: f.size })
     return newFiles
   } catch (err) {
-    const e = err as { code?: string; message?: string }
-    console.error('[upload] addFiles.db.fail', JSON.stringify({ count, code: e?.code ?? null, message: trunc(e?.message) }))
+    console.error('[upload] addFiles.fail', JSON.stringify(errorKind(err)))
     throw err
   }
 }
@@ -152,7 +162,9 @@ export async function deleteFile(file) {
   const user = await requireProductAccess()
   const existing = await db('files').where({ id: file.id, agencyId: user.agencyId }).first()
   if (!existing) throw new Error('Forbidden')
-  await db('files').where({ id: file.id }).delete()
+  if (!(await canDeleteFile(user, existing as FileRow))) throw new Error('Forbidden')
+  await db('files').where({ id: file.id, agencyId: user.agencyId }).delete()
+  await removeUnreferencedObjects(user.agencyId as number, [existing.path])
   revalidatePath(`/clients/${file.clientId}/files`)
   revalidatePath(`/files`)
 }
@@ -169,8 +181,8 @@ export async function addIpuyFile({ presigned, data, type }: { presigned: any; d
       )
       throw new Error('Forbidden')
     }
-    presigned.map((p) => delete p.url)
-    const files = presigned.map((p) => ({
+    const verified = await verifiedFileRows(presigned, user.agencyId as number, user.id)
+    const files = verified.map((p) => ({
       ...p,
       clientId: data.clientId,
       createdById: user.id,
@@ -198,19 +210,8 @@ export async function addIpuyFile({ presigned, data, type }: { presigned: any; d
         ]),
       })
   } catch (err) {
-    const e = err as { code?: string; message?: string }
-    if (e?.message !== 'Forbidden') {
-      console.error(
-        '[upload] addIpuyFile.fail',
-        JSON.stringify({
-          reason: 'throw',
-          clientId: data?.clientId,
-          type,
-          count,
-          code: e?.code ?? null,
-          message: trunc(e?.message),
-        }),
-      )
+    if ((err as Error)?.message !== 'Forbidden') {
+      console.error('[upload] addIpuyFile.fail', JSON.stringify({ reason: 'throw', clientId: data?.clientId, type, count, ...errorKind(err) }))
     }
     throw err
   }

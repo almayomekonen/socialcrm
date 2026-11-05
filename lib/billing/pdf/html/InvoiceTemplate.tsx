@@ -78,7 +78,9 @@ function InvoiceBody({
   return (
     <main
       style={{
-        padding: PAGE.margin,
+        // Top and bottom margins belong to @page below, so every page gets them,
+        // not only the first and last.
+        padding: `0 ${PAGE.margin}`,
         color: COLOR.text,
         fontFamily: FONT_FAMILY,
         fontSize: '11pt',
@@ -103,19 +105,22 @@ function InvoiceBody({
       <LinesTable lines={lines} />
 
       <Spacer height={SP.xl} />
-      <TotalsPanel invoice={invoice} />
+      {/* One block, so the footer can never land alone on a page of its own. */}
+      <div style={{ breakInside: 'avoid' }}>
+        <TotalsPanel invoice={invoice} />
 
-      {shouldRenderReceiptPanel(invoice) && (
-        <>
-          <Spacer height={SP.md} />
-          <ReceiptPanel invoice={invoice} />
-        </>
-      )}
+        {shouldRenderReceiptPanel(invoice) && (
+          <>
+            <Spacer height={SP.md} />
+            <ReceiptPanel invoice={invoice} />
+          </>
+        )}
 
-      <DocumentFooter
-        customerFooter={invoice.customerFooter ?? ''}
-        displayName={displayName}
-      />
+        <DocumentFooter
+          customerFooter={invoice.customerFooter ?? ''}
+          displayName={displayName}
+        />
+      </div>
     </main>
   )
 }
@@ -144,7 +149,7 @@ function wrapDocument(body: string): string {
 <title>Invoice</title>
 <style>
 ${fontFaceBlock()}
-@page { size: ${PAGE.width} ${PAGE.height}; margin: 0; }
+@page { size: ${PAGE.width} ${PAGE.height}; margin: ${PAGE.margin} 0; }
 html, body { margin: 0; padding: 0; background: white; }
 body { font-family: ${FONT_FAMILY}; color: ${COLOR.text}; }
 * { box-sizing: border-box; }

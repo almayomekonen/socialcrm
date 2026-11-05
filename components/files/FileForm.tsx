@@ -51,7 +51,6 @@ export default function FileForm({ clientId, tasks }) {
         />
         <FileUploader
           tooltipClass='h-30'
-          path={`${clientId}/${taskId ?? 'unassigned'}`}
           clientId={clientId}
           taskId={taskId}
           translated

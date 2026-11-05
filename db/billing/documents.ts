@@ -32,8 +32,8 @@ export type CreatePendingDocumentInput = {
   templateVersionId?: number
   renderedByUserId?: number | null
   metadata?: Record<string, unknown>
-  // Predicted S3 key + URL. Pre-populated so the polling action can do
-  // head_object against the expected key before the render has completed.
+  // The object key, and the authenticated download route. Pre-populated so the
+  // poller can look for the object if the rendering process dies after uploading.
   path?: string | null
   url?: string | null
 }
@@ -91,11 +91,21 @@ export async function markDocumentReady(input: MarkReadyInput): Promise<void> {
 
 export async function markDocumentFailed(documentId: number, agencyId: number, errorReason: string): Promise<void> {
   const truncated = errorReason.length > 240 ? errorReason.slice(0, 240) + '…' : errorReason
-  await db('bill_documents').where({ id: documentId, agencyId }).update({
+  // Only out of `rendering`: a slow render that finished must not be overwritten by a
+  // poller that judged it stale a moment earlier.
+  await db('bill_documents').where({ id: documentId, agencyId, status: 'rendering' }).update({
     status: 'failed',
     errorReason: truncated,
     renderedAt: new Date(),
   })
+}
+
+/** Closes renders older than the cutoff, so a new attempt leaves no row stuck behind it. */
+export async function closeStaleRenders(agencyId: number, invoiceId: number, olderThan: Date): Promise<void> {
+  await db('bill_documents')
+    .where({ agencyId, invoiceId, status: 'rendering' })
+    .where('createdAt', '<', olderThan)
+    .update({ status: 'failed', errorReason: 'render_timeout', renderedAt: new Date() })
 }
 
 export async function appendDocumentDiagStep(
