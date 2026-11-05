@@ -16,8 +16,6 @@ export default function TaskFiles({ task }) {
     task.files = updatedFileList
   }
 
-  const folder = isTmplt ? `taskTmplts` : `${task.clientId}/${task.id}`
-
   return (
     <div className='mt-2' style={{ gridArea: 'files' }}>
       <FileUploader
@@ -26,7 +24,6 @@ export default function TaskFiles({ task }) {
         clientId={task.clientId}
         taskId={isTmplt ? null : task.id}
         initialFiles={files}
-        path={folder}
         onFilesChange={handleFilesChange}
       />
     </div>

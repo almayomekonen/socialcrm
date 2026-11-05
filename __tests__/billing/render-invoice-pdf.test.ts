@@ -4,8 +4,6 @@ import { renderInvoiceHtml } from '@/lib/billing/pdf/html/InvoiceTemplate'
 import { shouldDrawReceiptBlock } from '@/lib/billing/pdf/drawReceiptBlock'
 import type { BillInvoiceRow, BillInvoiceLineRow } from '@/db/billing/invoices'
 
-const RUN_CHROMIUM = process.env.PDF_RUN_CHROMIUM === '1'
-
 function makeInvoice(overrides: Partial<BillInvoiceRow> = {}): BillInvoiceRow {
   return {
     id: 1,
@@ -212,35 +210,12 @@ describe('renderInvoiceHtml (pure)', () => {
   })
 })
 
-describe('renderInvoicePdf (dispatch path)', () => {
-  // After the Gotenberg + direct-to-S3 migration, renderInvoicePdf
-  // dispatches to Gotenberg and returns void. The PDF bytes are
-  // produced by Gotenberg and uploaded to S3 directly via a presigned
-  // PUT URL; the Vercel function never materializes them. Live
-  // dispatch tests would require a reachable Gotenberg endpoint and
-  // are therefore skipped in unit-test runs - they belong in the
-  // production smoke check.
-  const maybe = RUN_CHROMIUM ? it : it.skip
-
-  maybe('dispatches a render to Gotenberg', async () => {
-    await expect(
-      renderInvoicePdf({
-        invoice: makeInvoice(),
-        lines: oneLine,
-        fallbackName: 'העסק שלי',
-        uploadUrl: 'https://example.invalid/presigned-put',
-      errorUrl: 'https://example.invalid/render-error',
-      }),
-    ).resolves.toBeUndefined()
-  })
-
-  it('rejects drafts without dispatching to Gotenberg', async () => {
+describe('renderInvoicePdf', () => {
+  it('rejects drafts without contacting a renderer', async () => {
     await expect(
       renderInvoicePdf({
         invoice: makeInvoice({ docState: 'draft', fulfillState: null }),
         lines: oneLine,
-        uploadUrl: 'https://example.invalid/presigned-put',
-      errorUrl: 'https://example.invalid/render-error',
       }),
     ).rejects.toThrow('billing.pdf.draft_not_renderable')
   })

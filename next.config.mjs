@@ -24,7 +24,7 @@
  *
  * WHY THE ENFORCED POLICY IS LOOSER THAN THE CANDIDATE. The probe covered
  * public pages. It did NOT exercise the authenticated surfaces that talk to the
- * most origins — Google Drive Picker, WhatsApp Embedded Signup, S3 uploads, the
+ * most origins — Google Drive Picker, WhatsApp Embedded Signup, R2 uploads, the
  * copilot PDF worker. Enforcing a tight `connect-src` against surfaces nobody
  * has measured is how a security header becomes an outage.
  *
@@ -90,7 +90,7 @@ const contentSecurityPolicy = buildContentSecurityPolicy(FORM_ACTION_DEFAULT)
 const buildContentSecurityPolicyCandidate = (formAction) =>
   [
     ...cspBase(formAction),
-    "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://connect.facebook.net https://www.facebook.com https://*.amazonaws.com https://*.on.aws",
+    "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://connect.facebook.net https://www.facebook.com https://*.r2.cloudflarestorage.com https://*.on.aws",
     REPORT_URI,
   ].join('; ')
 const contentSecurityPolicyCandidate = buildContentSecurityPolicyCandidate(FORM_ACTION_DEFAULT)

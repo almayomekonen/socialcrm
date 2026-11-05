@@ -99,7 +99,6 @@ export default function ExportTable({ data, dataToFetch, columns }: Props) {
           <Input lbl={t('common.table.pdfTitle')} name='title' required={false} />
           <FileUploader
             onFilesChange={(file) => setImg(file[0]?.url)}
-            folder='display'
             single
             name='img'
             type='image'

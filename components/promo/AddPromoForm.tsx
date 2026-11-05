@@ -100,7 +100,6 @@ export default function AddPromoForm({ teams, users, promo, setcurPromo }) {
         <FileUploader
           name='img'
           initialFiles={promo?.img}
-          folder={'display'}
           type='image'
           single={true}
           title={t('admin.promos.form.uploadImg')}

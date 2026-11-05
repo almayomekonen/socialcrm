@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Icon, { IconNames } from '@/lib/Icon'
-import { FileDisplay, UPLOAD_NONE_SELECTED, UPLOAD_TOO_LARGE, uploadS3 } from './funcs'
+import { FileDisplay, UPLOAD_NONE_SELECTED, UPLOAD_TOO_LARGE, uploadToStorage } from './funcs'
 import { useUser } from '@/lib/hooksNEvents'
 import dynamic from 'next/dynamic'
 import { twMerge } from 'tailwind-merge'
@@ -15,20 +15,17 @@ import type { MessageKey } from '@/lib/i18n/translate'
 
 const HEBREW = translatorFor('he')
 
-/** `uploadS3`'s own refusals by their exact sentence (Hebrew = the same sentence); any other reason is shown as received. */
+/** `uploadToStorage`'s own refusals by their exact sentence (Hebrew = the same sentence); any other reason is shown as received. */
 const REASON_KEY: Record<string, MessageKey> = {
   [UPLOAD_TOO_LARGE]: 'leadTabs.files.uploader.tooLarge',
   [UPLOAD_NONE_SELECTED]: 'leadTabs.files.uploader.noneSelected',
 }
 
 const Glry = dynamic(() => import('./Glry'), { ssr: false })
-type folderPath = 'display' | 'docs'
 
 export default function FileUploader({
   title,
   initialFiles,
-  folder = 'docs',
-  path,
   onFilesChange = () => {},
   getFiles = () => {},
   className = '',
@@ -50,8 +47,8 @@ export default function FileUploader({
   const user = useUser()
   /**
    * PRE-GATE at the single choke point. Every upload path runs through
-   * `uploadS3` → `getPresigned`/`addFiles`, both requireProductAccess-guarded,
-   * and `uploadS3` catches the refusal into
+   * `uploadToStorage` → `getPresigned`/`addFiles`, both requireProductAccess-guarded,
+   * and `uploadToStorage` catches the refusal into
    * "העלאת הקבצים נכשלה: …" — a lapsed subscription reported as a failed
    * upload. Gating here covers the lead files tab, task files, the Excel lead
    * import and the issuer logo in one place. Already-uploaded files stay
@@ -84,12 +81,10 @@ export default function FileUploader({
     onFilesChange(updatedFiles)
   }
 
-  const folderPath = path || `${user.id}/${folder}`
-
   async function onFilesSelected(e: any) {
     getFiles(e.target.files)
 
-    const newFiles = (await uploadS3(e, folderPath, taskId, clientId)) as any
+    const newFiles = (await uploadToStorage(e, taskId, clientId)) as any
     // The reason: the upload's own refusals worded by sentence; any other error text is shown as it arrives.
     if (newFiles.err) {
       const key = REASON_KEY[newFiles.msg]
@@ -155,8 +150,6 @@ export default function FileUploader({
 type Props = {
   title?: string
   initialFiles?: any[] | any
-  folder?: folderPath
-  path?: string
   onFilesChange?: (files: any[]) => void
   getFiles?: (files: any[]) => void
   className?: string

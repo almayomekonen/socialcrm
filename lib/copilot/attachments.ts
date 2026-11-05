@@ -1,3 +1,5 @@
+import { MAX_UPLOAD_BYTES } from '@/lib/storage/policy'
+
 export const COPILOT_MAX_QUESTION_CHARS = 500
 export const COPILOT_MIN_QUESTION_CHARS = 3
 export const COPILOT_MAX_LENSES = 4
@@ -5,7 +7,7 @@ export const COPILOT_MAX_LENSES = 4
 export const COPILOT_ATTACHMENT_PER_FILE_CHAR_CAP = 30_000
 export const COPILOT_ATTACHMENT_TOTAL_CHAR_CAP = 60_000
 export const COPILOT_MAX_ATTACHMENTS = 5
-export const COPILOT_MAX_FILE_BYTES = 10 * 1024 * 1024
+export const COPILOT_MAX_FILE_BYTES = MAX_UPLOAD_BYTES
 
 export type CopilotAttachmentPayload =
   | {

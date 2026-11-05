@@ -104,7 +104,7 @@ export async function uploaderFailures(locale: UiLocale | null): Promise<Record<
   const { default: FileUploader } = await import('@/components/files/FileUploader')
   const out: Record<string, string> = {}
   const big = new File(['x'], 'big.pdf', { type: 'application/pdf' })
-  Object.defineProperty(big, 'size', { value: 10_000_001 })
+  Object.defineProperty(big, 'size', { value: 10 * 1024 * 1024 + 1 })
   for (const [name, files] of [
     ['tooLarge', [big]],
     ['noneSelected', []],

@@ -2,7 +2,9 @@ import axios from 'axios'
 import { twMerge } from 'tailwind-merge'
 import { convertToWebP } from '@/lib/funcs'
 import Icon from '@/lib/Icon'
-import { addFiles, getPresigned } from '../../actions/files'
+import { addFiles, getPresigned, reportUploadFailure } from '../../actions/files'
+import { MAX_UPLOAD_BYTES } from '@/lib/storage/policy'
+import { storageErrorCode } from '@/lib/storage/browserError'
 
 export function getFileType(type: string) {
   const t = type?.includes('/') ? type.split('/').pop() : type
@@ -97,7 +99,7 @@ export function ImgTooltip({ src, className = '' }) {
   )
 }
 
-/** `uploadS3`'s own refusals (thrown text, returned as `msg`). FileUploader words them for translated callers by these exact sentences. */
+/** `uploadToStorage`'s own refusals (thrown text, returned as `msg`). FileUploader words them for translated callers by these exact sentences. */
 export const UPLOAD_NONE_SELECTED = 'לא נבחרו קבצים'
 export const UPLOAD_TOO_LARGE = 'קובץ גדול מדי'
 
@@ -106,7 +108,7 @@ function trunc(s: unknown, n = 200): string {
   return v.length > n ? v.slice(0, n) + '…' : v
 }
 
-export async function uploadS3(e, folderPath, taskId, clientId) {
+export async function uploadToStorage(e, taskId, clientId) {
   try {
     const fileList = e.target.files
     if (fileList.length == 0) throw new Error(UPLOAD_NONE_SELECTED)
@@ -115,8 +117,8 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
 
     const convertedFiles: File[] = await Promise.all(
       uploadedFiles.map((f) => {
-        if (f.size > 10000000) {
-          console.warn('[upload] s3.prepare.fail', JSON.stringify({ reason: 'file-too-large', size: f.size }))
+        if (f.size > MAX_UPLOAD_BYTES) {
+          console.warn('[upload] prepare.fail', JSON.stringify({ reason: 'file-too-large', size: f.size }))
           throw new Error(UPLOAD_TOO_LARGE)
         }
         return f.type.startsWith('image') ? convertToWebP(f) : f
@@ -127,10 +129,10 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
 
     let presigned: Awaited<ReturnType<typeof getPresigned>>
     try {
-      presigned = await getPresigned({ metadat, folderPath })
+      presigned = await getPresigned({ metadat })
     } catch (err) {
       console.error(
-        '[upload] s3.presign.fail',
+        '[upload] presign.fail',
         JSON.stringify({ count: metadat.length, message: trunc((err as Error)?.message) }),
       )
       throw err
@@ -143,12 +145,12 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
           await axios.put(p.url, convertedFiles[i], { headers: { 'Content-Type': p.type } })
         } catch (err) {
           const ex = err as {
-            response?: { status?: number; statusText?: string }
+            response?: { status?: number; statusText?: string; data?: unknown }
             code?: string
             message?: string
           }
           console.error(
-            '[upload] s3.put.fail',
+            '[upload] put.fail',
             JSON.stringify({
               index: i,
               size: convertedFiles[i]?.size ?? null,
@@ -160,6 +162,7 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
               latencyMs: Date.now() - startedAt,
             }),
           )
+          void reportUploadFailure({ stage: 'put', httpStatus: ex?.response?.status ?? null, code: storageErrorCode(ex?.response?.data) ?? ex?.code ?? null }).catch(() => undefined)
           throw err
         }
       }),
@@ -169,7 +172,7 @@ export async function uploadS3(e, folderPath, taskId, clientId) {
       return await addFiles({ presigned, taskId, clientId })
     } catch (err) {
       console.error(
-        '[upload] s3.addFiles.fail',
+        '[upload] addFiles.fail',
         JSON.stringify({ count: presigned.length, message: trunc((err as Error)?.message) }),
       )
       throw err

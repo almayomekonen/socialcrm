@@ -8,7 +8,7 @@ import type { CopilotModeId } from './copilotModes'
 import { addDailySpend } from './router/spend'
 import { buildPrompt } from './router/promptBuilder'
 import { classifyError, isPermanentError } from './router/errorClassify'
-import { logAttemptFailure, logAttemptSuccess, logFallbackTrace } from './router/attemptLogger'
+import { logAttemptFailure, logAttemptSuccess, logFallbackTrace, withoutUrls } from './router/attemptLogger'
 import { attemptBudget, skipRetryOnTimeout } from './router/interactivePolicy'
 import {
   newInvocationId,
@@ -239,7 +239,7 @@ export async function runStructured<S extends FlexibleSchema<unknown>>(
           latencyMs,
         }
       } catch (err) {
-        const message = (err as Error)?.message ?? 'unknown'
+        const message = withoutUrls((err as Error)?.message ?? 'unknown')
         const errorCode = classifyError(err)
         lastErrorMessage = message
         lastErrorCode = errorCode

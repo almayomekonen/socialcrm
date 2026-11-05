@@ -34,7 +34,7 @@ export type EmailAction = { label: string; url: string }
 /**
  * What makes one customer's email look like theirs.
  *
- * `logoUrl` must be DURABLE — permanent and unauthenticated. The presigned S3
+ * `logoUrl` must be DURABLE — permanent and unauthenticated. The presigned
  * URLs this codebase produces for files expire, and an email is opened days or
  * years after it is sent, so a presigned URL becomes a broken image. Null is the
  * correct value until durable logo hosting exists; the wordmark is not a

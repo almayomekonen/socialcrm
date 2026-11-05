@@ -192,7 +192,7 @@ describe("H: the uploader's own refusals are worded in the interface language", 
     })
   }
 
-  test('the Hebrew catalog words are the exact sentences uploadS3 throws', async () => {
+  test('the Hebrew catalog words are the exact sentences uploadToStorage throws', async () => {
     const { UPLOAD_NONE_SELECTED, UPLOAD_TOO_LARGE } = await import('@/components/files/funcs')
     const { translatorFor } = await import('@/lib/i18n/translators')
     const he = translatorFor('he')

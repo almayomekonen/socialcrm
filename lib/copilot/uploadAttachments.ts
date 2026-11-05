@@ -1,7 +1,8 @@
 'use client'
 
 import axios from 'axios'
-import { addFiles, getPresigned } from '@/actions/files'
+import { addFiles, getPresigned, reportUploadFailure } from '@/actions/files'
+import { storageErrorCode } from '@/lib/storage/browserError'
 import { convertToWebP } from '@/lib/funcs'
 import type { ExtractedAttachment } from './clientExtract'
 import {
@@ -65,7 +66,7 @@ export async function uploadCopilotAttachments({
 
   let presigned: Awaited<ReturnType<typeof getPresigned>>
   try {
-    presigned = await getPresigned({ metadat, folderPath: `${userId}/docs` })
+    presigned = await getPresigned({ metadat })
   } catch (err) {
     console.error(
       '[upload] copilot.presign.fail',
@@ -88,7 +89,7 @@ export async function uploadCopilotAttachments({
           message?: string
         }
         console.error(
-          '[upload] copilot.s3.put.fail',
+          '[upload] copilot.put.fail',
           JSON.stringify({
             index,
             size: uploadFiles[index]?.size ?? null,
@@ -100,6 +101,7 @@ export async function uploadCopilotAttachments({
             latencyMs: Date.now() - startedAt,
           }),
         )
+        void reportUploadFailure({ stage: 'put', httpStatus: e?.response?.status ?? null, code: storageErrorCode(e?.response?.data) ?? e?.code ?? null }).catch(() => undefined)
         throw err
       }
     }),

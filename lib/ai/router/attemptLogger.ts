@@ -1,6 +1,14 @@
 import { logAiRequest } from '../logger'
 import type { ProviderName, TaskKind } from '../types'
 
+/**
+ * A failed image download reports the URL it tried, and image URLs here are signed. The
+ * router logs these messages, so a URL never survives into one.
+ */
+export function withoutUrls(message: string): string {
+  return message.replace(/https?:\/\/[^\s"'<>)]+/g, '[url]')
+}
+
 // Per-attempt logging + tracing for runStructured. Splits the success and
 // failure paths so the orchestration loop only contains control flow.
 
