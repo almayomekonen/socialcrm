@@ -42,6 +42,12 @@ export type HandleInboundResult = {
   kick: boolean
   /** The job's configured delay, so the caller can wait before draining. */
   delaySeconds: number
+  /**
+   * True once the message row is committed (or already held). False means it was NOT
+   * stored, so the caller must not acknowledge it as done: the durable worker retries
+   * the receipt, and the direct path answers 503 so Meta redelivers.
+   */
+  persisted: boolean
 }
 
 export async function handleInboundWebhookMessage(args: {
@@ -78,7 +84,7 @@ export async function handleInboundWebhookMessage(args: {
     if (!lead) {
       console.error(`[WhatsappWebhook][create][msgId=${messageId}] createLeadFromWhatsappWebhook returned null`)
       await notifyWhatsappIngestionFailed(connection as never, messageId).catch(() => {})
-      return { kick: false, delaySeconds: 0 }
+      return { kick: false, delaySeconds: 0, persisted: false }
     }
     leadId = Number(lead.id)
     console.log(`[WhatsappWebhook][success][msgId=${messageId}] lead id=${leadId}`)
@@ -174,11 +180,13 @@ export async function handleInboundWebhookMessage(args: {
 
     if (result.inserted && result.ireEnqueued) {
       console.log(`[IRE] kick owed conv=${result.conversationId} msg=${result.messageId}`)
-      return { kick: true, delaySeconds: result.autoResponseDelaySeconds ?? 0 }
+      return { kick: true, delaySeconds: result.autoResponseDelaySeconds ?? 0, persisted: true }
     }
+    return { kick: false, delaySeconds: 0, persisted: true }
   } catch (err) {
-    console.error(`[WhatsappWebhook][inbox][msgId=${messageId}] persistence failed:`, err)
+    // The error NAME only: a driver error can echo parameter values, message text among them.
+    console.error(`[WhatsappWebhook][inbox][msgId=${messageId}] persistence failed:`, (err as Error)?.name ?? 'Error')
   }
 
-  return { kick: false, delaySeconds: 0 }
+  return { kick: false, delaySeconds: 0, persisted: false }
 }

@@ -11,8 +11,9 @@ import { db } from '@/config/db'
  * it. The customer answered and the conversation stops.
  *
  * This exercises the real route handler, signature and all, against a real
- * database. The only thing stubbed is the post-response drain, because a test
- * must not run the worker as a side effect of delivering a webhook.
+ * database. The post-response drain is stubbed and the durable receipt worker is
+ * run explicitly after each delivery, so the whole durable path is exercised:
+ * signed webhook → receipt → worker → message rows, in arrival order.
  */
 
 vi.mock('@/lib/inbox/autoresponse/kickWorker', () => ({
@@ -59,7 +60,10 @@ async function post(messages: Array<Record<string, unknown>>, contacts = true) {
     headers: { 'content-type': 'application/json', 'x-hub-signature-256': signature },
     body,
   })
-  return POST(req as never)
+  const res = await POST(req as never)
+  const { runWhatsappWebhookWorker } = await import('@/lib/whatsapp/webhook/worker')
+  await runWhatsappWebhookWorker({ workerId: 'test-q-batch', kick: async () => ({}) as never })
+  return res
 }
 
 const message = (id: string, body: string) => ({
@@ -95,6 +99,7 @@ afterAll(async () => {
   await db('inbox_conversations').where({ agencyId }).del()
   await db('tasks').whereIn('clientId', db('clients').select('id').where({ agencyId })).del()
   await db('clients').where({ agencyId }).del()
+  await db('whatsapp_webhook_events').where({ phoneNumberId: PHONE_ID }).del()
   await db('whatsapp_connections').where({ agency_id: agencyId }).del()
   await db('users').where({ agencyId }).del()
   await db('agencies').where({ id: agencyId }).del()

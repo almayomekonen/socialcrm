@@ -149,27 +149,34 @@ async function applyOne(agencyId: number, phoneNumberId: string, raw: RawStatus)
   warn('terminal_or_stale', { ...base, currentStatus: existing.status })
 }
 
+/** `errored` counts entries whose write threw: the durable worker retries those. */
+export type StatusIngestResult = { applied: number; errored: number; noConnection: boolean }
+
 export async function ingestWhatsappStatuses(
   phoneNumberId: string | undefined,
   statuses: unknown[],
-): Promise<void> {
+): Promise<StatusIngestResult> {
   if (!phoneNumberId) {
     warn('no_connection', { phoneNumberId: null, count: statuses.length })
-    return
+    return { applied: 0, errored: 0, noConnection: true }
   }
 
   const connection = await db('whatsapp_connections').where({ phone_number_id: phoneNumberId }).first('agency_id')
   if (!connection) {
     warn('no_connection', { phoneNumberId, count: statuses.length })
-    return
+    return { applied: 0, errored: 0, noConnection: true }
   }
   const agencyId = Number(connection.agency_id)
 
   // One bad entry must not drop the rest of the batch.
+  let applied = 0
+  let errored = 0
   for (const raw of statuses) {
     try {
       await applyOne(agencyId, phoneNumberId, raw as RawStatus)
+      applied++
     } catch (err) {
+      errored++
       console.error('[WhatsappWebhook][status] entry failed', {
         phoneNumberId,
         agencyId,
@@ -177,4 +184,5 @@ export async function ingestWhatsappStatuses(
       })
     }
   }
+  return { applied, errored, noConnection: false }
 }

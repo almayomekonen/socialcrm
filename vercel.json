@@ -45,6 +45,10 @@
       "schedule": "*/1 * * * *"
     },
     {
+      "path": "/api/cron/whatsapp-webhook-events",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/subscription-charges",
       "schedule": "*/5 * * * *"
     },
