@@ -91,8 +91,10 @@ export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollect
         return { found: false as const, leadId }
       }
 
-      // ── Enrich only after the gate has passed.
-      const snap = await getLeadIntelligenceInputs(leadId).catch(() => null)
+      // ── Enrich only after the gate has passed. The agency comes from the
+      //    closure, so this works with no request session (WhatsApp, cron).
+      //    Still non-fatal: a failed enrichment degrades to the gated fields.
+      const snap = await getLeadIntelligenceInputs(leadId, { agencyId: deps.scope.agencyId }).catch(() => null)
       const i = snap?.inputs
 
       deps.evidence.add({ kind: 'lead', refId: String(leadId) })

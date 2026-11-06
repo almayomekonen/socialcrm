@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
-import { getFullLead, getFamMembers } from './clients'
+import { getFullLead, getFamMembers, type LeadKey } from './clients'
+import { getFamilyMembersForAgency, getLeadForAgency, getRecentLeadTasksForAgency } from './agentLeadDetail'
 import { get5TasksByClientId } from './tasks'
 import { getUserNameById } from './usersNTeams'
 
@@ -149,35 +150,43 @@ export function deriveInactivityRisk(
   return 'low'
 }
 
+const INTELLIGENCE_COLUMNS: LeadKey[] = [
+  'status',
+  'leadSource',
+  'rank',
+  'createdAt',
+  'updatedAt',
+  'statusChangedAt',
+  'handlerId',
+  'gender',
+  'familyStatus',
+  'birthDate',
+  'email',
+  'phone',
+  'details',
+  'lastActivityAt',
+  'lastOutcomeType',
+]
+
+/**
+ * `opts.agencyId`: a caller with no request session (the Agent on WhatsApp or
+ * cron) supplies the agency; the reads then come from ./agentLeadDetail and the
+ * session is never touched. Without it, the session-derived reads run, unchanged.
+ */
 export async function getLeadIntelligenceInputs(
   leadId: number,
+  opts: { agencyId?: number } = {},
 ): Promise<{ inputs: LeadIntelligenceInputs; updatedAtIso: string | null } | null> {
-  const lead = await getFullLead({
-    id: leadId,
-    select: [
-      'status',
-      'leadSource',
-      'rank',
-      'createdAt',
-      'updatedAt',
-      'statusChangedAt',
-      'handlerId',
-      'gender',
-      'familyStatus',
-      'birthDate',
-      'email',
-      'phone',
-      'details',
-      'lastActivityAt',
-      'lastOutcomeType',
-    ],
-  })
+  const { agencyId } = opts
+  const lead = agencyId
+    ? await getLeadForAgency(agencyId, leadId, INTELLIGENCE_COLUMNS)
+    : await getFullLead({ id: leadId, select: INTELLIGENCE_COLUMNS })
   if (!lead) return null
 
   const [handlerName, fam, tasks, taskStats] = await Promise.all([
     lead.handlerId ? getUserNameById(lead.handlerId) : Promise.resolve(null),
-    getFamMembers(leadId).then((r) => r.famMembers),
-    get5TasksByClientId(leadId),
+    agencyId ? getFamilyMembersForAgency(agencyId, leadId) : getFamMembers(leadId).then((r) => r.famMembers),
+    agencyId ? getRecentLeadTasksForAgency(agencyId, leadId) : get5TasksByClientId(leadId),
     getLeadTaskStats(leadId),
   ])
 
