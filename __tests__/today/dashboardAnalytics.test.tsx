@@ -116,14 +116,15 @@ describe('AnalyticsOverview', () => {
     render(await AnalyticsOverview({ stats: Promise.resolve(stats()) }))
     const kpis = within(screen.getByRole('region', { name: 'מדדים' }))
     expect(kpis.getByText('לידים חדשים')).toBeTruthy()
-    expect(screen.getByText('+25%')).toBeTruthy()
+    expect(screen.getAllByText('+25%').length).toBeGreaterThan(0)
     expect(screen.getByText('מענה ב־WhatsApp ו־Messenger')).toBeTruthy()
     expect(screen.getByText('1:42')).toBeTruthy()
-    // Response time fell 24% — good, so success tone.
-    expect(screen.getByText('−24%').className).toContain('bg-success-bg')
+    // Response time fell 24% — good, so the badge is toned good.
+    const rtBadge = screen.getAllByText('−24%').find((el) => el.hasAttribute('data-tone'))!
+    expect(rtBadge.getAttribute('data-tone')).toBe('good')
     expect(screen.getByText('הכנסות ב־14 ימים')).toBeTruthy()
     expect(screen.getByText('3 עסקאות שולמו')).toBeTruthy()
-    expect(screen.getByText('+34%')).toBeTruthy() // revenue 48,250 vs 36,000
+    expect(screen.getAllByText('+34%').length).toBeGreaterThan(0) // revenue 48,250 vs 36,000
     // replied has no baseline (prev 0) → its card has no delta chip at all.
     const repliedCard = kpis.getByText('לידים שנענו').closest('div')!.parentElement!
     expect(repliedCard.textContent).not.toMatch(/%/)

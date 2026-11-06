@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from 'recharts'
-import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { dirFor } from '@/lib/i18n/config'
 
-// New leads vs leads that got a human reply, one point per business day, as a
-// shadcn gradient area chart. Time runs left → right regardless of page
-// direction. Labels are precomputed on the server.
+// New leads vs leads that got a human reply, one point per business day — the
+// shadcn dashboard-01 "Area Chart – Interactive" in the neutral light theme.
+// Time runs left → right regardless of page direction. Labels are precomputed
+// on the server.
 //
 // Mouse: Recharts' hover tooltip. Keyboard: the chart is one focus stop; focus
 // selects the latest day and ←/→ move between days, with a status readout and a
@@ -23,8 +24,8 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
   const tip = active != null ? points[active] : null
 
   const config = {
-    newLeads: { label: t('today.analytics.legendNew'), color: 'var(--color-primary)' },
-    replied: { label: t('today.analytics.legendReplied'), color: 'var(--color-success)' },
+    newLeads: { label: t('today.analytics.legendNew'), color: '#171717' },
+    replied: { label: t('today.analytics.legendReplied'), color: '#737373' },
   } satisfies ChartConfig
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -43,25 +44,24 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
       onKeyDown={onKeyDown}
       onFocus={() => setActive((a) => a ?? n - 1)}
       onBlur={() => setActive(null)}
-      className='relative flex min-h-[280px] flex-1 flex-col rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary'
+      className='relative rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/15'
     >
-      <ChartContainer config={config} className='aspect-auto min-h-[280px] w-full flex-1'>
-        <AreaChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} accessibilityLayer={false}>
+      <ChartContainer config={config} className='aspect-auto h-[250px] w-full'>
+        <AreaChart data={points} margin={{ top: 8, right: 0, left: 0, bottom: 0 }} accessibilityLayer={false}>
           <defs>
             <linearGradient id='fillNewLeads' x1='0' y1='0' x2='0' y2='1'>
-              <stop offset='5%' stopColor='var(--color-newLeads)' stopOpacity={0.45} />
-              <stop offset='95%' stopColor='var(--color-newLeads)' stopOpacity={0.03} />
+              <stop offset='5%' stopColor='var(--color-newLeads)' stopOpacity={0.55} />
+              <stop offset='95%' stopColor='var(--color-newLeads)' stopOpacity={0.04} />
             </linearGradient>
             <linearGradient id='fillReplied' x1='0' y1='0' x2='0' y2='1'>
-              <stop offset='5%' stopColor='var(--color-replied)' stopOpacity={0.35} />
-              <stop offset='95%' stopColor='var(--color-replied)' stopOpacity={0.03} />
+              <stop offset='5%' stopColor='var(--color-replied)' stopOpacity={0.5} />
+              <stop offset='95%' stopColor='var(--color-replied)' stopOpacity={0.04} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} strokeDasharray='3 3' />
-          <XAxis dataKey='short' tickLine={false} axisLine={false} tickMargin={10} minTickGap={28} />
-          <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={6} width={32} />
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey='short' tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} />
           <ChartTooltip
-            cursor={{ strokeDasharray: '4 4' }}
+            cursor={false}
             content={
               <ChartTooltipContent
                 dir={dir}
@@ -70,26 +70,11 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
               />
             }
           />
-          {tip && <ReferenceLine x={tip.short} stroke='var(--color-newLeads)' strokeDasharray='4 4' />}
-          <Area
-            dataKey='newLeads'
-            type='monotone'
-            fill='url(#fillNewLeads)'
-            stroke='var(--color-newLeads)'
-            strokeWidth={2}
-            activeDot={{ r: 4 }}
-          />
+          {tip && <ReferenceLine x={tip.short} stroke='#a3a3a3' strokeDasharray='4 4' />}
+          <Area dataKey='newLeads' type='monotone' fill='url(#fillNewLeads)' stroke='var(--color-newLeads)' strokeWidth={1.5} />
           {showReplied && (
-            <Area
-              dataKey='replied'
-              type='monotone'
-              fill='url(#fillReplied)'
-              stroke='var(--color-replied)'
-              strokeWidth={2}
-              activeDot={{ r: 4 }}
-            />
+            <Area dataKey='replied' type='monotone' fill='url(#fillReplied)' stroke='var(--color-replied)' strokeWidth={1.5} />
           )}
-          <ChartLegend content={<ChartLegendContent dir={dir} />} />
         </AreaChart>
       </ChartContainer>
 
@@ -97,11 +82,11 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
         <div
           dir={dir}
           role='status'
-          className='pointer-events-none absolute end-2 top-0 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs whitespace-nowrap text-ink shadow-overlay'
+          className='pointer-events-none absolute end-2 top-0 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs whitespace-nowrap text-neutral-950 shadow-xl'
         >
-          <div className='mb-0.5 font-semibold'>{tip.long}</div>
+          <div className='mb-0.5 font-medium'>{tip.long}</div>
           <div className='tabular-nums'>{t('today.analytics.tipNew', { count: tip.newLeads })}</div>
-          {showReplied && <div className='text-success-text tabular-nums'>{t('today.analytics.tipReplied', { count: tip.replied })}</div>}
+          {showReplied && <div className='text-neutral-500 tabular-nums'>{t('today.analytics.tipReplied', { count: tip.replied })}</div>}
         </div>
       )}
     </div>

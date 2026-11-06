@@ -10,13 +10,12 @@ import { cn } from '@/lib/utils'
 // the dashboard. CardAction sits at the header's end side, which follows the page
 // direction (left in Hebrew, right in English).
 
-const hairline = 'shadow-[0_1px_2px_rgb(15_23_42/0.05)]'
 
 function Card({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot='card'
-      className={cn('flex min-w-0 flex-col gap-6 rounded-xl border border-border bg-surface py-6 text-ink', hairline, className)}
+      className={cn('flex min-w-0 flex-col gap-6 rounded-xl border border-neutral-200 bg-white py-6 text-neutral-950 shadow-xs', className)}
       {...props}
     />
   )
@@ -36,11 +35,11 @@ function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function CardTitle({ className, ...props }: React.ComponentProps<'h2'>) {
-  return <h2 data-slot='card-title' className={cn('text-base leading-none font-semibold text-ink', className)} {...props} />
+  return <h2 data-slot='card-title' className={cn('leading-none font-semibold text-neutral-950', className)} {...props} />
 }
 
 function CardDescription({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div data-slot='card-description' className={cn('text-sm text-gray-500', className)} {...props} />
+  return <div data-slot='card-description' className={cn('text-sm text-neutral-500', className)} {...props} />
 }
 
 function CardAction({ className, ...props }: React.ComponentProps<'div'>) {

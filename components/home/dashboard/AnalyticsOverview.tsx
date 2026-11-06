@@ -3,14 +3,15 @@ import { dayLabels, formatDuration, percentDelta, type DashboardStats } from '@/
 import KpiCard from './KpiCard'
 import RangeTabs from './RangeTabs'
 import LeadsTrendChart from './LeadsTrendChart'
-import SourceDonut from './SourceDonut'
 import AnalyticsUnavailable from './AnalyticsUnavailable'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from './card'
 import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 
-// KPI row + charts row (async RSC). Streams in after the brief; the page shows a
-// matching skeleton meanwhile. A card with nothing true to say is omitted.
+// KPI section cards + the full-width interactive area chart (async RSC), laid out
+// as the shadcn dashboard-01 example. Streams in after the brief; the page shows a
+// matching skeleton meanwhile. A card with nothing true to say is omitted. Lead
+// sources live in the tabbed section below (SourcesPanel).
 export default async function AnalyticsOverview({
   stats: statsPromise,
   locale = 'he',
@@ -21,7 +22,7 @@ export default async function AnalyticsOverview({
   const t = translatorFor(locale)
   const stats = await statsPromise
   if (!stats) return <AnalyticsUnavailable locale={locale} />
-  const { range, days, newLeads, replied, responseMinutes: rt, revenue, sources } = stats
+  const { range, days, newLeads, replied, responseMinutes: rt, revenue } = stats
 
   const kpis = [
     <KpiCard
@@ -30,8 +31,6 @@ export default async function AnalyticsOverview({
       value={String(newLeads.total)}
       sub={t('today.analytics.newLeadsSub', { range })}
       delta={percentDelta(newLeads.total, newLeads.prevTotal)}
-      spark={days.map((d) => d.newLeads)}
-      color='var(--color-primary)'
       locale={locale}
     />,
     (replied.total > 0 || replied.prevTotal > 0) && (
@@ -41,8 +40,6 @@ export default async function AnalyticsOverview({
         value={String(replied.total)}
         sub={t('today.analytics.repliedSub')}
         delta={percentDelta(replied.total, replied.prevTotal)}
-        spark={days.map((d) => d.replied)}
-        color='var(--color-success)'
         locale={locale}
       />
     ),
@@ -54,8 +51,6 @@ export default async function AnalyticsOverview({
         sub={t('today.analytics.responseTimeSub')}
         delta={percentDelta(rt.avg, rt.prevAvg)}
         upIsGood={false}
-        spark={rt.daily}
-        color='var(--color-solid-green)'
         locale={locale}
       />
     ),
@@ -68,8 +63,6 @@ export default async function AnalyticsOverview({
         value={String(formatRoundCurrency(revenue.total))}
         sub={t('today.analytics.revenueDeals', { count: revenue.deals })}
         delta={percentDelta(revenue.total, revenue.prevTotal)}
-        spark={revenue.daily}
-        color='var(--color-ink)'
         locale={locale}
       />
     ),
@@ -77,7 +70,7 @@ export default async function AnalyticsOverview({
 
   const points = days.map((d) => ({ newLeads: d.newLeads, replied: d.replied, ...dayLabels(d.day, locale) }))
   const hasTrend = days.some((d) => d.newLeads > 0 || d.replied > 0)
-  // An all-zero series says nothing (CLAUDE.md §11): no area, no legend entry.
+  // An all-zero series says nothing (CLAUDE.md §11): no area.
   const hasReplies = days.some((d) => d.replied > 0)
 
   // Even rows at every width: 4 → 2×2 below xl, one row above; never a 3 + 1
@@ -90,38 +83,22 @@ export default async function AnalyticsOverview({
         {kpis}
       </section>
 
-      <div className='flex flex-wrap items-stretch gap-4'>
-        <Card className='flex-[2_1_560px]'>
-          <CardHeader>
-            <CardTitle>{t('today.analytics.trendTitle')}</CardTitle>
-            <CardDescription>{t('today.analytics.newLeadsSub', { range })}</CardDescription>
-            <CardAction>
-              <RangeTabs range={range} locale={locale} />
-            </CardAction>
-          </CardHeader>
-          <CardContent className='flex flex-1 flex-col'>
-            {hasTrend ? (
-              <LeadsTrendChart points={points} showReplied={hasReplies} />
-            ) : (
-              <p className='flex h-48 items-center justify-center rounded-lg border border-dashed border-border bg-bg text-sm text-gray-500'>
-                {t('today.analytics.trendEmpty')}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {sources.length > 0 && (
-          <Card className='flex-[1_1_300px]'>
-            <CardHeader>
-              <CardTitle>{t('today.analytics.sourcesTitle')}</CardTitle>
-              <CardDescription>{t('today.analytics.newLeadsSub', { range })}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SourceDonut slices={sources} />
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <Card className='@container/card'>
+        <CardHeader>
+          <CardTitle>{t('today.analytics.trendTitle')}</CardTitle>
+          <CardDescription>{t('today.analytics.newLeadsSub', { range })}</CardDescription>
+          <CardAction>
+            <RangeTabs range={range} locale={locale} />
+          </CardAction>
+        </CardHeader>
+        <CardContent className='px-2 pt-4 sm:px-6 sm:pt-6'>
+          {hasTrend ? (
+            <LeadsTrendChart points={points} showReplied={hasReplies} />
+          ) : (
+            <p className='flex h-[250px] items-center justify-center text-sm text-neutral-500'>{t('today.analytics.trendEmpty')}</p>
+          )}
+        </CardContent>
+      </Card>
     </>
   )
 }

@@ -123,7 +123,7 @@ describe('BriefMission', () => {
     expect(screen.getByText('המשימה הבאה')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'פתח שיחה' }).getAttribute('href')).toBe('/inbox?conversation=501')
     expect(screen.getByRole('link', { name: 'התקשר לליד 1' }).getAttribute('href')).toBe('tel:0541234567')
-    expect(screen.getByText('ממתין 11 ימים').className).toContain('bg-error-bg')
+    expect(screen.getByText('ממתין 11 ימים').getAttribute('data-tone')).toBe('bad')
     expect(screen.getByText('ממתין לתשובה · חלון WhatsApp נסגר')).toBeTruthy()
   })
 
@@ -144,24 +144,23 @@ describe('BriefMission', () => {
 })
 
 describe('BriefList', () => {
-  it('renders every item — no cap — with the count in the header', () => {
+  it('renders every item — no cap — as table rows under a header row', () => {
     const items = Array.from({ length: 30 }, (_, i) => item({ id: i + 1, name: `ליד ${i + 1}` }))
     render(<BriefList items={items} />)
-    expect(screen.getAllByRole('listitem')).toHaveLength(30)
-    expect(screen.getByText('30')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'לכל הלידים ←' }).getAttribute('href')).toBe('/leads')
+    expect(screen.getAllByRole('row')).toHaveLength(31)
+    expect(screen.getByRole('columnheader', { name: 'ליד' })).toBeTruthy()
   })
 
   it('wait chip shows waitingFor ?? reason, toned by state', () => {
     render(<BriefList items={[inboxItem(1), item({ id: 2, state: 'FOLLOWUP_DUE_TODAY', reason: 'מעקב היום' }), item({ id: 3, state: 'NEW_INBOUND', reason: 'ליד חדש' })]} />)
-    expect(screen.getByText('ממתין 11 ימים').className).toContain('bg-error-bg')
-    expect(screen.getByText('מעקב היום').className).toContain('bg-warning-bg')
-    expect(screen.getByText('ליד חדש').className).toContain('bg-primary-tint')
+    expect(screen.getByText('ממתין 11 ימים').getAttribute('data-tone')).toBe('bad')
+    expect(screen.getByText('מעקב היום').getAttribute('data-tone')).toBe('warn')
+    expect(screen.getByText('ליד חדש').getAttribute('data-tone')).toBe('info')
   })
 
   it('WhatsApp action only for inbox items; call only with a phone', () => {
     render(<BriefList items={[inboxItem(1), item({ id: 2, name: 'בלי טלפון', phone: null })]} />)
-    const [first, second] = screen.getAllByRole('listitem')
+    const [, first, second] = screen.getAllByRole('row')
     expect(within(first).getByRole('link', { name: 'פתח שיחת WhatsApp עם ליד 1' }).getAttribute('href')).toBe('/inbox?conversation=501')
     expect(within(first).getByRole('link', { name: 'התקשר לליד 1' })).toBeTruthy()
     expect(within(second).queryByRole('link', { name: /WhatsApp/ })).toBeNull()
@@ -210,7 +209,9 @@ describe('TodayBriefView states', () => {
   it('items[0] is the mission, the rest go to the list', () => {
     render(<TodayBriefView brief={brief({ done: false, remaining: 3, items: [inboxItem(1), inboxItem(2), inboxItem(3)] })} />)
     expect(screen.getByRole('link', { name: 'פתח שיחה' }).getAttribute('href')).toBe('/inbox?conversation=501')
-    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getAllByRole('row')).toHaveLength(3) // header + 2
+    expect(screen.getByRole('tab', { name: /צריך לטפל עכשיו/ }).textContent).toContain('2')
+    expect(screen.getByRole('link', { name: 'לכל הלידים ←' }).getAttribute('href')).toBe('/leads')
   })
 
   it('meetings render even when the brief is done', () => {
@@ -228,7 +229,7 @@ describe('dashboard additions (optional DTO fields + analytics slots)', () => {
 
   it('list and mission show the lead-source label; no chip without one', () => {
     render(<BriefList items={[inboxItem(1), { ...inboxItem(2), source: 'WhatsApp' }]} />)
-    const [first, second] = screen.getAllByRole('listitem')
+    const [, first, second] = screen.getAllByRole('row')
     expect(within(first).queryByText('WhatsApp')).toBeNull()
     expect(within(second).getByText('WhatsApp')).toBeTruthy()
     cleanup()

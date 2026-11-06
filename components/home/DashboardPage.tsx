@@ -21,7 +21,8 @@ import { getDashboardStats } from '@/db/reports/dashboardStats'
 import { parseDashboardRange } from '@/lib/dashboard/stats'
 import AnalyticsOverview from '@/components/home/dashboard/AnalyticsOverview'
 import FunnelCard from '@/components/home/dashboard/FunnelCard'
-import { AnalyticsOverviewSkeleton, FunnelSkeleton } from '@/components/home/dashboard/AnalyticsSkeleton'
+import SourcesPanel from '@/components/home/dashboard/SourcesPanel'
+import { AnalyticsOverviewSkeleton, FunnelSkeleton, PanelSkeleton } from '@/components/home/dashboard/AnalyticsSkeleton'
 import { getUiLocaleState } from '@/lib/i18n/server'
 import { regionAttrs } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
@@ -107,6 +108,11 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
           overview={
             <Suspense key={range} fallback={<AnalyticsOverviewSkeleton locale={locale} />}>
               <AnalyticsOverview stats={stats} locale={locale} />
+            </Suspense>
+          }
+          sources={
+            <Suspense fallback={<PanelSkeleton />}>
+              <SourcesPanel stats={stats} locale={locale} />
             </Suspense>
           }
           funnel={
