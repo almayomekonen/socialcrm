@@ -47,6 +47,20 @@ describe('INV-8 business-day bounds (Asia/Jerusalem, single authority)', () => {
     }
   })
 
+  it('dayStart is local midnight of the instant\'s own date, at every hour, on DST-change days too', () => {
+    const wall = (ms: number) =>
+      new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms))
+    const date = (ms: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date(ms))
+    for (let d = 0; d < 2 * 366; d++) {
+      for (const hourUtc of [0, 3, 9, 15, 21, 23]) {
+        const ms = Date.UTC(2026, 0, 1, hourUtc, 30, 0) + d * D
+        const start = startOfBusinessDayMs(ms)
+        expect(wall(start), new Date(ms).toISOString()).toBe('00:00')
+        expect(date(start), new Date(ms).toISOString()).toBe(date(ms))
+      }
+    }
+  })
+
   it('near-midnight classification: 23:30 today vs 00:30 tomorrow', () => {
     const at2330 = startOfBusinessDayMs(NOW) + 23 * H + 30 * 60_000
     const at0030 = CTX.dayEnd + 30 * 60_000
