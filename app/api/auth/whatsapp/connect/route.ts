@@ -7,6 +7,7 @@ import { emitLifecycleEvent } from '@/lib/events/emit'
 import { GRAPH_BASE as GRAPH } from '@/lib/facebook/graph'
 import { track, trackOncePerAgency } from '@/lib/analytics/track'
 import { WA_REASON, WA_REASON_NOTICE_CODE, type WaReason } from '@/lib/connections/reasons'
+import { sealWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 
 function fail(agencyId: number, userId: number, reason: WaReason, stage: string, status = 400) {
   track({ agencyId, userId, event: 'whatsapp_connect_failed', props: { reason, stage } })
@@ -82,23 +83,26 @@ export async function POST(req: NextRequest) {
   track({ agencyId, userId: user.id, event: 'whatsapp_webhook_subscribed', props: {} })
 
   try {
+    // Sealed at rest; a missing key fails the connect rather than storing plaintext.
+    const sealed = sealWhatsappAccessToken(accessToken)
     await db('whatsapp_connections')
       .insert({
         user_id: user.id,
         agency_id: agencyId,
         phone_number_id: phoneNumberId,
-        access_token: accessToken,
+        access_token: sealed,
         waba_id: wabaId,
       })
       .onConflict('phone_number_id')
       .merge({
         user_id: user.id,
         agency_id: agencyId,
-        access_token: accessToken,
+        access_token: sealed,
         waba_id: wabaId,
       })
   } catch (err) {
-    console.error('[WhatsappConnect] DB upsert failed:', err)
+    // The error NAME only: a driver error can echo the parameter values, the token among them.
+    console.error('[WhatsappConnect] DB upsert failed:', (err as Error)?.name ?? 'Error')
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 

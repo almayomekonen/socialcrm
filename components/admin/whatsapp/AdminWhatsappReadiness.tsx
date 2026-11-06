@@ -8,6 +8,7 @@ import { toReadinessView, type ReadinessView } from '@/lib/whatsapp/platform/rea
 import AdminChrome from '@/components/admin/AdminChrome'
 import OneOffTestSend from './OneOffTestSend'
 import WhatsappReadinessView from './WhatsappReadinessView'
+import WaTokenSealPanel from './WaTokenSealPanel'
 
 /**
  * Platform-owner readiness of the owner-reminder sender, checked INSIDE the
@@ -39,6 +40,7 @@ export default async function AdminWhatsappReadiness() {
       </header>
       <WhatsappReadinessView view={view} checkedAt={checkedAt} />
       {ownerWhatsappOneOffRecipientId() && <OneOffTestSend />}
+      <WaTokenSealPanel />
     </AdminChrome>
   )
 }
