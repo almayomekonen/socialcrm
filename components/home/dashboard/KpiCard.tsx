@@ -1,9 +1,15 @@
+import Icon from '@/lib/Icon'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import Sparkline from './Sparkline'
+import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from './card'
 import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 
-// One KPI tile (RSC). The delta chip compares with the previous equal period and
-// is omitted when there is no baseline — never a fake "0%".
+// One KPI tile (RSC), shadcn "section card" style: label, large value, delta
+// badge in the header action slot, period + sparkline in the footer. The delta
+// compares with the previous equal period and is omitted when there is no
+// baseline — never a fake "0%".
 type Props = {
   label: string
   value: string
@@ -18,25 +24,32 @@ type Props = {
 
 export default function KpiCard({ label, value, sub, delta, upIsGood = true, spark, color, locale = 'he' }: Props) {
   const good = delta == null || delta === 0 ? null : delta > 0 === upIsGood
-  const tone = good == null ? 'bg-neutral-bg text-neutral-text' : good ? 'bg-success-bg text-success-text' : 'bg-error-bg text-error-text'
+  const tone =
+    good == null
+      ? 'border-neutral-border bg-neutral-bg text-neutral-text'
+      : good
+        ? 'border-success-border bg-success-bg text-success-text'
+        : 'border-error-border bg-error-bg text-error-text'
+  const iconTone = good == null ? 'bg-neutral-text' : good ? 'bg-success-text' : 'bg-error-text'
   return (
-    <div className='flex flex-col gap-2.5 rounded-[14px] border border-border bg-surface px-5 py-[18px]'>
-      <div className='flex items-center justify-between gap-2'>
-        <span className='text-sm font-medium text-gray-600'>{label}</span>
+    <Card className='@container/card gap-4 bg-linear-to-t from-primary/5 to-surface'>
+      <CardHeader>
+        <CardDescription className='font-medium'>{label}</CardDescription>
+        <CardTitle className='text-[28px] font-bold tracking-[-0.5px] tabular-nums @[250px]/card:text-[32px]'>{value}</CardTitle>
         {delta != null && (
-          <span dir='ltr' className={`rounded-lg px-[7px] py-0.5 text-xs font-bold whitespace-nowrap tabular-nums ${tone}`}>
-            {`${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta)}%`}
-            <span className='sr-only'> {translatorFor(locale)('today.analytics.vsPrevious')}</span>
-          </span>
+          <CardAction>
+            <Badge variant='outline' dir='ltr' className={cn('gap-1 rounded-md px-1.5 tabular-nums', tone)}>
+              {delta !== 0 && <Icon name={delta > 0 ? 'arrow-trend-up' : 'arrow-trend-down'} className={cn('size-3', iconTone)} />}
+              {`${delta > 0 ? '+' : delta < 0 ? '−' : ''}${Math.abs(delta)}%`}
+              <span className='sr-only'> {translatorFor(locale)('today.analytics.vsPrevious')}</span>
+            </Badge>
+          </CardAction>
         )}
-      </div>
-      <div className='flex items-end justify-between gap-2.5'>
-        <div className='min-w-0'>
-          <div className='text-[30px] leading-none font-extrabold tracking-[-0.5px] text-ink tabular-nums'>{value}</div>
-          <div className='mt-1.5 text-[13px] text-gray-500'>{sub}</div>
-        </div>
+      </CardHeader>
+      <CardFooter className='items-end justify-between gap-3'>
+        <span className='text-[13px] text-gray-500'>{sub}</span>
         <Sparkline values={spark} color={color} />
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   )
 }

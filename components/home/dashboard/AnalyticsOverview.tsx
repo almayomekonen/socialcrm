@@ -5,6 +5,7 @@ import RangeTabs from './RangeTabs'
 import LeadsTrendChart from './LeadsTrendChart'
 import SourceDonut from './SourceDonut'
 import AnalyticsUnavailable from './AnalyticsUnavailable'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from './card'
 import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 
@@ -76,7 +77,7 @@ export default async function AnalyticsOverview({
 
   const points = days.map((d) => ({ newLeads: d.newLeads, replied: d.replied, ...dayLabels(d.day, locale) }))
   const hasTrend = days.some((d) => d.newLeads > 0 || d.replied > 0)
-  // An all-zero series says nothing (CLAUDE.md §11): no line, no legend entry.
+  // An all-zero series says nothing (CLAUDE.md §11): no area, no legend entry.
   const hasReplies = days.some((d) => d.replied > 0)
 
   // Even rows at every width: 4 → 2×2 below xl, one row above; never a 3 + 1
@@ -89,40 +90,36 @@ export default async function AnalyticsOverview({
         {kpis}
       </section>
 
-      <div className='flex flex-wrap items-start gap-5'>
-        <section className='min-w-0 flex-[2_1_560px] rounded-2xl border border-border bg-surface px-[22px] py-5'>
-          <div className='mb-3.5 flex flex-wrap items-center justify-between gap-3'>
-            <div>
-              <h2 className='text-lg font-bold text-ink'>{t('today.analytics.trendTitle')}</h2>
-              <div className='mt-1.5 flex flex-wrap gap-4 text-[13px] text-gray-600'>
-                <span className='flex items-center gap-1.5'>
-                  <span aria-hidden className='size-2.5 rounded-[3px] bg-primary' />
-                  {t('today.analytics.legendNew')}
-                </span>
-                {hasReplies && (
-                  <span className='flex items-center gap-1.5'>
-                    <span aria-hidden className='h-[3px] w-3.5 rounded-sm bg-success' />
-                    {t('today.analytics.legendReplied')}
-                  </span>
-                )}
-              </div>
-            </div>
-            <RangeTabs range={range} locale={locale} />
-          </div>
-          {hasTrend ? (
-            <LeadsTrendChart points={points} showReplied={hasReplies} />
-          ) : (
-            <p className='flex h-48 items-center justify-center rounded-xl bg-bg text-sm text-gray-500'>
-              {t('today.analytics.trendEmpty')}
-            </p>
-          )}
-        </section>
+      <div className='flex flex-wrap items-stretch gap-4'>
+        <Card className='flex-[2_1_560px]'>
+          <CardHeader>
+            <CardTitle>{t('today.analytics.trendTitle')}</CardTitle>
+            <CardDescription>{t('today.analytics.newLeadsSub', { range })}</CardDescription>
+            <CardAction>
+              <RangeTabs range={range} locale={locale} />
+            </CardAction>
+          </CardHeader>
+          <CardContent className='flex flex-1 flex-col'>
+            {hasTrend ? (
+              <LeadsTrendChart points={points} showReplied={hasReplies} />
+            ) : (
+              <p className='flex h-48 items-center justify-center rounded-lg border border-dashed border-border bg-bg text-sm text-gray-500'>
+                {t('today.analytics.trendEmpty')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {sources.length > 0 && (
-          <section className='min-w-0 flex-[1_1_300px] rounded-2xl border border-border bg-surface px-[22px] py-5'>
-            <h2 className='mb-4 text-lg font-bold text-ink'>{t('today.analytics.sourcesTitle')}</h2>
-            <SourceDonut slices={sources} />
-          </section>
+          <Card className='flex-[1_1_300px]'>
+            <CardHeader>
+              <CardTitle>{t('today.analytics.sourcesTitle')}</CardTitle>
+              <CardDescription>{t('today.analytics.newLeadsSub', { range })}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SourceDonut slices={sources} />
+            </CardContent>
+          </Card>
         )}
       </div>
     </>

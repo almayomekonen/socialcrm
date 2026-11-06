@@ -23,6 +23,15 @@ import AnalyticsOverview from '@/components/home/dashboard/AnalyticsOverview'
 import FunnelCard from '@/components/home/dashboard/FunnelCard'
 import LeadsTrendChart from '@/components/home/dashboard/LeadsTrendChart'
 
+// Recharts' ResponsiveContainer observes its box; jsdom has no ResizeObserver.
+// The plot itself stays unmeasured (0×0) here — these tests cover the data,
+// labels and keyboard readout, not pixels.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver
+
 afterEach(() => cleanup())
 
 describe('lib/dashboard/stats', () => {
@@ -150,7 +159,10 @@ describe('AnalyticsOverview', () => {
     ]
     render(await AnalyticsOverview({ stats: Promise.resolve(stats({ days, replied: { total: 0, prevTotal: 0 } })) }))
     expect(screen.queryByText('נענו (WhatsApp / Messenger)')).toBeNull()
-    expect(screen.getByRole('group').querySelector('path.stroke-success')).toBeNull()
+    // The keyboard readout carries the same series as the chart: no replies row.
+    fireEvent.focus(screen.getByRole('group'))
+    expect(screen.getByRole('status').textContent).toContain('1 לידים חדשים')
+    expect(screen.getByRole('status').textContent).not.toMatch(/נענו/)
   })
 
   it('range tabs are links that carry ?range= and mark the current one', async () => {

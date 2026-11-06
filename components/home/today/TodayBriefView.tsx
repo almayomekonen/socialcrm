@@ -23,18 +23,18 @@ export default function TodayBriefView({ brief, overview, funnel, locale = 'he' 
   return (
     // The dashboard is a translated region inside the (still Hebrew) workspace
     // <main>; for Hebrew this spreads nothing.
-    <div className='mx-auto mb-8 flex w-full max-w-[1480px] flex-col gap-5 pt-4' {...regionAttrs(locale)}>
-      <div className='flex flex-wrap items-stretch gap-5'>
+    <div className='mx-auto mb-8 flex w-full max-w-[1480px] flex-col gap-4 pt-4' {...regionAttrs(locale)}>
+      <div className='flex flex-wrap items-stretch gap-4'>
         <BriefHero brief={brief} locale={locale} />
         {mission && <BriefMission item={mission} locale={locale} />}
       </div>
 
       {overview}
 
-      <div className='flex flex-wrap items-start gap-5'>
+      <div className='flex flex-wrap items-start gap-4'>
         {rest.length > 0 && <BriefList items={rest} locale={locale} />}
         {(funnel || hasMeetings) && (
-          <div className='flex min-w-0 flex-[1_1_300px] flex-col gap-5'>
+          <div className='flex min-w-0 flex-[1_1_300px] flex-col gap-4'>
             {funnel}
             {hasMeetings && <BriefMeetings meetings={brief.meetings} locale={locale} />}
           </div>

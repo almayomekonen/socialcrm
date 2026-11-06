@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { MeetingItem } from '@/lib/today/types'
 import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/home/dashboard/card'
 
 // Presentational (RSC). The fixed shape of the day — a separate lane, never part
 // of the "needs you" count (INV-14). The time label is precomputed by the service
@@ -10,31 +11,35 @@ import { translatorFor } from '@/lib/i18n/translators'
 export default function BriefMeetings({ meetings, locale = 'he' }: { meetings: MeetingItem[]; locale?: UiLocale }) {
   const t = translatorFor(locale)
   return (
-    <section className='flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-surface px-[22px] py-5'>
-      <div className='flex items-baseline justify-between'>
-        <h2 className='text-lg font-bold text-ink'>{t('today.meetings.title')}</h2>
-        <Link
-          href='/calendar'
-          className='text-sm font-semibold text-primary-text hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-        >
-          {t('today.meetings.calendar')}
-        </Link>
-      </div>
-      <ul className='flex flex-col gap-3'>
-        {meetings.map((m) => (
-          <li key={m.id} className='flex items-center gap-3'>
-            {m.timeLabel && (
-              <span className='w-[54px] shrink-0 rounded-[10px] bg-primary-tint py-2 text-center text-[15px] font-bold text-primary-text tabular-nums'>
-                {m.timeLabel}
+    <Card className='gap-4'>
+      <CardHeader>
+        <CardTitle>{t('today.meetings.title')}</CardTitle>
+        <CardAction>
+          <Link
+            href='/calendar'
+            className='text-sm font-semibold text-primary-text hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+          >
+            {t('today.meetings.calendar')}
+          </Link>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <ul className='flex flex-col gap-3'>
+          {meetings.map((m) => (
+            <li key={m.id} className='flex items-center gap-3'>
+              {m.timeLabel && (
+                <span className='w-[54px] shrink-0 rounded-lg border border-info-border bg-primary-tint py-2 text-center text-[15px] font-bold text-primary-text tabular-nums'>
+                  {m.timeLabel}
+                </span>
+              )}
+              <span className='min-w-0'>
+                <span className='block truncate text-[15px] font-semibold text-ink'>{m.title || t('today.meetings.untitled')}</span>
+                {m.subtitle && <span className='block truncate text-[13px] text-gray-500'>{m.subtitle}</span>}
               </span>
-            )}
-            <span className='min-w-0'>
-              <span className='block truncate text-[15px] font-semibold text-ink'>{m.title || t('today.meetings.untitled')}</span>
-              {m.subtitle && <span className='block truncate text-[13px] text-gray-500'>{m.subtitle}</span>}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   )
 }

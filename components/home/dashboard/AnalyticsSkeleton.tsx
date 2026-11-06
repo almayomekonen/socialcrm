@@ -1,7 +1,8 @@
 // Content-shaped placeholders for the analytics while they stream in (RSC). They
-// shadow the real layout so nothing jumps; pulsing stops under reduced motion.
+// shadow the real card layout so nothing jumps; pulsing stops under reduced motion.
 import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
+import { Card, CardContent, CardHeader } from './card'
 
 const block = 'rounded-md bg-neutral-bg motion-safe:animate-pulse'
 
@@ -10,21 +11,33 @@ export function AnalyticsOverviewSkeleton({ locale = 'he' }: { locale?: UiLocale
     <div aria-busy='true' aria-label={translatorFor(locale)('today.analytics.loading')} className='contents'>
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className='flex h-[116px] flex-col justify-between rounded-[14px] border border-border bg-surface px-5 py-[18px]'>
-            <div className={`h-3.5 w-24 ${block}`} />
-            <div className={`h-7 w-20 ${block}`} />
-          </div>
+          <Card key={i} className='h-[150px] justify-between gap-4'>
+            <CardHeader>
+              <div className={`h-3.5 w-24 ${block}`} />
+              <div className={`mt-1 h-8 w-20 ${block}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`h-3 w-32 ${block}`} />
+            </CardContent>
+          </Card>
         ))}
       </div>
-      <div className='flex flex-wrap gap-5'>
-        <div className='flex h-[330px] min-w-0 flex-[2_1_560px] flex-col gap-4 rounded-2xl border border-border bg-surface px-[22px] py-5'>
-          <div className={`h-5 w-48 ${block}`} />
-          <div className={`flex-1 ${block}`} />
-        </div>
-        <div className='flex h-[330px] min-w-0 flex-[1_1_300px] flex-col items-center gap-4 rounded-2xl border border-border bg-surface px-[22px] py-5'>
-          <div className={`h-5 w-32 self-start ${block}`} />
-          <div className='size-[150px] rounded-full border-[16px] border-neutral-bg motion-safe:animate-pulse' />
-        </div>
+      <div className='flex flex-wrap gap-4'>
+        <Card className='h-[400px] flex-[2_1_560px]'>
+          <CardHeader>
+            <div className={`h-4 w-40 ${block}`} />
+            <div className={`h-3.5 w-24 ${block}`} />
+          </CardHeader>
+          <CardContent className='flex-1'>
+            <div className={`h-full ${block}`} />
+          </CardContent>
+        </Card>
+        <Card className='h-[400px] flex-[1_1_300px] items-center'>
+          <CardHeader className='w-full'>
+            <div className={`h-4 w-32 ${block}`} />
+          </CardHeader>
+          <div className='size-[180px] rounded-full border-[26px] border-neutral-bg motion-safe:animate-pulse' />
+        </Card>
       </div>
     </div>
   )
@@ -32,11 +45,15 @@ export function AnalyticsOverviewSkeleton({ locale = 'he' }: { locale?: UiLocale
 
 export function FunnelSkeleton() {
   return (
-    <div aria-hidden className='flex flex-col gap-4 rounded-2xl border border-border bg-surface px-[22px] py-5'>
-      <div className={`h-5 w-32 ${block}`} />
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className={`h-2.5 ${block}`} />
-      ))}
-    </div>
+    <Card aria-hidden className='gap-5'>
+      <CardHeader>
+        <div className={`h-4 w-32 ${block}`} />
+      </CardHeader>
+      <CardContent className='flex flex-col gap-4'>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={`h-2 ${block}`} />
+        ))}
+      </CardContent>
+    </Card>
   )
 }

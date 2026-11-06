@@ -17,6 +17,13 @@ import BriefList from '@/components/home/today/BriefList'
 import BriefMeetings from '@/components/home/today/BriefMeetings'
 import type { BriefItem, TodayBrief } from '@/lib/today/types'
 
+// The hero's progress ring is a Recharts chart; jsdom has no ResizeObserver.
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as unknown as typeof ResizeObserver
+
 afterEach(() => cleanup())
 
 const item = (over: Partial<BriefItem> = {}): BriefItem => ({
@@ -82,9 +89,10 @@ describe('BriefHero', () => {
     )
     const bar = screen.getByRole('progressbar')
     expect(bar.getAttribute('aria-valuenow')).toBe('25')
-    expect(screen.getByText('25%')).toBeTruthy()
+    // The day's counts are stat badges beside the progress ring.
     expect(screen.getByText('1 טופלו היום')).toBeTruthy()
-    expect(screen.getByText(/· 3 נותרו · 2 פגישות/)).toBeTruthy()
+    expect(screen.getByText('3 נותרו')).toBeTruthy()
+    expect(screen.getByText('2 פגישות')).toBeTruthy()
   })
 
   it('drops the meetings part when there are none', () => {
