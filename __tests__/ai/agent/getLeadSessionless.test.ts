@@ -64,6 +64,9 @@ const LEAD_ROW = {
   name: 'רון',
   /** The real column shape: GENERATED `firstName lastName (idNum)` (migration 20260414000001). */
   details: 'דנה לוי (039876541)',
+  idNum: '039876541',
+  /** A `lead_notes` row: real business context, with the id typed into it. */
+  content: 'רוצה לדבר שבוע הבא, ת"ז 039876541',
   lastActivityAt: new Date(Date.now() - 3 * 86_400_000).toISOString(),
   statusChangedAt: new Date(Date.now() - 5 * 86_400_000).toISOString(),
   createdAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
@@ -100,9 +103,10 @@ describe('get_lead with no session (WhatsApp owner assistant)', () => {
     expect(r.recentTasks).toHaveLength(1)
   })
 
-  it('never hands the model the ID number inside clients.details', async () => {
+  it("returns the rep's real notes, with the ID number masked and never clients.details", async () => {
     const r = await runTool()
-    expect(r).not.toHaveProperty('notes')
+    expect(r.notes).toContain('רוצה לדבר שבוע הבא')
+    expect(r.notes).not.toContain('דנה לוי (')
     expect(JSON.stringify(r)).not.toContain('039876541')
   })
 

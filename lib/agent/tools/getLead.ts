@@ -59,17 +59,15 @@ export const LEAD_METRIC_ID_LIST = Object.values(LEAD_METRIC_IDS)
  * reach the model: they are not needed to decide what to do next, and the
  * demographic fields are legacy columns that must not become AI inputs.
  *
- * NOT THE REP'S NOTES. The snapshot's `detailsExcerpt` is `clients.details`,
- * which since migration 20260414000001 is a GENERATED label:
- * `firstName lastName (idNum)`. Returned as "notes" it told the model nothing
- * new and handed it the lead's ID number, which a WhatsApp answer could then
- * repeat. It is not returned. The rep's real notes live in `lead_notes`; letting
- * the Agent read them is a separate product decision.
+ * NOTES ARE `lead_notes`, MASKED. `notes` is the snapshot's `detailsExcerpt`:
+ * the rep's newest notes with ID numbers masked (lib/ai/leadNotesExcerpt.ts).
+ * It is never `clients.details`, a GENERATED `firstName lastName (idNum)` label
+ * (migration 20260414000001) that once reached the model here as "notes".
  */
 export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget; nowMs: number }) {
   return tool({
     description:
-      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and recent tasks. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from the investigation subject named in the objective, or from an earlier tool result.",
+      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome, recent tasks and the rep's latest notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from the investigation subject named in the objective, or from an earlier tool result.",
     inputSchema: z.object({
       leadId: z
         .number()
@@ -147,7 +145,8 @@ export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollect
           status: t.status,
           daysOld: t.daysOld,
         })),
-        // No `notes`: see "NOT THE REP'S NOTES" above.
+        // The rep's newest notes, ID numbers masked, bounded upstream (400 chars).
+        notes: i?.detailsExcerpt ?? null,
       }
 
       deps.budget.noteResult(JSON.stringify(payload))

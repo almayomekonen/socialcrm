@@ -39,6 +39,18 @@ export async function getFamilyMembersForAgency(agencyId: number, leadId: number
   return db('clients').where({ familyId, agencyId }).select('id')
 }
 
+/** The lead's newest notes (same rows and order as `getLeadNotes`, bounded). */
+export async function getRecentLeadNotesForAgency(agencyId: number, leadId: number, limit: number) {
+  return db('lead_notes')
+    .where({ leadId, agencyId })
+    .orderBy([
+      { column: 'createdAt', order: 'desc' },
+      { column: 'id', order: 'desc' },
+    ])
+    .limit(limit)
+    .select('content')
+}
+
 /** The lead's five most recently updated tasks (same rows `get5TasksByClientId` returns). */
 export async function getRecentLeadTasksForAgency(agencyId: number, leadId: number) {
   return db('tasks as t')
