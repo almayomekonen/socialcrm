@@ -56,6 +56,7 @@ import { POST as DISCONNECT } from '@/app/api/auth/whatsapp/disconnect/route'
 import { getUser } from '@/db/auth'
 import { track } from '@/lib/analytics/track'
 import { SIGNUP_RESUME_COOKIE, readSignupResume, sealSignupResume } from '@/lib/whatsapp/signupResume'
+import { isSealedWhatsappAccessToken, resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 
 const OWNER = { agencyId: 69, userId: 298 }
 const TOKEN = 'tok_SECRET_abc'
@@ -181,7 +182,12 @@ describe('a temporary failure after Meta finished', () => {
     const resumed = await resume(failed.cookies.get(SIGNUP_RESUME_COOKIE)!.value)
     expect(resumed.status).toBe(200)
     expect(await resumed.json()).toMatchObject({ ok: true })
-    expect(h.state.saved[0]).toMatchObject({ access_token: TOKEN, waba_id: 'W1', phone_number_id: 'P1', agency_id: OWNER.agencyId, user_id: OWNER.userId, onboarding_type: 'coexistence' })
+    // Sealed at rest: never the plaintext, and it opens back to the token Meta issued.
+    const stored = String((h.state.saved[0] as { access_token: string }).access_token)
+    expect(stored).not.toContain(TOKEN)
+    expect(isSealedWhatsappAccessToken(stored)).toBe(true)
+    expect(resolveWhatsappAccessToken(stored)).toBe(TOKEN)
+    expect(h.state.saved[0]).toMatchObject({ waba_id: 'W1', phone_number_id: 'P1', agency_id: OWNER.agencyId, user_id: OWNER.userId, onboarding_type: 'coexistence' })
     expect(resumed.cookies.get(SIGNUP_RESUME_COOKIE)?.value).toBeFalsy()
     // The code was never used again.
     expect(vi.mocked(global.fetch).mock.calls.slice(callsBefore).some(([u]) => String(u).includes('oauth/access_token'))).toBe(false)

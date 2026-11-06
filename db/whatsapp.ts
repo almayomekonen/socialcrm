@@ -42,7 +42,9 @@ export async function getWhatsappConnectionState(agencyId: number): Promise<{ co
 export type WabaBackfillRow = { id: number; phone_number_id: string; access_token: string }
 
 export async function listConnectionsMissingWaba(conn: Knex = db): Promise<WabaBackfillRow[]> {
-  return conn('whatsapp_connections').whereNull('waba_id').select('id', 'phone_number_id', 'access_token')
+  const rows = (await conn('whatsapp_connections').whereNull('waba_id').select('id', 'phone_number_id', 'access_token')) as WabaBackfillRow[]
+  // The caller sends this token to Graph, so it must be the usable value, never the seal.
+  return rows.map((r) => ({ ...r, access_token: resolveWhatsappAccessToken(r.access_token) }))
 }
 
 export async function setConnectionWabaId(id: number, wabaId: string, conn: Knex = db): Promise<number> {

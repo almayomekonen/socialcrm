@@ -265,6 +265,7 @@ export type AnalyticsEventName =
    * token, secret or message text.
    */
   | 'owner_wa_one_off_send'
+  | 'whatsapp_token_seal_job'
   /**
    * One WhatsApp assistant message handled (lib/waAssistant/worker.ts). Props:
    * jobId, status, refusalReason, stopReason, replyState, durationMs, costUsd.

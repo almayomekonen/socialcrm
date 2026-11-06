@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { sealWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 import { COEXISTENCE_GRAPH_VERSION } from '@/lib/whatsapp/coexistence'
 import { metaTraceId, storableMetaErrorText } from '@/lib/whatsapp/coexistenceEvents'
 
@@ -82,12 +83,21 @@ export async function saveConnection(row: {
   waba_id: string
   onboarding_type: string
 }): Promise<'saved' | 'claimed' | 'failed'> {
-  const { phone_number_id: _conflictKey, ...merge } = row
+  // Sealed once, before the retries: the same ciphertext is written on every attempt,
+  // and a missing key fails the save instead of storing plaintext.
+  let stored: typeof row
+  try {
+    stored = { ...row, access_token: sealWhatsappAccessToken(row.access_token) }
+  } catch (err) {
+    console.error('[WA EmbeddedSignup] token seal failed:', errorName(err))
+    return 'failed'
+  }
+  const { phone_number_id: _conflictKey, ...merge } = stored
   for (let attempt = 0; attempt <= SAVE_RETRY_DELAYS_MS.length; attempt += 1) {
     if (attempt > 0) await sleep(SAVE_RETRY_DELAYS_MS[attempt - 1])
     try {
       const rows = await db('whatsapp_connections')
-        .insert(row)
+        .insert(stored)
         .onConflict('phone_number_id')
         .merge(merge)
         .where('whatsapp_connections.agency_id', row.agency_id)

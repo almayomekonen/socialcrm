@@ -77,6 +77,7 @@ import { POST as legacyConnect } from '@/app/api/auth/whatsapp/connect/route'
 import { decrypt, encrypt, getUser } from '@/db/auth'
 import { requireUser } from '@/lib/requireUser'
 import { resolveWabaIdsFromToken } from '@/lib/whatsapp/resolveWaba'
+import { isSealedWhatsappAccessToken, resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
 
 const AGENCY = 69
 const USER = 298
@@ -190,6 +191,11 @@ describe('legacy WhatsApp OAuth — signup completion', () => {
 
     expect(result.status).toBe(200)
     expect(h.state.merged).toHaveLength(1)
+    // The legacy route seals too: the stored value is never the token itself.
+    const stored = String(h.state.merged[0].access_token)
+    expect(stored).not.toContain('long-token')
+    expect(isSealedWhatsappAccessToken(stored)).toBe(true)
+    expect(resolveWhatsappAccessToken(stored)).toBe('long-token')
     expect(emitted('whatsapp_signup_completed')).toEqual([
       { agencyId: AGENCY, userId: USER, event: 'whatsapp_signup_completed', props: {} },
     ])
