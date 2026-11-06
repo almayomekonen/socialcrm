@@ -58,11 +58,18 @@ export const LEAD_METRIC_ID_LIST = Object.values(LEAD_METRIC_IDS)
  * `email`, `gender`, `familyStatus`, `ageYears` and `familyMemberCount`. None
  * reach the model: they are not needed to decide what to do next, and the
  * demographic fields are legacy columns that must not become AI inputs.
+ *
+ * NOT THE REP'S NOTES. The snapshot's `detailsExcerpt` is `clients.details`,
+ * which since migration 20260414000001 is a GENERATED label:
+ * `firstName lastName (idNum)`. Returned as "notes" it told the model nothing
+ * new and handed it the lead's ID number, which a WhatsApp answer could then
+ * repeat. It is not returned. The rep's real notes live in `lead_notes`; letting
+ * the Agent read them is a separate product decision.
  */
 export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget; nowMs: number }) {
   return tool({
     description:
-      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and the rep's notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from the investigation subject named in the objective, or from an earlier tool result.",
+      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and recent tasks. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from the investigation subject named in the objective, or from an earlier tool result.",
     inputSchema: z.object({
       leadId: z
         .number()
@@ -138,8 +145,7 @@ export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollect
           status: t.status,
           daysOld: t.daysOld,
         })),
-        // Already truncated upstream (detailsExcerpt, 400 chars).
-        notes: i?.detailsExcerpt ?? null,
+        // No `notes`: see "NOT THE REP'S NOTES" above.
       }
 
       deps.budget.noteResult(JSON.stringify(payload))
