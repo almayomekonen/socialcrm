@@ -5,6 +5,7 @@ import { listOrganizerMeetings } from '@/db/agentMeetings'
 import { MEETING_PERIODS, meetingRange } from '../meetingRange'
 import { businessDateString, formatBusinessLongDate, formatBusinessTime } from '@/lib/today/time'
 import { entityRef } from '../evidence'
+import { isAgentListMeetingsAgency } from '@/lib/flags/agentMeetingsFlags'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
 import type { EvidenceCollector } from '../evidence'
@@ -50,9 +51,17 @@ export function makeListMeetings(deps: { scope: AgentScope; evidence: EvidenceCo
     inputSchema: z.object({
       period: z.enum(MEETING_PERIODS),
       date: z.string().optional().describe('YYYY-MM-DD, only with period=date'),
-      leadId: z.number().int().positive().optional().describe('Only meetings linked to this lead. An id from an earlier tool result, never invented.'),
+      leadId: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Only meetings linked to this lead. An id from an earlier tool result, never invented.'),
     }),
     execute: async ({ period, date, leadId }) => {
+      // Second line behind buildAgentTools: built for a disabled agency, it reads nothing.
+      if (!isAgentListMeetingsAgency(deps.scope.agencyId))
+        return { refused: true as const, reason: 'list_meetings is not enabled for this business.' }
       const verdict = deps.budget.canStep('list_meetings', `${period}:${date ?? ''}:${leadId ?? ''}`)
       if (verdict.allowed === false) return { refused: true as const, reason: verdict.reason }
 
@@ -102,7 +111,7 @@ export function makeListMeetings(deps: { scope: AgentScope; evidence: EvidenceCo
         /** More meetings exist in the window than are listed. Say so; never present the list as complete. */
         truncated,
         meetings,
-        scope: "meetings this user organizes in SocialCRM; cancelled meetings and Google-only events are not included",
+        scope: 'meetings this user organizes in SocialCRM; cancelled meetings and Google-only events are not included',
         metric: 'meetings.count',
       }
       deps.budget.noteResult(JSON.stringify(payload))

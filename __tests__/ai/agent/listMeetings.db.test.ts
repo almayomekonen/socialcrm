@@ -19,6 +19,7 @@ const OPTS = { toolCallId: 't1', messages: [] } as never
 
 let A: number, B: number, owner: number, rep: number, bOwner: number
 let avi: number, dana: number, bLead: number
+let savedSwitch: string | undefined
 
 async function meeting(o: { agency: number; organizer: number; title: string; start: string; minutes?: number; status?: string; lead?: number | null; location?: string }) {
   const start = new Date(o.start)
@@ -44,6 +45,11 @@ beforeAll(async () => {
   avi = await seedLead(A, owner, 'אבי', 'כהן', { status: 'contacted' })
   dana = await seedLead(A, owner, 'דנה', 'לוי')
   bLead = await seedLead(B, bOwner, 'סוד', 'מסוכנות-אחרת')
+  // The switch is ON for both agencies, so the isolation below is the data
+  // layer's own (agency + organizer pins), not the switch's. The switch itself
+  // is covered by listMeetingsGate.test.ts.
+  savedSwitch = process.env.AGENT_LIST_MEETINGS_AGENCY_IDS
+  process.env.AGENT_LIST_MEETINGS_AGENCY_IDS = `${A},${B}`
 
   await meeting({ agency: A, organizer: owner, title: 'פגישת היכרות', start: '2026-11-08T07:00:00Z', status: 'completed', lead: avi })
   await meeting({ agency: A, organizer: owner, title: 'שיחת צוות', start: '2026-11-08T12:00:00Z', location: 'משרד' })
@@ -59,6 +65,8 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  if (savedSwitch === undefined) delete process.env.AGENT_LIST_MEETINGS_AGENCY_IDS
+  else process.env.AGENT_LIST_MEETINGS_AGENCY_IDS = savedSwitch
   await db.destroy()
 })
 

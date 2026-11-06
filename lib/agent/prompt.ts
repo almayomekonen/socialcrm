@@ -96,7 +96,6 @@ export const AGENT_SYSTEM_PROMPT = `אתה השותף העסקי החכם של �
    - אם החיפוש לא החזיר מקורות, אמור זאת. אל תענה מהזיכרון ואל תמציא מקור.
 
 3. שאלות על ליד מסוים או שיחה מסוימת — מי זה יוסי, מה קרה בשיחה איתו. קרא ל-find_lead, get_lead או get_conversation. רק כאן וב-4 טענות עובדתיות דורשות אסמכתת CRM.
-   שאלות על פגישות — "מה יש לי היום", "יש לי פגישות מחר", "הפגישות של השבוע", "מה הפגישה הבאה שלי" — קרא ל-list_meetings עם התקופה המתאימה (upcoming לפגישה הבאה). "יש לי פגישה עם אבי?" — קודם find_lead, ואז list_meetings עם ה-leadId ועם period=upcoming. כל מספר פגישות, כולל אפס, הוא OBSERVATION שמצטט את המדד meetings.count. אם count הוא 0, אמור שאין פגישות בתקופה הזו; אם truncated, אמור שיש עוד ואל תציג את הרשימה כמלאה. ציין שעה ויום כפי שהכלי החזיר, בלי לחשב בעצמך.
 
 4. שאלות על מצב העסק — "מה קורה בעסק שלי", "האם אני מפספס לידים", "האם העסק נחלש", "מה כדאי לי לעשות היום". קרא לכלי ה-BI המתאים, ורק לו:
    - get_business_summary — תמונת מצב במספרים, בלי שמות.
@@ -278,14 +277,34 @@ export function agentDateContext(nowMs: number): string {
 }
 
 /**
+ * The meetings rule, shown ONLY to an agency whose `list_meetings` tool is
+ * registered (AGENT_LIST_MEETINGS_AGENCY_IDS). Without the tool, an instruction
+ * to call it would send the model after a tool that does not exist.
+ */
+export const LIST_MEETINGS_RULE = `   שאלות על פגישות — "מה יש לי היום", "יש לי פגישות מחר", "הפגישות של השבוע", "מה הפגישה הבאה שלי" — קרא ל-list_meetings עם התקופה המתאימה (upcoming לפגישה הבאה). "יש לי פגישה עם אבי?" — קודם find_lead, ואז list_meetings עם ה-leadId ועם period=upcoming. כל מספר פגישות, כולל אפס, הוא OBSERVATION שמצטט את המדד meetings.count. אם count הוא 0, אמור שאין פגישות בתקופה הזו; אם truncated, אמור שיש עוד ואל תציג את הרשימה כמלאה. ציין שעה ויום כפי שהכלי החזיר, בלי לחשב בעצמך.`
+
+/** The end of section 3 (one lead, one conversation), where the meetings rule belongs. */
+const SECTION_3_END = 'רק כאן וב-4 טענות עובדתיות דורשות אסמכתת CRM.\n'
+
+export type AgentPromptCapabilities = {
+  /** The `list_meetings` tool is registered for this agency. */
+  listMeetings?: boolean
+}
+
+/**
  * The prompt for ONE request: the stable instructions plus today's date.
  *
  * A function rather than a constant because the date changes and the
  * instructions do not. `AGENT_SYSTEM_PROMPT` stays exported and unchanged so
- * every contract test still reads the stable half directly.
+ * every contract test still reads the stable half directly. Capabilities that
+ * are switched on per agency add their rule here; with none, the prompt is
+ * exactly the stable half plus the date.
  */
-export function buildAgentSystemPrompt(nowMs: number): string {
-  return `${AGENT_SYSTEM_PROMPT}
+export function buildAgentSystemPrompt(nowMs: number, caps: AgentPromptCapabilities = {}): string {
+  const stable = caps.listMeetings
+    ? AGENT_SYSTEM_PROMPT.replace(SECTION_3_END, `${SECTION_3_END}${LIST_MEETINGS_RULE}\n`)
+    : AGENT_SYSTEM_PROMPT
+  return `${stable}
 
 ${agentDateContext(nowMs)}`
 }

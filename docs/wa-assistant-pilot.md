@@ -98,6 +98,7 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | `WA_ASSISTANT_TASKS_AGENCY_IDS` | absent | Absent = no tasks/follow-ups. Lets the assistant create tasks and follow-ups (below). Needs the assistant itself too |
 | `WA_ASSISTANT_STATUS_AGENCY_IDS` | absent | Absent = no status changes. Lets the assistant change a lead's status (below). Can fire the business's status automations. Needs the assistant itself too |
 | `WA_ASSISTANT_NOTES_AGENCY_IDS` | absent | Absent = no notes. Lets the assistant add a note to a lead (below). Needs the assistant itself too |
+| `AGENT_LIST_MEETINGS_AGENCY_IDS` | absent | Absent = no `list_meetings` tool. Lets the Agent list the user's own meetings by period ("מה יש לי מחר", "הפגישה הבאה שלי"), on the web Agent and on WhatsApp alike. Explicit ids only, no `all`. Not yet tried with a real model |
 | `AGENT_AGENCY_IDS`, `AI_ENABLED` | must include 103 | The Agent rollout the assistant reuses |
 | Platform number + token | existing | Same as owner reminders |
 

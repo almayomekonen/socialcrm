@@ -129,8 +129,8 @@ beforeEach(() => {
 // ─── Tool surface & scope safety ────────────────────────────────────────────
 
 describe('agent tool surface', () => {
-  it('exposes exactly the eleven read-only tools', () => {
-    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_revenue', 'get_today_state', 'list_meetings'])
+  it('exposes exactly the ten read-only tools', () => {
+    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_revenue', 'get_today_state'])
   })
 
   it('no tool input schema accepts a scope field', () => {

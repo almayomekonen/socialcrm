@@ -162,6 +162,18 @@ describe('update_lead_status', () => {
 })
 
 describe('add_lead_note', () => {
+  it.each(['תוסיף הערה לאבי שהוא רוצה לדבר שבוע הבא', 'תרשום שאבי רוצה לדבר שבוע הבא'])(
+    'always waits for a card, even when the owner commanded it in words: "%s"',
+    async (words) => {
+      const o = await submit(noteProposal(LEAD_A, 'רוצה לדבר שבוע הבא'), adminA(), words)
+      expect(o?.report).toBe('AWAITING_APPROVAL')
+      expect(await db('lead_notes').where({ leadId: LEAD_A })).toHaveLength(0)
+      // The words WERE read as a command; the action's own definition still forced the card.
+      const row = await db('agent_actions').where({ actionId: o!.actionId }).first('intent', 'approvalState')
+      expect(row).toEqual({ intent: 'EXPLICIT_COMMAND', approvalState: 'PENDING' })
+    },
+  )
+
   it('approved: a new lead_notes row by the acting user; existing notes are preserved', async () => {
     await db('lead_notes').insert({ agencyId: AGENCY_A, leadId: LEAD_A, userId: ADMIN_A, userName: 'קודם', content: 'הערה קיימת' })
     const d = await approve(await submit(noteProposal(LEAD_A, 'רוצה לדבר שבוע הבא'), adminA()), adminA())
@@ -191,6 +203,13 @@ describe('add_lead_note', () => {
   it('rejecting the card writes nothing', async () => {
     const o = await submit(noteProposal(LEAD_A, 'בוטל'), adminA())
     await decideOnAction({ actionId: o!.actionId, argsHash: o!.argsHash, decision: 'REJECTED', scope: adminA(), nowMs: Date.now() })
+    expect(await db('lead_notes').where({ leadId: LEAD_A })).toHaveLength(0)
+  })
+
+  it('a rejected card cannot be approved afterwards', async () => {
+    const o = await submit(noteProposal(LEAD_A, 'נדחה ואז אושר'), adminA(), 'תרשום שנדחה ואז אושר')
+    await decideOnAction({ actionId: o!.actionId, argsHash: o!.argsHash, decision: 'REJECTED', scope: adminA(), nowMs: Date.now() })
+    await decideOnAction({ actionId: o!.actionId, argsHash: o!.argsHash, decision: 'APPROVED', scope: adminA(), nowMs: Date.now() })
     expect(await db('lead_notes').where({ leadId: LEAD_A })).toHaveLength(0)
   })
 })

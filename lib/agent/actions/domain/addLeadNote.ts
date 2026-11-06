@@ -85,11 +85,21 @@ async function probe(action: ActionProposal, ctx: ExecuteContext): Promise<Verif
   return result(row, parsed.data, ctx)
 }
 
-/** LOW_RISK_WRITE: one additive row on one lead in the acting agency; reaches nobody; deletable on the lead page. */
+/**
+ * LOW_RISK_WRITE: one additive row on one lead in the acting agency; reaches
+ * nobody; deletable on the lead page.
+ *
+ * ALWAYS A CARD (`requiresApproval`), whatever the phrasing. Without it the
+ * shared policy lets an EXPLICIT_COMMAND ("תוסיף הערה", "תרשום") run a
+ * LOW_RISK_WRITE at once, so the card would depend on the caller not passing
+ * the owner's words. The note is the model's rendering of those words, and the
+ * owner approves that exact text.
+ */
 export const addLeadNoteAction: AgentActionDefinition = {
   type: 'add_lead_note',
   argsSchema: addLeadNoteArgs as never,
   risk: 'LOW_RISK_WRITE',
+  requiresApproval: true,
   execute,
   verify,
   probe,
