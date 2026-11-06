@@ -313,6 +313,18 @@ export type ProposedAction =
       }
       evidenceRefs: string[]
     }
+  | {
+      /** WhatsApp only. `fromStatus` is filled by the application from the lead row, never the model. */
+      actionType: 'update_lead_status'
+      args: { clientId: number; status: string; fromStatus?: string | null }
+      evidenceRefs: string[]
+    }
+  | {
+      /** WhatsApp only. One new `lead_notes` row. */
+      actionType: 'add_lead_note'
+      args: { clientId: number; content: string }
+      evidenceRefs: string[]
+    }
 
 /**
  * One action across many leads. Expanded by the application into N ordinary

@@ -176,16 +176,19 @@ function describeAction(
     }
   }
 
-  const due = displayDate(proposal.args.dueDate)
+  // A task. The WhatsApp-only types (update_lead_status, add_lead_note) never
+  // reach this card: actions/ai/askAgent.ts drops them before the web answer.
+  const task = proposal as Extract<ProposedAction, { actionType: 'create_task' }>
+  const due = displayDate(task.args.dueDate)
   return {
     heading: 'יצירת משימה',
-    confirmed: `יצרתי את המשימה '${proposal.args.title}'${forLead(ctx.leadName)} ל־${due}.`,
+    confirmed: `יצרתי את המשימה '${task.args.title}'${forLead(ctx.leadName)} ל־${due}.`,
     confirmLabel: 'אשר ויצור משימה',
     working: 'יוצר משימה…',
     rows: [
-      { term: 'כותרת', value: proposal.args.title },
+      { term: 'כותרת', value: task.args.title },
       { term: 'תאריך יעד', value: due },
-      { term: 'ליד', value: ctx.leadName ?? `#${proposal.args.clientId}` },
+      { term: 'ליד', value: ctx.leadName ?? `#${task.args.clientId}` },
     ],
   }
 }

@@ -35,6 +35,8 @@ import type { AgentResult } from '@/lib/agent/types'
 
 /** Upper bound on one question. Long enough for any real ask, short enough to bound cost. */
 const MAX_QUESTION_CHARS = 1_000
+/** The action types the web Agent's card can render (components/agent/AgentActionCard.tsx). Not exported: 'use server'. */
+const WEB_ACTION_TYPES: ReadonlySet<string> = new Set(['create_task', 'create_follow_up', 'create_meeting'])
 
 /**
  * Prior turns forwarded to the model, newest kept.
@@ -102,7 +104,7 @@ export async function askAgent(
 
   const history = sanitiseHistory(options?.history)
 
-  const result = await runAgentInvestigation({
+  let result = await runAgentInvestigation({
     question: trimmed.slice(0, MAX_QUESTION_CHARS),
     history,
     onProgress: options?.onProgress,
@@ -112,6 +114,10 @@ export async function askAgent(
   })
 
   if (result.ok !== true) return result
+  // WhatsApp-only action types never reach the web runtime or the web action card.
+  if (result.answer.proposedAction && !WEB_ACTION_TYPES.has(result.answer.proposedAction.actionType)) {
+    result = { ...result, answer: { ...result.answer, proposedAction: null } }
+  }
 
   /**
    * The proposal reaches the Action Runtime here and nowhere else.
