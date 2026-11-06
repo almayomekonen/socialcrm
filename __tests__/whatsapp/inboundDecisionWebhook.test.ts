@@ -33,7 +33,7 @@ vi.mock('@/lib/whatsapp/matchLeadByPhone', () => ({
 vi.mock('@/config/db', () => ({
   db: Object.assign((table: string) => {
     if (table === 'whatsapp_connections') {
-      return { where: () => ({ first: async () => CONNECTION }) }
+      return { where: () => ({ first: async () => CONNECTION }), whereIn: () => ({ select: async () => [CONNECTION] }) }
     }
     return { where: () => ({ first: async () => undefined, update: async () => 1 }) }
   }, { fn: { now: () => new Date() } }),
@@ -41,6 +41,10 @@ vi.mock('@/config/db', () => ({
 
 const SECRET = 'test-app-secret'
 process.env.META_APP_SECRET = SECRET
+// The contact/lead cascade is the shared event processor, identical in both modes. It is
+// exercised through the route in direct mode, where it runs inside the request; durable
+// mode is covered in __tests__/whatsapp/webhook/durableReceipt.db.test.ts.
+process.env.WA_WEBHOOK_DIRECT_PROCESSING = '1'
 
 const { POST } = await import('@/app/api/webhooks/whatsapp/route')
 

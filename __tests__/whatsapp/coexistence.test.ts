@@ -362,9 +362,15 @@ describe('the history webhook path remains intact', () => {
     })
   })
 
-  it('the webhook route still routes coexistence fields before inbound handling', () => {
-    const route = readFileSync('app/api/webhooks/whatsapp/route.ts', 'utf8')
-    expect(route).toContain('isCoexistenceWebhookField(incomingField)')
-    expect(route).toContain('processCoexistenceWebhook(incomingField, change?.value)')
+  it('the webhook still routes coexistence fields away from inbound handling', () => {
+    // history and smb_app_state_sync keep their inline handling; echoes are their own
+    // durable event kind and can never become inbound messages.
+    const extract = readFileSync('lib/whatsapp/webhook/extract.ts', 'utf8')
+    expect(extract).toContain("'history', 'smb_app_state_sync'")
+    expect(extract).toContain("if (field === 'smb_message_echoes')")
+    expect(extract).toContain("kind: 'echo'")
+    const receive = readFileSync('lib/whatsapp/webhook/receive.ts', 'utf8')
+    expect(receive).toContain('processCoexistenceWebhook(field, value)')
   })
+
 })

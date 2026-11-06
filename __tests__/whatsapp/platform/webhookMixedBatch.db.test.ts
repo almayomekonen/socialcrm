@@ -54,6 +54,12 @@ vi.mock('@/lib/whatsapp/coexistence', async (importOriginal) => {
   }
 })
 vi.mock('@/lib/inbox/autoresponse/kickWorker', () => ({ runAutoResponseKick: vi.fn() }))
+// after(): run the post-response work (the durable receipt drain) and let post() await it.
+const afterWork = vi.hoisted(() => [] as Promise<unknown>[])
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>()
+  return { ...actual, after: (fn: () => unknown) => void afterWork.push(Promise.resolve().then(fn)) }
+})
 // The three agency handlers, wrapped so their calls are counted while the REAL
 // implementation still runs.
 const agencyHandlers = vi.hoisted(() => ({ inbound: 0, statuses: 0, templates: 0 }))
@@ -78,7 +84,11 @@ let seq = 0
 
 const { POST } = await import('@/app/api/webhooks/whatsapp/route')
 
-const post = (body: unknown) => POST(signed(body) as never)
+const post = async (body: unknown) => {
+  const res = await POST(signed(body) as never)
+  await Promise.all(afterWork.splice(0))
+  return res
+}
 const agencySideEffects = () => sideEffectsOf(agencyA)
 const platformRows = (wamid: string) => db('platform_whatsapp_inbound').where({ wamid })
 const ownerRow = () => db('owner_whatsapp_recipients').where({ agencyId: agencyA, userId: ownerUser }).first()
@@ -114,6 +124,7 @@ afterAll(async () => {
   await db('clients').where({ agencyId: agencyA }).del()
   await db('owner_whatsapp_recipients').where({ agencyId: agencyA }).del()
   await db('platform_whatsapp_inbound').del()
+  await db('whatsapp_webhook_events').where({ agencyId: agencyA }).del()
   await db('whatsapp_connections').where({ agency_id: agencyA }).del()
   await db('users').where({ agencyId: agencyA }).del()
   await db('agencies').where({ id: agencyA }).del()
@@ -167,7 +178,8 @@ describe('platform save fails after a successful agency part that is safe to rep
 
     const retry = await post(body)
     expect(retry.status).toBe(200)
-    expect(agencyHandlers.statuses).toBe(2)
+    // The redelivered status is absorbed by its durable receipt and never applied again.
+    expect(agencyHandlers.statuses).toBe(1)
     expect((await db('inbox_messages').where({ externalId: outId }).first('status')).status).toBe('delivered')
     expect(await agencySideEffects()).toEqual(afterFirst)
     expect(await platformRows(platformId)).toHaveLength(1)
@@ -200,7 +212,8 @@ describe('platform save fails after a successful agency part NOT proven safe to 
 
     const res = await post(delivery(agencyEcho(echoId), platformMessage(platformId, 'הסר')))
     expect(res.status).toBe(200)
-    expect(coexistence.calls).toEqual(['smb_message_echoes'])
+    // Echoes are durable events now, applied by the echo ingester, not the Coexistence dispatcher.
+    expect(coexistence.calls).toEqual([])
     expect(await db('inbox_messages').where({ agencyId: agencyA, externalId: echoId })).toHaveLength(1)
     expect(await platformRows(platformId)).toHaveLength(0)
 

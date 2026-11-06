@@ -176,8 +176,9 @@ describe('F-2 · durable receipt before acknowledgement', () => {
     const coex = (await import('node:fs')).readFileSync('lib/whatsapp/coexistence.ts', 'utf8')
     expect(coex).toContain("received.outcome === 'failed'")
     expect(coex).toContain("reason: 'history_durable_write_failed'")
+    const receive = (await import('node:fs')).readFileSync('lib/whatsapp/webhook/receive.ts', 'utf8')
+    expect(receive).toContain("if (!(await handleInline(change.field, change.entryId, change.value))) result.status = 503")
     const route = (await import('node:fs')).readFileSync('app/api/webhooks/whatsapp/route.ts', 'utf8')
-    expect(route).toContain('if (!coexistence.ok)')
     expect(route).toContain('status: 503')
   })
 
