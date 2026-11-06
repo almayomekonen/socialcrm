@@ -161,6 +161,7 @@ describe('invariant · no unguarded session-derived agency resolution in the rea
     { file: 'db/agentLeadDetail.ts', fn: 'getFamilyMembersForAgency' },
     { file: 'db/agentLeadDetail.ts', fn: 'getRecentLeadTasksForAgency' },
     { file: 'db/agentLeadDetail.ts', fn: 'getRecentLeadNotesForAgency' },
+    { file: 'db/agentMeetings.ts', fn: 'listOrganizerMeetings' },
   ]
 
   function body(file: string, fn: string): string {

@@ -10,12 +10,14 @@ import { makeGetLeadHealth } from './getLeadHealth'
 import { makeGetFollowUpHealth } from './getFollowUpHealth'
 import { makeGetActivityTrends } from './getActivityTrends'
 import { makeGetRevenue } from './getRevenue'
+import { makeListMeetings } from './listMeetings'
 export { LEAD_HEALTH_METRIC_IDS } from './getLeadHealth'
 export { FOLLOW_UP_METRIC_IDS } from './getFollowUpHealth'
 export { ACTIVITY_METRIC_IDS } from './getActivityTrends'
 export { LEAD_SEGMENT_IDS, SEGMENT_METRIC_IDS } from './getLeadSegment'
 export { BUSINESS_SUMMARY_METRIC_IDS } from './getBusinessSummary'
 export { REVENUE_METRIC_IDS } from './getRevenue'
+export { MEETING_METRIC_IDS } from './listMeetings'
 import type { AgentScope } from '../types'
 import type { Budget } from '../budget'
 import type { EvidenceCollector } from '../evidence'
@@ -23,7 +25,7 @@ import type { EvidenceCollector } from '../evidence'
 /**
  * The ENTIRE Agent tool surface.
  *
- * Ten read-only business capabilities, each built per investigation and each
+ * Eleven read-only business capabilities, each built per investigation and each
  * closing over the server-resolved scope.
  *
  * THEY DIVIDE BY QUESTION SHAPE, not by table:
@@ -37,6 +39,7 @@ import type { EvidenceCollector } from '../evidence'
  *   get_follow_up_health   who am I failing to chase   (BI — the callback loop)
  *   get_activity_trends    busier or quieter           (BI — two windows)
  *   get_revenue            what did the business earn  (Performance's paid revenue + pipeline)
+ *   list_meetings          what is on my calendar      (the user's own meetings, by period)
  *
  * THE THREE BI TOOLS RETURN BUSINESS-SHAPED EVIDENCE, never rows: named states
  * with a stated reason, true totals beside capped samples, and — where the
@@ -79,5 +82,6 @@ export function buildAgentTools(deps: ToolDeps) {
     get_follow_up_health: makeGetFollowUpHealth(deps),
     get_activity_trends: makeGetActivityTrends(deps),
     get_revenue: makeGetRevenue(deps),
+    list_meetings: makeListMeetings(deps),
   }
 }

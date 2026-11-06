@@ -67,7 +67,7 @@ beforeEach(() => {
 
 describe('the tool surface gains exactly one entry point', () => {
   it('exposes find_lead alongside the other read-only tools', () => {
-    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_revenue', 'get_today_state'])
+    expect(Object.keys(buildAgentTools(deps())).sort()).toEqual(['find_lead', 'get_activity_trends', 'get_business_summary', 'get_conversation', 'get_follow_up_health', 'get_lead', 'get_lead_health', 'get_lead_segment', 'get_revenue', 'get_today_state', 'list_meetings'])
   })
 
   // F / L — the security contract of the input schema.
