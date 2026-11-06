@@ -13,6 +13,7 @@ import { createEvidenceCollector } from './evidence'
 import { buildAgentTools } from './tools'
 import { createToolTimings, instrumentTools } from './instrument'
 import { buildAgentSystemPrompt } from './prompt'
+import { isAgentListMeetingsAgency } from '@/lib/flags/agentMeetingsFlags'
 import { validateAgentAnswerDetailed } from './validate'
 import { agentAnswerSchema } from './answerSchema'
 import { agentTrace } from './trace'
@@ -312,7 +313,9 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
    * same date. Recomputing it per call would be harmless today and exactly the
    * kind of thing that stops being harmless at midnight.
    */
-  const systemPrompt = input.surfaceRules ? `${buildAgentSystemPrompt(nowMs)}\n\n${input.surfaceRules}` : buildAgentSystemPrompt(nowMs)
+  // The meetings rule follows the same per-agency switch as the tool itself (buildAgentTools).
+  const basePrompt = buildAgentSystemPrompt(nowMs, { listMeetings: isAgentListMeetingsAgency(scope.agencyId) })
+  const systemPrompt = input.surfaceRules ? `${basePrompt}\n\n${input.surfaceRules}` : basePrompt
   const evidence = createEvidenceCollector()
   /**
    * Instrumentation only — the tools are wrapped, never altered. `now` is the

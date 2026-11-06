@@ -96,6 +96,9 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | `WA_ASSISTANT_DAILY_USD_CAP` | optional | Default 2 |
 | `WA_ASSISTANT_MEETINGS_AGENCY_IDS` | `103` (when approved) | Absent = read-only. Lets the assistant create meetings (below). Needs `WA_ASSISTANT_AGENCY_IDS` too |
 | `WA_ASSISTANT_TASKS_AGENCY_IDS` | absent | Absent = no tasks/follow-ups. Lets the assistant create tasks and follow-ups (below). Needs the assistant itself too |
+| `WA_ASSISTANT_STATUS_AGENCY_IDS` | absent | Absent = no status changes. Lets the assistant change a lead's status (below). Can fire the business's status automations. Needs the assistant itself too |
+| `WA_ASSISTANT_NOTES_AGENCY_IDS` | absent | Absent = no notes. Lets the assistant add a note to a lead (below). Needs the assistant itself too |
+| `AGENT_LIST_MEETINGS_AGENCY_IDS` | absent | Absent = no `list_meetings` tool. Lets the Agent list the user's own meetings by period ("מה יש לי מחר", "הפגישה הבאה שלי"), on the web Agent and on WhatsApp alike. Explicit ids only, no `all`. Not yet tried with a real model |
 | `AGENT_AGENCY_IDS`, `AI_ENABLED` | must include 103 | The Agent rollout the assistant reuses |
 | Platform number + token | existing | Same as owner reminders |
 
@@ -276,6 +279,44 @@ approvals table and restores the job-kind constraint.
 
 Tests: `__tests__/waAssistant/tasks.db.test.ts`, `__tests__/tasks/taskAccess.db.test.ts`,
 `__tests__/waAssistant/taskDraft.test.ts`, relative dates in `__tests__/waAssistant/meetingWhen.test.ts`.
+
+# Lead status and lead notes from WhatsApp
+
+**Status: built, each behind its own switch, both absent = off:**
+`WA_ASSISTANT_STATUS_AGENCY_IDS`, `WA_ASSISTANT_NOTES_AGENCY_IDS`. No migration.
+
+"תעביר את אבי לסגור", "תסמן את דנה כבטיפול", "תרשום שדנה רוצה לדבר שבוע הבא":
+
+1. **Proposal** (`lib/waAssistant/leadUpdates/propose.ts`): the Agent returns
+   `update_lead_status` (one of the five codes: new, contacted, interested,
+   closed, lost) or `add_lead_note`. It is told about each only when that
+   agency's switch is on (`waAgentRules`). Same lead rule as tasks
+   (`leadChoice.ts`); several matches → the owner chooses ("2" continues the
+   same request). For a status, the CURRENT status is read from the lead row and
+   bound into the action as `fromStatus`; already in the target status → said
+   so, no card. The card shows "from → to" and, when the agency has active
+   `status_changed` automations, says they will run (they can message the lead).
+2. **Decision** (`decideCard.ts` → `leadUpdates/decide.ts`): single-use token,
+   then `decideOnAction`. Executors (`lib/agent/actions/domain/updateLeadStatus.ts`,
+   `addLeadNote.ts`) call the session-less writers:
+   - `lib/system/updateLeadStatusSystem.ts`: the web status dropdown's rule
+     (agency; non-admin `userId IN gotPermIds`), one transaction with the row
+     locked, nothing written if the status is no longer `fromStatus` (stale card)
+     or already the target; the same `emitLeadStatusChanged` (history, source
+     `manual`, the owner as actor; notifications; automations).
+   - `lib/system/addLeadNoteSystem.ts`: the lead page's note rule (`canActOnLead`
+     reproduced from the scope), the same `insertLeadNote` and validation; a new
+     row, existing notes untouched.
+   Verifiers re-read the row; probes reconcile a crashed execution.
+3. **Web**: both types are WhatsApp-only. `actions/ai/askAgent.ts` drops them,
+   so the web action card never sees a type it cannot render.
+
+Not the same as the web dropdown: no `revalidatePath('/leads')` and no
+lead-intelligence cache warm after a status change (no request on this path).
+
+Tests: `__tests__/waAssistant/leadUpdates.db.test.ts` (end to end),
+`__tests__/ai/agent/actions/leadUpdates.integration.test.ts` (runtime),
+`__tests__/ai/agent/webActionTypes.test.ts`.
 
 ## Next phases (not built)
 

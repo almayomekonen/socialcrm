@@ -18,3 +18,21 @@ export const WA_AGENT_RULES = `כללים לשיחה בוואטסאפ עם בע�
 - שאל רק על פרט חובה שבאמת חסר: ליד שלא נמצא בכלל, או שעה לפגישה. שאלה אחת, קצרה, בלי דוגמאות.
 - אל תסביר מגבלות של המערכת ואל תתאר את דרך החשיבה שלך. אל תכתוב שהשעה לא נשמרת.
 - תשובות קצרות מאוד וטבעיות.`
+
+/** Only when this agency's WA_ASSISTANT_STATUS_AGENCY_IDS switch is on. */
+const STATUS_RULES = `- בוואטסאפ אפשר גם לבקש עדכון סטטוס של ליד: update_lead_status עם clientId ו-status. status הוא אחד מהקודים: new (חדש), contacted (בטיפול), interested (מעוניין), closed (סגור), lost (אבוד).
+  "זכינו", "נסגר", "סגרנו", "סגר עסקה" הם closed. "לא רלוונטי", "ירד מזה", "לא מעוניין" הם lost. "דיברתי איתו", "יצרתי קשר" הם contacted. "מעוניין", "חם" הם interested.
+- "מעקב" או follow-up הוא לא סטטוס. "תעביר את דנה למעקב" הוא create_follow_up, לא update_lead_status.
+- אם לא ברור לאיזה מחמשת הסטטוסים, אל תנחש: שאל שאלה אחת קצרה.
+- אל תכתוב שהסטטוס עודכן: המערכת תציג לבעל העסק כרטיס אישור.`
+
+/** Only when this agency's WA_ASSISTANT_NOTES_AGENCY_IDS switch is on. */
+const NOTE_RULES = `- בוואטסאפ אפשר גם לבקש הוספת הערה לליד: add_lead_note עם clientId ו-content. "תרשום ש...", "תוסיף הערה ל...", "תעדכן ברשומה ש..." הם add_lead_note.
+- content הוא מה שבעל העסק ביקש לרשום, במילים שלו. אל תוסיף פרטים משלך, ואל תכניס מספר טלפון או תעודת זהות שלא נאמרו.
+- הערה היא לא משימה ולא מעקב. אם בעל העסק ביקש גם לחזור אליו במועד, זו בקשה נפרדת.
+- אל תכתוב שההערה נשמרה: המערכת תציג לבעל העסק כרטיס אישור.`
+
+/** The surface rules for this agency's turn: the base rules, plus only the actions it has switched on. */
+export function waAgentRules(caps: { statusOn: boolean; notesOn: boolean }): string {
+  return [WA_AGENT_RULES, caps.statusOn ? STATUS_RULES : null, caps.notesOn ? NOTE_RULES : null].filter(Boolean).join('\n')
+}

@@ -7,24 +7,18 @@ import type { UiLocale } from '@/lib/i18n/config'
 import { intlLocale } from '@/lib/i18n/translate'
 import type { NowCtx } from './types'
 
-/** Start-of-day in `tz` for the instant `ms`, returned as a UTC epoch ms. */
+/**
+ * Start-of-day in `tz` for the instant `ms`, returned as a UTC epoch ms.
+ *
+ * The offset is the one in force AT THAT MIDNIGHT, not at `ms`. Applying the
+ * offset at `ms` was off by an hour on the two DST-change days a year for any
+ * instant after the change: on 2026-03-27 it returned 23:00 of the 26th, on
+ * 2026-10-25 01:00 of the 25th (a meeting at 00:30 fell out of "today").
+ * `businessInstantMs` converges on the real instant of the 00:00 wall clock.
+ * Israel changes clocks at 02:00, so local midnight always exists.
+ */
 export function startOfBusinessDayMs(ms: number, tz: string = BUSINESS_TZ): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(new Date(ms))
-  const p = Object.fromEntries(parts.map((x) => [x.type, x.value])) as Record<string, string>
-  const hour = p.hour === '24' ? 0 : Number(p.hour) // some engines emit '24' at midnight
-  const wallAsUtc = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), hour, Number(p.minute), Number(p.second))
-  const offset = wallAsUtc - ms
-  const startWall = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), 0, 0, 0)
-  return startWall - offset
+  return businessInstantMs(businessDateString(ms, tz), '00:00', tz)
 }
 
 /**

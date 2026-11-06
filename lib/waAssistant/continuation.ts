@@ -17,7 +17,7 @@
  * opens one, asks something else, or (for a meeting) names a task to do.
  */
 
-export type RequestKind = 'meeting' | 'task'
+export type RequestKind = 'meeting' | 'task' | 'status' | 'note'
 
 const words = (...lists: string[]) => new Set(lists.join(' ').split(' '))
 
@@ -37,6 +37,8 @@ const FILLER = words(
 const OWN_WORDS: Record<RequestKind, Set<string>> = {
   meeting: words('פגישה פגישת פגישות'),
   task: words('משימה משימת משימות מעקב תזכורת תיצור צור ליצור תפתח פתח לפתוח תזכיר'),
+  status: words('סטטוס הסטטוס תעביר להעביר העבר תסמן לסמן סמן תשנה לשנות שנה תעדכן לעדכן עדכן'),
+  note: words('הערה הערות תרשום לרשום רשום תוסיף להוסיף הוסף תכתוב לכתוב'),
 }
 const WHEN_ASKS = new Set(['ask_time', 'ambiguous_time', 'ambiguous_date', 'past_date', 'past', 'past_today', 'conflict'])
 

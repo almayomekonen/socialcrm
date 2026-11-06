@@ -6,6 +6,7 @@ import { decideMeeting, type DecideDeps } from './meetings/decide'
 import { DECISION_ID_RE, MEETING_COPY } from './meetings/copy'
 import { decideTaskCard, type TaskDecideDeps } from './tasks/decide'
 import { TASK_COPY } from './tasks/copy'
+import { decideLeadUpdateCard, type LeadUpdateDecideDeps } from './leadUpdates/decide'
 import type { AgentScope } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from './meetings/types'
@@ -29,7 +30,9 @@ export async function decideCard(input: {
   nowMs: number
   meetingsOn: boolean
   tasksOn: boolean
-  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps }
+  statusOn?: boolean
+  notesOn?: boolean
+  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps }
 }): Promise<MeetingReply> {
   const { job, scope, nowMs } = input
   const m = DECISION_ID_RE.exec(job.question ?? '')
@@ -60,6 +63,24 @@ export async function decideCard(input: {
       approve: m[1] === 'approve',
       nowMs,
       deps: input.deps?.tasks,
+    })
+  }
+  if (record?.actionType === 'update_lead_status' || record?.actionType === 'add_lead_note') {
+    const on = record.actionType === 'update_lead_status' ? input.statusOn : input.notesOn
+    if (!on) return refused(record.actionType === 'update_lead_status' ? 'status_disabled' : 'notes_disabled', COPY.notAvailable)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', TASK_COPY.changed)
+    }
+    return decideLeadUpdateCard({
+      job,
+      scope,
+      card,
+      actionType: record.actionType,
+      args: record.args as { clientId: number; status?: string },
+      approve: m[1] === 'approve',
+      nowMs,
+      deps: input.deps?.leadUpdates,
     })
   }
   await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })

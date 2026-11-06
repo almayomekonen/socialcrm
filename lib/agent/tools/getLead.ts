@@ -58,11 +58,16 @@ export const LEAD_METRIC_ID_LIST = Object.values(LEAD_METRIC_IDS)
  * `email`, `gender`, `familyStatus`, `ageYears` and `familyMemberCount`. None
  * reach the model: they are not needed to decide what to do next, and the
  * demographic fields are legacy columns that must not become AI inputs.
+ *
+ * NOTES ARE `lead_notes`, MASKED. `notes` is the snapshot's `detailsExcerpt`:
+ * the rep's newest notes with ID numbers masked (lib/ai/leadNotesExcerpt.ts).
+ * It is never `clients.details`, a GENERATED `firstName lastName (idNum)` label
+ * (migration 20260414000001) that once reached the model here as "notes".
  */
 export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollector; budget: Budget; nowMs: number }) {
   return tool({
     description:
-      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome and the rep's notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from the investigation subject named in the objective, or from an earlier tool result.",
+      "Everything operational about one lead: status, source, owner, days since last contact, days in the current stage, overdue tasks, task completion, next follow-up, the last call outcome, recent tasks and the rep's latest notes. Use it when a question is about a specific lead, or to understand why a lead appeared in the work queue. The leadId must come from the investigation subject named in the objective, or from an earlier tool result.",
     inputSchema: z.object({
       leadId: z
         .number()
@@ -84,8 +89,10 @@ export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollect
         return { found: false as const, leadId }
       }
 
-      // ── Enrich only after the gate has passed.
-      const snap = await getLeadIntelligenceInputs(leadId).catch(() => null)
+      // ── Enrich only after the gate has passed. The agency comes from the
+      //    closure, so this works with no request session (WhatsApp, cron).
+      //    Still non-fatal: a failed enrichment degrades to the gated fields.
+      const snap = await getLeadIntelligenceInputs(leadId, { agencyId: deps.scope.agencyId }).catch(() => null)
       const i = snap?.inputs
 
       deps.evidence.add({ kind: 'lead', refId: String(leadId) })
@@ -138,7 +145,7 @@ export function makeGetLead(deps: { scope: AgentScope; evidence: EvidenceCollect
           status: t.status,
           daysOld: t.daysOld,
         })),
-        // Already truncated upstream (detailsExcerpt, 400 chars).
+        // The rep's newest notes, ID numbers masked, bounded upstream (400 chars).
         notes: i?.detailsExcerpt ?? null,
       }
 

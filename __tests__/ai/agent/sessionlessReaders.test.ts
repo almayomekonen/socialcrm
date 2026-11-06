@@ -157,6 +157,11 @@ describe('invariant · no unguarded session-derived agency resolution in the rea
     { file: 'db/agentConversation.ts', fn: 'listAgentConversationMessages' },
     { file: 'lib/today/service.ts', fn: 'buildTodayBrief' },
     { file: 'db/agentRevenue.ts', fn: 'getRevenueTotals' },
+    { file: 'db/agentLeadDetail.ts', fn: 'getLeadForAgency' },
+    { file: 'db/agentLeadDetail.ts', fn: 'getFamilyMembersForAgency' },
+    { file: 'db/agentLeadDetail.ts', fn: 'getRecentLeadTasksForAgency' },
+    { file: 'db/agentLeadDetail.ts', fn: 'getRecentLeadNotesForAgency' },
+    { file: 'db/agentMeetings.ts', fn: 'listOrganizerMeetings' },
   ]
 
   function body(file: string, fn: string): string {
@@ -184,23 +189,17 @@ describe('invariant · no unguarded session-derived agency resolution in the rea
   })
 
   /**
-   * `get_lead` enriches through `getLeadIntelligenceInputs`, which reaches
-   * `getFullLead` -> `requireUser()` — a session dependency this change does NOT
-   * fix, because `getFullLead` has 15 callers and threading an agency through it is
-   * a different, larger change.
-   *
-   * It is not fatal: the tool already wraps the call in `.catch(() => null)`, so a
-   * sessionless run degrades to a lead with no intelligence metrics rather than
-   * throwing. This test pins that `.catch` in place — remove it and the autonomous
-   * path starts crashing again, in a new place.
+   * `get_lead` enriches through `getLeadIntelligenceInputs`. Its interactive
+   * reads (`getFullLead` and friends) call `requireUser()`; on a sessionless run
+   * that used to throw, and the `.catch` turned it into a lead with no source,
+   * handler, activity, tasks or notes. The tool now SUPPLIES the agency, which
+   * routes the reads through db/agentLeadDetail.ts (guarded above). The `.catch`
+   * stays: a failed enrichment must degrade, never fail the investigation.
+   * Behaviour is pinned in getLeadSessionless.test.ts.
    */
-  it('get_lead keeps its enrichment failure non-fatal (known unfixed session dependency)', () => {
+  it('get_lead supplies the agency to its enrichment, and keeps it non-fatal', () => {
     const tool = readFileSync(path.join(ROOT, 'lib/agent/tools/getLead.ts'), 'utf8')
-    expect(tool).toContain('getLeadIntelligenceInputs(leadId).catch(() => null)')
-    const full = readFileSync(path.join(ROOT, 'db/clients.ts'), 'utf8')
-    expect(full, 'if getFullLead stopped using requireUser, delete this test and its comment').toMatch(
-      /export async function getFullLead[\s\S]{0,120}requireUser\(\)/,
-    )
+    expect(tool).toContain('getLeadIntelligenceInputs(leadId, { agencyId: deps.scope.agencyId }).catch(() => null)')
   })
 
   it('the four tool modules build their reader scope through readerScope()', () => {

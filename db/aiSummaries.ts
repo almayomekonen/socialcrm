@@ -1,5 +1,9 @@
 import { db } from '@/config/db'
-import { getFullLead, getFamMembers } from './clients'
+import { getFullLead, getFamMembers, type LeadKey } from './clients'
+import { getFamilyMembersForAgency, getLeadForAgency, getRecentLeadNotesForAgency, getRecentLeadTasksForAgency } from './agentLeadDetail'
+import { getLeadNotes } from './leadNotes'
+import { requireUser } from '@/lib/requireUser'
+import { NOTES_EXCERPT_MAX_CHARS, NOTES_IN_EXCERPT, buildLeadNotesExcerpt } from '@/lib/ai/leadNotesExcerpt'
 import { get5TasksByClientId } from './tasks'
 import { getUserNameById } from './usersNTeams'
 
@@ -27,6 +31,7 @@ export type LeadIntelligenceInputs = {
   hasEmail: boolean
   hasPhone: boolean
   familyMemberCount: number
+  /** The rep's newest `lead_notes`, ID numbers masked (lib/ai/leadNotesExcerpt.ts). Never `clients.details`. */
   detailsExcerpt: string | null
 
   // Behavioural signals (new tight set)
@@ -47,8 +52,6 @@ export type LeadIntelligenceInputs = {
   // Cache key signal
   updatedAtIso: string | null
 }
-
-const DETAILS_EXCERPT_MAX = 400
 
 function daysBetween(a: Date | string | null | undefined, b: Date | string): number | null {
   if (!a) return null
@@ -149,41 +152,52 @@ export function deriveInactivityRisk(
   return 'low'
 }
 
+const INTELLIGENCE_COLUMNS: LeadKey[] = [
+  'status',
+  'leadSource',
+  'rank',
+  'createdAt',
+  'updatedAt',
+  'statusChangedAt',
+  'handlerId',
+  'gender',
+  'familyStatus',
+  'birthDate',
+  'email',
+  'phone',
+  'idNum', // ONLY to mask it in notes, never an input. Not `details`: a generated `name (idNum)` label.
+  'lastActivityAt',
+  'lastOutcomeType',
+]
+
+/**
+ * `opts.agencyId`: a caller with no request session (the Agent on WhatsApp or
+ * cron) supplies the agency; the reads then come from ./agentLeadDetail and the
+ * session is never touched. Without it, the session-derived reads run, unchanged
+ * (notes then through `getLeadNotes`, the lead page's own visibility rule).
+ */
 export async function getLeadIntelligenceInputs(
   leadId: number,
+  opts: { agencyId?: number } = {},
 ): Promise<{ inputs: LeadIntelligenceInputs; updatedAtIso: string | null } | null> {
-  const lead = await getFullLead({
-    id: leadId,
-    select: [
-      'status',
-      'leadSource',
-      'rank',
-      'createdAt',
-      'updatedAt',
-      'statusChangedAt',
-      'handlerId',
-      'gender',
-      'familyStatus',
-      'birthDate',
-      'email',
-      'phone',
-      'details',
-      'lastActivityAt',
-      'lastOutcomeType',
-    ],
-  })
+  const { agencyId } = opts
+  const lead = agencyId
+    ? await getLeadForAgency(agencyId, leadId, INTELLIGENCE_COLUMNS)
+    : await getFullLead({ id: leadId, select: INTELLIGENCE_COLUMNS })
   if (!lead) return null
 
-  const [handlerName, fam, tasks, taskStats] = await Promise.all([
+  const [handlerName, fam, tasks, taskStats, notes] = await Promise.all([
     lead.handlerId ? getUserNameById(lead.handlerId) : Promise.resolve(null),
-    getFamMembers(leadId).then((r) => r.famMembers),
-    get5TasksByClientId(leadId),
+    agencyId ? getFamilyMembersForAgency(agencyId, leadId) : getFamMembers(leadId).then((r) => r.famMembers),
+    agencyId ? getRecentLeadTasksForAgency(agencyId, leadId) : get5TasksByClientId(leadId),
     getLeadTaskStats(leadId),
+    agencyId
+      ? getRecentLeadNotesForAgency(agencyId, leadId, NOTES_IN_EXCERPT)
+      : requireUser().then((u) => getLeadNotes(u, leadId)).then((n) => n.slice(0, NOTES_IN_EXCERPT)),
   ])
 
   const now = new Date()
-  const detailsExcerpt =
-    typeof lead.details === 'string' && lead.details.trim().length > 0 ? lead.details.trim().slice(0, DETAILS_EXCERPT_MAX) : null
+  const detailsExcerpt = buildLeadNotesExcerpt(notes.map((n) => n.content), [lead.idNum as string | null], NOTES_EXCERPT_MAX_CHARS)
 
   const updatedAtIso = lead.updatedAt ? new Date(lead.updatedAt as Date | string).toISOString() : null
 

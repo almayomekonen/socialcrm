@@ -103,6 +103,23 @@ export function isWaAssistantTasksAgency(agencyId: number | null | undefined): b
   return parseIds(process.env.WA_ASSISTANT_TASKS_AGENCY_IDS).includes(agencyId as number)
 }
 
+/**
+ * WA_ASSISTANT_STATUS_AGENCY_IDS: agencies whose assistant may CHANGE A LEAD'S
+ * STATUS (card → `update_lead_status`). Its own switch because a status change
+ * can fire the business's automations. Same rules as the tasks switch:
+ * absence blocks, explicit ids only, and only on top of the assistant itself.
+ */
+export function isWaAssistantStatusAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantAgency(agencyId)) return false
+  return parseIds(process.env.WA_ASSISTANT_STATUS_AGENCY_IDS).includes(agencyId as number)
+}
+
+/** WA_ASSISTANT_NOTES_AGENCY_IDS: may ADD A NOTE to a lead (card → `add_lead_note`). Same rules. */
+export function isWaAssistantNotesAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantAgency(agencyId)) return false
+  return parseIds(process.env.WA_ASSISTANT_NOTES_AGENCY_IDS).includes(agencyId as number)
+}
+
 const DEFAULT_DAILY_USD_CAP = 2
 
 export function waAssistantDailyUsdCap(): number {

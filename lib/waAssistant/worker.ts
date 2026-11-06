@@ -14,7 +14,7 @@ import {
 } from '@/db/waAssistantJobs'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { track } from '@/lib/analytics/track'
-import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantTasksAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
+import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantNotesAgency, isWaAssistantStatusAgency, isWaAssistantTasksAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
@@ -25,7 +25,9 @@ import { type DecideDeps } from './meetings/decide'
 import { decideCard } from './decideCard'
 import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
 import { isRequestConversation, startsCleanRequest } from './request'
-import { WA_AGENT_RULES } from './agentRules'
+import { waAgentRules } from './agentRules'
+import { proposeLeadUpdate, type LeadUpdateProposeDeps } from './leadUpdates/propose'
+import type { LeadUpdateDecideDeps } from './leadUpdates/decide'
 import { isClarifyingAnswer } from './tasks/draft'
 import type { TaskDecideDeps } from './tasks/decide'
 import { MEETING_COPY } from './meetings/copy'
@@ -46,13 +48,20 @@ import type { MeetingReply } from './meetings/types'
  *      research, a shorter clock, and the previous turns as context;
  *   5. one reply, with `sending` committed first (`unknown` is never resent).
  *
- * WRITES: `create_meeting` (WA_ASSISTANT_MEETINGS_AGENCY_IDS) and `create_task` /
- * `create_follow_up` (WA_ASSISTANT_TASKS_AGENCY_IDS, ./tasks/), each only for
+ * WRITES: `create_meeting` (WA_ASSISTANT_MEETINGS_AGENCY_IDS), `create_task` /
+ * `create_follow_up` (WA_ASSISTANT_TASKS_AGENCY_IDS, ./tasks/),
+ * `update_lead_status` (WA_ASSISTANT_STATUS_AGENCY_IDS) and `add_lead_note`
+ * (WA_ASSISTANT_NOTES_AGENCY_IDS, both ./leadUpdates/), each only for
  * an agency on its own list, and never on the owner's words alone: the
  * proposal becomes a confirmation card (./meetings/propose.ts) and only a tap on
  * its button executes it through the existing Action Runtime
  * (./meetings/decide.ts). Every other proposal (and every proposal without that
  * flag) is NEVER handed to the Action Runtime; the reply says so.
+ *
+ * NOTE (architecture-rules §1, §6): ~260 lines, over the 250 soft limit since the
+ * status/note routing was added. Owed extraction, next touch: the per-action
+ * proposal routing (meeting / task / lead update) moves to ./route.ts, leaving
+ * this file the job lifecycle (window, identity, limits, Agent run, one reply).
  */
 
 export type WaAssistantDeps = {
@@ -62,6 +71,7 @@ export type WaAssistantDeps = {
   now?: () => Date
   meetings?: { propose?: ProposeDeps; decide?: DecideDeps }
   tasks?: { propose?: TaskProposeDeps; decide?: TaskDecideDeps }
+  leadUpdates?: { propose?: LeadUpdateProposeDeps; decide?: LeadUpdateDecideDeps }
 }
 
 /** A typed "yes" while a card is open: pointed at the button, never treated as approval. */
@@ -131,14 +141,17 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
   const meetingsOn = isWaAssistantMeetingsAgency(job.agencyId)
   const tasksOn = isWaAssistantTasksAgency(job.agencyId)
+  const statusOn = isWaAssistantStatusAgency(job.agencyId)
+  const notesOn = isWaAssistantNotesAgency(job.agencyId)
+  const writesOn = meetingsOn || tasksOn || statusOn || notesOn
   if (job.kind === 'decision') {
     const r =
-      meetingsOn || tasksOn
-        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), meetingsOn, tasksOn, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide } })
+      writesOn
+        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), meetingsOn, tasksOn, statusOn, notesOn, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide } })
         : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed() })
   }
-  if ((meetingsOn || tasksOn) && job.kind === 'text' && BARE_AFFIRMATION.test(job.question?.trim() ?? '') && (await hasLiveWaApproval(job.recipientId, startedAt))) {
+  if (writesOn && job.kind === 'text' && BARE_AFFIRMATION.test(job.question?.trim() ?? '') && (await hasLiveWaApproval(job.recipientId, startedAt))) {
     return finishMeeting(job, platform, who.phoneE164, { status: 'answered', stopReason: 'meeting_use_buttons', text: tasksOn ? TASK_COPY.useButtons : MEETING_COPY.useButtons, headline: null }, deps, { durationMs: elapsed() })
   }
 
@@ -149,7 +162,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
   await (deps.typing ?? sendPlatformTypingIndicator)({ ...platform, inboundWamid: job.wamid, jobId: job.id })
 
-  const history = await recentWaAssistantTurns(job.recipientId, job.id, startedAt, { withoutClarifications: (meetingsOn || tasksOn) && (await startsCleanRequest(job)) })
+  const history = await recentWaAssistantTurns(job.recipientId, job.id, startedAt, { withoutClarifications: writesOn && (await startsCleanRequest(job)) })
   const result = await (deps.runAgent ?? runAgentInvestigation)({
     question: job.question.trim().slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars),
     history,
@@ -157,7 +170,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
-    surfaceRules: WA_AGENT_RULES,
+    surfaceRules: waAgentRules({ statusOn, notesOn }),
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {
@@ -186,6 +199,10 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   }
   if (tasksOn && (proposed?.actionType === 'create_task' || proposed?.actionType === 'create_follow_up') && !result.answer.proposedBatch) {
     const r = await proposeTaskOrFollowUp({ job, scope: who.scope, proposal: proposed, evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.tasks?.propose })
+    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
+  }
+  if (((statusOn && proposed?.actionType === 'update_lead_status') || (notesOn && proposed?.actionType === 'add_lead_note')) && !result.answer.proposedBatch) {
+    const r = await proposeLeadUpdate({ job, scope: who.scope, proposal: proposed as Parameters<typeof proposeLeadUpdate>[0]['proposal'], evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.leadUpdates?.propose })
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
   }
 
