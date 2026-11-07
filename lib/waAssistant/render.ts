@@ -122,6 +122,9 @@ export const COPY = {
   notConnected:
     'כאן העוזר של SocialCRM. כדי לשאול אותי על העסק שלך, צריך לחבר את המספר הזה לחשבון שלך ב-SocialCRM, בהגדרות ← תזכורות בוואטסאפ: ' +
     CONNECT_LINK,
+  abuseBurst: 'קיבלתי הרבה הודעות בתוך דקה, אז עצרתי לרגע כהגנה מפני הצפה. אפשר להמשיך בעוד דקה.',
+  abuseHourly: 'קיבלתי מספר חריג של הודעות בשעה האחרונה, אז עצרתי זמנית כהגנה מפני הצפה. אפשר להמשיך מאוחר יותר.',
+  abuseLoop: 'קיבלתי את אותה הודעה כמה פעמים ברצף, אז עצרתי כדי למנוע לולאה. אפשר לשלוח הודעה אחרת.',
   consentRequired:
     'כדי לשוחח איתי כאן, צריך קודם לאשר שיחות עם העוזר בחשבון שלך ב-SocialCRM, בהגדרות ← תזכורות בוואטסאפ: ' + CONNECT_LINK,
   severalAccounts:
@@ -169,6 +172,13 @@ export function refusalReply(reason: string): string | null {
     case 'agency_limit':
     case 'spend_limit':
       return COPY.agencyLimit
+    // Technical abuse protection (founder entitlement): the reason, never a payment.
+    case 'abuse_burst':
+      return COPY.abuseBurst
+    case 'abuse_hourly':
+      return COPY.abuseHourly
+    case 'abuse_loop':
+      return COPY.abuseLoop
     default:
       // Not this assistant's user any more (flag off, recipient inactive,
       // ambiguous number, user suspended): no reply, so nothing about the

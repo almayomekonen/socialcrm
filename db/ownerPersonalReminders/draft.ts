@@ -4,7 +4,7 @@ import { WA_APPROVAL_TTL_MS } from '@/db/waAssistantApprovals'
 import { consentCoversPersonalReminders } from '@/lib/whatsapp/platform/consentText'
 import { reminderActionId } from '@/lib/reminders/limits'
 import { insertReminderEvents } from './events'
-import { limitBreached, lockOwnedReminder } from './lock'
+import { enforceReminderLimits, lockOwnedReminder, recordFounderWaiver } from './lock'
 
 /**
  * T0, the draft a personal-reminder card is shown for (architecture v1.4–v1.6),
@@ -63,8 +63,8 @@ export async function createReminderDraft(input: {
       return { kind: 'handled' as const }
     }
 
-    const breached = await limitBreached(trx, { id: 0, agencyId: input.owner.agencyId, userId: input.owner.userId, recipientId: input.recipientId }, input.remindAtMs)
-    if (breached) return { kind: 'limit' as const, reason: breached }
+    const limits = await enforceReminderLimits(trx, { id: 0, agencyId: input.owner.agencyId, userId: input.owner.userId, recipientId: input.recipientId }, input.remindAtMs)
+    if (limits.breach) return { kind: 'limit' as const, reason: limits.breach }
 
     const now = new Date(input.nowMs)
     await supersedeDrafts(trx, input, now)
@@ -89,6 +89,7 @@ export async function createReminderDraft(input: {
     await insertReminderEvents(trx, [
       { agencyId: input.owner.agencyId, userId: input.owner.userId, recipientId: input.recipientId, reminderId: id, type: 'proposed', actorKind: 'owner', actionId, toStatus: 'proposed' },
     ])
+    if (limits.waived) await recordFounderWaiver(trx, { agencyId: input.owner.agencyId, userId: input.owner.userId, recipientId: input.recipientId }, id, limits.waived, actionId)
     return { kind: 'draft' as const, reminderId: id, version: 1, remindAtMs: input.remindAtMs, actionId, reused: false }
   })
 }

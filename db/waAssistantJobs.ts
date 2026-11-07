@@ -153,6 +153,36 @@ export async function waAssistantUsage(job: { id: number; recipientId: number; a
 }
 
 /** Commit `sending` BEFORE the Graph call. False when the reply was already attempted. */
+/**
+ * Abuse-guard counts for the founder (technical protection, never a quota):
+ * this recipient's jobs in the last minute and the last hour, and the length of
+ * the CONSECUTIVE run of earlier text jobs identical to this one within 10
+ * minutes. Any other job in between (a different text, a button tap) ends the
+ * run, so repeated legitimate testing interleaved with taps never counts as a loop.
+ */
+export async function founderAbuseCounts(
+  job: { id: number; recipientId: number; kind: string; question: string | null },
+  now: Date,
+): Promise<{ lastMinute: number; lastHour: number; identicalRun: number }> {
+  const before = (ms: number) => new Date(now.getTime() - ms)
+  const count = async (sinceMs: number) =>
+    Number(((await db(T).where({ recipientId: job.recipientId }).where('id', '<', job.id).where('createdAt', '>', before(sinceMs)).count<{ n: string }[]>('id as n')) as { n: string }[])[0].n)
+  const [lastMinute, lastHour] = await Promise.all([count(60_000), count(60 * 60_000)])
+  let identicalRun = 0
+  const text = job.kind === 'text' ? squashText(job.question) : ''
+  if (text) {
+    const recent = (await db(T).where({ recipientId: job.recipientId }).where('id', '<', job.id).where('createdAt', '>', before(10 * 60_000))
+      .orderBy('id', 'desc').limit(10).select('kind', 'question')) as { kind: string; question: string | null }[]
+    for (const r of recent) {
+      if (r.kind !== 'text' || squashText(r.question) !== text) break
+      identicalRun++
+    }
+  }
+  return { lastMinute, lastHour, identicalRun }
+}
+
+const squashText = (q: string | null) => (q ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase()
+
 export async function markWaAssistantReplySending(jobId: number): Promise<boolean> {
   const n = await db(T).where({ id: jobId, status: 'running' }).whereNull('replyState').update({ replyState: 'sending', updatedAt: db.fn.now() })
   return n === 1

@@ -12,7 +12,7 @@ export type ReminderEvent = {
   type:
     | 'proposed' | 'scheduled' | 'discarded' | 'superseded' | 'rescheduled' | 'cancelled' | 'claimed' | 'dispatched'
     | 'sent' | 'failed' | 'unknown' | 'text_purged' | 'capacity_denied' | 'kill_switch_tripped' | 'alert_threshold'
-    | 'pricing_unavailable' | 'cost_released'
+    | 'pricing_unavailable' | 'cost_released' | 'founder_limit_waived'
   actorKind: 'owner' | 'system' | 'settings' | 'keyword' | 'meta'
   actionId?: string | null
   fromStatus?: string | null

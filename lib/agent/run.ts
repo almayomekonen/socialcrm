@@ -218,7 +218,8 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const ctx = { investigationId, agencyId: scope.agencyId, userId: scope.userId }
   agentTrace('INVESTIGATION_START', ctx, { maxSteps, deadlineMs })
 
-  const admission = await admitAiRun({ kind: AGENT_TASK_KIND, agencyId: scope.agencyId })
+  // `userId`: a verified founder's own run is not stopped by commercial checks (the gate reads it lazily, fail-closed).
+  const admission = await admitAiRun({ kind: AGENT_TASK_KIND, agencyId: scope.agencyId, userId: scope.userId })
   if (admission.ok === false) {
     agentTrace('ADMISSION_DENIED', ctx, { reason: admission.reason })
     return { ok: false, reason: 'gate_denied', message: admission.reason, investigationId, costUsd: 0 }

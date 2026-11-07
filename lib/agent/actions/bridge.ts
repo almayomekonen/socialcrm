@@ -4,7 +4,7 @@ import { createDbActionStore, findActionByActionId, hasRecentlyExecutedAction, l
 import { loadApprovalGrants, recordApprovalDecision } from '@/db/agentActionApprovals'
 import { registerDomainActions } from './domain'
 import { deriveActionIntent } from './intent'
-import { isAgentAvailable } from '@/lib/ai/agentAvailability'
+import { isAgentAvailableForUser } from '@/lib/ai/agentAvailability'
 import { parseActionProposal } from './proposal'
 import { createActionRuntime } from './runtime'
 import { DEFAULT_DEADLINE_MS } from '../budget'
@@ -202,7 +202,7 @@ export async function decideOnAction(input: {
   // ROLLOUT IS RE-CHECKED AT DECISION TIME (F3). A card can outlive the rollout
   // that produced it; taking an agency off /agent must stop its pending actions
   // too, not only new questions. Checked before anything is read or written.
-  if (!(await isAgentAvailable(input.scope.agencyId))) return { ok: false, reason: 'agent-disabled' }
+  if (!(await isAgentAvailableForUser(input.scope.agencyId, input.scope.userId))) return { ok: false, reason: 'agent-disabled' }
   // Agency-scoped read: an action id from another tenant simply does not exist.
   const record = await findActionByActionId(input.scope.agencyId, input.actionId)
   if (!record) return { ok: false, reason: 'not-found' }
@@ -343,7 +343,7 @@ export async function decideOnBatch(input: {
   const actor = scopeToActor(input.scope)
 
   // Rollout re-checked at decision time (F3) — see decideOnAction.
-  if (!(await isAgentAvailable(input.scope.agencyId))) return { ok: false, reason: 'agent-disabled' }
+  if (!(await isAgentAvailableForUser(input.scope.agencyId, input.scope.userId))) return { ok: false, reason: 'agent-disabled' }
 
   // Agency-scoped: a plan id from another tenant simply does not exist.
   const records = await listActionsForPlan(input.scope.agencyId, input.planId)
