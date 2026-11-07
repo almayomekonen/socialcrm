@@ -15,7 +15,7 @@ import { businessDateString } from '@/lib/today/time'
  * the data layer into the browser bundle (the `lib/billing/totals.ts` rule).
  */
 
-export const QUOTE_STATUSES = ['draft', 'ready', 'sent', 'accepted', 'declined', 'expired'] as const
+export const QUOTE_STATUSES = ['draft', 'ready', 'sent', 'accepted', 'declined', 'expired', 'cancelled'] as const
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number]
 
 /** Still being written; content and totals are mutable. */
@@ -27,6 +27,12 @@ export const EDITABLE_QUOTE_STATUSES: readonly QuoteStatus[] = ['draft']
  * will ask, and the reason this set is named rather than inlined.
  */
 export const OPEN_QUOTE_STATUSES: readonly QuoteStatus[] = ['ready', 'sent']
+
+/**
+ * Withdrawn by the business before it was sent (from `draft` or `ready`).
+ * Terminal. Declared now so the value exists before anything writes it.
+ */
+export const CANCELLED_QUOTE_STATUSES: readonly QuoteStatus[] = ['cancelled']
 
 /** The customer answered. Terminal for the offer itself. */
 export const DECIDED_QUOTE_STATUSES: readonly QuoteStatus[] = ['accepted', 'declined']
