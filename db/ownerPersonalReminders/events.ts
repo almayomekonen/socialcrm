@@ -9,7 +9,10 @@ export type ReminderEvent = {
   userId?: number | null
   recipientId?: number | null
   reminderId?: number | null
-  type: 'proposed' | 'scheduled' | 'discarded' | 'superseded' | 'rescheduled' | 'cancelled' | 'dispatched' | 'text_purged'
+  type:
+    | 'proposed' | 'scheduled' | 'discarded' | 'superseded' | 'rescheduled' | 'cancelled' | 'claimed' | 'dispatched'
+    | 'sent' | 'failed' | 'unknown' | 'text_purged' | 'capacity_denied' | 'kill_switch_tripped' | 'alert_threshold'
+    | 'pricing_unavailable' | 'cost_released'
   actorKind: 'owner' | 'system' | 'settings' | 'keyword' | 'meta'
   actionId?: string | null
   fromStatus?: string | null
@@ -19,6 +22,8 @@ export type ReminderEvent = {
   versionAfter?: number | null
   remindAtBefore?: Date | null
   remindAtAfter?: Date | null
+  errorCode?: number | null
+  capacityScope?: 'platform' | 'agency' | 'recipient' | null
 }
 
 export async function insertReminderEvents(trx: Knex.Transaction, events: ReminderEvent[]): Promise<void> {

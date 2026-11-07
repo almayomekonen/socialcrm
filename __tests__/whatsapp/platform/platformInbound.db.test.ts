@@ -23,6 +23,7 @@ import {
 const MIGRATION = require(path.join(process.cwd(), 'migrations/20261012120000_owner_whatsapp_consent.cjs'))
 /** Depends on this migration's tables (foreign key, added column): rolled back first, re-applied last. */
 const DEPENDENT = require(path.join(process.cwd(), 'migrations/20261107130000_owner_personal_reminders.cjs'))
+const DELIVERY = require(path.join(process.cwd(), 'migrations/20261108120000_reminder_delivery_controls.cjs'))
 const fetchSpy = vi.spyOn(globalThis, 'fetch')
 const agencies: number[] = []
 let A: number
@@ -88,11 +89,13 @@ describe('migration', () => {
 
   it('creates two tables and is reversible (down, up)', async () => {
     expect(await exists()).toBe(2)
+    await DELIVERY.down(db)
     await DEPENDENT.down(db)
     await MIGRATION.down(db)
     expect(await exists()).toBe(0)
     await MIGRATION.up(db)
     await DEPENDENT.up(db)
+    await DELIVERY.up(db)
     expect(await exists()).toBe(2)
   })
 

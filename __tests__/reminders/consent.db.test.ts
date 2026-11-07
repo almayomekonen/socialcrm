@@ -33,6 +33,7 @@ import { enterDispatch } from '@/db/ownerPersonalReminders/dispatchGate'
 import { scheduleApprovedDraft } from '@/db/ownerPersonalReminders/schedule'
 import { withdrawPersonalRemindersConsent } from '@/db/ownerPersonalReminders/consent'
 import { insertApproval, insertDraft, seedOwner, untilLockWaiters, type Owner } from './fixtures'
+import { enableDelivery, inboundFrom, resetControls } from './deliveryFixtures'
 
 const T = 'owner_personal_reminders'
 const HOUR = 3_600_000
@@ -53,6 +54,7 @@ function setEnv(remindersOn: boolean) {
 async function owner(name: string, consent = 'v4'): Promise<Owner> {
   const o = await seedOwner(name)
   await db('owner_whatsapp_recipients').where({ id: o.recipientId }).update({ consentTextVersion: consent })
+  await inboundFrom(o, Date.now() - 60_000)
   owners.push(o)
   return o
 }
@@ -83,10 +85,13 @@ async function holdRecipient(o: Owner) {
   return { release: () => trx.commit() }
 }
 
-beforeAll(() => {
+beforeAll(async () => {
   session.user = null
+  // Synthetic controls so the full Phase 5 gate can reach `dispatching`.
+  await enableDelivery()
 })
 afterAll(async () => {
+  await resetControls()
   for (const k of ENV_KEYS) delete process.env[k]
   await db.destroy()
 })
@@ -198,20 +203,20 @@ describe('fail closed without v5', () => {
   it('the send gate: v5 + active → dispatching; v4 → cancelled; opted out → cancelled; wrong claim → untouched', async () => {
     const ok = await owner('gate-ok', 'v5')
     const a = await reminder(ok, 'claimed')
-    expect(await enterDispatch({ reminderId: a.id, claimToken: a.claimToken, nowMs: Date.now() })).toEqual({ result: 'dispatching' })
+    expect(await enterDispatch({ reminderId: a.id, claimToken: a.claimToken, nowMs: Date.now(), exposure: 0 })).toMatchObject({ result: 'dispatching' })
 
     const v4 = await owner('gate-v4', 'v4')
     const b = await reminder(v4, 'claimed')
-    expect(await enterDispatch({ reminderId: b.id, claimToken: b.claimToken, nowMs: Date.now() })).toEqual({ result: 'cancelled', reason: 'consent_withdrawn' })
+    expect(await enterDispatch({ reminderId: b.id, claimToken: b.claimToken, nowMs: Date.now(), exposure: 0 })).toEqual({ result: 'cancelled', reason: 'consent_withdrawn' })
 
     const gone = await owner('gate-out', 'v5')
     const c = await reminder(gone, 'claimed')
     await db('owner_whatsapp_recipients').where({ id: gone.recipientId }).update({ status: 'opted_out', optedOutAt: new Date(), optOutSource: 'keyword' })
-    expect(await enterDispatch({ reminderId: c.id, claimToken: c.claimToken, nowMs: Date.now() })).toEqual({ result: 'cancelled', reason: 'opted_out' })
+    expect(await enterDispatch({ reminderId: c.id, claimToken: c.claimToken, nowMs: Date.now(), exposure: 0 })).toEqual({ result: 'cancelled', reason: 'opted_out' })
 
     const wrong = await owner('gate-token', 'v5')
     const d = await reminder(wrong, 'claimed')
-    expect(await enterDispatch({ reminderId: d.id, claimToken: '00000000-0000-4000-8000-999999999999', nowMs: Date.now() })).toEqual({ result: 'not_claimed', status: 'claimed' })
+    expect(await enterDispatch({ reminderId: d.id, claimToken: '00000000-0000-4000-8000-999999999999', nowMs: Date.now(), exposure: 0 })).toEqual({ result: 'not_claimed', status: 'claimed' })
     expect(await statusOf(d.id)).toBe('claimed')
   })
 })
@@ -221,13 +226,13 @@ describe('concurrency: withdrawal and opt-out against the send gate', () => {
     const o = await owner('race-gate-first', 'v5')
     const r = await reminder(o, 'claimed')
     const hold = await holdRecipient(o)
-    const gate = enterDispatch({ reminderId: r.id, claimToken: r.claimToken, nowMs: Date.now() })
+    const gate = enterDispatch({ reminderId: r.id, claimToken: r.claimToken, nowMs: Date.now(), exposure: 0 })
     await untilLockWaiters(1)
     const withdraw = withdrawPersonalRemindersConsent(o.agencyId, o.userId)
     await untilLockWaiters(2)
     await hold.release()
     const [g, w] = await Promise.all([gate, withdraw])
-    expect(g).toEqual({ result: 'dispatching' })
+    expect(g).toMatchObject({ result: 'dispatching' })
     expect(w).toMatchObject({ result: 'withdrawn', inFlight: 1, cancelled: 0 })
     expect(await consentOf(o)).toBe('v4')
   })
@@ -238,7 +243,7 @@ describe('concurrency: withdrawal and opt-out against the send gate', () => {
     const hold = await holdRecipient(o)
     const withdraw = withdrawPersonalRemindersConsent(o.agencyId, o.userId)
     await untilLockWaiters(1)
-    const gate = enterDispatch({ reminderId: r.id, claimToken: r.claimToken, nowMs: Date.now() })
+    const gate = enterDispatch({ reminderId: r.id, claimToken: r.claimToken, nowMs: Date.now(), exposure: 0 })
     await untilLockWaiters(2)
     await hold.release()
     const [w, g] = await Promise.all([withdraw, gate])
@@ -253,7 +258,7 @@ describe('concurrency: withdrawal and opt-out against the send gate', () => {
       const r = await reminder(o, 'claimed')
       const phone = ((await db('owner_whatsapp_recipients').where({ id: o.recipientId }).first('phoneE164')) as { phoneE164: string }).phoneE164
       const optOut = () => db.transaction((trx) => optOutByPhone(trx, phone, Math.floor(Date.now() / 1000)))
-      const gate = () => enterDispatch({ reminderId: r.id, claimToken: r.claimToken, nowMs: Date.now() })
+      const gate = () => enterDispatch({ reminderId: r.id, claimToken: r.claimToken, nowMs: Date.now(), exposure: 0 })
       const hold = await holdRecipient(o)
       const first = optOutFirst ? optOut() : gate()
       await untilLockWaiters(1)
