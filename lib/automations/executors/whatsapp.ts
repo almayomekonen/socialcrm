@@ -12,7 +12,7 @@ import type {
   TestResult,
   TestTarget,
 } from './types'
-import { ExecutionOutcomeUnknownError, ExecutionSkippedError } from './types'
+import { EffectCommittedError, ExecutionOutcomeUnknownError, ExecutionSkippedError } from './types'
 
 /**
  * `whatsapp.send` — Action #3, and NOT a second WhatsApp system.
@@ -232,19 +232,11 @@ export const whatsappExecutor: ActionExecutor<WhatsappReady, WhatsappDeps> = {
      * `sentByUserId: null` is deliberate and load-bearing: it marks the message
      * as the SYSTEM's, which is both true and what stops the instant-response
      * engine from reading it as "a human replied".
+     *
+     * From here Meta HAS the message. A persist failure is therefore thrown as
+     * EffectCommittedError, so the worker keeps the claim and never resends.
      */
-    await deps.persist({
-      agencyId: ctx.agencyId,
-      leadId: ctx.leadId,
-      businessPhoneNumberId: ready.target.businessPhoneNumberId,
-      customerWaId: ready.target.customerWaId,
-      customerName: ready.target.customerName,
-      sentByUserId: null,
-      wamid: sent.wamid,
-      text: ready.text,
-    })
-
-    return {
+    const outcome = {
       kind: 'sent' as const,
       summary: ready.text,
       // The statuses webhook takes it from here: sent → delivered → read.
@@ -252,6 +244,21 @@ export const whatsappExecutor: ActionExecutor<WhatsappReady, WhatsappDeps> = {
       providerMessageId: sent.wamid,
       log: { reason: 'transport_accepted', providerMessageId: sent.wamid, template: ready.template.name },
     }
+    try {
+      await deps.persist({
+        agencyId: ctx.agencyId,
+        leadId: ctx.leadId,
+        businessPhoneNumberId: ready.target.businessPhoneNumberId,
+        customerWaId: ready.target.customerWaId,
+        customerName: ready.target.customerName,
+        sentByUserId: null,
+        wamid: sent.wamid,
+        text: ready.text,
+      })
+    } catch (err) {
+      throw new EffectCommittedError(outcome, 'persist_message', (err as Error)?.name ?? null)
+    }
+    return outcome
   },
 
   /**

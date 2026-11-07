@@ -21,6 +21,7 @@ const ROOT = process.cwd()
 const ENGINE_FILES = [
   'lib/automations/worker.ts',
   'lib/automations/workerEffectFailure.ts',
+  'lib/automations/workerCommittedEffect.ts',
   'lib/automations/laws.ts',
   'lib/automations/emit.ts',
   'lib/automations/actionEntry.ts',

@@ -27,7 +27,7 @@ import { isValidTiming } from './timing'
 import { recipientFieldFor, type SubjectValues } from './subject'
 import { defaultWorkerDeps, type WorkerDeps } from './workerDeps'
 import { appointmentFactsFor, leadMessagesTodayFor, recipientFacts, resolveSubjectContext } from './workerFacts'
-import type { AnyActionExecutor } from './executors/types'
+import { isEffectCommittedError, type AnyActionExecutor, type ExecutionContext, type ExecutionOutcome } from './executors/types'
 import type { EventDefinition } from './catalog/types'
 import { getAutomationsSendMode, type AutomationsSendMode } from './flags'
 import { getAction, getEvent } from './catalog/registry'
@@ -35,8 +35,8 @@ import { eventKeyForEngineTrigger } from './catalog/engineBridge'
 import { liveFieldKeys } from './conditionEvaluator'
 import { actionKeyFor, actionParameters } from './actionEntry'
 import { executorFor } from './executors/registry'
-import type { ExecutionContext } from './executors/types'
 import { settleEffectFailure } from './workerEffectFailure'
+import { outcomeActivity, settleCommittedEffect } from './workerCommittedEffect'
 import type { ActionDefinition } from './catalog/types'
 
 /**
@@ -242,26 +242,23 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     return 'skipped'
   }
 
-  // Claim held from here: any failure below releases it (retry re-claims).
+  // Claim held from here. Before the effect, any failure releases it (retry
+  // re-claims). Once the effect happened (`sent`, or EffectCommittedError) it is
+  // irreversible: settleCommittedEffect keeps the claim and never retries.
+  const leadName = lead.exists ? lead.displayName : null
+  const settled = { job, mode, leadName, contentSchemaVersion: def.content.schemaVersion, deps, log: logT }
+  let outcome: ExecutionOutcome
   try {
-    const outcome = await executor.execute(ctx, pre.ready, executorDeps)
+    outcome = await executor.execute(ctx, pre.ready, executorDeps)
+  } catch (err) {
+    if (isEffectCommittedError(err)) return settleCommittedEffect({ ...settled, outcome: err.outcome, failedStep: err.step })
+    return settleEffectFailure({ job, err, mode, leadName, deps, log: logT })
+  }
+  if (outcome.kind === 'sent') return settleCommittedEffect({ ...settled, outcome })
 
-    await deps.appendActivity({
-      agencyId: job.agencyId,
-      automationId: job.automationId,
-      leadId: job.leadId,
-      leadName: lead.exists ? lead.displayName : null,
-      kind: outcome.kind,
-      // A `would_send` row is always mode 'log' — it records that no external
-      // effect occurred, whatever the engine's configured mode was.
-      mode: outcome.kind === 'sent' ? mode : 'log',
-      trigger: job.trigger,
-      origin: job.origin,
-      subject: outcome.summary,
-      deliveryState: outcome.deliveryState ?? null,
-      providerMessageId: outcome.providerMessageId ?? null,
-      contentSchemaVersion: def.content.schemaVersion,
-    })
+  // `would_send`: no external effect happened, so the release-and-retry rule holds.
+  try {
+    await deps.appendActivity(outcomeActivity({ ...settled, outcome }))
     logT(outcome.kind, job, outcome.log)
 
     await deps.confirmClaim(job.automationId, job.leadId)
@@ -269,7 +266,7 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     logT('done', job, { reason: mode === 'live' ? 'sent' : 'would_send' })
     return 'done'
   } catch (err) {
-    return settleEffectFailure({ job, err, mode, leadName: lead.exists ? lead.displayName : null, deps, log: logT })
+    return settleEffectFailure({ job, err, mode, leadName, deps, log: logT })
   }
 }
 
