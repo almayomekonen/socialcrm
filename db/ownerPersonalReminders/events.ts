@@ -9,7 +9,7 @@ export type ReminderEvent = {
   userId?: number | null
   recipientId?: number | null
   reminderId?: number | null
-  type: 'proposed' | 'scheduled' | 'discarded' | 'superseded' | 'rescheduled' | 'cancelled' | 'text_purged'
+  type: 'proposed' | 'scheduled' | 'discarded' | 'superseded' | 'rescheduled' | 'cancelled' | 'dispatched' | 'text_purged'
   actorKind: 'owner' | 'system' | 'settings' | 'keyword' | 'meta'
   actionId?: string | null
   fromStatus?: string | null

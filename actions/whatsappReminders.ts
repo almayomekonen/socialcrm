@@ -3,13 +3,19 @@
 import { revalidatePath } from 'next/cache'
 import { getOwnRecipient, optOutOwnRow, setOwnActiveConsent, startOwnActivation } from '@/db/ownerWhatsappRecipients'
 import { canUseOwnerWhatsappReminders, platformWhatsappWaMeNumber } from '@/lib/flags/ownerWhatsappReminderFlags'
-import { isWaAssistantAgency } from '@/lib/flags/waAssistantFlags'
+import { isWaAssistantAgency, isWaAssistantRemindersAgency } from '@/lib/flags/waAssistantFlags'
+import {
+  grantPersonalRemindersConsent,
+  withdrawAssistantConsent,
+  withdrawPersonalRemindersConsent,
+} from '@/db/ownerPersonalReminders/consent'
 import { AuthError, ProductAccessError, requireAgencyUser, requireProductAccess } from '@/lib/requireUser'
 import {
   OWNER_WA_ASSISTANT_CONSENT,
   OWNER_WA_CONSENT,
+  OWNER_WA_PERSONAL_REMINDERS_CONSENT,
   activationConsentFor,
-  consentCoversAssistant,
+  consentCoversPersonalReminders,
 } from '@/lib/whatsapp/platform/consentText'
 import { formatActivationCode, generateActivationCode, hashActivationCode } from '@/lib/whatsapp/platform/keys'
 
@@ -113,6 +119,9 @@ export async function grantWhatsappAssistantConsent(input: {
   }
   if (input?.consent !== true) return { fail: true, msg: 'כדי להמשיך צריך לאשר שיחות עם העוזר' }
   if (input.consentVersion !== OWNER_WA_ASSISTANT_CONSENT.version) return { fail: true, msg: STALE_CONSENT }
+  // v5 already contains the assistant consent: never silently downgrade it to v4.
+  const current = await getOwnRecipient(user.agencyId, user.id)
+  if (current?.status === 'active' && consentCoversPersonalReminders(current.consentTextVersion)) return { ok: true }
   if (!(await setOwnActiveConsent(user.agencyId, user.id, OWNER_WA_ASSISTANT_CONSENT.version))) {
     return { fail: true, msg: 'קודם צריך להפעיל ולאמת את המספר' }
   }
@@ -121,9 +130,10 @@ export async function grantWhatsappAssistantConsent(input: {
 }
 
 /**
- * Stop the assistant, keep reminders: the session's own active row goes back to
- * the reminders-only consent (v2). Allowed whatever the rollout or subscription
- * state, like turning reminders off: stopping must always work.
+ * Stop the assistant, keep reminders about waiting leads: the session's own row
+ * goes back to the reminders-only consent (v2). From v5 this also stops personal
+ * reminders and cancels the future ones, in the same transaction. Allowed
+ * whatever the rollout or subscription state: stopping must always work.
  */
 export async function withdrawWhatsappAssistantConsent(): Promise<{ ok: true } | { fail: true; msg: string }> {
   let user
@@ -133,10 +143,53 @@ export async function withdrawWhatsappAssistantConsent(): Promise<{ ok: true } |
     if (err instanceof AuthError) return { fail: true, msg: 'אין הרשאה' }
     throw err
   }
-  const row = await getOwnRecipient(user.agencyId, user.id)
-  if (row && consentCoversAssistant(row.consentTextVersion)) {
-    await setOwnActiveConsent(user.agencyId, user.id, OWNER_WA_CONSENT.version)
+  await withdrawAssistantConsent(user.agencyId, user.id)
+  revalidatePath(PATH)
+  return { ok: true }
+}
+
+/**
+ * Consent v5: personal reminders the owner asks the assistant for. Settings
+ * ONLY, an explicit tick on the exact text shown (its version must match), on
+ * an already verified number, and only where WA_ASSISTANT_REMINDERS_AGENCY_IDS
+ * names the agency (absent = nobody). The wording is a DRAFT pending legal
+ * review (consentText.ts).
+ */
+export async function grantPersonalReminders(input: { consent?: unknown; consentVersion?: unknown }): Promise<{ ok: true } | { fail: true; msg: string }> {
+  let user
+  try {
+    user = await requireProductAccess()
+  } catch (err) {
+    if (err instanceof AuthError || err instanceof ProductAccessError) return { fail: true, msg: 'אין הרשאה' }
+    throw err
+  }
+  if (!canUseOwnerWhatsappReminders(user.agencyId) || !isWaAssistantRemindersAgency(user.agencyId)) {
+    return { fail: true, msg: 'התזכורות האישיות אינן זמינות לחשבון זה' }
+  }
+  if (input?.consent !== true) return { fail: true, msg: 'כדי להמשיך צריך לאשר תזכורות אישיות' }
+  if (input.consentVersion !== OWNER_WA_PERSONAL_REMINDERS_CONSENT.version) return { fail: true, msg: STALE_CONSENT }
+  if ((await grantPersonalRemindersConsent(user.agencyId, user.id)) === 'not_active') {
+    return { fail: true, msg: 'קודם צריך להפעיל ולאמת את המספר' }
   }
   revalidatePath(PATH)
   return { ok: true }
+}
+
+/**
+ * Stop personal reminders only (v5 → v4); the assistant keeps working. Future
+ * personal reminders are cancelled in the same transaction. Never gated:
+ * stopping must always work. `inFlight` counts a reminder that was already
+ * being sent and could not be stopped.
+ */
+export async function withdrawPersonalReminders(): Promise<{ ok: true; inFlight: number } | { fail: true; msg: string }> {
+  let user
+  try {
+    user = await requireAgencyUser()
+  } catch (err) {
+    if (err instanceof AuthError) return { fail: true, msg: 'אין הרשאה' }
+    throw err
+  }
+  const r = await withdrawPersonalRemindersConsent(user.agencyId, user.id)
+  revalidatePath(PATH)
+  return { ok: true, inFlight: r.result === 'withdrawn' ? r.inFlight : 0 }
 }

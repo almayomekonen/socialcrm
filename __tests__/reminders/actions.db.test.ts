@@ -32,6 +32,8 @@ const row = (id: number) => db(T).where({ id }).first()
 async function owner(name: string): Promise<Owner> {
   const o = await seedOwner(name)
   await db('agencies').where({ id: o.agencyId }).update({ plan: 'pro' })
+  // Phase 4: nothing is scheduled, changed or sent without the personal-reminders consent (v5).
+  await db('owner_whatsapp_recipients').where({ id: o.recipientId }).update({ consentTextVersion: 'v5' })
   owners.push(o)
   enableAgentFor(owners.map((x) => x.agencyId))
   return o

@@ -1,6 +1,7 @@
 import type { Knex } from 'knex'
 import { businessDayBounds } from '@/lib/today/time'
 import { REMINDER_MAX_PER_RECIPIENT_DAY, REMINDER_MAX_SCHEDULED_PER_USER } from '@/lib/reminders/limits'
+import { consentCoversPersonalReminders } from '@/lib/whatsapp/platform/consentText'
 
 /**
  * Shared steps for the owner-driven reminder transitions (T4 cancel, T5 create,
@@ -45,19 +46,41 @@ function toLocked(r: Record<string, unknown>): LockedReminder {
   }
 }
 
+/** The locked recipient's state, read under its own row lock: what consent checks decide on. */
+export type LockedRecipientState = { status: string; consentTextVersion: string; agencyId: number; userId: number }
+
 /** The reminder, locked in L1 → L2 order, only if it belongs to this owner (agency AND user). */
 export async function lockOwnedReminder(
   trx: Knex.Transaction,
   reminderId: number,
   owner: { agencyId: number; userId: number },
-): Promise<LockedReminder | null> {
+): Promise<(LockedReminder & { recipient: LockedRecipientState }) | null> {
   const where = { id: reminderId, agencyId: owner.agencyId, userId: owner.userId }
   const peek = (await trx(T).where(where).first('recipientId')) as { recipientId: string | number } | undefined
   if (!peek) return null
-  await trx('owner_whatsapp_recipients').where({ id: peek.recipientId }).forUpdate().first('id')
+  const rec = (await trx('owner_whatsapp_recipients')
+    .where({ id: peek.recipientId })
+    .forUpdate()
+    .first('status', 'consentTextVersion', 'agencyId', 'userId')) as Record<string, unknown> | undefined
   const row = (await trx(T).where(where).forUpdate().first(COLUMNS)) as Record<string, unknown> | undefined
-  if (!row || Number(row.recipientId) !== Number(peek.recipientId)) return null
-  return toLocked(row)
+  if (!rec || !row || Number(row.recipientId) !== Number(peek.recipientId)) return null
+  return {
+    ...toLocked(row),
+    recipient: { status: String(rec.status), consentTextVersion: String(rec.consentTextVersion), agencyId: Number(rec.agencyId), userId: Number(rec.userId) },
+  }
+}
+
+/**
+ * Fail closed: the recipient is active, belongs to the reminder's owner, and
+ * holds the personal-reminders consent (v5). Nothing else counts, not v4.
+ */
+export function recipientAllowsPersonalReminders(r: LockedReminder & { recipient: LockedRecipientState }): boolean {
+  return (
+    r.recipient.status === 'active' &&
+    r.recipient.agencyId === r.agencyId &&
+    r.recipient.userId === r.userId &&
+    consentCoversPersonalReminders(r.recipient.consentTextVersion)
+  )
 }
 
 /** Read without locking: verification and reconciliation probes only. */

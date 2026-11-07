@@ -3,15 +3,22 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  grantPersonalReminders,
   grantWhatsappAssistantConsent,
   startWhatsappReminderActivation,
   turnOffWhatsappReminders,
+  withdrawPersonalReminders,
   withdrawWhatsappAssistantConsent,
 } from '@/actions/whatsappReminders'
 import { Btn } from '@/lib/btns/Btn'
 import { Checkbox } from '@/lib/form'
 import { toast } from '@/lib/toast'
-import { OWNER_WA_ASSISTANT_CONSENT, OWNER_WA_CONSENT, type OwnerWaConsent } from '@/lib/whatsapp/platform/consentText'
+import {
+  OWNER_WA_ASSISTANT_CONSENT,
+  OWNER_WA_CONSENT,
+  OWNER_WA_PERSONAL_REMINDERS_CONSENT,
+  type OwnerWaConsent,
+} from '@/lib/whatsapp/platform/consentText'
 import type { OwnerReminderView } from '@/lib/whatsapp/platform/ownerReminderView'
 import { useT } from '@/lib/i18n/I18nProvider'
 import type { Translator, MessageKey } from '@/lib/i18n/translate'
@@ -33,6 +40,8 @@ const ERROR_KEYS = new Map<string, MessageKey>(
       'settings.account.reminders.error.assistantConsent',
       'settings.account.reminders.error.staleConsent',
       'settings.account.reminders.error.notVerified',
+      'settings.account.reminders.error.personalUnavailable',
+      'settings.account.reminders.error.personalConsent',
     ] as const
   ).map((k) => [HEBREW(k), k]),
 )
@@ -55,6 +64,7 @@ export default function WhatsappReminderCard({ initial, consent: shown = OWNER_W
   const router = useRouter()
   const [consent, setConsent] = useState(false)
   const [assistantConsent, setAssistantConsent] = useState(false)
+  const [personalConsent, setPersonalConsent] = useState(false)
   const [issued, setIssued] = useState<{ code: string; waMeHref: string } | null>(null)
   const [busy, startTransition] = useTransition()
 
@@ -96,6 +106,25 @@ export default function WhatsappReminderCard({ initial, consent: shown = OWNER_W
     })
   }
 
+  function grantPersonal() {
+    startTransition(async () => {
+      const res = await grantPersonalReminders({ consent: personalConsent, consentVersion: OWNER_WA_PERSONAL_REMINDERS_CONSENT.version })
+      if ('fail' in res) return toast('error', refusal(res.msg, t))
+      setPersonalConsent(false)
+      toast('success', t('settings.account.reminders.personal.grantedToast'))
+      router.refresh()
+    })
+  }
+
+  function withdrawPersonal() {
+    startTransition(async () => {
+      const res = await withdrawPersonalReminders()
+      if ('fail' in res) return toast('error', refusal(res.msg, t))
+      toast('success', t(res.inFlight > 0 ? 'settings.account.reminders.personal.withdrawnInFlight' : 'settings.account.reminders.personal.withdrawn'))
+      router.refresh()
+    })
+  }
+
   if (initial.state === 'active') {
     return (
       <div className='space-y-4'>
@@ -122,6 +151,29 @@ export default function WhatsappReminderCard({ initial, consent: shown = OWNER_W
               onClick={grantAssistant}
               disabled={!assistantConsent || busy}
               title={assistantConsent ? undefined : t('settings.account.reminders.assistant.consentRequired')}
+            />
+          </div>
+        )}
+        {initial.personalReminders === 'granted' && (
+          <div className='space-y-3'>
+            <p className='text-sm'>{t('settings.account.reminders.personal.granted')}</p>
+            <Btn type='button' variant='outline' lbl={t('settings.account.reminders.personal.withdraw')} onClick={withdrawPersonal} disabled={busy} />
+          </div>
+        )}
+        {initial.personalReminders === 'consent_required' && (
+          <div className='space-y-3'>
+            <p className='text-sm text-gray-600 leading-relaxed'>{t('settings.account.reminders.personal.offer')}</p>
+            <Checkbox
+              lbl={consentLabel(OWNER_WA_PERSONAL_REMINDERS_CONSENT.text, t)}
+              checked={personalConsent}
+              onChange={(e) => setPersonalConsent(e.target.checked)}
+            />
+            <Btn
+              type='button'
+              lbl={t('settings.account.reminders.personal.grant')}
+              onClick={grantPersonal}
+              disabled={!personalConsent || busy}
+              title={personalConsent ? undefined : t('settings.account.reminders.personal.consentRequired')}
             />
           </div>
         )}

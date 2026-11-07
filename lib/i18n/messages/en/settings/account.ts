@@ -127,6 +127,16 @@ export const account: Messages['settings']['account'] = {
       withdraw: 'Stop chats with the assistant',
       withdrawn: 'Chats with the assistant stopped. Reminders continue.',
     },
+    personal: {
+      offer: 'You can also ask the assistant for personal reminders, sent to you here on WhatsApp at the time you asked. To turn them on, you need to agree:',
+      grant: 'Agree to personal reminders',
+      consentRequired: 'You need to agree to personal reminders',
+      granted: 'Personal reminders are on. Ask the assistant for a reminder in a message to the SocialCRM number.',
+      grantedToast: 'Personal reminders are on',
+      withdraw: 'Stop personal reminders',
+      withdrawn: 'Personal reminders stopped and scheduled ones were cancelled. Chats with the assistant continue.',
+      withdrawnInFlight: 'Personal reminders stopped. One reminder was already being sent and could not be stopped.',
+    },
     error: {
       noPermission: 'No permission to turn on reminders',
       unavailable: "Reminders aren't available for this account",
@@ -138,6 +148,8 @@ export const account: Messages['settings']['account'] = {
       assistantConsent: 'To continue, you need to agree to chats with the assistant',
       staleConsent: 'The consent wording was updated. Refresh the page and agree again.',
       notVerified: 'First turn on and verify the number',
+      personalUnavailable: "Personal reminders aren't available for this account",
+      personalConsent: 'To continue, you need to agree to personal reminders',
     },
   },
   art: {

@@ -1,5 +1,5 @@
 import type { OwnRecipientRow } from '@/db/ownerWhatsappRecipients'
-import { consentCoversAssistant } from './consentText'
+import { consentCoversAssistant, consentCoversPersonalReminders } from './consentText'
 
 /**
  * What the settings page shows for the session's own row. Pure. An expired code
@@ -16,6 +16,12 @@ export type OwnerReminderView = {
    * consent is `consent_required`. Otherwise `not_offered`.
    */
   assistant: 'not_offered' | 'consent_required' | 'granted'
+  /**
+   * Personal reminders (consent v5), for an ACTIVE row whose assistant consent
+   * is granted, in an agency where they are switched on: `granted` only for v5.
+   * Otherwise `not_offered` (absent means the same). v4 never counts as granted.
+   */
+  personalReminders?: 'not_offered' | 'consent_required' | 'granted'
 }
 
 export function maskPhone(phoneE164: string | null): string | null {
@@ -25,22 +31,26 @@ export function maskPhone(phoneE164: string | null): string | null {
 export function ownerReminderView(
   row: OwnRecipientRow | null,
   now: Date,
-  opts: { assistantEnabled?: boolean } = {},
+  opts: { assistantEnabled?: boolean; personalRemindersEnabled?: boolean } = {},
 ): OwnerReminderView {
   const assistant = 'not_offered' as const
-  if (!row) return { state: 'off', maskedPhone: null, assistant }
+  const personalReminders = 'not_offered' as const
+  if (!row) return { state: 'off', maskedPhone: null, assistant, personalReminders }
   if (row.status === 'active') {
+    const assistantState = !opts.assistantEnabled ? assistant : consentCoversAssistant(row.consentTextVersion) ? 'granted' : 'consent_required'
     return {
       state: 'active',
       maskedPhone: maskPhone(row.phoneE164),
-      assistant: !opts.assistantEnabled
-        ? assistant
-        : consentCoversAssistant(row.consentTextVersion)
-          ? 'granted'
-          : 'consent_required',
+      assistant: assistantState,
+      personalReminders:
+        !opts.personalRemindersEnabled || assistantState !== 'granted'
+          ? personalReminders
+          : consentCoversPersonalReminders(row.consentTextVersion)
+            ? 'granted'
+            : 'consent_required',
     }
   }
-  if (row.status === 'opted_out') return { state: 'opted_out', maskedPhone: null, assistant }
+  if (row.status === 'opted_out') return { state: 'opted_out', maskedPhone: null, assistant, personalReminders }
   const live = !!row.activationExpiresAt && new Date(row.activationExpiresAt).getTime() > now.getTime()
-  return { state: live ? 'pending' : 'off', maskedPhone: null, assistant }
+  return { state: live ? 'pending' : 'off', maskedPhone: null, assistant, personalReminders }
 }

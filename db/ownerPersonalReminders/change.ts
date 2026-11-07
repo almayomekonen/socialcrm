@@ -1,7 +1,7 @@
 import { db } from '@/config/db'
 import { checkReminderWindow } from '@/lib/reminders/when'
 import { insertReminderEvents } from './events'
-import { limitBreached, lockOwnedReminder } from './lock'
+import { limitBreached, lockOwnedReminder, recipientAllowsPersonalReminders } from './lock'
 
 /**
  * T4 cancel and T6 reschedule, by an approved owner card (architecture v1.2 A2,
@@ -55,7 +55,7 @@ export type RescheduleOutcome =
   | { kind: 'rescheduled' | 'replayed'; reminderId: number; version: number }
   | { kind: 'rejected'; reason: 'due_passed' | 'lead_time' | 'horizon' | 'forecast' }
   | { kind: 'not_found' }
-  | { kind: 'refused'; reason: 'stale_version' | 'not_reschedulable' }
+  | { kind: 'refused'; reason: 'stale_version' | 'not_reschedulable' | 'consent' }
 
 const WINDOW_REASON = { past: 'due_passed', too_soon: 'lead_time', beyond_horizon: 'horizon' } as const
 
@@ -78,6 +78,8 @@ export async function rescheduleOwnReminder(input: {
     }
     if (r.status !== 'scheduled') return { kind: 'refused' as const, reason: 'not_reschedulable' as const }
     if (r.version !== input.version) return { kind: 'refused' as const, reason: 'stale_version' as const }
+    // Fail closed on consent (Phase 4). A withdrawal already cancelled it; this is the second line.
+    if (!recipientAllowsPersonalReminders(r)) return { kind: 'refused' as const, reason: 'consent' as const }
 
     const outside = checkReminderWindow(input.remindAtMs, input.requestAnchorMs, input.nowMs)
     if (outside) return { kind: 'rejected' as const, reason: WINDOW_REASON[outside as keyof typeof WINDOW_REASON] ?? 'due_passed' }
