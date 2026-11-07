@@ -17,8 +17,11 @@ import type { SkipReason } from '../types'
  *   the lead's once-ever allowance on it would mean the lead never receives
  *   the message even after the configuration is fixed.
  *
- *   execute() runs AFTER the claim. Throwing releases the claim and the job
- *   retries; returning normally confirms it.
+ *   execute() runs AFTER the claim. Throwing BEFORE the effect releases the
+ *   claim and the job retries; returning normally confirms it. Once the effect
+ *   has happened (the provider accepted it), a later failure inside execute()
+ *   must be thrown as EffectCommittedError, never as a plain error: a plain
+ *   error would release the claim and let the retry send it again.
  *
  * The executor reports what to LOG and what to RECORD; the worker decides the
  * job's fate. That split is what keeps ADR-011's state machine in one place
@@ -203,5 +206,32 @@ export function isExecutionOutcomeUnknownError(err: unknown): err is ExecutionOu
     err instanceof ExecutionOutcomeUnknownError ||
     (!!err && typeof err === 'object' && (err as { name?: unknown }).name === 'ExecutionOutcomeUnknownError' &&
       (err as { outcomeUnknown?: unknown }).outcomeUnknown === true)
+  )
+}
+
+/**
+ * Thrown by `execute` when the effect DID happen (the provider accepted it and
+ * returned its id) but a step after it failed — e.g. persisting the message.
+ * The effect is irreversible: the worker settles it as committed (claim kept,
+ * never retried) and records which step is missing. `outcome` is what the
+ * executor would have returned.
+ */
+export class EffectCommittedError extends Error {
+  readonly effectCommitted = true as const
+  constructor(
+    readonly outcome: ExecutionOutcome,
+    readonly step: string,
+    readonly causeName: string | null,
+  ) {
+    super(`effect_committed: ${step} failed${causeName ? ` (${causeName})` : ''}`)
+    this.name = 'EffectCommittedError'
+  }
+}
+
+export function isEffectCommittedError(err: unknown): err is EffectCommittedError {
+  return (
+    err instanceof EffectCommittedError ||
+    (!!err && typeof err === 'object' && (err as { name?: unknown }).name === 'EffectCommittedError' &&
+      (err as { effectCommitted?: unknown }).effectCommitted === true)
   )
 }
