@@ -85,6 +85,18 @@ export type ActionStore = {
   /** Addressed by the DURABLE identity, never by actionId — see the runtime. */
   update(agencyId: number, idempotencyKey: string, patch: Partial<ActionRecord>): Promise<void>
   /**
+   * `update`, only if the row is still exactly as the caller read it (same
+   * execution state, same `updatedAtMs`). False when it changed meanwhile.
+   * Reconciliation settles through this, so it can never overwrite a row that
+   * a concurrent resume or a late executor has already moved on.
+   */
+  updateIf(
+    agencyId: number,
+    idempotencyKey: string,
+    expected: { executionState: ActionExecutionState; updatedAtMs: number },
+    patch: Partial<ActionRecord>,
+  ): Promise<boolean>
+  /**
    * Audit an attempt that never reached the claim stage — malformed, unknown
    * type, wrong tenant. Written best-effort and never allowed to fail the
    * refusal it is recording.
@@ -136,6 +148,13 @@ export function createInMemoryActionStore(): ActionStore & { all(): ActionRecord
       const existing = rows.get(k)
       if (!existing) return
       rows.set(k, { ...existing, ...patch, updatedAtMs: patch.updatedAtMs ?? existing.updatedAtMs })
+    },
+    async updateIf(agencyId, idempotencyKey, expected, patch) {
+      const k = key(agencyId, idempotencyKey)
+      const existing = rows.get(k)
+      if (!existing || existing.executionState !== expected.executionState || existing.updatedAtMs !== expected.updatedAtMs) return false
+      rows.set(k, { ...existing, ...patch, updatedAtMs: patch.updatedAtMs ?? existing.updatedAtMs })
+      return true
     },
     async audit(record) {
       const k = key(record.agencyId, record.idempotencyKey)
