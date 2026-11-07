@@ -51,6 +51,8 @@ vi.mock('@/db/autoResponseJobs', () => ({
   renewAutoResponseJobLease: vi.fn(async () => true),
   ownsAutoResponseJob: vi.fn(async () => true),
 }))
+// The pre-send fence now records `sendStartedAt` (PR3): this worker still owns its jobs.
+vi.mock('@/db/autoResponseSendMarker', () => ({ markSendStarted: vi.fn(async () => true), clearSendStarted: vi.fn(async () => true) }))
 vi.mock('@/db/autoResponseSettings', () => ({ getMasterEnabled, getChannelSettings }))
 vi.mock('@/config/db', () => {
   const chainFor = (table: string) => {

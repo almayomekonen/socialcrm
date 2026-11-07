@@ -312,7 +312,7 @@ export async function processQuestionnaireJob(
   if (!advanced) {
     // Another worker moved the session while we were sending. The message is
     // out; the state belongs to whoever won. Nothing further to do here.
-    await failAutoResponseJob(job.id, 'questionnaire_version_conflict')
+    await failAutoResponseJob(job.id, 'questionnaire_version_conflict', job.ownerWorkerId)
     return 'failed'
   }
 

@@ -1,6 +1,9 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { QUESTIONNAIRE_ROUTED_SQL } from './questionnaireJobs'
+import { parkedRow, type ParkedAutoResponseJob } from './autoResponseSendMarker'
+
+export type { ParkedAutoResponseJob } from './autoResponseSendMarker'
 
 export type AutoResponseReason =
   | 'first_contact'
@@ -23,6 +26,8 @@ export interface AutoResponseJob {
   attempts: number
   maxAttempts: number
   createdAt: string
+  /** The worker running this claim. Set by the worker; failure writes are owner-checked against it. */
+  ownerWorkerId?: string
 }
 
 function parseLeadId(value: unknown): number | null {
@@ -143,21 +148,35 @@ export async function claimAutoResponseJobs(workerId: string, limit: number): Pr
  * claim already counted one attempt, so a job that has used all of them is
  * dead-lettered here instead of going back to `pending` — without this, a turn
  * that always outlives its lease was re-claimed (and re-generated) forever.
+ *
+ * A job whose send had STARTED (`sendStartedAt`) is never returned to the queue:
+ * its worker may have died after Meta accepted the message. It is parked as
+ * `skipped` / `send_outcome_unknown` and passed to `onParked` so the caller can
+ * hand the conversation to a person. Returns how many rows it touched.
  */
-export async function reclaimStaleAutoResponseJobs(leaseMs: number): Promise<number> {
+export async function reclaimStaleAutoResponseJobs(
+  leaseMs: number,
+  onParked?: (jobs: ParkedAutoResponseJob[]) => Promise<void>,
+): Promise<number> {
   const cutoff = new Date(Date.now() - leaseMs)
   const res = await db.raw(
     `
     UPDATE auto_response_jobs
-       SET status = CASE WHEN attempts >= "maxAttempts" THEN 'dead' ELSE 'pending' END,
-           "lastError" = CASE WHEN attempts >= "maxAttempts" THEN 'lease-expired-max-attempts' ELSE 'lease-expired-reclaimed' END,
+       SET status = CASE WHEN "sendStartedAt" IS NOT NULL THEN 'skipped'
+                         ELSE CASE WHEN attempts >= "maxAttempts" THEN 'dead' ELSE 'pending' END END,
+           "skipReason" = CASE WHEN "sendStartedAt" IS NOT NULL THEN ? ELSE "skipReason" END,
+           "lastError" = CASE WHEN "sendStartedAt" IS NOT NULL THEN 'lease-expired-after-send-started'
+                              ELSE CASE WHEN attempts >= "maxAttempts" THEN 'lease-expired-max-attempts' ELSE 'lease-expired-reclaimed' END END,
            "lockedAt" = NULL, "lockedBy" = NULL, "updatedAt" = now()
      WHERE status = 'processing' AND "lockedAt" < ?
-     RETURNING id
+     RETURNING id, "agencyId", "conversationId", "leadId", status, "skipReason"
   `,
-    [cutoff],
+    [SEND_OUTCOME_UNKNOWN, cutoff],
   )
-  return res.rows?.length ?? 0
+  const rows = (res.rows ?? []) as Record<string, unknown>[]
+  const parked = rows.filter((r) => r.status === 'skipped' && r.skipReason === SEND_OUTCOME_UNKNOWN).map(parkedRow)
+  if (parked.length && onParked) await onParked(parked)
+  return rows.length
 }
 
 /**
@@ -235,10 +254,12 @@ export async function skipAutoResponseJob(id: number, skipReason: string): Promi
 
 /**
  * Immediate dead-letter using the existing `dead` status — independent of the
- * attempt counter. Account-level Meta blocks are not transient.
+ * attempt counter. Account-level Meta blocks are not transient. With
+ * `ownerWorkerId`, only while that worker still owns the running claim (a stale
+ * worker touches nothing), exactly like failAutoResponseJob.
  */
-export async function deadLetterAutoResponseJob(id: number, error: string): Promise<void> {
-  await db('auto_response_jobs').where({ id }).update({
+export async function deadLetterAutoResponseJob(id: number, error: string, ownerWorkerId?: string): Promise<void> {
+  await db('auto_response_jobs').where(ownerWorkerId ? { id, status: 'processing', lockedBy: ownerWorkerId } : { id }).update({
     status: 'dead',
     lastError: error,
     lockedAt: null,
@@ -274,19 +295,29 @@ export async function parkAmbiguousAutoResponseJob(id: number, detail: string): 
  * worker that lost its lease can never reset another worker's run. Without it,
  * still only a job that is running: a job already ended (sent, skipped, parked
  * after an unknown send outcome) is never put back in the queue by a late call.
+ *
+ * A job whose send had STARTED (`sendStartedAt` still set — nothing proved Meta
+ * refused it) is parked as `skipped` / `send_outcome_unknown` in the same
+ * statement, never retried: e.g. the send succeeded and persisting it threw.
+ * Returns that job when it was parked, so the caller can escalate it.
  */
-export async function failAutoResponseJob(id: number, error: string, ownerWorkerId?: string): Promise<void> {
-  await db.raw(
+export async function failAutoResponseJob(id: number, error: string, ownerWorkerId?: string): Promise<ParkedAutoResponseJob | null> {
+  const res = await db.raw(
     `
     UPDATE auto_response_jobs
-       SET status = CASE WHEN attempts >= "maxAttempts" THEN 'dead' ELSE 'pending' END,
+       SET status = CASE WHEN "sendStartedAt" IS NOT NULL THEN 'skipped'
+                         ELSE CASE WHEN attempts >= "maxAttempts" THEN 'dead' ELSE 'pending' END END,
+           "skipReason" = CASE WHEN "sendStartedAt" IS NOT NULL THEN ? ELSE "skipReason" END,
            "lastError" = ?, "lockedAt" = NULL, "lockedBy" = NULL,
            "notBefore" = now() + (LEAST(attempts, 5) * interval '30 seconds'),
            "updatedAt" = now()
      WHERE id = ? AND status = 'processing' ${ownerWorkerId ? `AND "lockedBy" = ?` : ''}
+     RETURNING id, "agencyId", "conversationId", "leadId", status, "skipReason"
   `,
-    ownerWorkerId ? [error, id, ownerWorkerId] : [error, id],
+    ownerWorkerId ? [SEND_OUTCOME_UNKNOWN, error, id, ownerWorkerId] : [SEND_OUTCOME_UNKNOWN, error, id],
   )
+  const row = (res.rows ?? [])[0] as Record<string, unknown> | undefined
+  return row && row.status === 'skipped' && row.skipReason === SEND_OUTCOME_UNKNOWN ? parkedRow(row) : null
 }
 
 export async function countSentToday(agencyId: number): Promise<number> {

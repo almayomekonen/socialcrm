@@ -11,10 +11,12 @@
  * one of them.
  */
 import { db } from '@/config/db'
-import { failAutoResponseJob, reclaimStaleAutoResponseJobs } from '@/db/autoResponseJobs'
+import { failAutoResponseJob } from '@/db/autoResponseJobs'
+import { reclaimStaleAutoResponseJobsAndHandOff } from '../ambiguousSend'
 import { claimQuestionnaireJobs } from '@/db/questionnaireJobs'
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
 import { enqueueFollowUpTurnIfOwed } from '../followUpTurn'
+import { newWorkerId } from '../jobLease'
 import { waTrace } from '../waTrace'
 import { processQuestionnaireJob } from './processJob'
 import type { QuestionnaireDeps, QuestionnaireOutcome } from './types'
@@ -34,10 +36,11 @@ export async function runQuestionnaireWorker(
 ): Promise<QuestionnaireWorkerResult> {
   const limit = opts.limit ?? 5
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS
-  const workerId = opts.workerId ?? `qw-${process.pid}-${Date.now()}`
+  const workerId = opts.workerId ?? newWorkerId('qw')
   const deps: QuestionnaireDeps = { send: opts.deps?.send ?? sendWhatsappText, sendInteractive: opts.deps?.sendInteractive }
 
-  await reclaimStaleAutoResponseJobs(leaseMs)
+  // Shared table: an AI job parked by this reclaim is handed to a person too.
+  await reclaimStaleAutoResponseJobsAndHandOff(leaseMs)
   const jobs = await claimQuestionnaireJobs(workerId, limit)
   if (jobs.length) console.log(`[questionnaire] worker start id=${workerId} claimed=${jobs.length}`)
 
@@ -50,13 +53,13 @@ export async function runQuestionnaireWorker(
     const startedAt = Date.now()
     let outcome: QuestionnaireOutcome | 'error' = 'error'
     try {
-      outcome = await processQuestionnaireJob(job, deps)
+      outcome = await processQuestionnaireJob({ ...job, ownerWorkerId: workerId }, deps)
       if (outcome === 'sent') sent++
       else if (outcome === 'skipped') skipped++
       else if (outcome === 'deferred') deferred++
       else failed++
     } catch (err) {
-      await failAutoResponseJob(job.id, String(err))
+      await failAutoResponseJob(job.id, String(err), workerId)
       failed++
     } finally {
       try {
