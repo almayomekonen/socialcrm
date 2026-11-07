@@ -14,9 +14,17 @@ export type ReminderOp = 'create' | 'cancel' | 'reschedule'
  * `rem_<reminderId>_v<version>_<op>`: the action id AND idempotency key for one
  * operation on one version of one reminder. The same request always maps to the
  * same `agent_actions` row and the same single approval token.
+ *
+ * `requestId` (cancel and reschedule): the owner's request (its job id), so
+ * `rem_<id>_v<version>_<op>_j<jobId>`. A token is issued once per action id for
+ * life, so without it a single rejected or expired cancel card would make that
+ * version of the reminder impossible to cancel again. A re-run of the SAME
+ * request still maps to the same id. Create needs none: each request is its own
+ * draft row.
  */
-export function reminderActionId(op: ReminderOp, reminderId: number, version: number): string {
+export function reminderActionId(op: ReminderOp, reminderId: number, version: number, requestId?: number): string {
   if (!Number.isSafeInteger(reminderId) || reminderId <= 0) throw new Error('reminderActionId: bad reminder id')
   if (!Number.isSafeInteger(version) || version <= 0) throw new Error('reminderActionId: bad version')
-  return `rem_${reminderId}_v${version}_${op}`
+  if (requestId !== undefined && (!Number.isSafeInteger(requestId) || requestId <= 0)) throw new Error('reminderActionId: bad request id')
+  return `rem_${reminderId}_v${version}_${op}${requestId !== undefined ? `_j${requestId}` : ''}`
 }

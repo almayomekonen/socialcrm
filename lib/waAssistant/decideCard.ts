@@ -10,6 +10,9 @@ import { decideLeadUpdateCard, type LeadUpdateDecideDeps } from './leadUpdates/d
 import type { AgentScope } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from './meetings/types'
+import { decideReminderCard, opOfAction } from './reminders/decide'
+import { REMINDER_COPY } from './reminders/copy'
+import type { ReminderDeps } from './reminders/reply'
 
 /**
  * A tap on any confirmation card's button, routed by the STORED action's type:
@@ -32,7 +35,8 @@ export async function decideCard(input: {
   tasksOn: boolean
   statusOn?: boolean
   notesOn?: boolean
-  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps }
+  remindersOn?: boolean
+  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps }
 }): Promise<MeetingReply> {
   const { job, scope, nowMs } = input
   const m = DECISION_ID_RE.exec(job.question ?? '')
@@ -81,6 +85,24 @@ export async function decideCard(input: {
       approve: m[1] === 'approve',
       nowMs,
       deps: input.deps?.leadUpdates,
+    })
+  }
+  const reminderOp = record ? opOfAction(record.actionType) : null
+  if (record && reminderOp) {
+    if (!input.remindersOn) return refused('reminders_disabled', COPY.notAvailable)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', REMINDER_COPY.changed)
+    }
+    return decideReminderCard({
+      job,
+      scope,
+      card,
+      op: reminderOp,
+      args: record.args as { reminderId?: number },
+      approve: m[1] === 'approve',
+      nowMs,
+      deps: input.deps?.reminders,
     })
   }
   await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
