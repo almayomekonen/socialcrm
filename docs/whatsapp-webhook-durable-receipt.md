@@ -31,7 +31,8 @@ Fields with their own handling keep it, unchanged:
 | Alert on | Meaning | Severity |
 |---|---|---|
 | `[wa-webhook] direct_mode_active` | The kill switch is on. Logged on every webhook and every cron run while it is set. | Page while unexpected |
-| `[wa-webhook] receipts failed` | Receipts used up their attempts | Investigate, then requeue |
+| `[wa-webhook] receipts failed` | Receipts used up their attempts. A standing count: logged on every cron run while any failed receipt remains, so do not alert on it | Trend only |
+| `[wa-webhook] receipts newly failed` | Receipts that became `failed` in this worker run (attempts spent, or a reclaimed final attempt). Logged once per receipt | Investigate, then requeue |
 | `[wa-webhook] receipts waiting` | The oldest unprocessed receipt is over 5 minutes old | The worker is stalled |
 | `[wa-webhook] receipt write failed; not acknowledged` | Meta is being told to retry | Database health |
 | `[wa-webhook] event failed; will retry` | A single event failed. Normal in small numbers | Trend only |
