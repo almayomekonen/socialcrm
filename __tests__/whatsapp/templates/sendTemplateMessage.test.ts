@@ -107,9 +107,10 @@ describe('sendWhatsappTemplate — failure envelope', () => {
     if (out.ok === false) expect(out.error).toContain('boom')
   })
 
-  it('a 200 with no message id is a failure (no fake success)', async () => {
+  it('a 200 with no message id is a failure (no fake success), and its outcome is unknown', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(res(200, { messages: [] }))
     const out = await sendWhatsappTemplate(base)
-    expect(out).toEqual({ ok: false, error: 'no-message-id', httpStatus: 200 })
+    // Meta answered 2xx, so it may well have accepted the message: never resend it automatically.
+    expect(out).toEqual({ ok: false, error: 'no-message-id', httpStatus: 200, ambiguous: true })
   })
 })

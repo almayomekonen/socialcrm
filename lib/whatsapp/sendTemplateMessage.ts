@@ -3,6 +3,14 @@ import { waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
 import { toIsraeliWhatsappRecipient } from '@/lib/whatsapp/israeliPhone'
 import type { SendWhatsappTextResult } from '@/lib/whatsapp/sendMessage'
 import { runGatedWhatsappSend, type WhatsappSendConsent } from '@/lib/whatsapp/optOut/sendGate'
+import {
+  AUTOMATED_SEND_TIMEOUT_MS,
+  hasGraphErrorBody,
+  missingMessageIdOutcome,
+  timeoutSignal,
+  transportFailureOutcome,
+  unknownHttpOutcome,
+} from '@/lib/whatsapp/sendOutcome'
 
 /**
  * Send an APPROVED template message to a single recipient.
@@ -46,6 +54,11 @@ export type SendWhatsappTemplateArgs = {
    */
   consent: WhatsappSendConsent
   trace?: WaTraceCtx
+  /**
+   * Abandon the Graph call after this long (default AUTOMATED_SEND_TIMEOUT_MS).
+   * A timed-out send is reported `ambiguous`: Meta may have accepted it.
+   */
+  timeoutMs?: number
 }
 
 export type TemplateHeaderImage = { link: string } | { id: string }
@@ -83,6 +96,7 @@ async function postTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsap
   try {
     const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/messages`, {
       method: 'POST',
+      signal: timeoutSignal(args.timeoutMs ?? AUTOMATED_SEND_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -125,6 +139,8 @@ async function postTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsap
         fbtrace_id: err?.fbtrace_id,
         message: err?.message,
       })
+      // No Graph error body: a gateway/edge answer, not Meta's. Outcome unknown.
+      if (!hasGraphErrorBody(data)) return unknownHttpOutcome(res.status)
       return {
         ok: false,
         error: err?.message || `HTTP ${res.status}`,
@@ -139,7 +155,7 @@ async function postTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsap
     const wamid = data.messages?.[0]?.id
     if (!wamid) {
       console.error('[WhatsappTemplateSend] Missing message id in response', data)
-      return { ok: false, error: 'no-message-id', httpStatus: res.status }
+      return missingMessageIdOutcome(res.status)
     }
 
     waTrace('WHATSAPP_SEND_RESPONSE', args.trace ?? {}, {
@@ -152,6 +168,8 @@ async function postTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsap
     return { ok: true, wamid }
   } catch (err) {
     console.error('[WhatsappTemplateSend] fetch failed', err)
-    return { ok: false, error: (err as Error)?.message || 'network-error' }
+    // The request left this process (timeout, reset, dropped connection): Meta
+    // may have accepted it. Never report this as a plain, retryable failure.
+    return transportFailureOutcome(err)
   }
 }

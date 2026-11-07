@@ -1,4 +1,6 @@
 import { ownsAutoResponseJob, renewAutoResponseJobLease } from '@/db/autoResponseJobs'
+import type { SendWhatsappArgs } from '@/lib/whatsapp/sendMessage'
+import { AUTOMATED_SEND_TIMEOUT_MS } from '@/lib/whatsapp/sendOutcome'
 
 /**
  * Exclusive execution for one claimed auto-response job.
@@ -14,7 +16,16 @@ import { ownsAutoResponseJob, renewAutoResponseJobLease } from '@/db/autoRespons
  *   fencedSend    re-checks ownership immediately before the external side
  *                 effect; a worker that lost the job throws LeaseLostError
  *                 and sends nothing.
+ *   boundedSend   gives every Graph send a deadline well inside the lease and
+ *                 the 60 s function limit, so a hung request ends as a
+ *                 reported `ambiguous` outcome (parked, never resent) instead
+ *                 of a killed worker whose job a reclaim later runs again.
  */
+
+/** Bound one send. A caller's own `timeoutMs` (the questionnaire's) is kept. */
+export function boundedSend<A extends Pick<SendWhatsappArgs, 'timeoutMs'>, R>(send: (args: A) => Promise<R>): (args: A) => Promise<R> {
+  return (args: A) => send({ ...args, timeoutMs: args.timeoutMs ?? AUTOMATED_SEND_TIMEOUT_MS })
+}
 
 export class LeaseLostError extends Error {
   constructor(jobId: number) {

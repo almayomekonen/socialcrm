@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TerminalWhatsappAccountError } from '@/lib/inbox/onWhatsappSendFailure'
+import { ExecutionOutcomeUnknownError } from '@/lib/automations/executors/types'
 
 /**
  * The `whatsapp.send` EXECUTOR.
@@ -216,6 +217,27 @@ describe('a live send reuses the existing infrastructure exactly', () => {
     await expect(whatsappExecutor.execute(c, pre.ready!, deps())).rejects.toThrow(/network-error/)
     expect(recordAccountRestriction).not.toHaveBeenCalled()
     send.mockImplementation(async () => ({ ok: true, wamid: 'wamid.ABC' }))
+  })
+
+  it('an AMBIGUOUS transport failure throws ExecutionOutcomeUnknownError, never a retryable error', async () => {
+    send.mockImplementation(async () => ({ ok: false, error: 'send-timeout', ambiguous: true }) as never)
+    const c = ctx()
+    const pre = await whatsappExecutor.preflight(c, deps())
+    await expect(whatsappExecutor.execute(c, pre.ready!, deps())).rejects.toBeInstanceOf(ExecutionOutcomeUnknownError)
+    // Unknown is not a refusal: no restriction recorded, no fake message persisted.
+    expect(recordAccountRestriction).not.toHaveBeenCalled()
+    expect(persist).not.toHaveBeenCalled()
+    send.mockImplementation(async () => ({ ok: true, wamid: 'wamid.ABC' }))
+  })
+
+  it('the real transport adapter keeps `ambiguous` (dropping it would turn it retryable)', async () => {
+    vi.doMock('@/lib/whatsapp/sendTemplateMessage', () => ({
+      sendWhatsappTemplate: vi.fn(async () => ({ ok: false, error: 'fetch failed', ambiguous: true })),
+    }))
+    const real = whatsappExecutor.defaultDeps()
+    const res = await real.send({ phoneNumberId: 'p', accessToken: 't', to: '972501234567', name: 'n', language: 'he', params: [], consent: { kind: 'automated', agencyId: 7 } })
+    expect(res).toMatchObject({ ok: false, error: 'fetch failed', ambiguous: true })
+    vi.doUnmock('@/lib/whatsapp/sendTemplateMessage')
   })
 
   it('131031 records a restriction and throws a TERMINAL error — not a retryable transport error', async () => {
