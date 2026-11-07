@@ -41,6 +41,9 @@ export const today: Messages['today'] = {
     remainingShort: '{count} remaining',
     meetings: { one: '1 meeting', other: '{count} meetings' },
     progress: "Today's progress",
+    overview: 'Your activity overview',
+    waitingTitle: 'Leads waiting for you',
+    needsAttention: 'Needs attention',
   },
   mission: {
     title: 'Next task',
@@ -49,6 +52,15 @@ export const today: Messages['today'] = {
     callName: 'Call {name}',
     openLead: 'Open lead',
     leadFallback: 'lead',
+    recommended: 'Recommended action',
+    suggest: {
+      WAITING_REPLY: 'This lead is waiting for your reply — get back to them now.',
+      FOLLOWUP_OVERDUE: 'The follow-up date has passed — get back to this lead today.',
+      FOLLOWUP_DUE_TODAY: 'You scheduled a follow-up for today — now is the time to reach out.',
+      NEW_INBOUND: 'A new lead came in — make the first contact.',
+      OVERDUE_TASK: 'An open task is overdue — take care of it.',
+      OPEN_LOOP_SLA: 'No activity with this lead for a while — get back to them.',
+    },
   },
   list: {
     title: 'Needs attention now',

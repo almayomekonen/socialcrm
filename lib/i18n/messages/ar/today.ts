@@ -66,6 +66,9 @@ export const today: Messages['today'] = {
     remainingShort: 'تبقّى {count}',
     meetings: MEETINGS,
     progress: 'تقدّم اليوم',
+    overview: 'نظرة عامة على نشاطك',
+    waitingTitle: 'عملاء محتملون بانتظار المعالجة',
+    needsAttention: 'يتطلب الانتباه',
   },
   mission: {
     title: 'المهمة التالية',
@@ -74,6 +77,15 @@ export const today: Messages['today'] = {
     callName: 'الاتصال بـ{name}',
     openLead: 'فتح العميل المحتمل',
     leadFallback: 'العميل المحتمل',
+    recommended: 'إجراء موصى به',
+    suggest: {
+      WAITING_REPLY: 'هذا العميل المحتمل ينتظر ردك — من الأفضل الرد عليه الآن.',
+      FOLLOWUP_OVERDUE: 'مضى موعد المتابعة — من الأفضل العودة إلى العميل المحتمل اليوم.',
+      FOLLOWUP_DUE_TODAY: 'حددت متابعة لليوم — هذا هو الوقت المناسب للتواصل.',
+      NEW_INBOUND: 'وصل عميل محتمل جديد — من الأفضل إجراء أول تواصل.',
+      OVERDUE_TASK: 'هناك مهمة مفتوحة تجاوزت موعدها — من الأفضل معالجتها.',
+      OPEN_LOOP_SLA: 'لا يوجد نشاط مع هذا العميل المحتمل منذ فترة — من الأفضل العودة إليه.',
+    },
   },
   list: {
     title: 'بحاجة إلى معالجة الآن',

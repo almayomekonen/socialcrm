@@ -49,6 +49,9 @@ export const today = {
     remainingShort: '{count} נותרו',
     meetings: { one: 'פגישה אחת', other: '{count} פגישות' },
     progress: 'התקדמות היום',
+    overview: 'סקירת הפעילות שלך',
+    waitingTitle: 'לידים שממתינים לטיפול',
+    needsAttention: 'דורש תשומת לב',
   },
   mission: {
     title: 'המשימה הבאה',
@@ -57,6 +60,15 @@ export const today = {
     callName: 'התקשר ל{name}',
     openLead: 'פתח ליד',
     leadFallback: 'ליד',
+    recommended: 'פעולה מומלצת',
+    suggest: {
+      WAITING_REPLY: 'הליד מחכה לתשובה שלך — כדאי לחזור אליו עכשיו.',
+      FOLLOWUP_OVERDUE: 'מועד המעקב כבר עבר — כדאי לחזור לליד עוד היום.',
+      FOLLOWUP_DUE_TODAY: 'קבעת מעקב להיום — זה הזמן ליצור קשר.',
+      NEW_INBOUND: 'ליד חדש נכנס — כדאי ליצור איתו קשר ראשון.',
+      OVERDUE_TASK: 'יש משימה פתוחה שזמנה עבר — כדאי לטפל בה.',
+      OPEN_LOOP_SLA: 'לא הייתה פעילות עם הליד כבר זמן מה — כדאי לחזור אליו.',
+    },
   },
   list: {
     title: 'צריך לטפל עכשיו',
