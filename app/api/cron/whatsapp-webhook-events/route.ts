@@ -15,7 +15,10 @@ export const maxDuration = 60
  * Auth: the shared automation secret (AUTOMATION_API_KEY / CRON_SECRET), as the other
  * crons. The response carries COUNTS ONLY. The lines to alert on:
  *   [wa-webhook] direct_mode_active      the kill switch is on
- *   [wa-webhook] receipts failed         receipts that spent their attempts
+ *   [wa-webhook] receipts failed         receipts that spent their attempts (standing count,
+ *                                        logged every run while any remain)
+ *   [wa-webhook] receipts newly failed   receipts that became `failed` in this run, once
+ *                                        each (emitted by the worker; alert on this one)
  *   [wa-webhook] receipts waiting        the oldest unprocessed receipt is over 5 minutes old
  */
 async function handle(req: NextRequest): Promise<NextResponse> {

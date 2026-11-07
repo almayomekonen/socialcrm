@@ -132,9 +132,12 @@ export async function settleWhatsappEvent(id: number, status: 'processed' | 'ign
  * A failed attempt: back to `received` behind an exponential backoff (2s, 4s, 8s…
  * capped at 15 minutes) until the budget is spent, then terminal `failed`: kept,
  * visible, and requeueable. `error` must be a classification only.
+ *
+ * Returns true only when THIS call moved the receipt to terminal `failed`, so the
+ * caller reports each new terminal failure exactly once.
  */
-export async function failWhatsappEvent(id: number, error: string): Promise<void> {
-  await db.raw(
+export async function failWhatsappEvent(id: number, error: string): Promise<boolean> {
+  const res = await db.raw(
     `
     UPDATE ${TABLE}
        SET status = CASE WHEN attempts >= "maxAttempts" THEN 'failed' ELSE 'received' END,
@@ -142,13 +145,18 @@ export async function failWhatsappEvent(id: number, error: string): Promise<void
            "nextAttemptAt" = now() + make_interval(secs => LEAST(POWER(2, LEAST(attempts, 10))::int, 900)),
            "updatedAt" = now()
      WHERE id = ? AND status = 'processing'
+     RETURNING status
   `,
     [error.slice(0, 200), id],
   )
+  return ((res.rows ?? []) as { status: string }[]).some((r) => r.status === 'failed')
 }
 
-/** Recover receipts whose worker died holding the lease. Attempts are not given back. */
-export async function reclaimStaleWhatsappEvents(leaseMs: number, now: number = Date.now()): Promise<number> {
+/**
+ * Recover receipts whose worker died holding the lease. Attempts are not given back.
+ * `failed` counts the receipts THIS call moved to terminal `failed`.
+ */
+export async function reclaimStaleWhatsappEvents(leaseMs: number, now: number = Date.now()): Promise<{ reclaimed: number; failed: number }> {
   const res = await db.raw(
     `
     UPDATE ${TABLE}
@@ -156,11 +164,12 @@ export async function reclaimStaleWhatsappEvents(leaseMs: number, now: number = 
            "lockedAt" = NULL, "lockedBy" = NULL, "lastError" = 'lease-expired-reclaimed',
            "nextAttemptAt" = now(), "updatedAt" = now()
      WHERE status = 'processing' AND "lockedAt" < ?
-     RETURNING id
+     RETURNING id, status
   `,
     [new Date(now - leaseMs)],
   )
-  return res.rows?.length ?? 0
+  const rows = (res.rows ?? []) as { status: string }[]
+  return { reclaimed: rows.length, failed: rows.filter((r) => r.status === 'failed').length }
 }
 
 /** Operator recovery: put terminal `failed` receipts back with a fresh budget. Scoped, never implicit "all". */

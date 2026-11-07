@@ -23,7 +23,26 @@ import { processWhatsappEvent, RetryableEventError } from './processEvent'
 export const LEASE_MS = 120_000
 const RETENTION_DAYS = 14
 
-export type WorkerSummary = { claimed: number; processed: number; ignored: number; retried: number; reclaimed: number; pruned: number; kicked: boolean }
+/** `newlyFailed`: receipts this run moved to terminal `failed` (attempts spent, or a reclaimed final attempt). */
+export type WorkerSummary = {
+  claimed: number
+  processed: number
+  ignored: number
+  retried: number
+  reclaimed: number
+  newlyFailed: number
+  pruned: number
+  kicked: boolean
+}
+
+/**
+ * The line the "newly failed" Axiom monitor matches. Emitted once per run that moved a
+ * receipt to `failed`, never again for the same receipt: `[wa-webhook] receipts failed`
+ * (the cron's standing count) keeps logging while any failed receipt remains. Counts only.
+ */
+export function logReceiptsNewlyFailed(workerId: string, counts: { newlyFailed: number; fromAttempts: number; fromLease: number }): void {
+  console.error('[wa-webhook] receipts newly failed', JSON.stringify({ workerId, ...counts }))
+}
 
 export async function runWhatsappWebhookWorker(opts: {
   workerId: string
@@ -35,8 +54,10 @@ export async function runWhatsappWebhookWorker(opts: {
   const started = Date.now()
   const limit = opts.limit ?? 25
   const budgetMs = opts.budgetMs ?? 40_000
-  const summary: WorkerSummary = { claimed: 0, processed: 0, ignored: 0, retried: 0, reclaimed: 0, pruned: 0, kicked: false }
-  summary.reclaimed = await reclaimStaleWhatsappEvents(LEASE_MS)
+  const summary: WorkerSummary = { claimed: 0, processed: 0, ignored: 0, retried: 0, reclaimed: 0, newlyFailed: 0, pruned: 0, kicked: false }
+  const reclaim = await reclaimStaleWhatsappEvents(LEASE_MS)
+  summary.reclaimed = reclaim.reclaimed
+  let failedFromAttempts = 0
 
   let kick = false
   let delaySeconds = Number.POSITIVE_INFINITY
@@ -57,7 +78,7 @@ export async function runWhatsappWebhookWorker(opts: {
         }
       } catch (err) {
         const code = err instanceof RetryableEventError ? err.code : `error:${(err as Error)?.name ?? 'unknown'}`
-        await failWhatsappEvent(row.id, code)
+        if (await failWhatsappEvent(row.id, code)) failedFromAttempts++
         summary.retried++
         console.error('[wa-webhook] event failed; will retry', JSON.stringify({ id: row.id, kind: row.kind, code, attempts: row.attempts }))
       }
@@ -71,6 +92,10 @@ export async function runWhatsappWebhookWorker(opts: {
     } catch (err) {
       console.error('[wa-webhook] auto-response kick failed', JSON.stringify({ name: (err as Error)?.name ?? null }))
     }
+  }
+  summary.newlyFailed = failedFromAttempts + reclaim.failed
+  if (summary.newlyFailed > 0) {
+    logReceiptsNewlyFailed(opts.workerId, { newlyFailed: summary.newlyFailed, fromAttempts: failedFromAttempts, fromLease: reclaim.failed })
   }
   if (!opts.ids) summary.pruned = await pruneSettledWhatsappEvents(RETENTION_DAYS)
   console.log('[wa-webhook] worker', JSON.stringify({ workerId: opts.workerId, ...summary }))
