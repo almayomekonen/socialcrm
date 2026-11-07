@@ -182,3 +182,26 @@ export function isExecutionSkippedError(err: unknown): err is ExecutionSkippedEr
       (err as { executionSkipped?: unknown }).executionSkipped === true)
   )
 }
+
+/**
+ * Thrown by `execute` when the effect's outcome is UNKNOWN: the request reached
+ * the provider and no answer came back (timeout, dropped connection, no message
+ * id). The effect may have happened. The worker treats it exactly like an
+ * unconfirmed claim after a crash (ADR-011): dead, user-visible, and the claim is
+ * KEPT, so neither a retry nor a later trigger can send it a second time.
+ */
+export class ExecutionOutcomeUnknownError extends Error {
+  readonly outcomeUnknown = true as const
+  constructor(readonly detail: string) {
+    super(`execution_outcome_unknown: ${detail}`)
+    this.name = 'ExecutionOutcomeUnknownError'
+  }
+}
+
+export function isExecutionOutcomeUnknownError(err: unknown): err is ExecutionOutcomeUnknownError {
+  return (
+    err instanceof ExecutionOutcomeUnknownError ||
+    (!!err && typeof err === 'object' && (err as { name?: unknown }).name === 'ExecutionOutcomeUnknownError' &&
+      (err as { outcomeUnknown?: unknown }).outcomeUnknown === true)
+  )
+}

@@ -247,10 +247,33 @@ export async function deadLetterAutoResponseJob(id: number, error: string): Prom
   })
 }
 
+/** skipReason of a job whose send may have reached the customer. Never retried. */
+export const SEND_OUTCOME_UNKNOWN = 'send_outcome_unknown'
+
+/**
+ * The send's outcome is unknown (timeout, dropped connection, no message id):
+ * the customer may already have the message. Terminal on the existing `skipped`
+ * status, so neither the cron nor a reclaim runs it again. Only while still
+ * claimed, so a job another path already ended is left as it is.
+ */
+export async function parkAmbiguousAutoResponseJob(id: number, detail: string): Promise<boolean> {
+  const n = await db('auto_response_jobs').where({ id, status: 'processing' }).update({
+    status: 'skipped',
+    skipReason: SEND_OUTCOME_UNKNOWN,
+    lastError: detail.slice(0, 500),
+    lockedAt: null,
+    lockedBy: null,
+    updatedAt: db.fn.now(),
+  })
+  return Number(n) > 0
+}
+
 /**
  * Retry with backoff; dead-letter once attempts reach maxAttempts.
  * With `ownerWorkerId`, only while that worker still owns the claim, so a
- * worker that lost its lease can never reset another worker's run.
+ * worker that lost its lease can never reset another worker's run. Without it,
+ * still only a job that is running: a job already ended (sent, skipped, parked
+ * after an unknown send outcome) is never put back in the queue by a late call.
  */
 export async function failAutoResponseJob(id: number, error: string, ownerWorkerId?: string): Promise<void> {
   await db.raw(
@@ -260,7 +283,7 @@ export async function failAutoResponseJob(id: number, error: string, ownerWorker
            "lastError" = ?, "lockedAt" = NULL, "lockedBy" = NULL,
            "notBefore" = now() + (LEAST(attempts, 5) * interval '30 seconds'),
            "updatedAt" = now()
-     WHERE id = ? ${ownerWorkerId ? `AND status = 'processing' AND "lockedBy" = ?` : ''}
+     WHERE id = ? AND status = 'processing' ${ownerWorkerId ? `AND "lockedBy" = ?` : ''}
   `,
     ownerWorkerId ? [error, id, ownerWorkerId] : [error, id],
   )
@@ -276,11 +299,16 @@ export async function countSentToday(agencyId: number): Promise<number> {
   return Number(res.rows?.[0]?.c ?? 0)
 }
 
+/**
+ * The one first-contact reply was sent — or may have been (its outcome is
+ * unknown). Either way the acknowledge path must not send another one.
+ */
 export async function hasSentFirstContact(conversationId: number): Promise<boolean> {
   const res = await db.raw(
     `SELECT 1 FROM auto_response_jobs
-      WHERE "conversationId" = ? AND reason = 'first_contact' AND status = 'sent' LIMIT 1`,
-    [conversationId],
+      WHERE "conversationId" = ? AND reason = 'first_contact'
+        AND (status = 'sent' OR (status = 'skipped' AND "skipReason" = ?)) LIMIT 1`,
+    [conversationId, SEND_OUTCOME_UNKNOWN],
   )
   return (res.rows?.length ?? 0) > 0
 }

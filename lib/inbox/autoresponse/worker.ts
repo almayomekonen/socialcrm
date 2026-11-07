@@ -16,7 +16,7 @@ import {
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import { isPositiveLeadId } from './contactJob'
-import { LeaseLostError, fencedSend, keepJobLease, leaseGuard } from './jobLease'
+import { LeaseLostError, boundedSend, fencedSend, keepJobLease, leaseGuard } from './jobLease'
 import { withAiOperation } from '@/lib/ai/usage/context'
 import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
@@ -348,7 +348,7 @@ export async function runAutoResponseWorker(
     const lease = leases.get(job.id)!
     let leaseLost = false
     const jobDeps: WorkerDeps = {
-      send: fencedSend(deps.send, job.id, workerId),
+      send: fencedSend(boundedSend(deps.send), job.id, workerId),
       generate: leaseGuard(deps.generate, job.id, lease.lost),
       generateQualify: leaseGuard(deps.generateQualify, job.id, lease.lost),
     }

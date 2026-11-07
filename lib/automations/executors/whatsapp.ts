@@ -12,7 +12,7 @@ import type {
   TestResult,
   TestTarget,
 } from './types'
-import { ExecutionSkippedError } from './types'
+import { ExecutionOutcomeUnknownError, ExecutionSkippedError } from './types'
 
 /**
  * `whatsapp.send` — Action #3, and NOT a second WhatsApp system.
@@ -73,7 +73,10 @@ export type WhatsappDeps = {
     language: string
     params: string[]
     consent: WhatsappSendConsent
-  }) => Promise<{ ok: true; wamid: string } | { ok: false; error: string; code?: string; optOutBlocked?: true; optOutBlockReason?: OptOutBlockReason }>
+  }) => Promise<
+    | { ok: true; wamid: string }
+    | { ok: false; error: string; code?: string; ambiguous?: true; optOutBlocked?: true; optOutBlockReason?: OptOutBlockReason }
+  >
   persist: (args: {
     agencyId: number
     leadId: number
@@ -119,6 +122,9 @@ export const whatsappExecutor: ActionExecutor<WhatsappReady, WhatsappDeps> = {
             ok: false as const,
             error: res.error,
             code: res.code,
+            // Must survive this adapter: dropping it turns an unknown outcome
+            // into an ordinary failure, which the worker retries.
+            ...(res.ambiguous ? { ambiguous: true as const } : {}),
             ...(res.optOutBlocked ? { optOutBlocked: true as const, optOutBlockReason: res.optOutBlockReason } : {}),
           }
         : { ok: true as const, wamid: res.wamid }
@@ -199,6 +205,8 @@ export const whatsappExecutor: ActionExecutor<WhatsappReady, WhatsappDeps> = {
     // Opted out of this business: nothing reached Meta, and no failure is
     // recorded on the conversation. The worker ends the job as a skip.
     if ('error' in sent && sent.optOutBlocked) throw new ExecutionSkippedError('opted_out')
+    // Outcome unknown: the template may be on the customer's phone. Never retried.
+    if ('error' in sent && sent.ambiguous) throw new ExecutionOutcomeUnknownError(`whatsapp: ${sent.error}`)
     if ('error' in sent) {
       const classified = await onWhatsappSendFailure(sent, {
         agencyId: ctx.agencyId,

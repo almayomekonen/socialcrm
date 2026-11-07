@@ -2,6 +2,7 @@ import { GRAPH_BASE, GRAPH_VERSION } from '@/lib/facebook/graph'
 import { waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
 import { toIsraeliWhatsappRecipient } from '@/lib/whatsapp/israeliPhone'
 import { runGatedWhatsappSend, type OptOutBlockReason, type WhatsappSendConsent } from '@/lib/whatsapp/optOut/sendGate'
+import { hasGraphErrorBody, missingMessageIdOutcome, timeoutSignal, transportFailureOutcome, unknownHttpOutcome } from '@/lib/whatsapp/sendOutcome'
 
 export type SendWhatsappTextSuccess = { ok: true; wamid: string }
 
@@ -123,9 +124,7 @@ async function postToGraph(args: SendWhatsappArgs, content: Record<string, unkno
     recipient,
     messageLength: (body ?? '').length,
   })
-  const timeoutMs = Number(args.timeoutMs)
-  const signal =
-    Number.isFinite(timeoutMs) && timeoutMs > 0 ? AbortSignal.timeout(Math.floor(timeoutMs)) : undefined
+  const signal = timeoutSignal(args.timeoutMs)
   try {
     const res = await fetch(`${GRAPH_BASE}/${phoneNumberId}/messages`, {
       method: 'POST',
@@ -169,6 +168,8 @@ async function postToGraph(args: SendWhatsappArgs, content: Record<string, unkno
         fbtrace_id: err?.fbtrace_id,
         message: err?.message,
       })
+      // No Graph error body: a gateway/edge answer, not Meta's. Outcome unknown.
+      if (!hasGraphErrorBody(data)) return unknownHttpOutcome(res.status)
       return {
         ok: false,
         error: err?.message || `HTTP ${res.status}`,
@@ -183,7 +184,7 @@ async function postToGraph(args: SendWhatsappArgs, content: Record<string, unkno
     const wamid = data.messages?.[0]?.id
     if (!wamid) {
       console.error('[WhatsappSend] Missing message id in response', data)
-      return { ok: false, error: 'no-message-id', httpStatus: res.status }
+      return missingMessageIdOutcome(res.status)
     }
 
     waTrace('WHATSAPP_SEND_RESPONSE', args.trace ?? {}, {
@@ -196,14 +197,8 @@ async function postToGraph(args: SendWhatsappArgs, content: Record<string, unkno
     return { ok: true, wamid }
   } catch (err) {
     console.error('[WhatsappSend] fetch failed', err)
-    const name = (err as Error)?.name
-    const timedOut = name === 'TimeoutError' || name === 'AbortError'
     // The request left this process. Whether Meta accepted it is unknown, and
     // saying otherwise here would make a duplicate look safe upstream.
-    return {
-      ok: false,
-      error: timedOut ? 'send-timeout' : (err as Error)?.message || 'network-error',
-      ambiguous: true,
-    }
+    return transportFailureOutcome(err)
   }
 }

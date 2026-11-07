@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AutomationJob } from '@/db/automations/jobs'
 import type { WorkerDeps } from '@/lib/automations/workerDeps'
-import { ExecutionSkippedError } from '@/lib/automations/executors/types'
+import { ExecutionOutcomeUnknownError, ExecutionSkippedError } from '@/lib/automations/executors/types'
 import { settleEffectFailure } from '@/lib/automations/workerEffectFailure'
 
 /**
@@ -57,6 +57,24 @@ describe('settleEffectFailure', () => {
       expect.objectContaining({ kind: 'skipped', skipReason: 'opted_out', mode: 'live', leadName: 'ליד' }),
     )
     expect(h.deps.skipJob).toHaveBeenCalledWith(3, 'opted_out')
+  })
+
+  it('an UNKNOWN send outcome keeps the claim and is dead: never retried, never re-claimable', async () => {
+    const h = harness()
+    const out = await settleEffectFailure({
+      job: job({ attempts: 1 }),
+      err: new ExecutionOutcomeUnknownError('whatsapp: send-timeout'),
+      mode: 'live',
+      leadName: null,
+      deps: h.deps,
+      log: h.log,
+    })
+    expect(out).toBe('dead')
+    // No releaseClaim, no failJob: the unconfirmed claim stays, exactly as after a crash (ADR-011).
+    expect(h.calls).toEqual(['deadJob', 'appendActivity'])
+    expect(h.deps.deadJob).toHaveBeenCalledWith(3, 'send_outcome_unknown')
+    expect(h.deps.appendActivity).toHaveBeenCalledWith(expect.objectContaining({ kind: 'failed' }))
+    expect(h.log).toHaveBeenCalledWith('dead', expect.anything(), expect.objectContaining({ class: 'ambiguous' }))
   })
 
   it('a terminal account error is dead at once, dead recorded before the failed activity', async () => {

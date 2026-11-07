@@ -6,6 +6,7 @@ import {
 } from '@/lib/inbox/whatsappErrorCopy'
 import { formatWhatsappSendFailure, type SendWhatsappTextFailure } from '@/lib/whatsapp/sendMessage'
 import { deadLetterAutoResponseJob, failAutoResponseJob } from '@/db/autoResponseJobs'
+import { parkAmbiguousSend } from '@/lib/inbox/autoresponse/ambiguousSend'
 
 /**
  * Shared outbound-failure contract: classify once, persist an account
@@ -77,12 +78,22 @@ export async function onWhatsappSendFailure(
   return mapped
 }
 
-/** IRE: account restrictions are dead (existing status). Everything else retries. */
+/**
+ * IRE send failure → the job's next state:
+ *   - outcome UNKNOWN (`ambiguous`): terminal and handed to a person, never
+ *     retried — the customer may already have the message (parkAmbiguousSend);
+ *   - an account restriction: dead (existing status);
+ *   - any other Graph refusal: nothing was delivered, so retry with backoff.
+ */
 export async function applyIreWhatsappSendFailure(
-  job: { id: number; agencyId: number; leadId: number | null },
+  job: { id: number; agencyId: number; conversationId: number; leadId: number | null },
   failure: SendWhatsappTextFailure,
   ctx: Omit<OnWhatsappSendFailureContext, 'agencyId' | 'leadId'>,
 ): Promise<OnWhatsappSendFailureResult> {
+  if (failure.ambiguous) {
+    await parkAmbiguousSend(job, formatWhatsappSendFailure(failure))
+    return { category: 'generic', text: failureTextForCategory('generic') ?? mapWhatsappError(null).text }
+  }
   const result = await onWhatsappSendFailure(failure, {
     agencyId: job.agencyId,
     leadId: job.leadId,

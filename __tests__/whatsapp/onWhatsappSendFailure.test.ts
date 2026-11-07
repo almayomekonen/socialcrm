@@ -88,7 +88,7 @@ describe('onWhatsappSendFailure — classify once, record only account', () => {
 })
 
 describe('applyIreWhatsappSendFailure — account is dead, others retry', () => {
-  const job = { id: 44, agencyId: 23, leadId: 9 }
+  const job = { id: 44, agencyId: 23, conversationId: 55, leadId: 9 }
   const ctx = {
     businessPhoneNumberId: 'P1',
     customerWaId: '972500000000',
