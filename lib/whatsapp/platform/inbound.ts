@@ -20,6 +20,7 @@ import {
 import { matchAssistantSender } from '@/lib/waAssistant/identity'
 import { DECISION_ID_RE } from '@/lib/waAssistant/meetings/copy'
 import { decideSenderGuidance, type SenderGuidance } from './senderGuidance'
+import { timestampSource, type TimestampSource } from './timestampSource'
 
 /**
  * Inbound traffic to the SocialCRM platform number (not an agency's number).
@@ -98,13 +99,14 @@ async function decidePlatformMessage(message: Record<string, any>): Promise<Deci
   // send time is still honoured, as of now.
   const command = !from || (parsed.kind === 'activation' && timestamp === null) ? ({ kind: 'other' } as const) : parsed
   const messageTimestamp = timestamp ?? Math.floor(Date.now() / 1000)
+  const tsSource = timestampSource(timestamp, Date.now())
   const fromHash = from ? hashPlatformSender(from) : null
 
   return db.transaction(async (trx): Promise<Decided> => {
     if (fromHash) {
       await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?), ?)', [fromHash, PLATFORM_SENDER_LOCK_NAMESPACE])
     }
-    const isNew = await recordPlatformInbound(trx, { wamid, kind: command.kind, fromHash, messageTimestamp })
+    const isNew = await recordPlatformInbound(trx, { wamid, kind: command.kind, fromHash, messageTimestamp, timestampSource: tsSource })
     if (!isNew) return { outcome: 'duplicate' }
 
     if (command.kind === 'opt_out') {
@@ -112,7 +114,7 @@ async function decidePlatformMessage(message: Record<string, any>): Promise<Deci
       return { outcome: 'opted_out' }
     }
     if (command.kind === 'other') {
-      const routed = await routeToAssistant(trx, message, from, fromHash, messageTimestamp)
+      const routed = await routeToAssistant(trx, message, from, fromHash, messageTimestamp, tsSource)
       if (routed === 'queued') return { outcome: 'assistant_queued' }
       if (routed && from) return { outcome: 'assistant_guidance', guidance: { toDigits: from, replyToWamid: wamid, ...routed } }
       return { outcome: 'ignored' }
@@ -151,6 +153,7 @@ async function routeToAssistant(
   from: string | null,
   fromHash: string | null,
   messageTimestamp: number,
+  tsSource: TimestampSource,
 ): Promise<'queued' | SenderGuidance | null> {
   // No audience (neither `all` nor any listed id) and no guidance: no lookup at all, exactly as before.
   if (!from || (!hasWaAssistantAudience() && !isWaAssistantSenderGuidanceEnabled())) return null
@@ -174,6 +177,7 @@ async function routeToAssistant(
     kind: isText ? 'text' : decision ? 'decision' : 'unsupported',
     question: isText ? String(message.text.body).slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars) : decision,
     messageTimestamp,
+    timestampSource: tsSource,
   })
   return queued ? 'queued' : null
 }
