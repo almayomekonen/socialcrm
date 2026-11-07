@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/config/db'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
-import { reminderIntent, type ReminderIntent } from '@/lib/reminders/request'
+import { isReminderCorrection, mentionsReminder, reminderIntent, type ReminderIntent } from '@/lib/reminders/request'
 import { opensRequest } from '../continuation'
 
 /**
@@ -40,6 +40,12 @@ export async function readReminderRequest(job: WaAssistantJob): Promise<Reminder
   const current = (asked: string | null): ReminderMessage => ({ text, wamid: job.wamid, ts: job.messageTimestamp, source: job.timestampSource ?? null, asked })
   const intent = reminderIntent(text)
   if (intent) return { op: intent, messages: [current(null)] }
+  // "לא משימה! תזכורת": the previous request (a few minutes ago) was meant as a
+  // personal reminder. It becomes one, with its own words and its own Meta time.
+  if (isReminderCorrection(text)) {
+    const opener = await correctedRequest(job)
+    return { op: 'create', messages: opener ? [opener] : [current(null)] }
+  }
   if (opensRequest(text)) return null
 
   const rows = (await db('wa_assistant_jobs')
@@ -72,4 +78,21 @@ export async function readReminderRequest(job: WaAssistantJob): Promise<Reminder
   }))
   messages.push(current(ordered[ordered.length - 1].stopReason))
   return { op, messages }
+}
+
+/**
+ * The owner's most recent request that asked to be reminded ("תזכיר …"), within
+ * the clarification window, for a correction to apply to. The correction's own
+ * job is the draft's source (one draft per owner message, as always).
+ */
+async function correctedRequest(job: WaAssistantJob): Promise<ReminderMessage | null> {
+  const rows = (await db('wa_assistant_jobs')
+    .where({ recipientId: job.recipientId, kind: 'text' })
+    .where('id', '<', job.id)
+    .where('createdAt', '>', new Date(Date.now() - WINDOW_MS))
+    .orderBy('id', 'desc')
+    .limit(MAX_MESSAGES)
+    .select('question', 'wamid', 'messageTimestamp', 'timestampSource')) as Pick<Row, 'question' | 'wamid' | 'messageTimestamp' | 'timestampSource'>[]
+  const r = rows.find((x) => !!x.question && mentionsReminder(x.question) && !isReminderCorrection(x.question))
+  return r ? { text: r.question!.trim(), wamid: r.wamid, ts: Number(r.messageTimestamp), source: r.timestampSource ?? null, asked: null } : null
 }
