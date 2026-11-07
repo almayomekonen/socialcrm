@@ -33,6 +33,7 @@
 
 import * as copy from './copy'
 import * as keys from './collapseKeys'
+import { REMINDER_NOTIFICATION_DEFS } from './reminderNotifications'
 import {
   CRITICAL_WITH_EMAIL,
   IN_APP_ONLY,
@@ -494,6 +495,9 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     recipients: 'platform_operator',
     channels: PUSH_WHEN_AWAY,
   },
+
+  // Reminder Engine R9 (owner-only), defined beside this file: ./reminderNotifications.ts
+  ...REMINDER_NOTIFICATION_DEFS,
 }
 
 /** Unknown string ⇒ undefined. The worker skips such a job rather than guessing. */

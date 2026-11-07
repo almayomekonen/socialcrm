@@ -65,10 +65,13 @@ async function contextForPass(jobs: NotificationJob[]) {
   const leadPairs: { agencyId: number; leadId: number }[] = []
   const agencyIds = new Set<number>()
   let needPlatformOperators = false
+  const reminderPairs: { agencyId: number; reminderId: number }[] = []
 
   for (const job of jobs) {
     agencyIds.add(job.agencyId)
-    if (getNotificationType(job.type)?.recipients === 'platform_operator') needPlatformOperators = true
+    const rule = getNotificationType(job.type)?.recipients
+    if (rule === 'platform_operator') needPlatformOperators = true
+    if (rule === 'reminder_owner') reminderPairs.push({ agencyId: job.agencyId, reminderId: job.entityId })
     const leadId = leadIdForJob(job)
     if (leadId == null) continue
     const key = `${job.agencyId}:${leadId}`
@@ -77,7 +80,7 @@ async function contextForPass(jobs: NotificationJob[]) {
     leadPairs.push({ agencyId: job.agencyId, leadId })
   }
 
-  return buildRecipientContext({ leadPairs, agencyIds: Array.from(agencyIds), needPlatformOperators })
+  return buildRecipientContext({ leadPairs, agencyIds: Array.from(agencyIds), needPlatformOperators, reminderPairs })
 }
 
 export async function runNotificationWorker(opts?: { limit?: number; workerId?: string }): Promise<WorkerSummary> {

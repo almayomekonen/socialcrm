@@ -68,6 +68,8 @@ export const TITLE_FORMS: Partial<Record<NotificationType, readonly MessageKey[]
   'integration.error': [k('notifications.content.title.connectionError'), k('notifications.content.title.connectionErrorProvider')],
   'integration.ingestion_failed': [k('notifications.content.title.leadNotSaved')],
   'subscription.cancellation_requested': [k('notifications.content.title.cancellation')],
+  'followup.reminder_failed': [k('notifications.content.title.reminderFailed')],
+  'followup.reminder_unconfirmed': [k('notifications.content.title.reminderUnconfirmed')],
 }
 
 /** Bodies. A type absent here writes no body; a stored body on it is shown verbatim. */
@@ -76,6 +78,8 @@ export const BODY_FORMS: Partial<Record<NotificationType, readonly MessageKey[]>
   'integration.disconnected': [k('notifications.content.body.reconnect')],
   'integration.ingestion_failed': [k('notifications.content.body.leadNotSaved'), k('notifications.content.body.leadNotSavedProvider')],
   'subscription.cancellation_requested': [k('notifications.content.body.cancellation'), k('notifications.content.body.cancellationNamed')],
+  'followup.reminder_failed': [k('notifications.content.body.reminderFailed'), k('notifications.content.body.reminderFailedAt')],
+  'followup.reminder_unconfirmed': [k('notifications.content.body.reminderUnconfirmed'), k('notifications.content.body.reminderUnconfirmedAt')],
 }
 
 /** Registered types deliberately shown as stored: the disabled SLA placeholder ("SLA") has no meaning to word. */

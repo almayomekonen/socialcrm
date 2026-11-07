@@ -37,6 +37,10 @@ function shapes(type: NotificationType): { payload: NotificationPayload; groupCo
       return ['facebook', 'whatsapp', null, ''].map((provider) => one({ provider }))
     case 'subscription.cancellation_requested':
       return [null, '', 'סטודיו נגה', 'Acme Ltd'].map((cancellingAgencyName) => one({ cancellingAgencyName }))
+    case 'followup.reminder_failed':
+    case 'followup.reminder_unconfirmed':
+      // The scheduled instant only (never the text): with one, without one, and an unusable value.
+      return [Date.UTC(2026, 10, 7, 12, 35), Date.UTC(2026, 0, 1, 22, 0), null, 0].map((remindAtMs) => one({ remindAtMs }))
     default:
       return named.map(one)
   }

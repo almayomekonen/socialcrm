@@ -63,7 +63,9 @@ describe('invariant 1 — exactly one entry per type', () => {
       // per-row type cannot quietly adopt it.
       // 'lead_handler_or_admins' is for a CONVERSATION that may not have a ליד yet
       // (Messenger): the ליד's נציג when there is one, otherwise the agency admins.
-      expect(['handler_or_admin', 'lead_handler_or_admins', 'admin_only', 'platform_operator', 'explicit_user']).toContain(
+      // 'reminder_owner' (R9) resolves the owner of a personal reminder FROM THE
+      // DATABASE by (agency, reminder), an unsuspended user of that same agency.
+      expect(['handler_or_admin', 'lead_handler_or_admins', 'admin_only', 'platform_operator', 'explicit_user', 'reminder_owner']).toContain(
         def.recipients,
       )
     }

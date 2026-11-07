@@ -8,6 +8,7 @@ import { insertReminderEvents, type ReminderEvent } from './events'
 import { isPlatformSendingPaused, missingControls, readSendControls } from './controls'
 import { findServiceRate, latestVerifiedInboundMs } from './rateCards'
 import { FAILURE_FOR_SCOPE, reservationPlan, reserveAll, type ScopeKind } from './capacity'
+import { notifyOwnerReminderNotDelivered } from './notifyOwner'
 
 /**
  * T2, the final send gate (architecture v1.2 A2, v1.6, v1.6.1). ONE short
@@ -97,6 +98,8 @@ export async function enterDispatch(input: { reminderId: number; claimToken: str
 
     const fail = async (reason: string, event: Record<string, unknown> = {}) => {
       await finish(trx, r, now, { status: 'failed', failureReason: reason, finalizedAt: now }, { type: 'failed', toStatus: 'failed', reason, ...event })
+      // R9: refused by the gate (late, window, cap, pricing) = definitely not delivered. Tell the owner.
+      await notifyOwnerReminderNotDelivered(trx, r, 'failed', input.nowMs)
       return { result: 'failed' as const, reason }
     }
 
