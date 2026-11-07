@@ -1,4 +1,5 @@
 import { loadTemplateForSend, type TemplateSendRow } from '@/db/whatsappTemplates'
+import type { OptOutBlockReason, WhatsappSendConsent } from '@/lib/whatsapp/optOut/sendGate'
 import { resolveWhatsappOutboundTarget, type WhatsappOutboundTarget } from '@/lib/inbox/whatsappOutboundTarget'
 import { onWhatsappSendFailure, TerminalWhatsappAccountError } from '@/lib/inbox/onWhatsappSendFailure'
 import { resolveTemplateMessage, templateSlots } from '../whatsapp/templateParams'
@@ -11,6 +12,7 @@ import type {
   TestResult,
   TestTarget,
 } from './types'
+import { ExecutionSkippedError } from './types'
 
 /**
  * `whatsapp.send` — Action #3, and NOT a second WhatsApp system.
@@ -70,7 +72,8 @@ export type WhatsappDeps = {
     name: string
     language: string
     params: string[]
-  }) => Promise<{ ok: true; wamid: string } | { ok: false; error: string; code?: string }>
+    consent: WhatsappSendConsent
+  }) => Promise<{ ok: true; wamid: string } | { ok: false; error: string; code?: string; optOutBlocked?: true; optOutBlockReason?: OptOutBlockReason }>
   persist: (args: {
     agencyId: number
     leadId: number
@@ -111,7 +114,14 @@ export const whatsappExecutor: ActionExecutor<WhatsappReady, WhatsappDeps> = {
     send: async (args) => {
       const { sendWhatsappTemplate } = await import('@/lib/whatsapp/sendTemplateMessage')
       const res = await sendWhatsappTemplate(args)
-      return 'error' in res ? { ok: false as const, error: res.error, code: res.code } : { ok: true as const, wamid: res.wamid }
+      return 'error' in res
+        ? {
+            ok: false as const,
+            error: res.error,
+            code: res.code,
+            ...(res.optOutBlocked ? { optOutBlocked: true as const, optOutBlockReason: res.optOutBlockReason } : {}),
+          }
+        : { ok: true as const, wamid: res.wamid }
     },
     persist: async (args) => {
       const { persistOutboundWhatsapp } = await import('@/lib/inbox/persistOutboundWhatsapp')
@@ -184,7 +194,11 @@ export const whatsappExecutor: ActionExecutor<WhatsappReady, WhatsappDeps> = {
       name: ready.template.name,
       language: ready.template.language,
       params: ready.params,
+      consent: { kind: 'automated', agencyId: ctx.agencyId },
     })
+    // Opted out of this business: nothing reached Meta, and no failure is
+    // recorded on the conversation. The worker ends the job as a skip.
+    if ('error' in sent && sent.optOutBlocked) throw new ExecutionSkippedError('opted_out')
     if ('error' in sent) {
       const classified = await onWhatsappSendFailure(sent, {
         agencyId: ctx.agencyId,

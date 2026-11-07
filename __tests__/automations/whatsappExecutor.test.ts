@@ -175,6 +175,7 @@ describe('a live send reuses the existing infrastructure exactly', () => {
       name: 'appointment_reminder_he',
       language: 'he',
       params: ['אלמיהו', 'פגישת ייעוץ'],
+      consent: { kind: 'automated', agencyId: 7 },
     })
     expect(out).toMatchObject({ kind: 'sent', deliveryState: 'sent', providerMessageId: 'wamid.ABC' })
   })

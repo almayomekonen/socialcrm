@@ -8,6 +8,7 @@ import { enqueueInboundAutoResponse } from '@/lib/inbox/autoresponse/enqueueInbo
 import { isQuestionnaireConversation } from '@/db/questionnaireSessions'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { notifyEvent } from '@/lib/notifications/emit'
+import { recordInboundOptOut } from '@/lib/whatsapp/optOut/recordInbound'
 
 export type IngestWhatsappInboundInput = {
   agencyId: number
@@ -30,6 +31,18 @@ export type IngestWhatsappInboundResult = {
 
 export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): Promise<IngestWhatsappInboundResult> {
   const parsed = parseWhatsappMessage(input.rawMessage)
+
+  // "עצור" / STOP / START: recorded first, for every mode and with AI off, in
+  // its own transaction (lib/whatsapp/optOut/recordInbound.ts). From here on
+  // the send gate refuses every automated message to this customer.
+  await recordInboundOptOut({
+    agencyId: input.agencyId,
+    customerWaId: input.customerWaId,
+    type: parsed.type,
+    text: parsed.text,
+    externalId: parsed.externalId,
+    channelTimestamp: parsed.channelTimestamp,
+  })
 
   return db.transaction(async (trx) => {
     const conversationId = await findOrCreateConversation(trx, {

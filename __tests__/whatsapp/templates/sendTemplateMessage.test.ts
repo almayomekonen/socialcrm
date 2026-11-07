@@ -19,6 +19,7 @@ function res(status: number, body: unknown): Response {
 const base = {
   phoneNumberId: 'PN_1',
   accessToken: 'secret-token',
+  consent: { kind: 'manual_reply' as const, agencyId: 1, userId: 1 },
   to: '0537736636', // Israeli local — must be normalized to 972…
   name: 'follow_up',
   language: 'he',

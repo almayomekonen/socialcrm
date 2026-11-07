@@ -31,7 +31,7 @@ function messagesTrx(row: { id: number; direction: string; sequence: number } | 
   }, q)
 }
 
-function settingsTrx(settings: { mode?: string; delaySeconds?: number } | undefined) {
+function settingsTrx(settings: { mode?: string; delaySeconds?: number } | undefined, trigger: { type: string; text: string } = { type: 'text', text: 'שלום, אפשר פרטים?' }) {
   const q = {
     where() {
       return this
@@ -40,7 +40,20 @@ function settingsTrx(settings: { mode?: string; delaySeconds?: number } | undefi
       return settings
     },
   }
+  // The trigger message, read to keep an opt-out command unanswered (Item 3).
+  const messages = {
+    where() {
+      return this
+    },
+    orderBy() {
+      return this
+    },
+    async first() {
+      return trigger
+    },
+  }
   return Object.assign((table: string) => {
+    if (table === 'inbox_messages') return messages
     if (table !== 'auto_response_settings') throw new Error(`unexpected table ${table}`)
     return q
   }, q)
@@ -155,5 +168,38 @@ describe('enqueueInboundAutoResponse — existing ingest path', () => {
     expect(skipPendingNoResponseJobs.mock.invocationCallOrder[0]).toBeLessThan(
       enqueueAutoResponse.mock.invocationCallOrder[0],
     )
+  })
+})
+
+describe('enqueueInboundAutoResponse — an opt-out command is never answered (Phase 0 Item 3)', () => {
+  beforeEach(() => {
+    enqueueAutoResponse.mockReset().mockResolvedValue(51)
+    skipPendingNoResponseJobs.mockReset().mockResolvedValue(0)
+  })
+  const args = { agencyId: 103, conversationId: 371, leadId: 1416, triggerSequence: 4 }
+
+  it.each([
+    ['qualify', 'עצור'],
+    ['acknowledge', 'STOP'],
+    ['qualify', 'הסר אותי בבקשה'],
+  ])('%s mode, typed "%s": no job, suppressed as opt_out_command, no-response jobs still superseded', async (mode, text) => {
+    const trx = settingsTrx({ mode, delaySeconds: 5 }, { type: 'text', text })
+    const result = await enqueueInboundAutoResponse(trx as never, args)
+    expect(result).toEqual({ jobId: null, reason: mode === 'qualify' ? 'qualify_turn' : 'first_contact', delaySeconds: 5, suppressed: 'opt_out_command' })
+    expect(enqueueAutoResponse).not.toHaveBeenCalled()
+    expect(skipPendingNoResponseJobs).toHaveBeenCalledWith(trx, 371)
+  })
+
+  it.each([
+    ['text', 'START'],
+    ['text', 'אל תעצור'],
+    ['text', 'stop by tomorrow?'],
+    ['interactive', 'STOP'],
+    ['button', 'עצור'],
+  ])('a %s message "%s" is not an opt-out command and is answered as before', async (type, text) => {
+    const trx = settingsTrx({ mode: 'qualify', delaySeconds: 0 }, { type, text })
+    const result = await enqueueInboundAutoResponse(trx as never, args)
+    expect(result.jobId).toBe(51)
+    expect(enqueueAutoResponse).toHaveBeenCalledTimes(1)
   })
 })

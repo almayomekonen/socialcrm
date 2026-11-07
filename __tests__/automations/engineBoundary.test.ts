@@ -20,6 +20,7 @@ const ROOT = process.cwd()
 /** The files that decide what happens, as opposed to the files that do it. */
 const ENGINE_FILES = [
   'lib/automations/worker.ts',
+  'lib/automations/workerEffectFailure.ts',
   'lib/automations/laws.ts',
   'lib/automations/emit.ts',
   'lib/automations/actionEntry.ts',

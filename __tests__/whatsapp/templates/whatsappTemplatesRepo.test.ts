@@ -194,6 +194,7 @@ describe('loadTemplateForSend — agency scope + send fields', () => {
       status: 'approved',
       name: 'follow_up',
       language: 'he',
+      category: 'UTILITY',
       bodyText: 'היי שם הליד',
       variables: JSON.stringify([{ token: 'שם הליד', sample: 'דוד' }]),
       metadata: JSON.stringify({ parameterBindings: [{ position: 1, source: 'leadFirstName' }] }),
@@ -201,12 +202,13 @@ describe('loadTemplateForSend — agency scope + send fields', () => {
     const out = await loadTemplateForSend(9, 103)
     expect(rec.table).toBe('whatsapp_templates')
     expect(rec.where).toContainEqual({ id: 9, agencyId: 103 })
-    expect(rec.first).toEqual(['id', 'status', 'name', 'language', 'bodyText', 'variables', 'metadata'])
+    expect(rec.first).toEqual(['id', 'status', 'name', 'language', 'category', 'bodyText', 'variables', 'metadata'])
     expect(out).toEqual({
       id: 9,
       status: 'approved',
       name: 'follow_up',
       language: 'he',
+      category: 'UTILITY',
       bodyText: 'היי שם הליד',
       variables: [{ token: 'שם הליד', sample: 'דוד' }],
       bindings: [{ position: 1, source: 'leadFirstName' }],

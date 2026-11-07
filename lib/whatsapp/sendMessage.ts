@@ -1,6 +1,7 @@
 import { GRAPH_BASE, GRAPH_VERSION } from '@/lib/facebook/graph'
 import { waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
 import { toIsraeliWhatsappRecipient } from '@/lib/whatsapp/israeliPhone'
+import { runGatedWhatsappSend, type OptOutBlockReason, type WhatsappSendConsent } from '@/lib/whatsapp/optOut/sendGate'
 
 export type SendWhatsappTextSuccess = { ok: true; wamid: string }
 
@@ -32,6 +33,13 @@ export type SendWhatsappTextFailure = {
    * to a person.
    */
   ambiguous?: boolean
+  /**
+   * The opt-out gate refused the send before any provider request
+   * (lib/whatsapp/optOut/sendGate.ts). Final: never retry it, never show it as
+   * a failed message.
+   */
+  optOutBlocked?: true
+  optOutBlockReason?: OptOutBlockReason
 }
 
 export type SendWhatsappTextResult = SendWhatsappTextSuccess | SendWhatsappTextFailure
@@ -64,6 +72,11 @@ export type SendWhatsappArgs = {
   accessToken: string
   to: string
   body: string
+  /**
+   * Who is sending, for which business. Required: the opt-out gate decides on
+   * it, and a send without it is refused. See lib/whatsapp/optOut/sendGate.ts.
+   */
+  consent: WhatsappSendConsent
   trace?: WaTraceCtx
   /**
    * Abandon the Graph call after this many milliseconds. Optional, and unset
@@ -95,10 +108,11 @@ export async function sendWhatsappInteractive(
   return postWhatsappMessage(args, { type: 'interactive', interactive: args.interactive })
 }
 
-async function postWhatsappMessage(
-  args: SendWhatsappArgs,
-  content: Record<string, unknown>,
-): Promise<SendWhatsappTextResult> {
+function postWhatsappMessage(args: SendWhatsappArgs, content: Record<string, unknown>): Promise<SendWhatsappTextResult> {
+  return runGatedWhatsappSend(args.consent, args.to, () => postToGraph(args, content))
+}
+
+async function postToGraph(args: SendWhatsappArgs, content: Record<string, unknown>): Promise<SendWhatsappTextResult> {
   const { phoneNumberId, accessToken, to, body } = args
   // Normalize the recipient to E.164 (Israeli local → 972…). The number reaching
   // Meta and the trace must be the normalized one, or Meta returns 131026.

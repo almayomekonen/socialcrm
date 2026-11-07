@@ -1,5 +1,6 @@
 import type { DeliveryState } from '@/db/automations/activity'
 import type { SubjectValues } from '../subject'
+import type { SkipReason } from '../types'
 
 /**
  * ACTION EXECUTORS — the generic contract for "doing the thing".
@@ -160,3 +161,24 @@ export type ActionExecutor<TReady = unknown, TDeps = unknown> = {
 
 /** An executor erased of its own dependency type — how the worker holds one. */
 export type AnyActionExecutor = ActionExecutor<never, never>
+
+/**
+ * Thrown by `execute` when the effect was refused at the last moment for a
+ * reason the laws also know (e.g. `opted_out`: the lead opted out after the law
+ * check). The worker ends the job as that skip — never a retry, never a failure.
+ */
+export class ExecutionSkippedError extends Error {
+  readonly executionSkipped = true as const
+  constructor(readonly reason: SkipReason) {
+    super(`execution_skipped: ${reason}`)
+    this.name = 'ExecutionSkippedError'
+  }
+}
+
+export function isExecutionSkippedError(err: unknown): err is ExecutionSkippedError {
+  return (
+    err instanceof ExecutionSkippedError ||
+    (!!err && typeof err === 'object' && (err as { name?: unknown }).name === 'ExecutionSkippedError' &&
+      (err as { executionSkipped?: unknown }).executionSkipped === true)
+  )
+}

@@ -12,6 +12,9 @@ import { loadWhatsappComposerContext } from '@/lib/inbox/whatsappComposerContext
 import { renderResolvedBody } from '@/lib/whatsapp/templates/variables'
 import { resolveTemplateSendParameters, renderPositionalBody } from '@/lib/whatsapp/templates/parameters'
 import { sendWhatsappTemplate } from '@/lib/whatsapp/sendTemplateMessage'
+import { isCustomerOptedOut } from '@/db/whatsappOptOuts'
+import { MIN_EXCEPTION_REASON_LENGTH } from '@/lib/whatsapp/optOut/sendGate'
+import { toCustomerPhoneE164 } from '@/lib/whatsapp/optOut/phone'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { recordHumanTakeover } from '@/lib/inbox/humanTakeover'
 import { onWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
@@ -46,12 +49,22 @@ const NO_RECIPIENT = 'אין מספר וואטסאפ פעיל לליד הזה.'
 const HEALTH_BLOCKED = 'לא ניתן לשלוח הודעות כרגע'
 const SEND_FAILED = 'ההודעה לא נשלחה. נסו שוב.'
 const PERSIST_FAILED = 'ההודעה נשלחה אך לא נשמרה בשיחה. רעננו את הדף.'
+const OPTED_OUT_MARKETING = 'הליד ביקש להפסיק לקבל הודעות מהעסק. אי אפשר לשלוח לו הודעה שיווקית.'
+const OPTED_OUT_EXCEPTION_REQUIRED =
+  'הליד ביקש להפסיק לקבל הודעות מהעסק. הודעת שירות אפשר לשלוח רק עם סיבה שקשורה לפנייה או לשירות קיים שלו.'
 const NEEDS_MAPPING = 'ההודעה הזו סונכרנה מ‑Meta וצריך להגדיר אילו פרטים ממלאים אותה לפני השליחה.'
 
 export async function sendTemplateToLead(
   leadIdRaw: number | string,
   templateIdRaw: number | string,
   conversationIdRaw?: number | string | null,
+  /**
+   * Only for a UTILITY template to a lead who opted out of this business: the
+   * rep's reason, tied to a service or request the lead started. Audited with
+   * the category, template and rep (whatsapp_opt_out_events). It never lets a
+   * MARKETING template through.
+   */
+  optOutException?: { reason?: string | null } | null,
 ): Promise<SendTemplateToLeadResult> {
   const leadId = Number(leadIdRaw)
   const templateId = Number(templateIdRaw)
@@ -122,6 +135,16 @@ export async function sendTemplateToLead(
       ? renderResolvedBody(template.bodyText, template.variables, ctx)
       : renderPositionalBody(template.bodyText, params)
 
+  // Opt-out, answered early so a refused send records no takeover. The gate in
+  // the send itself is the authoritative check, under the lock.
+  const customerPhone = toCustomerPhoneE164(target.customerWaId)
+  if (customerPhone && (await isCustomerOptedOut(user.agencyId, customerPhone))) {
+    if (template.category !== 'UTILITY') return { ok: false, error: OPTED_OUT_MARKETING }
+    if ((optOutException?.reason ?? '').trim().length < MIN_EXCEPTION_REASON_LENGTH) {
+      return { ok: false, error: OPTED_OUT_EXCEPTION_REQUIRED }
+    }
+  }
+
   // A template a rep chose and sent is a human message: permanent takeover, marked
   // before the Graph call so a concurrent agent reply is refused at the boundary.
   await recordHumanTakeover({ agencyId: user.agencyId, leadId, conversationId })
@@ -134,7 +157,19 @@ export async function sendTemplateToLead(
     name: template.name,
     language: template.language,
     params,
+    consent: {
+      kind: 'manual_template',
+      agencyId: user.agencyId,
+      userId: user.id,
+      templateId: template.id,
+      templateName: template.name,
+      templateCategory: template.category,
+      exceptionReason: optOutException?.reason ?? null,
+    },
   })
+  if ('error' in sent && sent.optOutBlocked) {
+    return { ok: false, error: sent.optOutBlockReason === 'opted_out_marketing' ? OPTED_OUT_MARKETING : OPTED_OUT_EXCEPTION_REQUIRED }
+  }
   // Note: this repo's TS does not narrow on `.ok`; use the in-operator on the
   // discriminating field to reach the failure member's fields.
   if ('error' in sent) {

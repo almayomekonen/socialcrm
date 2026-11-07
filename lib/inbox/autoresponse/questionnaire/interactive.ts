@@ -130,7 +130,8 @@ export function interactiveSender(
     const sent = await sendInteractive({ ...args, interactive })
     if (sent.ok === true) return sent
     const failure = sent as SendWhatsappTextFailure
-    if (failure.ambiguous) return failure
+    // Opted out: the numbered-text fallback would be refused too. Stop here.
+    if (failure.optOutBlocked || failure.ambiguous) return failure
     console.warn('[questionnaire] interactive rejected, sending numbered text', {
       code: failure.code,
       subcode: failure.subcode,

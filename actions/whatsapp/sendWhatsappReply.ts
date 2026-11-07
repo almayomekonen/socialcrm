@@ -69,6 +69,8 @@ export async function sendWhatsappReply(
 
   // SEND first — persist only on a confirmed wamid.
   const sent = await sendWhatsappText({
+    // A rep's own reply in the composer: a person answering, not outreach.
+    consent: { kind: 'manual_reply', agencyId: user.agencyId, userId: user.id },
     phoneNumberId: target.businessPhoneNumberId,
     accessToken: target.accessToken,
     to: target.customerWaId,

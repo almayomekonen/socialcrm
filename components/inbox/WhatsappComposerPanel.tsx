@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
 import ConnectionNotice from '@/components/settings/ConnectionNotice'
+import WhatsappOptOutNotice from '@/components/inbox/WhatsappOptOutNotice'
 import SendReadyMessage from '@/components/clients/SendReadyMessage'
 import SendReadyMessageMobile from '@/components/clients/SendReadyMessageMobile'
 import {
@@ -37,6 +38,12 @@ export type WhatsappComposerFacts = {
    * a caller that cannot supply it gets the previous behaviour exactly.
    */
   customerWaId?: string | null
+  /**
+   * The customer has an active WhatsApp opt-out with this business. Adds a
+   * warning above the composer; it changes no send rule (manual replies stay
+   * allowed, the server gate refuses automated sends and blocked templates).
+   */
+  optedOut?: boolean
 }
 
 /**
@@ -109,7 +116,6 @@ export default function WhatsappComposerPanel({
 }) {
   const ui = useT()
   const t = translated ? ui : HEBREW
-  const copy = serviceWindowCopy(t.locale)
   const expired = useAccessDenied()
   const window = resolveWhatsappServiceWindow(latestInboundTimestamp(messages))
   const decision = resolveWhatsappComposerDecision({
@@ -140,6 +146,45 @@ export default function WhatsappComposerPanel({
 
   if (decision.kind === 'leadless') return null
 
+  const body = (
+    <ComposerBody
+      decision={decision}
+      leadId={leadId}
+      conversationId={conversationId}
+      facts={facts}
+      textComposer={textComposer}
+      readyMessageSurface={readyMessageSurface}
+      t={t}
+    />
+  )
+  if (!facts.optedOut) return body
+  return (
+    <div className='grid gap-2'>
+      <WhatsappOptOutNotice t={t} />
+      {body}
+    </div>
+  )
+}
+
+/** The composer for one decided state (unchanged rendering, moved out of the shell). */
+function ComposerBody({
+  decision,
+  leadId,
+  conversationId,
+  facts,
+  textComposer,
+  readyMessageSurface,
+  t,
+}: {
+  decision: ReturnType<typeof resolveWhatsappComposerDecision>
+  leadId: number | null
+  conversationId: number | null
+  facts: WhatsappComposerFacts
+  textComposer: ReactNode
+  readyMessageSurface: 'modal' | 'sheet'
+  t: Translator
+}) {
+  const copy = serviceWindowCopy(t.locale)
   if (decision.kind === 'text') return <>{textComposer}</>
 
   if (decision.kind === 'health_blocked') {
