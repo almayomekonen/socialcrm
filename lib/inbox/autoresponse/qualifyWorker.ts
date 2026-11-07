@@ -677,7 +677,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     // attempts and eventually deliver the reply the human displaced.
     if (presenceWatch.cancelled()) return doSkip('human_typing')
     if (isRetryableIreGenerationFailure(gen.skipReason)) {
-      await failAutoResponseJob(job.id, gen.skipReason)
+      await failAutoResponseJob(job.id, gen.skipReason, job.ownerWorkerId)
       return 'failed'
     }
     return doSkip(gen.skipReason)

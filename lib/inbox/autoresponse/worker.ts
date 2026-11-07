@@ -7,7 +7,6 @@ import { track } from '@/lib/analytics/track'
 import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import {
   claimAutoResponseJobs,
-  reclaimStaleAutoResponseJobs,
   completeAutoResponseJob,
   skipAutoResponseJob,
   failAutoResponseJob,
@@ -16,7 +15,8 @@ import {
   type AutoResponseJob,
 } from '@/db/autoResponseJobs'
 import { isPositiveLeadId } from './contactJob'
-import { LeaseLostError, boundedSend, fencedSend, keepJobLease, leaseGuard } from './jobLease'
+import { failOrParkAutoResponseJob, reclaimStaleAutoResponseJobsAndHandOff } from './ambiguousSend'
+import { LeaseLostError, boundedSend, fencedSend, keepJobLease, leaseGuard, newWorkerId } from './jobLease'
 import { withAiOperation } from '@/lib/ai/usage/context'
 import { decideEligibility } from './eligibility'
 import { generateAcknowledgement } from './generate'
@@ -204,7 +204,7 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
       })
       if (gen.ok === false) {
         if (isRetryableIreGenerationFailure(gen.skipReason)) {
-          await failAutoResponseJob(job.id, gen.skipReason)
+          await failAutoResponseJob(job.id, gen.skipReason, job.ownerWorkerId)
           return 'failed'
         }
         return doSkip(gen.skipReason)
@@ -326,14 +326,14 @@ export async function runAutoResponseWorker(
 ): Promise<{ claimed: number; sent: number; skipped: number; failed: number; leaseLost: number }> {
   const limit = opts.limit ?? 5
   const leaseMs = opts.leaseMs ?? DEFAULT_LEASE_MS
-  const workerId = opts.workerId ?? `arw-${process.pid}-${Date.now()}`
+  const workerId = opts.workerId ?? newWorkerId('arw')
   const deps: WorkerDeps = {
     send: opts.deps?.send ?? sendWhatsappText,
     generate: opts.deps?.generate ?? generateAcknowledgement,
     generateQualify: opts.deps?.generateQualify ?? generateQualifyTurn,
   }
 
-  await reclaimStaleAutoResponseJobs(leaseMs)
+  await reclaimStaleAutoResponseJobsAndHandOff(leaseMs)
   const jobs = await claimAutoResponseJobs(workerId, limit)
   if (jobs.length) console.log(`[IRE] worker start id=${workerId} claimed=${jobs.length}`)
   // Renew EVERY claimed lease from the moment of the claim: jobs run one after
@@ -365,7 +365,7 @@ export async function runAutoResponseWorker(
       // Usage ledger: every provider request made for this job is recorded under it.
       const r = await withAiOperation(
         { kind: 'auto_response_job', id: String(job.id), agencyId: job.agencyId, conversationId: job.conversationId, leadId: job.leadId },
-        () => processJob(job, jobDeps),
+        () => processJob({ ...job, ownerWorkerId: workerId }, jobDeps),
       )
       outcome = r
       if (r === 'sent') sent++
@@ -379,7 +379,7 @@ export async function runAutoResponseWorker(
         leaseLostCount++
         console.warn('[IRE] lease lost; stopped without sending', { jobId: job.id, conversationId: job.conversationId })
       } else {
-        await failAutoResponseJob(job.id, String(err), workerId)
+        await failOrParkAutoResponseJob(job.id, String(err), workerId)
         failed++
       }
     } finally {

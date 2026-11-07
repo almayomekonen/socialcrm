@@ -88,7 +88,8 @@ describe('onWhatsappSendFailure — classify once, record only account', () => {
 })
 
 describe('applyIreWhatsappSendFailure — account is dead, others retry', () => {
-  const job = { id: 44, agencyId: 23, conversationId: 55, leadId: 9 }
+  // The running worker's id travels with the job: both writes are owner-checked.
+  const job = { id: 44, agencyId: 23, conversationId: 55, leadId: 9, ownerWorkerId: 'w-1' }
   const ctx = {
     businessPhoneNumberId: 'P1',
     customerWaId: '972500000000',
@@ -105,7 +106,7 @@ describe('applyIreWhatsappSendFailure — account is dead, others retry', () => 
     )
     expect(res.category).toBe('account')
     expect(recordAccountRestriction).toHaveBeenCalledTimes(1)
-    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('code=131031'))
+    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('code=131031'), 'w-1')
     expect(failAutoResponseJob).not.toHaveBeenCalled()
   })
 
@@ -117,7 +118,7 @@ describe('applyIreWhatsappSendFailure — account is dead, others retry', () => 
     )
     expect(res.category).toBe('window_expired')
     expect(recordAccountRestriction).not.toHaveBeenCalled()
-    expect(failAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('code=131047'))
+    expect(failAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('code=131047'), 'w-1')
     expect(deadLetterAutoResponseJob).not.toHaveBeenCalled()
   })
 })

@@ -84,9 +84,11 @@ export async function onWhatsappSendFailure(
  *     retried — the customer may already have the message (parkAmbiguousSend);
  *   - an account restriction: dead (existing status);
  *   - any other Graph refusal: nothing was delivered, so retry with backoff.
+ * Both writes are owner-checked by `job.ownerWorkerId`: a worker that lost its
+ * lease while the refusal came back leaves the new owner's job untouched.
  */
 export async function applyIreWhatsappSendFailure(
-  job: { id: number; agencyId: number; conversationId: number; leadId: number | null },
+  job: { id: number; agencyId: number; conversationId: number; leadId: number | null; ownerWorkerId?: string },
   failure: SendWhatsappTextFailure,
   ctx: Omit<OnWhatsappSendFailureContext, 'agencyId' | 'leadId'>,
 ): Promise<OnWhatsappSendFailureResult> {
@@ -101,9 +103,9 @@ export async function applyIreWhatsappSendFailure(
   })
   const detail = formatWhatsappSendFailure(failure)
   if (result.category === 'account') {
-    await deadLetterAutoResponseJob(job.id, detail)
+    await deadLetterAutoResponseJob(job.id, detail, job.ownerWorkerId)
   } else {
-    await failAutoResponseJob(job.id, detail)
+    await failAutoResponseJob(job.id, detail, job.ownerWorkerId)
   }
   return result
 }

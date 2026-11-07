@@ -174,7 +174,7 @@ describe('IRE first-contact + 131031', () => {
     expect(recordAccountRestriction).toHaveBeenCalledWith(
       expect.objectContaining({ agencyId: 23, businessPhoneNumberId: 'P1', leadId: 9 }),
     )
-    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('131031'))
+    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('131031'), expect.stringMatching(/^arw-/))
     expect(failAutoResponseJob).not.toHaveBeenCalled()
     expect(completeAutoResponseJob).not.toHaveBeenCalled()
   })
@@ -196,7 +196,7 @@ describe('IRE qualify / handoff + 131031', () => {
     }))
 
     const outcome = await processQualifyJob(
-      { ...JOB, reason: 'qualify_turn' },
+      { ...JOB, reason: 'qualify_turn', ownerWorkerId: 'w-1' },
       {
         master: true,
         settings: {
@@ -231,7 +231,7 @@ describe('IRE qualify / handoff + 131031', () => {
     expect(recordAccountRestriction).toHaveBeenCalledWith(
       expect.objectContaining({ agencyId: 23, businessPhoneNumberId: 'P1', leadId: 9 }),
     )
-    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('131031'))
+    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('131031'), 'w-1')
     expect(failAutoResponseJob).not.toHaveBeenCalled()
   })
 })
@@ -246,7 +246,7 @@ describe('IRE post-handoff + 131031', () => {
     }))
 
     const outcome = await respondPostHandoff({
-      job: JOB,
+      job: { ...JOB, ownerWorkerId: 'w-1' },
       ctx: {
         master: true,
         settings: {
@@ -290,7 +290,7 @@ describe('IRE post-handoff + 131031', () => {
     expect(recordAccountRestriction).toHaveBeenCalledWith(
       expect.objectContaining({ agencyId: 23, businessPhoneNumberId: 'P1', leadId: 9 }),
     )
-    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('131031'))
+    expect(deadLetterAutoResponseJob).toHaveBeenCalledWith(44, expect.stringContaining('131031'), 'w-1')
     expect(failAutoResponseJob).not.toHaveBeenCalled()
   })
 })

@@ -194,9 +194,9 @@ describe('qualify AI generation retry', () => {
   it('transient ai_unavailable reuses failAutoResponseJob and does not send or count a turn', async () => {
     const send = vi.fn()
     const generateQualify = vi.fn(async () => ({ ok: false as const, skipReason: 'ai_unavailable' as const }))
-    const outcome = await processQualifyJob(JOB, CTX, { send, generateQualify })
+    const outcome = await processQualifyJob({ ...JOB, ownerWorkerId: 'w-1' }, CTX, { send, generateQualify })
     expect(outcome).toBe('failed')
-    expect(failAutoResponseJob).toHaveBeenCalledWith(61, 'ai_unavailable')
+    expect(failAutoResponseJob).toHaveBeenCalledWith(61, 'ai_unavailable', 'w-1')
     expect(skipAutoResponseJob).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
     expect(recordTurn).not.toHaveBeenCalled()
@@ -228,12 +228,12 @@ describe('qualify AI generation retry', () => {
   it('repeated failures still go through maxAttempts via failAutoResponseJob and never fabricate a reply', async () => {
     const send = vi.fn()
     const generateQualify = vi.fn(async () => ({ ok: false as const, skipReason: 'ai_unavailable' as const }))
-    const outcome = await processQualifyJob({ ...JOB, attempts: 3, maxAttempts: 3 }, CTX, {
+    const outcome = await processQualifyJob({ ...JOB, attempts: 3, maxAttempts: 3, ownerWorkerId: 'w-1' }, CTX, {
       send,
       generateQualify,
     })
     expect(outcome).toBe('failed')
-    expect(failAutoResponseJob).toHaveBeenCalledWith(61, 'ai_unavailable')
+    expect(failAutoResponseJob).toHaveBeenCalledWith(61, 'ai_unavailable', 'w-1')
     expect(send).not.toHaveBeenCalled()
     expect(recordTurn).not.toHaveBeenCalled()
     expect(completeAutoResponseJob).not.toHaveBeenCalled()

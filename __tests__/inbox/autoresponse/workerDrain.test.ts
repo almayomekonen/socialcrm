@@ -43,6 +43,8 @@ vi.mock('@/db/autoResponseJobs', () => ({
   renewAutoResponseJobLease: vi.fn(async () => true),
   ownsAutoResponseJob: vi.fn(async () => true),
 }))
+// The pre-send fence now records `sendStartedAt` (PR3): this worker still owns its jobs.
+vi.mock('@/db/autoResponseSendMarker', () => ({ markSendStarted: vi.fn(async () => true), clearSendStarted: vi.fn(async () => true) }))
 vi.mock('@/db/autoResponseSettings', () => ({
   getMasterEnabled,
   getChannelSettings,
@@ -183,7 +185,8 @@ describe('IRE worker drain', () => {
     const generate = vi.fn(async () => ({ ok: false as const, skipReason: 'ai_unavailable' as const }))
     const summary = await runAutoResponseWorker({ deps: { send, generate } as never })
     expect(summary).toEqual({ claimed: 1, sent: 0, skipped: 0, failed: 1, leaseLost: 0 })
-    expect(failAutoResponseJob).toHaveBeenCalledWith(39, 'ai_unavailable')
+    // Owner-checked: the claiming worker's id, so a worker that lost its lease touches nothing.
+    expect(failAutoResponseJob).toHaveBeenCalledWith(39, 'ai_unavailable', expect.stringMatching(/^arw-\d+-\d+-[0-9a-f]{8}$/))
     expect(skipAutoResponseJob).not.toHaveBeenCalled()
     expect(send).not.toHaveBeenCalled()
   })
