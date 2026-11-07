@@ -91,6 +91,7 @@ export function planNotification(input: PlanInput): { plan: NotificationPlan } |
     leadId: leadIdForJob(job),
     context,
     payload: job.payload,
+    entityId: job.entityId,
   })
   if (resolved.length === 0) return { skip: 'no_recipients' }
 

@@ -198,14 +198,21 @@ export async function notifyEventWith(deps: NotifyDeps, event: NotificationEvent
  * bare insert — the reconciliation sweep closes the gap (spec §14.3). It is
  * never closed by wrapping a protected ingestion path in a transaction.
  */
-export async function notifyEvent(event: NotificationEvent, opts?: { trx?: Knex.Transaction }): Promise<NotifyResult> {
+/**
+ * `savepoint` (with `trx`): the enqueue runs in a SAVEPOINT, so a failed insert
+ * rolls back only itself and the caller's transaction carries on. Postgres
+ * aborts a whole transaction on any error, and this function swallows errors, so
+ * without it a failed enqueue would silently poison the caller's business write.
+ */
+export async function notifyEvent(event: NotificationEvent, opts?: { trx?: Knex.Transaction; savepoint?: boolean }): Promise<NotifyResult> {
   return notifyEventWith(
     {
       enabled: isNotificationsEnabled,
       allowlisted: isNotificationsAgencyAllowlisted,
       entitled: async (agencyId) => (await getAgencyProductAccess(agencyId)).hasAccess,
       lookupType: getNotificationType,
-      enqueue: (args) => enqueueNotificationJob(opts?.trx ?? db, args),
+      enqueue: (args) =>
+        opts?.trx && opts.savepoint ? opts.trx.transaction((sp) => enqueueNotificationJob(sp, args)) : enqueueNotificationJob(opts?.trx ?? db, args),
       shadow,
       kick: kickWorkerSoon,
     },

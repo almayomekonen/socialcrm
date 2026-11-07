@@ -65,6 +65,17 @@ export const NOTIFICATION_TYPES = [
    * `enabled: false`, so this member is inert until deliberately turned on.
    */
   'lead.insight',
+  /**
+   * The owner's own personal WhatsApp reminder was DEFINITELY not delivered
+   * (Reminder Engine R9): Meta rejected it, Meta later reported it failed, or the
+   * send gate refused it (too late, the 24-hour window, a cap, pricing). Owner only.
+   */
+  'followup.reminder_failed',
+  /**
+   * The outcome of the owner's personal reminder is UNKNOWN: it may have reached
+   * Meta, and SocialCRM never resends it automatically. Never worded as a failure.
+   */
+  'followup.reminder_unconfirmed',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
@@ -97,7 +108,8 @@ export type Presence = (typeof PRESENCE_STATES)[number]
  * needs `aggregate: true` on the type definition rather than passing unnoticed.
  */
 // `messenger_conversation` is messenger_conversations.id — a different id space from `conversation`.
-export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment', 'subscription', 'lead_assignment', 'messenger_conversation'] as const
+// `personal_reminder` is owner_personal_reminders.id (no CHECK on entityType: a TypeScript widening only).
+export const ENTITY_TYPES = ['lead', 'conversation', 'integration', 'comment', 'subscription', 'lead_assignment', 'messenger_conversation', 'personal_reminder'] as const
 export type EntityType = (typeof ENTITY_TYPES)[number]
 
 /**
@@ -115,7 +127,12 @@ export type EntityType = (typeof ENTITY_TYPES)[number]
  * under another name: an agency admin must never receive one of these, and an
  * empty allowlist resolves to nobody rather than falling back to anyone.
  */
-export type RecipientRule = 'handler_or_admin' | 'lead_handler_or_admins' | 'admin_only' | 'platform_operator' | 'explicit_user'
+/**
+ * `reminder_owner` (Reminder Engine R9) is agency-scoped and DATABASE-resolved
+ * like the lead rules: the owner of the personal reminder the entity names, read
+ * by (agencyId, reminderId) together, never taken from the payload.
+ */
+export type RecipientRule = 'handler_or_admin' | 'lead_handler_or_admins' | 'admin_only' | 'platform_operator' | 'explicit_user' | 'reminder_owner'
 
 /**
  * Business facts an emission site already holds, carried to the worker so copy
@@ -205,6 +222,12 @@ export type NotificationPayload = {
    * one and is news. Never `Date.now()` — see eventKey.ts.
    */
   cancelledAt?: number | null
+  /**
+   * `followup.reminder_*`: the reminder's scheduled instant (epoch ms), so the
+   * copy names WHICH reminder without carrying its text (the text is purged 90
+   * days after a terminal state; a notification must not outlive that).
+   */
+  remindAtMs?: number | null
 }
 
 /**

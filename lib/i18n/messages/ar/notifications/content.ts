@@ -83,6 +83,8 @@ export const title: C['title'] = {
   connectionErrorProvider: 'مشكلة في الاتصال بـ{provider}',
   leadNotSaved: 'لم يُحفظ العميل المحتمل',
   cancellation: 'إلغاء اشتراك يحتاج إلى معالجة',
+  reminderFailed: 'لم يتم إرسال التذكير',
+  reminderUnconfirmed: 'تعذّر التأكد من إرسال التذكير',
 }
 
 export const body: C['body'] = {
@@ -92,4 +94,8 @@ export const body: C['body'] = {
   leadNotSavedProvider: 'وصل عميل محتمل من {provider} لم يُحفظ في النظام',
   cancellation: 'ألغى نشاط تجاري اشتراكه في SocialCRM. يجب إلغاء أمر الدفع الدائم الخاص به في Grow.',
   cancellationNamed: 'ألغى {agency} اشتراكه في SocialCRM. يجب إلغاء أمر الدفع الدائم الخاص به في Grow.',
+  reminderFailed: 'لم نتمكن من إرسال التذكير الذي طلبته عبر واتساب.',
+  reminderFailedAt: 'لم نتمكن من إرسال التذكير المجدول في {when} عبر واتساب.',
+  reminderUnconfirmed: 'لم نتمكن من التأكد من وصول التذكير الذي طلبته إليك عبر واتساب. ربما وصل، لذلك لن يُرسل مرة أخرى تلقائيًا.',
+  reminderUnconfirmedAt: 'لم نتمكن من التأكد من وصول التذكير المجدول في {when} إليك عبر واتساب. ربما وصل، لذلك لن يُرسل مرة أخرى تلقائيًا.',
 }

@@ -51,6 +51,8 @@ export const title: C['title'] = {
   connectionErrorProvider: 'Problem with the {provider} connection',
   leadNotSaved: 'Lead not saved',
   cancellation: 'Subscription cancellation needs handling',
+  reminderFailed: 'Reminder not sent',
+  reminderUnconfirmed: 'Reminder delivery could not be confirmed',
 }
 
 export const body: C['body'] = {
@@ -60,4 +62,8 @@ export const body: C['body'] = {
   leadNotSavedProvider: 'A lead arrived from {provider} that was not saved in the system',
   cancellation: 'A business cancelled its SocialCRM subscription. Cancel its standing order in Grow.',
   cancellationNamed: '{agency} cancelled its SocialCRM subscription. Cancel its standing order in Grow.',
+  reminderFailed: 'We could not send you the WhatsApp reminder you asked for.',
+  reminderFailedAt: 'We could not send you the WhatsApp reminder scheduled for {when}.',
+  reminderUnconfirmed: 'We could not confirm that the reminder you asked for reached you on WhatsApp. It may have arrived, so it will not be sent again automatically.',
+  reminderUnconfirmedAt: 'We could not confirm that the reminder scheduled for {when} reached you on WhatsApp. It may have arrived, so it will not be sent again automatically.',
 }

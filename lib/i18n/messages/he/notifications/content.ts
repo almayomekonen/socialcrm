@@ -60,6 +60,8 @@ export const title = {
   connectionErrorProvider: 'תקלה בחיבור ל{provider}',
   leadNotSaved: 'ליד לא נשמר',
   cancellation: 'ביטול מנוי דורש טיפול',
+  reminderFailed: 'תזכורת לא נשלחה',
+  reminderUnconfirmed: 'לא ניתן לוודא שתזכורת נשלחה',
 } as const
 
 export const body = {
@@ -69,4 +71,8 @@ export const body = {
   leadNotSavedProvider: 'הגיע ליד מ{provider} שלא נשמר במערכת',
   cancellation: 'עסק ביטל את מנוי SocialCRM. יש לבטל את הוראת הקבע שלו ב-Grow.',
   cancellationNamed: '{agency} ביטל את מנוי SocialCRM. יש לבטל את הוראת הקבע שלו ב-Grow.',
+  reminderFailed: 'לא הצלחנו לשלוח לך בוואטסאפ את התזכורת שביקשת.',
+  reminderFailedAt: 'לא הצלחנו לשלוח לך בוואטסאפ את התזכורת שביקשת ל-{when}.',
+  reminderUnconfirmed: 'לא הצלחנו לוודא שהתזכורת שביקשת הגיעה אליך בוואטסאפ. ייתכן שהיא הגיעה, ולכן היא לא תישלח שוב אוטומטית.',
+  reminderUnconfirmedAt: 'לא הצלחנו לוודא שהתזכורת שביקשת ל-{when} הגיעה אליך בוואטסאפ. ייתכן שהיא הגיעה, ולכן היא לא תישלח שוב אוטומטית.',
 } as const

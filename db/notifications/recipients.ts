@@ -46,6 +46,12 @@ export type RecipientContext = {
    * recipients ⇒ nothing delivered, which is the fail-closed answer.
    */
   platformOperatorIds?: number[]
+  /**
+   * `reminder_owner`: key `${agencyId}:${reminderId}` → the reminder's owner,
+   * read with BOTH ids in one predicate and only for an unsuspended user of that
+   * same agency. Loaded only when a claimed job needs it. Absent ⇒ nobody.
+   */
+  reminderOwnerByKey?: Map<string, number>
 }
 
 export const leadKey = (agencyId: number, leadId: number): string => `${agencyId}:${leadId}`
@@ -146,15 +152,43 @@ export async function buildRecipientContext(input: {
   agencyIds: number[]
   /** True when at least one claimed job's type resolves to `platform_operator`. */
   needPlatformOperators?: boolean
+  /** (agency, reminder) pairs of claimed `reminder_owner` jobs. Absent/empty ⇒ no query. */
+  reminderPairs?: { agencyId: number; reminderId: number }[]
 }): Promise<RecipientContext> {
-  const [ownership, adminsByAgency, operators] = await Promise.all([
+  const [ownership, adminsByAgency, operators, reminderOwners] = await Promise.all([
     loadLeadOwnership(input.leadPairs),
     loadAgencyAdmins(input.agencyIds),
     input.needPlatformOperators ? loadPlatformOperators() : Promise.resolve([]),
+    input.reminderPairs?.length ? loadReminderOwners(input.reminderPairs) : Promise.resolve([]),
   ])
   const handlerByLead = new Map<string, number | null>()
   for (const row of ownership) handlerByLead.set(leadKey(row.agencyId, row.leadId), row.handlerId)
-  return { handlerByLead, adminsByAgency, platformOperatorIds: operators.map((o) => o.id) }
+  const reminderOwnerByKey = new Map<string, number>()
+  for (const row of reminderOwners) reminderOwnerByKey.set(leadKey(row.agencyId, row.reminderId), row.userId)
+  return { handlerByLead, adminsByAgency, platformOperatorIds: operators.map((o) => o.id), reminderOwnerByKey }
+}
+
+/**
+ * The owners of a batch of personal reminders, in ONE query (`reminder_owner`).
+ * Tuple-scoped like `loadLeadOwnershipQuery`; the join to `users` keeps only an
+ * unsuspended user OF THE SAME AGENCY, so an id from one tenant can never
+ * resolve to anyone in another.
+ */
+export function loadReminderOwnersQuery(pairs: { agencyId: number; reminderId: number }[]) {
+  const tuples = pairs.map(() => '(?,?)').join(',')
+  return db.raw(
+    `SELECT r.id, r."agencyId", r."userId"
+       FROM owner_personal_reminders r
+       JOIN users u ON u.id = r."userId" AND u."agencyId" = r."agencyId" AND u.suspended IS NOT TRUE
+      WHERE (r."agencyId", r.id) IN (${tuples})`,
+    pairs.flatMap((p) => [p.agencyId, p.reminderId]),
+  )
+}
+
+export async function loadReminderOwners(pairs: { agencyId: number; reminderId: number }[]): Promise<{ agencyId: number; reminderId: number; userId: number }[]> {
+  if (pairs.length === 0) return []
+  const res = await loadReminderOwnersQuery(pairs)
+  return (res.rows ?? []).map((r: Record<string, unknown>) => ({ agencyId: Number(r.agencyId), reminderId: Number(r.id), userId: Number(r.userId) }))
 }
 
 /**
@@ -175,8 +209,17 @@ export function resolveRecipients(input: {
   context: RecipientContext
   /** Business facts from the emission site. Only `explicit_user` reads it. */
   payload?: { assignedUserId?: number | null }
+  /** The job's entity id. Only `reminder_owner` reads it (the reminder id). */
+  entityId?: number | null
 }): number[] {
   const { rule, agencyId, leadId, context, payload } = input
+
+  /** The reminder's own owner, resolved from the database by (agency, reminder). Nobody else, ever. */
+  if (rule === 'reminder_owner') {
+    if (input.entityId == null) return []
+    const owner = context.reminderOwnerByKey?.get(leadKey(agencyId, input.entityId))
+    return owner != null ? [owner] : []
+  }
 
   /**
    * ADDRESSED TO ONE NAMED USER, carried on the payload.

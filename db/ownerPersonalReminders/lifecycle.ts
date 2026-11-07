@@ -11,6 +11,7 @@ import type { PlatformTextOutcome } from '@/lib/whatsapp/platform/sendText'
 import { insertReminderEvents, type ReminderEvent } from './events'
 import { readSendControls } from './controls'
 import { releaseAll, reservationPlan } from './capacity'
+import { notifyOwnerReminderNotDelivered } from './notifyOwner'
 
 /**
  * The delivery lifecycle around the gate (architecture v1.2 §3, T1/T3/T10/T11/T13):
@@ -61,13 +62,18 @@ export async function reapStaleDispatches(nowMs: number): Promise<number> {
     const { rows } = await trx.raw(
       `UPDATE ${T} r SET status = 'unknown', "finalizedAt" = :now, "updatedAt" = now()
         WHERE r.id IN (SELECT q.id FROM ${T} q WHERE q.status = 'dispatching' AND q."dispatchedAt" < :before FOR UPDATE SKIP LOCKED)
-        RETURNING r.id, r."agencyId", r."userId", r."recipientId"`,
+        RETURNING r.id, r."agencyId", r."userId", r."recipientId", r."remindAt"`,
       { now: new Date(nowMs), before: new Date(nowMs - REMINDER_DISPATCH_LEASE_MS) },
     )
     await insertReminderEvents(trx, rows.map((r: Record<string, unknown>) => event(r, 'unknown', 'dispatching', 'unknown', 'lease_expired')))
+    for (const r of rows as Record<string, unknown>[]) await notifyOwner(trx, r, 'unknown', nowMs)
     return rows.length
   })
 }
+
+/** R9: the owner's in-app notice, in this transaction (./notifyOwner.ts). */
+const notifyOwner = (trx: Knex.Transaction, r: Record<string, unknown>, kind: 'failed' | 'unknown', nowMs: number) =>
+  notifyOwnerReminderNotDelivered(trx, { id: Number(r.id), agencyId: Number(r.agencyId), userId: Number(r.userId), remindAt: r.remindAt as string }, kind, nowMs)
 
 function event(r: Record<string, unknown>, type: ReminderEvent['type'], from: string, to: string, reason: string | null = null, errorCode: number | null = null): ReminderEvent {
   return { agencyId: Number(r.agencyId), userId: Number(r.userId), recipientId: Number(r.recipientId), reminderId: Number(r.id), actorKind: 'system', type, fromStatus: from, toStatus: to, reason, errorCode }
@@ -107,6 +113,7 @@ export async function recordSendOutcome(input: { reminderId: number; claimToken:
     if (o.kind === 'unknown') {
       await trx(T).where({ id: r.id }).update({ status: 'unknown', finalizedAt: now, updatedAt: trx.fn.now() })
       await insertReminderEvents(trx, [event(r, 'unknown', 'dispatching', 'unknown', o.reason)])
+      await notifyOwner(trx, r, 'unknown', input.nowMs)
       return 'unknown'
     }
     const code = o.code && /^\d+$/.test(o.code) ? Number(o.code) : null
@@ -131,6 +138,7 @@ export async function recordSendOutcome(input: { reminderId: number; claimToken:
       .where({ id: r.id })
       .update({ status: 'failed', failureReason: reason, errorCode: code, errorScope: o.scope, finalizedAt: now, costReleasedAt: now, updatedAt: trx.fn.now() })
     await insertReminderEvents(trx, [event(r, 'failed', 'dispatching', 'failed', reason, code), event(r, 'cost_released', 'failed', 'failed', reason, code)])
+    await notifyOwner(trx, r, 'failed', input.nowMs)
     return 'failed'
   })
 }
@@ -148,11 +156,13 @@ export async function releaseForFailedStatuses(limit = 50): Promise<number> {
   for (const id of ids) {
     await db.transaction(async (trx) => {
       const r = (await trx(T).where({ id, status: 'sent' }).whereNull('costReleasedAt').forUpdate().skipLocked()
-        .first('id', 'agencyId', 'userId', 'recipientId', 'dispatchedAt', 'reservedMicros')) as Record<string, unknown> | undefined
+        .first('id', 'agencyId', 'userId', 'recipientId', 'dispatchedAt', 'reservedMicros', 'remindAt')) as Record<string, unknown> | undefined
       if (!r) return
       await releaseFor(trx, r)
       await trx(T).where({ id: r.id }).update({ costReleasedAt: trx.fn.now(), updatedAt: trx.fn.now() })
       await insertReminderEvents(trx, [event(r, 'cost_released', 'sent', 'sent', 'meta_failed_status')])
+      // Meta accepted it, then reported it failed: definitely not delivered.
+      await notifyOwner(trx, r, 'failed', Date.now())
       released++
     })
   }
