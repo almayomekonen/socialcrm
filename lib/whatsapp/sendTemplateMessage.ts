@@ -2,6 +2,7 @@ import { GRAPH_BASE, GRAPH_VERSION } from '@/lib/facebook/graph'
 import { waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
 import { toIsraeliWhatsappRecipient } from '@/lib/whatsapp/israeliPhone'
 import type { SendWhatsappTextResult } from '@/lib/whatsapp/sendMessage'
+import { runGatedWhatsappSend, type WhatsappSendConsent } from '@/lib/whatsapp/optOut/sendGate'
 
 /**
  * Send an APPROVED template message to a single recipient.
@@ -39,12 +40,21 @@ export type SendWhatsappTemplateArgs = {
    * every other template (payload unchanged).
    */
   quickReplyPayloads?: string[]
+  /**
+   * Who is sending, for which business. Required: the opt-out gate decides on
+   * it, and a send without it is refused. See lib/whatsapp/optOut/sendGate.ts.
+   */
+  consent: WhatsappSendConsent
   trace?: WaTraceCtx
 }
 
 export type TemplateHeaderImage = { link: string } | { id: string }
 
-export async function sendWhatsappTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsappTextResult> {
+export function sendWhatsappTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsappTextResult> {
+  return runGatedWhatsappSend(args.consent, args.to, () => postTemplate(args))
+}
+
+async function postTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsappTextResult> {
   const { phoneNumberId, accessToken, to, name, language, params, headerImage, quickReplyPayloads } = args
   // Same normalization as the text path — the number reaching Meta must be E.164.
   const recipient = toIsraeliWhatsappRecipient(to)

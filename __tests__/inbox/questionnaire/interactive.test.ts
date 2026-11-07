@@ -91,7 +91,7 @@ describe('payload', () => {
 describe('interactiveSender — fallback', () => {
   const step = choice(['כן', 'לא'])
   const plan = { kind: 'button' as const, step }
-  const args = { phoneNumberId: 'p', accessToken: 't', to: '972500000000', body: renderQuestion(step) }
+  const args = { phoneNumberId: 'p', accessToken: 't', to: '972500000000', body: renderQuestion(step), consent: { kind: 'automated' as const, agencyId: 1 } }
 
   it('sends interactive when Meta accepts it', async () => {
     const sendText = vi.fn()

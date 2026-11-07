@@ -12,7 +12,7 @@ function captureFetch() {
   }))
   return bodies
 }
-const base = { phoneNumberId: 'PN', accessToken: 't', to: '972500000001', language: 'he', params: [] as string[] }
+const base = { phoneNumberId: 'PN', accessToken: 't', to: '972500000001', language: 'he', params: [] as string[], consent: { kind: 'manual_reply' as const, agencyId: 1, userId: 1 } }
 
 describe('sendWhatsappTemplate quick-reply payloads', () => {
   afterEach(() => vi.unstubAllGlobals())

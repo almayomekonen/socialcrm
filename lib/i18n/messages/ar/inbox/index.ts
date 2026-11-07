@@ -1,7 +1,7 @@
 import type { Messages } from '../../../translate'
 import { page, toolbar, channels, list, row, empty, intel } from './list'
 import { header, conversation, status, failure, tooltip, reaction, quote, kind, media } from './thread'
-import { draft, emoji, serviceWindow, connect, health, locked } from './composer'
+import { draft, emoji, serviceWindow, connect, health, locked, optOut } from './composer'
 import { menu, leadless, ownership, take, analysis, awareness } from './conversation'
 import { messenger } from './messenger'
 import { comments } from './comments'
@@ -31,6 +31,7 @@ export const inbox: Messages['inbox'] = {
   connect,
   health,
   locked,
+  optOut,
   menu,
   leadless,
   ownership,

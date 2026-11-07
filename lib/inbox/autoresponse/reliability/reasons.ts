@@ -4,3 +4,10 @@
  * inbox notice, so the three can never disagree about what they are seeing.
  */
 export const AI_NOT_ENTITLED = 'ai_not_entitled' as const
+
+/**
+ * No AI reply job for a customer message that IS an opt-out command ("עצור",
+ * STOP…). The command is recorded by the inbound ingest; nothing answers it,
+ * and no confirmation is sent (owner decision D3).
+ */
+export const OPT_OUT_COMMAND = 'opt_out_command' as const

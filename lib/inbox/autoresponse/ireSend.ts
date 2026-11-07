@@ -7,6 +7,7 @@ import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
 import { resolveWhatsappAccessToken } from '@/lib/whatsapp/connectionToken'
+import { isOptOutBlocked } from '@/lib/whatsapp/optOut/sendGate'
 import type { AutoResponseJob } from '@/db/autoResponseJobs'
 import { finalizeCustomerFacingText } from './customerFacingText'
 import { assertIreSendAllowed } from './ireSendGate'
@@ -71,9 +72,14 @@ export async function sendIreOutbound(
     accessToken: resolveWhatsappAccessToken(connection.access_token),
     to,
     body,
+    consent: { kind: 'automated', agencyId: job.agencyId },
     trace: { conversationId: ctx.conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
     ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
   })
+  // The customer opted out of this business: nothing reached Meta. A plain
+  // (unsettled) failure, so every caller ends the job as a skip — never a retry,
+  // never a failed-message bubble.
+  if (isOptOutBlocked(sent)) return { ok: false, reason: 'opted_out' }
   if (sent.ok === false) {
     await applyIreWhatsappSendFailure(job, sent, {
       businessPhoneNumberId: ctx.conv.businessPhoneNumberId,

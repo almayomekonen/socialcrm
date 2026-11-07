@@ -102,3 +102,13 @@ export const health = {
 export const locked = {
   composer: 'חידוש המנוי מחזיר את שליחת ההודעות',
 }
+
+export const optOut = {
+  /** The lead typed an opt-out command ("עצור", STOP…). Shown above the composer. */
+  title: 'הליד ביקש להפסיק לקבל הודעות בוואטסאפ',
+  explanation: 'הבקשה נשמרה במערכת.',
+  reasonsLabel: 'מה זה אומר:',
+  automated: 'הודעות אוטומטיות בוואטסאפ חסומות לליד הזה.',
+  manual: 'אפשר עדיין לשלוח לו תשובה ידנית.',
+  templates: 'הודעות מוכנות שיווקיות חסומות, וגם שאר ההודעות המוכנות לא נשלחות לליד הזה מכאן.',
+}

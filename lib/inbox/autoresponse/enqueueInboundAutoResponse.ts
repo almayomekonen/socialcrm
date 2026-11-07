@@ -1,7 +1,8 @@
 import type { Knex } from 'knex'
 import { enqueueAutoResponse, skipPendingNoResponseJobs, type AutoResponseReason } from '@/db/autoResponseJobs'
 import { aiRepliesPausedForPlan } from './reliability/entitlement'
-import { AI_NOT_ENTITLED } from './reliability/reasons'
+import { AI_NOT_ENTITLED, OPT_OUT_COMMAND } from './reliability/reasons'
+import { classifyOptOutCommand } from '@/lib/whatsapp/optOut/command'
 
 export type UnansweredInbound = {
   id: number
@@ -42,12 +43,26 @@ export async function findLatestUnansweredInbound(
   return unansweredInboundFromLatest(last as LatestMessage | undefined)
 }
 
+/**
+ * Is the triggering customer message a typed opt-out command? Same classifier
+ * and same "typed text only" rule as the recorder (lib/whatsapp/optOut/recordInbound.ts).
+ * Shared by the webhook ingest and by "promote to lead", which re-enqueues for
+ * the latest unanswered inbound.
+ */
+async function triggerIsOptOutCommand(trx: Knex.Transaction, conversationId: number, sequence: number): Promise<boolean> {
+  const msg = (await trx('inbox_messages')
+    .where({ conversationId, sequence, direction: 'inbound' })
+    .orderBy('id', 'desc')
+    .first('type', 'text')) as { type: string | null; text: string | null } | undefined
+  return msg?.type === 'text' && classifyOptOutCommand(msg.text ?? '') === 'opt_out'
+}
+
 export type EnqueueInboundAutoResponseResult = {
   jobId: number | null
   reason: AutoResponseReason
   delaySeconds: number
   /** Why no job was created on purpose (not the ordinary duplicate/guard refusals). */
-  suppressed?: typeof AI_NOT_ENTITLED
+  suppressed?: typeof AI_NOT_ENTITLED | typeof OPT_OUT_COMMAND
 }
 
 /**
@@ -82,6 +97,11 @@ export async function enqueueInboundAutoResponse(
         ? 'qualify_turn'
         : 'first_contact'
   await skipPendingNoResponseJobs(trx, args.conversationId)
+  // The customer's message is an opt-out command: it is recorded and kept in
+  // the conversation, but nothing answers it (no job, so no AI generation).
+  if (await triggerIsOptOutCommand(trx, args.conversationId, args.triggerSequence)) {
+    return { jobId: null, reason, delaySeconds, suppressed: OPT_OUT_COMMAND }
+  }
   // A job the router is certain to refuse is not created (reliability rollout).
   // The message itself is already persisted and notified by the caller.
   if (await aiRepliesPausedForPlan(args.agencyId, arSettings)) {

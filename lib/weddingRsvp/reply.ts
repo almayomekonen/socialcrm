@@ -26,6 +26,7 @@ export async function replyInConversation(args: {
   if (!(await followUpAllowed(target.customerWaId, args.conversationId))) return { replied: false, reason: 'recipient-not-allowed' }
 
   const sent = await sendWhatsappText({
+      consent: { kind: 'automated', agencyId: args.agencyId },
     phoneNumberId: target.businessPhoneNumberId,
     accessToken: target.accessToken,
     to: target.customerWaId,

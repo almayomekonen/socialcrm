@@ -85,6 +85,7 @@ export async function sendWeddingInvite(args: {
     await recordHumanTakeover({ agencyId: args.agencyId, leadId: recipient.leadId, conversationId: recipient.conversationId })
 
     const sent = await sendWhatsappTemplate({
+      consent: { kind: 'automated', agencyId: args.agencyId },
       phoneNumberId: target.businessPhoneNumberId,
       accessToken: target.accessToken,
       to: target.customerWaId,

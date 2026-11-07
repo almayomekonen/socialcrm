@@ -9,6 +9,8 @@ import {
 } from '@/lib/whatsapp/operationalStatus'
 import { isAdmin, type Roles } from '@/types/roles'
 import type { Template } from '@/lib/whatsapp/templates/types'
+import { isCustomerOptedOut } from '@/db/whatsappOptOuts'
+import { toCustomerPhoneE164 } from '@/lib/whatsapp/optOut/phone'
 
 /**
  * Server facts the conversation composer needs: THIS conversation's phone
@@ -38,6 +40,8 @@ export type WhatsappComposerContext = {
   /** Customer number for the composer's native-WhatsApp fallback. */
   customerWaId?: string | null
   businessPhoneNumberId: string | null
+  /** The customer has an active WhatsApp opt-out with this business (warning only; the send gate decides). */
+  optedOut: boolean
 }
 
 export type ComposerContextDeps = {
@@ -48,6 +52,22 @@ export type ComposerContextDeps = {
   resolveHealth: (conn: WaConnectionRow | null, agencyId: number) => Promise<{ primary: WhatsappHealthPrimary }>
   isTemplatesEnabled: (agencyId: number) => boolean
   listApprovedTemplates: (agencyId: number) => Promise<Template[]>
+  isOptedOut: (agencyId: number, customerWaId: string | null | undefined) => Promise<boolean>
+}
+
+/**
+ * Display only. A failed read shows no warning rather than breaking the
+ * composer: the send gate re-reads the opt-out on every automated send.
+ */
+export async function queryCustomerOptedOut(agencyId: number, customerWaId: string | null | undefined): Promise<boolean> {
+  const phone = toCustomerPhoneE164(customerWaId)
+  if (!phone) return false
+  try {
+    return await isCustomerOptedOut(agencyId, phone)
+  } catch (err) {
+    console.warn('[composer] opt-out read failed', { agencyId, reason: (err as Error)?.message })
+    return false
+  }
 }
 
 export async function queryConversationSendScope(
@@ -122,6 +142,7 @@ const defaultDeps: ComposerContextDeps = {
   isTemplatesEnabled: isTemplatesEnabledForAgency,
   listApprovedTemplates: async (agencyId) =>
     (await listTemplates(agencyId)).filter((t) => t.status === 'approved'),
+  isOptedOut: queryCustomerOptedOut,
 }
 
 export async function loadWhatsappComposerContext(
@@ -137,6 +158,7 @@ export async function loadWhatsappComposerContext(
     canManageTemplates: isAdmin(opts?.role as Roles),
     businessPhoneNumberId: null,
     customerWaId: null,
+    optedOut: false,
   }
 
   const scope = await deps.getConversation(agencyId, conversationId)
@@ -146,6 +168,7 @@ export async function loadWhatsappComposerContext(
   const health = (await deps.resolveHealth(conn, agencyId)).primary
   const templatesEnabled = deps.isTemplatesEnabled(agencyId)
   const templates = templatesEnabled ? await deps.listApprovedTemplates(agencyId) : []
+  const optedOut = await deps.isOptedOut(agencyId, scope.customerWaId)
 
   return {
     health,
@@ -154,5 +177,6 @@ export async function loadWhatsappComposerContext(
     canManageTemplates: isAdmin(opts?.role as Roles),
     businessPhoneNumberId: scope.businessPhoneNumberId,
     customerWaId: scope.customerWaId ?? null,
+    optedOut,
   }
 }

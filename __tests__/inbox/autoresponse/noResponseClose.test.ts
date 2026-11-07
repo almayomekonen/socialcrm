@@ -666,10 +666,19 @@ describe('no-response integration with Stop Policy / jobs', () => {
         return { mode: 'qualify', delaySeconds: 5 }
       },
     }
-    const trx = Object.assign((table: string) => {
-      void table
-      return q
-    }, q)
+    // The trigger message (read to keep an opt-out command unanswered): an ordinary one.
+    const trigger = {
+      where() {
+        return this
+      },
+      orderBy() {
+        return this
+      },
+      async first() {
+        return { type: 'text', text: 'כן, מתאים לי' }
+      },
+    }
+    const trx = Object.assign((table: string) => (table === 'inbox_messages' ? trigger : q), q)
     skipPendingNoResponseJobs.mockImplementation(async () => {
       expect(enqueueAutoResponse).not.toHaveBeenCalled()
       return 1

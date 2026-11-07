@@ -179,6 +179,8 @@ export type TemplateSendRow = {
   status: TemplateStatus
   name: string
   language: string
+  /** Meta category as stored (MARKETING / UTILITY / …). The opt-out gate decides on it. */
+  category: string | null
   bodyText: string
   variables: TemplateVariable[]
   /** Explicit positional bindings for Meta-synced templates (from metadata). */
@@ -206,13 +208,14 @@ function toBindings(rawMetadata: unknown): ParameterBinding[] {
 export async function loadTemplateForSend(id: number, agencyId: number): Promise<TemplateSendRow | null> {
   const row = await db('whatsapp_templates')
     .where({ id, agencyId })
-    .first('id', 'status', 'name', 'language', 'bodyText', 'variables', 'metadata')
+    .first('id', 'status', 'name', 'language', 'category', 'bodyText', 'variables', 'metadata')
   if (!row) return null
   return {
     id: Number(row.id),
     status: row.status as TemplateStatus,
     name: row.name as string,
     language: (row.language as string) ?? 'he',
+    category: typeof row.category === 'string' ? row.category.toUpperCase() : null,
     bodyText: (row.bodyText as string) ?? '',
     variables: toVariables(row.variables),
     bindings: toBindings(row.metadata),

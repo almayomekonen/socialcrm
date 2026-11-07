@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   sendWhatsappTemplate: vi.fn(),
   persistOutboundWhatsapp: vi.fn(),
   recordAccountRestriction: vi.fn(),
+  isCustomerOptedOut: vi.fn(),
 }))
 
 vi.mock('@/lib/requireUser', () => ({ requireAgencyUser: h.requireAgencyUser, requireProductAccess: h.requireAgencyUser }))
@@ -33,6 +34,7 @@ vi.mock('@/lib/inbox/whatsappComposerContext', () => ({
 vi.mock('@/lib/whatsapp/sendTemplateMessage', () => ({ sendWhatsappTemplate: h.sendWhatsappTemplate }))
 vi.mock('@/lib/inbox/persistOutboundWhatsapp', () => ({ persistOutboundWhatsapp: h.persistOutboundWhatsapp }))
 vi.mock('@/lib/inbox/recordAccountRestriction', () => ({ recordAccountRestriction: h.recordAccountRestriction }))
+vi.mock('@/db/whatsappOptOuts', () => ({ isCustomerOptedOut: h.isCustomerOptedOut }))
 
 const { sendTemplateToLead } = await import('@/actions/whatsapp/templates/sendTemplateToLead')
 
@@ -98,6 +100,7 @@ beforeEach(() => {
   h.sendWhatsappTemplate.mockResolvedValue({ ok: true, wamid: 'wamid.X' })
   h.persistOutboundWhatsapp.mockResolvedValue({ conversationId: 1, messageId: 2 })
   h.recordAccountRestriction.mockResolvedValue(undefined)
+  h.isCustomerOptedOut.mockResolvedValue(false)
 })
 
 describe('sendTemplateToLead — validation & gating', () => {
@@ -418,5 +421,58 @@ describe('P1 — out-of-scope callers stay unchanged', () => {
     expect(src).toContain('resolveWhatsappOutboundTarget')
     expect(src).not.toContain('conversationId')
     expect(src).toContain('<SendReadyMessage leadId={leadId} templates={approved} />')
+  })
+})
+
+describe('sendTemplateToLead — a lead who opted out of this business (Phase 0 Item 3)', () => {
+  const MARKETING = { ...APPROVED, category: 'MARKETING' }
+  const UTILITY = { ...APPROVED, category: 'UTILITY' }
+
+  it('every send declares a manual_template consent with the category stored on the template row', async () => {
+    h.loadTemplateForSend.mockResolvedValue(UTILITY)
+    await sendTemplateToLead(9, 55)
+    expect(h.sendWhatsappTemplate.mock.calls[0][0].consent).toEqual({
+      kind: 'manual_template',
+      agencyId: 103,
+      userId: 7,
+      templateId: 55,
+      templateName: 'follow_up',
+      templateCategory: 'UTILITY',
+      exceptionReason: null,
+    })
+    expect(h.isCustomerOptedOut).toHaveBeenCalledWith(103, '+972537736636')
+  })
+
+  it('MARKETING is refused before any send, even with a reason', async () => {
+    h.isCustomerOptedOut.mockResolvedValue(true)
+    h.loadTemplateForSend.mockResolvedValue(MARKETING)
+    const res = await sendTemplateToLead(9, 55, null, { reason: 'עדכון על ההזמנה שהליד ביצע' })
+    expect(res).toEqual({ ok: false, error: expect.stringContaining('הודעה שיווקית') })
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+    expect(h.persistOutboundWhatsapp).not.toHaveBeenCalled()
+  })
+
+  it('UTILITY without a reason is refused before any send', async () => {
+    h.isCustomerOptedOut.mockResolvedValue(true)
+    h.loadTemplateForSend.mockResolvedValue(UTILITY)
+    const res = await sendTemplateToLead(9, 55)
+    expect(res).toEqual({ ok: false, error: expect.stringContaining('הודעת שירות') })
+    expect(h.sendWhatsappTemplate).not.toHaveBeenCalled()
+  })
+
+  it('UTILITY with a reason reaches the gate carrying that reason', async () => {
+    h.isCustomerOptedOut.mockResolvedValue(true)
+    h.loadTemplateForSend.mockResolvedValue(UTILITY)
+    await sendTemplateToLead(9, 55, null, { reason: 'עדכון על תיקון שהליד הזמין' })
+    expect(h.sendWhatsappTemplate.mock.calls[0][0].consent).toMatchObject({ templateCategory: 'UTILITY', exceptionReason: 'עדכון על תיקון שהליד הזמין' })
+  })
+
+  it('a gate refusal (opt-out committed in between) is reported in Hebrew and nothing is persisted', async () => {
+    h.loadTemplateForSend.mockResolvedValue(MARKETING)
+    h.sendWhatsappTemplate.mockResolvedValue({ ok: false, error: 'opted_out_marketing', code: 'opted_out_marketing', optOutBlocked: true, optOutBlockReason: 'opted_out_marketing' })
+    const res = await sendTemplateToLead(9, 55)
+    expect(res).toEqual({ ok: false, error: expect.stringContaining('הודעה שיווקית') })
+    expect(h.persistOutboundWhatsapp).not.toHaveBeenCalled()
+    expect(h.recordAccountRestriction).not.toHaveBeenCalled()
   })
 })

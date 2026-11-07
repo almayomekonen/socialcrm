@@ -13,7 +13,7 @@ const skipPendingNoResponseJobs = vi.hoisted(() => vi.fn())
 
 vi.mock('@/db/autoResponseJobs', () => ({ enqueueAutoResponse, skipPendingNoResponseJobs }))
 
-function settingsTrx(settings: { mode?: string; delaySeconds?: number } | undefined) {
+function settingsTrx(settings: { mode?: string; delaySeconds?: number } | undefined, trigger: { type: string; text: string } = { type: 'text', text: 'שלום, אפשר פרטים?' }) {
   const q = {
     where() {
       return this
@@ -22,7 +22,20 @@ function settingsTrx(settings: { mode?: string; delaySeconds?: number } | undefi
       return settings
     },
   }
+  // The trigger message, read to keep an opt-out command unanswered (Item 3).
+  const messages = {
+    where() {
+      return this
+    },
+    orderBy() {
+      return this
+    },
+    async first() {
+      return trigger
+    },
+  }
   return Object.assign((table: string) => {
+    if (table === 'inbox_messages') return messages
     if (table !== 'auto_response_settings') throw new Error(`unexpected table ${table}`)
     return q
   }, q)

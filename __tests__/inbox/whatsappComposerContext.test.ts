@@ -166,3 +166,28 @@ describe('assertWhatsappFreeTextAllowed · health rule', () => {
     ).resolves.toEqual({ ok: false, reason: 'window-closed' })
   })
 })
+
+describe('loadWhatsappComposerContext — opt-out flag (Phase 0 Item 3)', () => {
+  const withCustomer = (wa: string | null) =>
+    deps({
+      getConversation: vi.fn(async () => ({ conversationId: 44, leadId: 9, businessPhoneNumberId: 'PHONE_A', customerWaId: wa })),
+    })
+
+  it('asks for THIS agency and THIS conversation number', async () => {
+    const isOptedOut = vi.fn(async () => true)
+    const ctx = await loadWhatsappComposerContext(23, 44, { deps: { ...withCustomer('972541234567'), isOptedOut } })
+    expect(ctx.optedOut).toBe(true)
+    expect(isOptedOut).toHaveBeenCalledWith(23, '972541234567')
+  })
+
+  it('is false when the customer is not opted out, and for a missing conversation', async () => {
+    expect((await loadWhatsappComposerContext(23, 44, { deps: { ...withCustomer('972541234567'), isOptedOut: vi.fn(async () => false) } })).optedOut).toBe(false)
+    expect((await loadWhatsappComposerContext(99, 44, { deps: deps() })).optedOut).toBe(false)
+  })
+
+  it('the default reader shows no warning when the number cannot be read, and never throws', async () => {
+    const { queryCustomerOptedOut } = await import('@/lib/inbox/whatsappComposerContext')
+    await expect(queryCustomerOptedOut(23, null)).resolves.toBe(false)
+    await expect(queryCustomerOptedOut(23, 'not-a-number')).resolves.toBe(false)
+  })
+})

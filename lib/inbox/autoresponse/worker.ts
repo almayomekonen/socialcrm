@@ -1,5 +1,6 @@
 import { db } from '@/config/db'
 import { sendWhatsappText, formatWhatsappSendFailure } from '@/lib/whatsapp/sendMessage'
+import { isOptOutBlocked } from '@/lib/whatsapp/optOut/sendGate'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { applyIreWhatsappSendFailure } from '@/lib/inbox/onWhatsappSendFailure'
 import { track } from '@/lib/analytics/track'
@@ -268,8 +269,11 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
     accessToken: resolveWhatsappAccessToken(connection.access_token),
     to,
     body: message,
+    consent: { kind: 'automated', agencyId: job.agencyId },
     trace: { conversationId: job.conversationId, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
   })
+  // Opted out of this business: nothing was sent. Final — a skip, not a retry.
+  if (isOptOutBlocked(sent)) return doSkip('opted_out')
   if (sent.ok === false) {
     const detail = formatWhatsappSendFailure(sent)
     console.error(`[IRE] send failed conv=${job.conversationId} job=${job.id} ${detail}`)

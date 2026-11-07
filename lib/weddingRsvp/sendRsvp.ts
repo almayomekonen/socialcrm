@@ -39,6 +39,7 @@ export async function sendWeddingRsvp(args: {
   await recordHumanTakeover({ agencyId: args.agencyId, leadId, conversationId: args.conversationId })
 
   const sent = await sendWhatsappInteractive({
+      consent: { kind: 'automated', agencyId: args.agencyId },
     phoneNumberId: target.businessPhoneNumberId,
     accessToken: target.accessToken,
     to: target.customerWaId,

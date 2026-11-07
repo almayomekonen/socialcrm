@@ -24,7 +24,6 @@ import { isRecipientBlocked } from './recipientBlocks'
 import { decideSendForAction, type SendFacts } from './laws'
 import type { Condition } from './conditions'
 import { isValidTiming } from './timing'
-import { FAILURE_COPY } from './copy'
 import { recipientFieldFor, type SubjectValues } from './subject'
 import { defaultWorkerDeps, type WorkerDeps } from './workerDeps'
 import { appointmentFactsFor, leadMessagesTodayFor, recipientFacts, resolveSubjectContext } from './workerFacts'
@@ -37,7 +36,7 @@ import { liveFieldKeys } from './conditionEvaluator'
 import { actionKeyFor, actionParameters } from './actionEntry'
 import { executorFor } from './executors/registry'
 import type { ExecutionContext } from './executors/types'
-import { isTerminalWhatsappAccountError } from '@/lib/inbox/onWhatsappSendFailure'
+import { settleEffectFailure } from './workerEffectFailure'
 import type { ActionDefinition } from './catalog/types'
 
 /**
@@ -270,51 +269,7 @@ async function processJob(job: AutomationJob, deps: WorkerDeps): Promise<Outcome
     logT('done', job, { reason: mode === 'live' ? 'sent' : 'would_send' })
     return 'done'
   } catch (err) {
-    await deps.releaseClaim(job.automationId, job.leadId)
-    if (isTerminalWhatsappAccountError(err)) {
-      await deps.deadJob(job.id, String(err))
-      await deps.appendActivity({
-        agencyId: job.agencyId,
-        automationId: job.automationId,
-        leadId: job.leadId,
-        leadName: lead.exists ? lead.displayName : null,
-        kind: 'failed',
-        mode,
-        trigger: job.trigger,
-        origin: job.origin,
-      })
-      logT('dead', job, {
-        reason: String(err),
-        class: 'whatsapp_account',
-        userVisible: true,
-        copy: FAILURE_COPY.terminal,
-      })
-      return 'dead'
-    }
-    await deps.failJob(job.id, String(err))
-    const exhausted = job.attempts >= job.maxAttempts
-    if (exhausted) {
-      await deps.appendActivity({
-        agencyId: job.agencyId,
-        automationId: job.automationId,
-        leadId: job.leadId,
-        leadName: lead.exists ? lead.displayName : null,
-        kind: 'failed',
-        mode,
-        trigger: job.trigger,
-        origin: job.origin,
-      })
-      logT('dead', job, {
-        reason: String(err),
-        class: 'exhausted',
-        attempts: job.attempts,
-        userVisible: true,
-        copy: FAILURE_COPY.terminal,
-      })
-      return 'dead'
-    }
-    logT('retried', job, { reason: String(err), class: 'transient', attempts: job.attempts })
-    return 'retried'
+    return settleEffectFailure({ job, err, mode, leadName: lead.exists ? lead.displayName : null, deps, log: logT })
   }
 }
 

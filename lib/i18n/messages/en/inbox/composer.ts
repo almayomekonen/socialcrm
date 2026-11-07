@@ -96,3 +96,12 @@ export const health: I['health'] = {
 export const locked: I['locked'] = {
   composer: 'Renewing your subscription restores sending messages',
 }
+
+export const optOut: I['optOut'] = {
+  title: 'This lead asked to stop receiving WhatsApp messages',
+  explanation: 'The request is saved.',
+  reasonsLabel: 'What this means:',
+  automated: 'Automated WhatsApp messages to this lead are blocked.',
+  manual: 'You can still send a manual reply.',
+  templates: "Marketing ready messages are blocked, and other ready messages can't be sent to this lead from here either.",
+}
