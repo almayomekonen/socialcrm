@@ -1,6 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { isEmptyScope, scopeBindings, type AgencyScope } from '@/db/ownerWhatsappReminders/candidates'
+import { cancelLiveReminders } from '@/db/ownerPersonalReminders/consent'
 
 /**
  * owner_whatsapp_recipients: every state change is one guarded statement.
@@ -80,21 +81,29 @@ export async function startOwnActivation(input: {
   return rows.length ? 'started' : 'already_active'
 }
 
-/** Settings opt-out of the session's own row. Idempotent. */
+/**
+ * Settings opt-out of the session's own row. Idempotent. Also cancels the
+ * owner's future personal reminders, in the same transaction, with the row
+ * locked first (lock order: recipient → reminders, as the send gate).
+ */
 export async function optOutOwnRow(agencyId: number, userId: number): Promise<boolean> {
-  const rows = await db(TABLE)
-    .where({ agencyId, userId })
-    .whereIn('status', ['pending', 'active'])
-    .update({
-      status: 'opted_out',
-      optedOutAt: db.fn.now(),
-      optOutSource: 'settings',
-      activationCodeHash: null,
-      activationExpiresAt: null,
-      updatedAt: db.fn.now(),
-    })
-    .returning('id')
-  return rows.length > 0
+  return db.transaction(async (trx) => {
+    await trx(TABLE).where({ agencyId, userId }).forUpdate().first('id')
+    const rows = await trx(TABLE)
+      .where({ agencyId, userId })
+      .whereIn('status', ['pending', 'active'])
+      .update({
+        status: 'opted_out',
+        optedOutAt: trx.fn.now(),
+        optOutSource: 'settings',
+        activationCodeHash: null,
+        activationExpiresAt: null,
+        updatedAt: trx.fn.now(),
+      })
+      .returning('id')
+    await cancelLiveReminders(trx, rows.map((r: { id: string | number }) => Number(r.id)), 'opted_out', 'settings')
+    return rows.length > 0
+  })
 }
 
 /**
@@ -102,8 +111,13 @@ export async function optOutOwnRow(agencyId: number, userId: number): Promise<bo
  * person's choice, not the agency's). Applies to rows activated at or before
  * the opt-out's own send time; a row activated by a LATER message keeps its
  * state. A tie goes to the opt-out.
+ *
+ * Every matching row is locked first, in id order (the caller already holds
+ * the per-sender advisory lock), then their future personal reminders are
+ * cancelled in the same transaction.
  */
 export async function optOutByPhone(trx: Knex.Transaction, phoneE164: string, messageTimestamp: number): Promise<number> {
+  await trx(TABLE).where({ phoneE164 }).orderBy('id').forUpdate().select('id')
   const rows = await trx(TABLE)
     .where({ phoneE164 })
     .whereIn('status', ['pending', 'active'])
@@ -117,6 +131,7 @@ export async function optOutByPhone(trx: Knex.Transaction, phoneE164: string, me
       updatedAt: trx.fn.now(),
     })
     .returning('id')
+  await cancelLiveReminders(trx, rows.map((r: { id: string | number }) => Number(r.id)), 'opted_out', 'keyword')
   return rows.length
 }
 

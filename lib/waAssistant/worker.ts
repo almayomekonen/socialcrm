@@ -14,7 +14,7 @@ import {
 } from '@/db/waAssistantJobs'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { track } from '@/lib/analytics/track'
-import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantNotesAgency, isWaAssistantStatusAgency, isWaAssistantTasksAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
+import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantNotesAgency, isWaAssistantRemindersAgency, isWaAssistantStatusAgency, isWaAssistantTasksAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
@@ -33,6 +33,8 @@ import type { TaskDecideDeps } from './tasks/decide'
 import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
+import { handleReminderMessage } from './reminders/route'
+import type { ReminderDeps } from './reminders/reply'
 
 /**
  * The WhatsApp assistant worker: one queued owner message -> at most one reply.
@@ -58,10 +60,15 @@ import type { MeetingReply } from './meetings/types'
  * (./meetings/decide.ts). Every other proposal (and every proposal without that
  * flag) is NEVER handed to the Action Runtime; the reply says so.
  *
- * NOTE (architecture-rules §1, §6): ~260 lines, over the 250 soft limit since the
- * status/note routing was added. Owed extraction, next touch: the per-action
- * proposal routing (meeting / task / lead update) moves to ./route.ts, leaving
- * this file the job lifecycle (window, identity, limits, Agent run, one reply).
+ * PERSONAL REMINDERS (WA_ASSISTANT_REMINDERS_AGENCY_IDS, ./reminders/): create,
+ * list, cancel and reschedule the owner's own reminders, handled BEFORE the
+ * Agent and without it; writes only through cards and the Action Runtime.
+ *
+ * NOTE (architecture-rules §1, §6): ~270 lines, over the 250 soft limit since the
+ * status/note routing was added; the reminder routing added 6 lines and lives in
+ * ./reminders/. Owed extraction, next touch: the per-action proposal routing
+ * (meeting / task / lead update) moves to ./route.ts, leaving this file the job
+ * lifecycle (window, identity, limits, Agent run, one reply).
  */
 
 export type WaAssistantDeps = {
@@ -72,6 +79,7 @@ export type WaAssistantDeps = {
   meetings?: { propose?: ProposeDeps; decide?: DecideDeps }
   tasks?: { propose?: TaskProposeDeps; decide?: TaskDecideDeps }
   leadUpdates?: { propose?: LeadUpdateProposeDeps; decide?: LeadUpdateDecideDeps }
+  reminders?: ReminderDeps
 }
 
 /** A typed "yes" while a card is open: pointed at the button, never treated as approval. */
@@ -143,11 +151,12 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   const tasksOn = isWaAssistantTasksAgency(job.agencyId)
   const statusOn = isWaAssistantStatusAgency(job.agencyId)
   const notesOn = isWaAssistantNotesAgency(job.agencyId)
-  const writesOn = meetingsOn || tasksOn || statusOn || notesOn
+  const remindersOn = isWaAssistantRemindersAgency(job.agencyId)
+  const writesOn = meetingsOn || tasksOn || statusOn || notesOn || remindersOn
   if (job.kind === 'decision') {
     const r =
       writesOn
-        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), meetingsOn, tasksOn, statusOn, notesOn, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide } })
+        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), meetingsOn, tasksOn, statusOn, notesOn, remindersOn, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide, reminders: deps.reminders } })
         : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed() })
   }
@@ -159,6 +168,10 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     const text = job.kind === 'unsupported' ? COPY.unsupported : COPY.emptyQuestion
     return finish(job, { status: 'answered', stopReason: job.kind, reply: await reply1(job, platform, who.phoneE164, text, deps), durationMs: elapsed() })
   }
+
+  // Personal reminders (WA_ASSISTANT_REMINDERS_AGENCY_IDS only): deterministic, before the Agent, so with the switch on "תזכיר לי" never becomes a task.
+  const reminder = remindersOn ? await handleReminderMessage({ job, scope: who.scope, nowMs: startedAt.getTime(), deps: deps.reminders }) : null
+  if (reminder) return finishMeeting(job, platform, who.phoneE164, reminder, deps, { durationMs: elapsed() })
 
   await (deps.typing ?? sendPlatformTypingIndicator)({ ...platform, inboundWamid: job.wamid, jobId: job.id })
 

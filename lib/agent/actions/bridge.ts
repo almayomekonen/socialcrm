@@ -12,6 +12,7 @@ import { aggregateBatch, expandBatch, planHashOf, refusedBatch, type BatchOutcom
 import { MAX_BATCH_TARGETS } from './batchLimits'
 import type { AgentScope, ProposedAction, ProposedBatch } from '../types'
 import type { ActionOutcome, ActionPlan, ActionProposal } from './types'
+import type { SystemActionProposal } from './systemProposal'
 
 /**
  * The seam between the Brain and the Action Runtime.
@@ -118,9 +119,17 @@ function scopeToActor(scope: AgentScope) {
  * frozen, and there is now something concrete for a human to say yes to.
  */
 export async function submitProposedAction(input: {
-  proposal: ProposedAction
+  proposal: ProposedAction | SystemActionProposal
   scope: AgentScope
   agentRunId: string
+  /**
+   * A stable identity chosen by the application (reminder actions:
+   * `rem_<reminderId>_v<version>_<op>`). Without it every call mints a fresh
+   * random id, and a re-run would claim the SAME idempotency row while
+   * reporting a NEW action id that no card can be decided against
+   * (architecture v1.5 §3.2). Existing callers pass nothing and are unchanged.
+   */
+  identity?: { actionId: string; idempotencyKey: string }
   /**
    * The question the authenticated request carried, verbatim.
    *
@@ -145,7 +154,12 @@ export async function submitProposedAction(input: {
       evidenceRefs: input.proposal.evidenceRefs ?? [],
       expectedPostcondition: input.proposal.args,
     },
-    { agentRunId: input.agentRunId, actor: scopeToActor(input.scope), actionId: `act_${randomUUID()}` },
+    {
+      agentRunId: input.agentRunId,
+      actor: scopeToActor(input.scope),
+      actionId: input.identity?.actionId ?? `act_${randomUUID()}`,
+      idempotencyKey: input.identity?.idempotencyKey,
+    },
   )
   // A proposal that cannot be parsed is not an error to surface — the answer
   // around it may be perfectly good. It simply does not become an action.

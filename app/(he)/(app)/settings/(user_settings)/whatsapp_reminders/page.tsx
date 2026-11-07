@@ -3,7 +3,7 @@ import { getUser } from '@/db/auth'
 import { getOwnRecipient } from '@/db/ownerWhatsappRecipients'
 import AccordionItem from '@/lib/AccordionItem'
 import { canUseOwnerWhatsappReminders } from '@/lib/flags/ownerWhatsappReminderFlags'
-import { isWaAssistantAgency } from '@/lib/flags/waAssistantFlags'
+import { isWaAssistantAgency, isWaAssistantRemindersAgency } from '@/lib/flags/waAssistantFlags'
 import { activationConsentFor } from '@/lib/whatsapp/platform/consentText'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { ownerReminderView } from '@/lib/whatsapp/platform/ownerReminderView'
@@ -20,7 +20,9 @@ export default async function page() {
 
   // The assistant's consent (v3) is offered only where it is enabled for the agency; elsewhere reminders only (v2).
   const assistantEnabled = isWaAssistantAgency(user.agencyId)
-  const view = ownerReminderView(await getOwnRecipient(user.agencyId, user.id), new Date(), { assistantEnabled })
+  // Personal reminders (consent v5) only where WA_ASSISTANT_REMINDERS_AGENCY_IDS names the agency.
+  const personalRemindersEnabled = isWaAssistantRemindersAgency(user.agencyId)
+  const view = ownerReminderView(await getOwnRecipient(user.agencyId, user.id), new Date(), { assistantEnabled, personalRemindersEnabled })
 
   const { locale } = await getUiLocaleState(user)
   const t = translatorFor(locale)

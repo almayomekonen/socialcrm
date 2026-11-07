@@ -69,7 +69,8 @@ function weekdayOf(dateStr: string): number {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-function readDates(text: string, today: string): { dates: string[]; problem: WhenProblem | null } {
+/** Exported for the reminder reader (lib/reminders/when.ts), which shares the date grammar. */
+export function readDates(text: string, today: string): { dates: string[]; problem: WhenProblem | null } {
   const dates: string[] = []
   let problem: WhenProblem | null = null
   if (RE_DAY_AFTER.test(text)) dates.push(addDays(today, 2))

@@ -114,6 +114,8 @@ function wallClockMs(ms: number, tz: string): number {
   return Date.parse(`${p.year}-${p.month}-${p.day}T${hour}:${p.minute}:${p.second}Z`)
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 /**
  * `2026-09-07` + `10:00` in the business timezone → the real UTC instant.
  *
@@ -123,11 +125,19 @@ function wallClockMs(ms: number, tz: string): number {
  * Vercel server is 10:00 UTC — 13:00 in Jerusalem — so the meeting would be
  * three hours late, every time, invisibly.
  *
- * SOLVED BY CONVERGENCE, not by an offset table. The offset is whatever the
- * `Intl` database says it is at the instant in question, which is the only
- * DST-correct answer; guessing, correcting by the error, and repeating settles
- * in one step for ordinary times and two across a transition. Three passes is
- * one more than any real case needs.
+ * NO OFFSET TABLE. The offset is whatever the `Intl` database says at the
+ * instant in question. A wall-clock time can sit next to at most one DST
+ * transition, so the offsets in force a day before and a day after are the only
+ * candidates. Each candidate instant is kept only if it really shows this wall
+ * time in the zone.
+ *
+ * CLOCK-CHANGE DAYS follow JavaScript Temporal's "compatible" rule:
+ *   - a time that occurs twice (Israel fall-back, 01:00-01:59) is the FIRST
+ *     occurrence, the earlier instant;
+ *   - a time that does not exist (Israel spring-forward, 02:00-02:59) moves
+ *     FORWARD by the gap: 02:30 is 03:30. The old convergence loop returned
+ *     01:30 there, an hour early.
+ * Every other time is unchanged: exactly one candidate matches.
  *
  * Returns NaN for input it cannot parse, so a caller must check rather than
  * silently persisting an Invalid Date.
@@ -135,7 +145,13 @@ function wallClockMs(ms: number, tz: string): number {
 export function businessInstantMs(dateStr: string, timeStr: string, tz: string = BUSINESS_TZ): number {
   const target = Date.parse(`${dateStr}T${timeStr}:00Z`)
   if (Number.isNaN(target)) return Number.NaN
-  let guess = target
-  for (let i = 0; i < 3; i++) guess += target - wallClockMs(guess, tz)
-  return guess
+  const offsetAt = (ms: number) => wallClockMs(ms, tz) - ms
+  const before = offsetAt(target - DAY_MS)
+  const after = offsetAt(target + DAY_MS)
+  const matching = [...new Set([before, after])].map((offset) => target - offset).filter((ms) => wallClockMs(ms, tz) === target)
+  // Twice (overlap): the earlier instant. Once: that instant.
+  if (matching.length > 0) return Math.min(...matching)
+  // Never (gap): read with the offset from before the change, so the wall time
+  // lands forward by the size of the gap.
+  return target - before
 }

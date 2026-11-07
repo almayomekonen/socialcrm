@@ -18,13 +18,24 @@ export type WaAssistantJob = {
   kind: 'text' | 'unsupported' | 'decision'
   question: string | null
   messageTimestamp: number
+  /** Provenance of `messageTimestamp`; only 'meta' is verified. Absent/NULL = unknown. */
+  timestampSource?: 'meta' | 'server' | null
   attempts: number
 }
 
 /** Inside the platform-inbound transaction. False for a redelivery (no second job). */
 export async function enqueueWaAssistantJob(
   trx: Knex.Transaction,
-  row: { wamid: string; recipientId: number; agencyId: number; userId: number; kind: 'text' | 'unsupported' | 'decision'; question: string | null; messageTimestamp: number },
+  row: {
+    wamid: string
+    recipientId: number
+    agencyId: number
+    userId: number
+    kind: 'text' | 'unsupported' | 'decision'
+    question: string | null
+    messageTimestamp: number
+    timestampSource?: 'meta' | 'server' | null
+  },
 ): Promise<boolean> {
   const inserted = await trx(T).insert(row).onConflict('wamid').ignore().returning('id')
   return inserted.length > 0
@@ -72,7 +83,7 @@ export async function claimWaAssistantJobs(limit: number): Promise<WaAssistantJo
          LIMIT :limit
          FOR UPDATE SKIP LOCKED
       )
-      RETURNING j.id, j.wamid, j."recipientId", j."agencyId", j."userId", j.kind, j.question, j."messageTimestamp", j.attempts`,
+      RETURNING j.id, j.wamid, j."recipientId", j."agencyId", j."userId", j.kind, j.question, j."messageTimestamp", j."timestampSource", j.attempts`,
     { limit },
   )
   return rows.map((r: Record<string, unknown>) => ({
@@ -84,6 +95,7 @@ export async function claimWaAssistantJobs(limit: number): Promise<WaAssistantJo
     kind: r.kind as WaAssistantJob['kind'],
     question: (r.question as string | null) ?? null,
     messageTimestamp: Number(r.messageTimestamp),
+    timestampSource: (r.timestampSource as 'meta' | 'server' | null) ?? null,
     attempts: Number(r.attempts),
   }))
 }

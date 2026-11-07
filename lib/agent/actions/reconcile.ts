@@ -93,8 +93,16 @@ export async function reconcileAction(record: ActionRecord, deps: ReconcileDeps)
 
   if (!requiresReconciliation(record, nowMs)) return { kind: 'NOT_REQUIRED' }
 
-  const settle = async (verdict: ReconciliationVerdict, patch: Partial<ActionRecord>) => {
-    await deps.store.update(record.agencyId, record.idempotencyKey, { ...patch, updatedAtMs: nowMs })
+  /**
+   * GUARDED. The verdict is written only if the row is still exactly as it was
+   * read. If a concurrent reconcile, a resume or a late executor moved it on,
+   * this pass decided about a row that no longer exists: it writes nothing and
+   * reports NOT_REQUIRED, and the next pass reads the new state.
+   */
+  const settle = async (verdict: ReconciliationVerdict, patch: Partial<ActionRecord>): Promise<ReconciliationVerdict> => {
+    const expected = { executionState: record.executionState, updatedAtMs: record.updatedAtMs }
+    const written = await deps.store.updateIf(record.agencyId, record.idempotencyKey, expected, { ...patch, updatedAtMs: nowMs })
+    if (!written) return { kind: 'NOT_REQUIRED' }
     agentTrace('ACTION_RECONCILED', trace, {
       actionId: record.actionId, actionType: record.actionType, verdict: verdict.kind,
       reason: 'reason' in verdict ? verdict.reason : null,

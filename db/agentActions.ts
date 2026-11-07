@@ -148,15 +148,32 @@ const MUTABLE: (keyof ActionRecord)[] = [
   'failureReason', 'timingsMs',
 ]
 
-export function updateQuery(agencyId: number, idempotencyKey: string, patch: Partial<ActionRecord>) {
+function patchSet(patch: Partial<ActionRecord>): Record<string, unknown> {
   const set: Record<string, unknown> = { updatedAt: new Date(patch.updatedAtMs ?? Date.now()) }
   for (const key of MUTABLE) {
     if (!(key in patch)) continue
     const value = patch[key]
     set[key] = Array.isArray(value) || (value && typeof value === 'object') ? JSON.stringify(value) : (value as unknown)
   }
+  return set
+}
+
+export function updateQuery(agencyId: number, idempotencyKey: string, patch: Partial<ActionRecord>) {
   // agencyId in the WHERE clause, always: an idempotency key is not a capability.
-  return db(AGENT_ACTIONS_TABLE).where({ agencyId, idempotencyKey }).update(set)
+  return db(AGENT_ACTIONS_TABLE).where({ agencyId, idempotencyKey }).update(patchSet(patch))
+}
+
+/** `updateQuery`, guarded on the state and timestamp the caller read (compare-and-swap). */
+export function updateIfQuery(
+  agencyId: number,
+  idempotencyKey: string,
+  expected: { executionState: string; updatedAtMs: number },
+  patch: Partial<ActionRecord>,
+) {
+  return db(AGENT_ACTIONS_TABLE)
+    .where({ agencyId, idempotencyKey, executionState: expected.executionState })
+    .andWhere('updatedAt', new Date(expected.updatedAtMs))
+    .update(patchSet(patch))
 }
 
 /**
@@ -227,6 +244,10 @@ export function createDbActionStore(): ActionStore {
 
     async update(agencyId, idempotencyKey, patch) {
       await updateQuery(agencyId, idempotencyKey, patch)
+    },
+
+    async updateIf(agencyId, idempotencyKey, expected, patch) {
+      return Number(await updateIfQuery(agencyId, idempotencyKey, expected, patch)) > 0
     },
 
     async audit(record) {

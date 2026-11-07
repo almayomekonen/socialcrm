@@ -7,6 +7,8 @@ import { MIN, ago, agency, cleanup, clearEnv, conversation, escalate, mockGraph,
 
 /** Delivery statuses from the platform webhook, the migration, and the cron route. */
 const MIGRATION = require(path.join(process.cwd(), 'migrations/20261013120000_owner_whatsapp_reminders.cjs'))
+/** Adds columns to owner_whatsapp_message_status: rolled back first, re-applied last. */
+const DELIVERY = require(path.join(process.cwd(), 'migrations/20261108120000_reminder_delivery_controls.cjs'))
 let A: number
 
 beforeAll(async () => {
@@ -67,9 +69,11 @@ describe('migration', () => {
     (await db.raw(`SELECT count(*)::int AS n FROM pg_tables WHERE tablename IN ('owner_whatsapp_reminders','owner_whatsapp_reminder_deliveries','owner_whatsapp_message_status')`)).rows[0].n
   it('creates three tables and is reversible (down, up)', async () => {
     expect(await count()).toBe(3)
+    await DELIVERY.down(db)
     await MIGRATION.down(db)
     expect(await count()).toBe(0)
     await MIGRATION.up(db)
+    await DELIVERY.up(db)
     expect(await count()).toBe(3)
   })
 })

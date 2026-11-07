@@ -1,6 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
-import { ACCOUNT_PAUSE_MS, REMINDER_CONVERSATION_LOCK_NAMESPACE, SENDING_LEASE_MS } from '@/lib/ownerWhatsappReminders/constants'
+import { REMINDER_CONVERSATION_LOCK_NAMESPACE, SENDING_LEASE_MS } from '@/lib/ownerWhatsappReminders/constants'
+import { isPlatformSendingPaused } from '@/db/ownerPersonalReminders/controls'
 import { cooldownSql, eligibilitySql, windowBindings, type AgencyScope } from './candidates'
 
 /**
@@ -36,13 +37,13 @@ export async function reapStaleSending(now: Date): Promise<number> {
   return rows.length
 }
 
-/** True while an account-wide rejection happened within the pause window. */
+/**
+ * True while an account-wide rejection happened within the pause window, on
+ * EITHER owner-reminder system: they share one platform number, so they share
+ * the pause (db/ownerPersonalReminders/controls.ts).
+ */
 export async function isSendingPaused(now: Date): Promise<boolean> {
-  const row = await db(T)
-    .where({ status: 'failed', errorScope: 'account' })
-    .where('updatedAt', '>=', new Date(now.getTime() - ACCOUNT_PAUSE_MS))
-    .first('id')
-  return !!row
+  return isPlatformSendingPaused(now)
 }
 
 /** Mark up to `limit` due deliveries `sending` (committed before any Graph call). */

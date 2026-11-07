@@ -120,6 +120,17 @@ export function isWaAssistantNotesAgency(agencyId: number | null | undefined): b
   return parseIds(process.env.WA_ASSISTANT_NOTES_AGENCY_IDS).includes(agencyId as number)
 }
 
+/**
+ * WA_ASSISTANT_REMINDERS_AGENCY_IDS: agencies offered PERSONAL reminders (the
+ * Reminder Engine). Gates the Settings opt-in (consent v5). The WhatsApp
+ * routing comes in a later phase. Same rules: absence blocks, explicit ids only,
+ * only on top of the assistant itself. Withdrawing is never gated.
+ */
+export function isWaAssistantRemindersAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantAgency(agencyId)) return false
+  return parseIds(process.env.WA_ASSISTANT_REMINDERS_AGENCY_IDS).includes(agencyId as number)
+}
+
 const DEFAULT_DAILY_USD_CAP = 2
 
 export function waAssistantDailyUsdCap(): number {

@@ -12,7 +12,14 @@ const TABLE = 'platform_whatsapp_inbound'
 /** True when this message is new; false for a redelivery (nothing else may happen). */
 export async function recordPlatformInbound(
   trx: Knex.Transaction,
-  row: { wamid: string; kind: PlatformInboundKind; fromHash: string | null; messageTimestamp: number },
+  row: {
+    wamid: string
+    kind: PlatformInboundKind
+    fromHash: string | null
+    messageTimestamp: number
+    /** lib/whatsapp/platform/timestampSource.ts. Optional: omitted means unknown (NULL). */
+    timestampSource?: 'meta' | 'server' | null
+  },
 ): Promise<boolean> {
   const inserted = await trx(TABLE).insert(row).onConflict('wamid').ignore().returning('id')
   return inserted.length > 0

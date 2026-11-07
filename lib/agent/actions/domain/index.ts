@@ -5,6 +5,11 @@ import { createFollowUpAction } from './createFollowUp'
 import { createMeetingAction } from './createMeeting'
 import { updateLeadStatusAction } from './updateLeadStatus'
 import { addLeadNoteAction } from './addLeadNote'
+import { createReminderAction } from './reminderCreate'
+import { cancelReminderAction, rescheduleReminderAction } from './reminderChange'
+
+/** Personal-reminder actions: application-proposed only (SystemActionProposal), always a card. */
+const REMINDER_ACTIONS = [createReminderAction, cancelReminderAction, rescheduleReminderAction]
 
 /**
  * The domain actions, and the one place they are turned on.
@@ -18,9 +23,10 @@ import { addLeadNoteAction } from './addLeadNote'
  * than once in a serverless process.
  */
 export function registerDomainActions(): void {
-  for (const definition of [createTaskAction, createFollowUpAction, createMeetingAction, updateLeadStatusAction, addLeadNoteAction]) {
+  for (const definition of [createTaskAction, createFollowUpAction, createMeetingAction, updateLeadStatusAction, addLeadNoteAction, ...REMINDER_ACTIONS]) {
     if (!getAgentAction(definition.type)) registerAgentAction(definition)
   }
 }
 
 export { createTaskAction, createFollowUpAction, createMeetingAction, updateLeadStatusAction, addLeadNoteAction }
+export { createReminderAction, cancelReminderAction, rescheduleReminderAction }
