@@ -2,6 +2,7 @@ import 'server-only'
 import { submitProposedAction } from '@/lib/agent/actions/bridge'
 import { ensureWaApprovalForAction } from '@/db/waAssistantApprovals'
 import { createReminderDraft } from '@/db/ownerPersonalReminders/draft'
+import { reminderDeliveryAvailable } from '@/lib/reminders/delivery/available'
 import { businessDateString } from '@/lib/today/time'
 import { readReminderWhen } from '@/lib/reminders/when'
 import { mentionsWhen, mergeWhen, reminderText, stripDates, stripTimes } from '@/lib/reminders/request'
@@ -81,6 +82,6 @@ export async function proposeReminder(input: { job: WaAssistantJob; scope: Agent
     agentRunId: `wa_job_${job.id}`,
     identity: { actionId: draft.actionId, idempotencyKey: draft.actionId },
   })
-  return cardFor({ job, scope, nowMs, op: 'create', actionId: draft.actionId, outcome, reused: draft.reused, text: createCard({ text, atMs: draft.remindAtMs, fromMs: anchor.ts * 1000 }), ensure: input.deps?.ensure ?? ensureWaApprovalForAction })
+  return cardFor({ job, scope, nowMs, op: 'create', actionId: draft.actionId, outcome, reused: draft.reused, text: createCard({ text, atMs: draft.remindAtMs, fromMs: anchor.ts * 1000, delivery: await (input.deps?.deliveryAvailable ?? reminderDeliveryAvailable)() }), ensure: input.deps?.ensure ?? ensureWaApprovalForAction })
 }
 

@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/config/db'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
-import { isReminderCorrection, mentionsReminder, reminderIntent, type ReminderIntent } from '@/lib/reminders/request'
+import { followUpIntent, isReminderCorrection, mentionsReminder, reminderIntent, reminderText, type ReminderIntent } from '@/lib/reminders/request'
 import { opensRequest } from '../continuation'
 
 /**
@@ -24,7 +24,8 @@ const WINDOW_MS = 15 * 60 * 1000
 const MAX_MESSAGES = 5
 
 export type ReminderMessage = { text: string; wamid: string; ts: number; source: 'meta' | 'server' | null; asked: string | null }
-export type ReminderRequest = { op: ReminderIntent; messages: ReminderMessage[] }
+/** `recent`: a follow-up to the reminder just handled ("תבטל אותה"), so a pronoun means that one. */
+export type ReminderRequest = { op: ReminderIntent; messages: ReminderMessage[]; recent?: boolean }
 
 type Row = { id: number; kind: string; question: string | null; stopReason: string | null; createdAt: Date; wamid: string; messageTimestamp: string | number; timestampSource: 'meta' | 'server' | null }
 
@@ -38,14 +39,19 @@ export async function readReminderRequest(job: WaAssistantJob): Promise<Reminder
   const text = job.question?.trim() ?? ''
   if (!text) return null
   const current = (asked: string | null): ReminderMessage => ({ text, wamid: job.wamid, ts: job.messageTimestamp, source: job.timestampSource ?? null, asked })
-  const intent = reminderIntent(text)
-  if (intent) return { op: intent, messages: [current(null)] }
   // "לא משימה! תזכורת": the previous request (a few minutes ago) was meant as a
   // personal reminder. It becomes one, with its own words and its own Meta time.
-  if (isReminderCorrection(text)) {
+  // Checked first: the correction mentions "תזכורת", which alone would mean "list".
+  if (isReminderCorrection(text) && !reminderText(text)) {
     const opener = await correctedRequest(job)
     return { op: 'create', messages: opener ? [opener] : [current(null)] }
   }
+  const intent = reminderIntent(text)
+  if (intent) return { op: intent, messages: [current(null)] }
+  // Right after a reminder action (a card, a tap, a list), a short follow-up with
+  // no reminder word ("בעצם תבטל אותה", "ביטלת?") still belongs to it.
+  const follow = followUpIntent(text)
+  if (follow && (await lastStepWasReminder(job))) return { op: follow, messages: [current(null)], recent: true }
   if (opensRequest(text)) return null
 
   const rows = (await db('wa_assistant_jobs')
@@ -95,4 +101,15 @@ async function correctedRequest(job: WaAssistantJob): Promise<ReminderMessage | 
     .select('question', 'wamid', 'messageTimestamp', 'timestampSource')) as Pick<Row, 'question' | 'wamid' | 'messageTimestamp' | 'timestampSource'>[]
   const r = rows.find((x) => !!x.question && mentionsReminder(x.question) && !isReminderCorrection(x.question))
   return r ? { text: r.question!.trim(), wamid: r.wamid, ts: Number(r.messageTimestamp), source: r.timestampSource ?? null, asked: null } : null
+}
+
+/** Was this recipient's previous assistant step (text or tap, within the window) a finished reminder step? */
+async function lastStepWasReminder(job: WaAssistantJob): Promise<boolean> {
+  const prev = (await db('wa_assistant_jobs')
+    .where({ recipientId: job.recipientId })
+    .where('id', '<', job.id)
+    .where('createdAt', '>', new Date(Date.now() - WINDOW_MS))
+    .orderBy('id', 'desc')
+    .first('stopReason')) as { stopReason: string | null } | undefined
+  return !!prev?.stopReason && prev.stopReason.startsWith('reminder_') && !prev.stopReason.startsWith(REMINDER_CLARIFY)
 }

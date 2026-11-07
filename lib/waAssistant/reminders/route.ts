@@ -8,6 +8,7 @@ import { readReminderRequest } from './conversation'
 import { proposeReminder } from './create'
 import { listReminders, proposeCancel, proposeReschedule } from './manage'
 import type { ReminderDeps } from './reply'
+import { REMINDER_COPY } from './copy'
 
 /**
  * Personal reminders from the owner's WhatsApp (Reminder Engine Phase 6).
@@ -36,6 +37,8 @@ export async function handleReminderMessage(input: { job: WaAssistantJob; scope:
   switch (req.op) {
     case 'list':
       return listReminders({ scope, consentOk, nowMs })
+    case 'capability':
+      return { status: 'answered', stopReason: 'reminder_capability', text: consentOk ? REMINDER_COPY.capability : `${REMINDER_COPY.capability}\n\n${REMINDER_COPY.consent}`, headline: 'תזכורות אישיות' }
     case 'cancel':
       return proposeCancel(common)
     case 'reschedule':

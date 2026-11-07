@@ -33,8 +33,13 @@ const ownerOf = (scope: AgentScope): Owner => ({ agencyId: scope.agencyId, userI
 
 const wall = (ms: number) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' }).format(new Date(ms))
 
-/** The upcoming reminders the owner's words point at. */
-export function matchReminders(rows: ReminderView[], phrase: string, time: string | null): ReminderView[] {
+/**
+ * The upcoming reminders the owner's words point at. With nothing that narrows
+ * it, a follow-up to the reminder just handled ("תבטל אותה") means the one most
+ * recently changed; the card still shows which, before anything happens.
+ */
+export function matchReminders(rows: ReminderView[], phrase: string, time: string | null, recent = false): ReminderView[] {
+  if (recent && !phrase && !time && rows.length > 1) return [rows.reduce((a, b) => (b.updatedAtMs > a.updatedAtMs ? b : a))]
   let found = rows
   if (time) found = found.filter((r) => wall(r.remindAtMs) === time)
   const p = squash(phrase)
@@ -61,7 +66,7 @@ export async function proposeCancel(input: { job: WaAssistantJob; scope: AgentSc
   const explicit = targetTime(said).time
   const time = explicit ?? (clock.times.length === 1 ? clock.times[0] : null)
   const phrase = targetPhrase(said)
-  const found = matchReminders(rows, phrase, time)
+  const found = matchReminders(rows, phrase, time, input.req.recent)
   if (!found.length) return plain('reminder_cancel_no_match', noMatch(rows, nowMs))
   if (found.length > 1) return clarify('cancel', 'target', several(found, nowMs, REMINDER_COPY.askWhichCancel))
 
@@ -84,7 +89,7 @@ export async function proposeReschedule(input: { job: WaAssistantJob; scope: Age
   if (!rows.length) return plain('reminder_reschedule_none', REMINDER_COPY.none)
   const { time, rest } = targetTime(said)
   const phrase = targetPhrase(rest)
-  const found = matchReminders(rows, phrase, time)
+  const found = matchReminders(rows, phrase, time, req.recent)
   if (!found.length) return plain('reminder_reschedule_no_match', noMatch(rows, nowMs))
   if (found.length > 1) return plain('reminder_reschedule_ambiguous', several(found, nowMs, REMINDER_COPY.askWhichMove))
   const r = found[0]

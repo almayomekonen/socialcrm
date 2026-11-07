@@ -2,6 +2,7 @@ import 'server-only'
 import { decideOnAction } from '@/lib/agent/actions/bridge'
 import { decideWaApproval, type WaApproval } from '@/db/waAssistantApprovals'
 import { discardRejectedDraft, readOwnReminder } from '@/db/ownerPersonalReminders/draft'
+import { reminderDeliveryAvailable } from '@/lib/reminders/delivery/available'
 import { COPY } from '../render'
 import type { ActionOutcome } from '@/lib/agent/actions'
 import type { AgentScope } from '@/lib/agent/types'
@@ -62,7 +63,7 @@ export async function decideReminderCard(input: {
     if (op === 'create' && Number.isSafeInteger(reminderId)) await discardRejectedDraft({ reminderId, owner, actionId: card.actionId, nowMs })
     return plain(`reminder_${op}_rejected`, op === 'create' ? REMINDER_COPY.rejected : REMINDER_COPY.kept)
   }
-  return report(decided.outcome, op, reminderId, owner, nowMs)
+  return report(decided.outcome, op, reminderId, owner, nowMs, input.deps?.deliveryAvailable ?? reminderDeliveryAvailable)
 }
 
 const REASON_COPY: Record<string, string> = {
@@ -83,14 +84,14 @@ const REASON_COPY: Record<string, string> = {
   scheduled_by_other: REMINDER_COPY.noLongerValid,
 }
 
-async function report(outcome: ActionOutcome, op: ReminderOp, reminderId: number, owner: { agencyId: number; userId: number }, nowMs: number): Promise<MeetingReply> {
+async function report(outcome: ActionOutcome, op: ReminderOp, reminderId: number, owner: { agencyId: number; userId: number }, nowMs: number, deliveryAvailable: () => Promise<boolean>): Promise<MeetingReply> {
   if (outcome.report === 'VERIFIED_SUCCESS' || outcome.report === 'DUPLICATE_NOOP') {
     const row = await readOwnReminder(owner, reminderId)
     if (!row) return plain(`reminder_${op}_unverified`, REMINDER_COPY.unverifiedOutcome, 'failed')
     const detail = (outcome.execution as { detail?: Record<string, unknown> }).detail ?? {}
     const already = outcome.report === 'DUPLICATE_NOOP' || detail.replayed === true || detail.alreadyCancelled === true
     const done = op === 'create' ? 'reminder_scheduled' : op === 'cancel' ? 'reminder_cancelled' : 'reminder_rescheduled'
-    return { status: 'answered', stopReason: already ? `${done}_already` : done, text: doneReply(op, { text: row.text, atMs: row.remindAtMs, fromMs: nowMs, already }), headline: op === 'create' ? 'התזכורת נקבעה' : op === 'cancel' ? 'התזכורת בוטלה' : 'התזכורת הוזזה' }
+    return { status: 'answered', stopReason: already ? `${done}_already` : done, text: doneReply(op, { text: row.text, atMs: row.remindAtMs, fromMs: nowMs, already, delivery: op === 'cancel' ? undefined : await deliveryAvailable() }), headline: op === 'create' ? 'התזכורת נקבעה' : op === 'cancel' ? 'התזכורת בוטלה' : 'התזכורת הוזזה' }
   }
   if (outcome.report === 'EXECUTED_UNVERIFIED' || outcome.report === 'UNKNOWN_RECONCILE') return plain(`reminder_${op}_${outcome.report.toLowerCase()}`, REMINDER_COPY.unverifiedOutcome, 'failed')
   if (outcome.execution.status === 'NOT_AUTHORIZED') return plain(`reminder_${op}_not_authorized`, REMINDER_COPY.notFound, 'refused')
