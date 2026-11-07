@@ -1,7 +1,7 @@
 import { db } from '@/config/db'
 import { checkReminderWindow } from '@/lib/reminders/when'
 import { insertReminderEvents } from './events'
-import { limitBreached, lockOwnedReminder, recipientAllowsPersonalReminders, type LockedReminder } from './lock'
+import { enforceReminderLimits, lockOwnedReminder, recipientAllowsPersonalReminders, recordFounderWaiver, type LockedReminder } from './lock'
 import type { Knex } from 'knex'
 
 /**
@@ -71,7 +71,9 @@ export async function scheduleApprovedDraft(input: {
       await discard(trx, r, reason, input.actionId, now)
       return { kind: 'rejected' as const, reason }
     }
-    if (await limitBreached(trx, r, r.remindAt.getTime())) {
+    const limits = await enforceReminderLimits(trx, r, r.remindAt.getTime())
+    if (limits.waived) await recordFounderWaiver(trx, r, r.id, limits.waived, input.actionId)
+    if (limits.breach) {
       await discard(trx, r, 'forecast', input.actionId, now)
       return { kind: 'rejected' as const, reason: 'forecast' as const }
     }

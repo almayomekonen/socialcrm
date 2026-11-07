@@ -2,6 +2,8 @@ import type { Knex } from 'knex'
 import { businessDayBounds } from '@/lib/today/time'
 import { REMINDER_MAX_PER_RECIPIENT_DAY, REMINDER_MAX_SCHEDULED_PER_USER } from '@/lib/reminders/limits'
 import { consentCoversPersonalReminders } from '@/lib/whatsapp/platform/consentText'
+import { founderEntitlement } from '@/db/platformEntitlements'
+import { insertReminderEvents } from './events'
 
 /**
  * Shared steps for the owner-driven reminder transitions (T4 cancel, T5 create,
@@ -125,4 +127,26 @@ export async function limitBreached(
     )
     .count<{ n: string }[]>('* as n')) as { n: string }[]
   return Number(day[0].n) >= REMINDER_MAX_PER_RECIPIENT_DAY ? 'daily_limit' : null
+}
+
+/**
+ * The approved limits, or their waiver for a verified founder (platform_entitlements,
+ * this agency AND user, read in THIS transaction so a revocation applies at once).
+ * A waived limit is recorded as a `founder_limit_waived` event on `reminderId`
+ * (the draft's own id for a new request). Every other check is the caller's,
+ * unchanged: consent, opt-out, ownership, version, the window and the horizon.
+ */
+export async function enforceReminderLimits(
+  trx: Knex.Transaction,
+  r: Pick<LockedReminder, 'id' | 'agencyId' | 'userId' | 'recipientId'>,
+  remindAtMs: number,
+): Promise<{ breach: 'scheduled_limit' | 'daily_limit' | null; waived: 'scheduled_limit' | 'daily_limit' | null }> {
+  const breach = await limitBreached(trx, r, remindAtMs)
+  if (!breach) return { breach: null, waived: null }
+  if (await founderEntitlement(r.agencyId, r.userId, trx)) return { breach: null, waived: breach }
+  return { breach, waived: null }
+}
+
+export async function recordFounderWaiver(trx: Knex.Transaction, r: { agencyId: number; userId: number; recipientId: number }, reminderId: number, waived: string, actionId: string | null = null): Promise<void> {
+  await insertReminderEvents(trx, [{ agencyId: r.agencyId, userId: r.userId, recipientId: r.recipientId, reminderId, type: 'founder_limit_waived', actorKind: 'system', actionId, reason: waived }])
 }

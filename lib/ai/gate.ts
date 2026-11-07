@@ -1,3 +1,4 @@
+import { founderEntitlement } from '@/db/platformEntitlements'
 import { getAiEnv } from './env'
 import { hasAnyProviderConfigured, isAgencyAllowlisted, isAiEnabled } from './flags'
 import { getProviderChain, type ResolvedModel } from './providers'
@@ -48,6 +49,14 @@ export type AiAdmissionInput = {
   bypassAllowlist?: boolean
   roleOverride?: ModelRole
   copilotModeId?: CopilotModeId
+  /**
+   * The user the run is for. When a COMMERCIAL check would refuse (the
+   * product-access entitlement, the per-agency daily USD `over-quota`), a verified
+   * founder entitlement for THIS agency and user (db/platformEntitlements.ts,
+   * fail-closed) waives it. Read lazily, only then: no extra I/O on the normal
+   * path. Never waives AI_ENABLED, the rollout allowlist, or provider availability.
+   */
+  userId?: number | null
 }
 
 export type AiAdmission =
@@ -80,13 +89,15 @@ export async function admitAiRun(input: AiAdmissionInput): Promise<AiAdmission> 
   // no subscription to evaluate. This is the server-authoritative revenue/access
   // boundary; UI state is not authorization. resolveAiAccess FAILS OPEN on any
   // read error, so a transient DB failure never denies a paying customer.
+  let founder: boolean | null = null
+  const isFounder = async () => (founder ??= await founderEntitlement(input.agencyId, input.userId))
   if (input.bypassAllowlist !== true && input.agencyId) {
     const access = await resolveAiAccess(input.agencyId)
-    if (access.allowed === false) return { ok: false, reason: access.reason }
+    if (access.allowed === false && !(await isFounder())) return { ok: false, reason: access.reason }
   }
 
   if (!hasAnyProviderConfigured()) return { ok: false, reason: 'no-providers' }
-  if (input.agencyId && getDailySpend(input.agencyId) >= env.dailyUsdCap) {
+  if (input.agencyId && getDailySpend(input.agencyId) >= env.dailyUsdCap && !(await isFounder())) {
     return { ok: false, reason: 'over-quota' }
   }
 

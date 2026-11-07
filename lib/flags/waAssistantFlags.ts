@@ -138,6 +138,21 @@ export function waAssistantDailyUsdCap(): number {
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_DAILY_USD_CAP
 }
 
+/**
+ * TECHNICAL abuse protection for the founder entitlement (approved 2026-11-07).
+ * They replace the commercial quotas ONLY for a verified founder, and they only
+ * intervene in abnormal traffic: a burst, a sustained flood, an automated loop.
+ * Evidence: the founder's busiest minute was 5 messages, busiest hour ~21.
+ */
+export const FOUNDER_ABUSE_GUARDS = {
+  /** Messages per rolling minute (this one excluded) before `abuse_burst`. */
+  perMinute: 10,
+  /** Messages per rolling hour before `abuse_hourly`. */
+  perHour: 120,
+  /** Earlier CONSECUTIVE identical texts within 10 minutes before `abuse_loop` (the 5th in a row is refused). */
+  identicalRun: 4,
+} as const
+
 /** Operating limits. Deliberately constants: changing one is a reviewed code change. */
 export const WA_ASSISTANT_LIMITS = {
   /** Messages one recipient may send per rolling hour. */

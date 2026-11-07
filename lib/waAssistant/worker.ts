@@ -8,13 +8,12 @@ import {
   purgeWaAssistantText,
   reapStaleWaAssistantJobs,
   recentWaAssistantTurns,
-  waAssistantUsage,
   type WaAssistantFinish,
   type WaAssistantJob,
 } from '@/db/waAssistantJobs'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { track } from '@/lib/analytics/track'
-import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantNotesAgency, isWaAssistantRemindersAgency, isWaAssistantStatusAgency, isWaAssistantTasksAgency, waAssistantDailyUsdCap } from '@/lib/flags/waAssistantFlags'
+import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantNotesAgency, isWaAssistantRemindersAgency, isWaAssistantStatusAgency, isWaAssistantTasksAgency } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
@@ -34,6 +33,7 @@ import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
 import { handleReminderMessage } from './reminders/route'
+import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
 
 /**
@@ -118,6 +118,9 @@ export async function runWaAssistantWorker(opts: { limit?: number } = {}, deps: 
 
 type Platform = { phoneNumberId: string; accessToken: string }
 
+/** Commercial limits a founder's job bypassed, for the audit event (finish). */
+const waivedLimits = new WeakMap<WaAssistantJob, string[]>()
+
 async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssistantDeps, now: () => Date): Promise<string> {
   const startedAt = now()
   const elapsed = () => now().getTime() - startedAt.getTime()
@@ -133,18 +136,13 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     return finish(job, { status: 'refused', refusalReason: who.reason, reply, durationMs: elapsed() })
   }
 
-  const usage = await waAssistantUsage(job, startedAt)
-  const limitReason =
-    usage.senderLastHour >= WA_ASSISTANT_LIMITS.perSenderPerHour ? 'sender_limit'
-    : usage.agencyToday >= WA_ASSISTANT_LIMITS.perAgencyPerDay ? 'agency_limit'
-    : usage.agencySpendTodayUsd >= waAssistantDailyUsdCap() ? 'spend_limit'
-    : null
-  if (limitReason) {
-    // Answer only the FIRST message over a count limit, so a limit cannot itself become a flood of replies.
-    const firstOver = limitReason === 'sender_limit' ? usage.senderLastHour === WA_ASSISTANT_LIMITS.perSenderPerHour : limitReason === 'agency_limit' ? usage.agencyToday === WA_ASSISTANT_LIMITS.perAgencyPerDay : true
-    const text = refusalReply(limitReason)
-    const reply = firstOver && text ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' as const }
-    return finish(job, { status: 'refused', refusalReason: limitReason, reply, durationMs: elapsed() })
+  // Commercial limits, or for a verified founder the technical abuse guards instead (./limits.ts).
+  const limits = await decideUsageLimits(job, startedAt)
+  if (limits.waived.length) waivedLimits.set(job, limits.waived)
+  if (limits.refusal) {
+    const text = refusalReply(limits.refusal.reason)
+    const reply = limits.refusal.firstOver && text ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' as const }
+    return finish(job, { status: 'refused', refusalReason: limits.refusal.reason, reply, durationMs: elapsed() })
   }
 
   const meetingsOn = isWaAssistantMeetingsAgency(job.agencyId)
@@ -270,6 +268,7 @@ async function finish(job: WaAssistantJob, f: WaAssistantFinish): Promise<string
       replyState: f.reply?.state ?? null,
       durationMs: f.durationMs ?? null,
       costUsd: f.costUsd ?? 0,
+      limitWaived: waivedLimits.get(job) ?? null,
     },
   })
   return f.status

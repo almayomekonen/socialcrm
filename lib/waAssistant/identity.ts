@@ -5,7 +5,8 @@ import { getPerms } from '@/db/filter'
 import { isAdmin } from '@/types/roles'
 import { getEffectiveLeadPlan } from '@/lib/quota'
 import { getFirstName } from '@/lib/users/displayName'
-import { isAgentAvailable } from '@/lib/ai/agentAvailability'
+import { isAgentAvailableForUser } from '@/lib/ai/agentAvailability'
+import { founderEntitlement } from '@/db/platformEntitlements'
 import { isWaAssistantAgency } from '@/lib/flags/waAssistantFlags'
 import { hasReminderProductAccess } from '@/lib/ownerWhatsappReminders/productAccess'
 import type { AgentScope } from '@/lib/agent/types'
@@ -101,8 +102,12 @@ export async function resolveAssistantScope(job: { recipientId: number; agencyId
 
   const phoneE164 = recipient.phoneE164
   if (!consentCoversAssistant(recipient.consentTextVersion)) return { ok: false, reason: 'consent_required', phoneE164 }
-  if (!(await isAgentAvailable(job.agencyId))) return { ok: false, reason: 'agent_not_enabled', phoneE164 }
-  if (!(await hasReminderProductAccess(job.agencyId, now))) return { ok: false, reason: 'no_product_access', phoneE164 }
+  // A verified founder (platform_entitlements, this agency AND user) is never stopped by a
+  // subscription state; rollout, exclusion and AI-disabled still stop them.
+  if (!(await isAgentAvailableForUser(job.agencyId, job.userId))) return { ok: false, reason: 'agent_not_enabled', phoneE164 }
+  if (!(await hasReminderProductAccess(job.agencyId, now)) && !(await founderEntitlement(job.agencyId, job.userId))) {
+    return { ok: false, reason: 'no_product_access', phoneE164 }
+  }
 
   // `getPerms`' admin branch reads the web session, which does not exist here;
   // it returns `[]` for admins unconditionally, so the substitution is exact

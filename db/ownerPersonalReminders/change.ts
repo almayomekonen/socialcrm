@@ -1,7 +1,7 @@
 import { db } from '@/config/db'
 import { checkReminderWindow } from '@/lib/reminders/when'
 import { insertReminderEvents } from './events'
-import { limitBreached, lockOwnedReminder, recipientAllowsPersonalReminders } from './lock'
+import { enforceReminderLimits, lockOwnedReminder, recipientAllowsPersonalReminders, recordFounderWaiver } from './lock'
 
 /**
  * T4 cancel and T6 reschedule, by an approved owner card (architecture v1.2 A2,
@@ -83,7 +83,9 @@ export async function rescheduleOwnReminder(input: {
 
     const outside = checkReminderWindow(input.remindAtMs, input.requestAnchorMs, input.nowMs)
     if (outside) return { kind: 'rejected' as const, reason: WINDOW_REASON[outside as keyof typeof WINDOW_REASON] ?? 'due_passed' }
-    if (await limitBreached(trx, r, input.remindAtMs)) return { kind: 'rejected' as const, reason: 'forecast' as const }
+    const limits = await enforceReminderLimits(trx, r, input.remindAtMs)
+    if (limits.breach) return { kind: 'rejected' as const, reason: 'forecast' as const }
+    if (limits.waived) await recordFounderWaiver(trx, r, r.id, limits.waived, input.actionId)
 
     const at = new Date(input.remindAtMs)
     const updated = await trx(T)

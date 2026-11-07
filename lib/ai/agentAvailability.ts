@@ -1,3 +1,4 @@
+import { founderEntitlement } from '@/db/platformEntitlements'
 import 'server-only'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import { isAgentEnabled, isAiEnabled } from '@/lib/ai/flags'
@@ -83,4 +84,17 @@ export async function getAgentAvailability(agencyId: number | null | undefined):
 
 export async function isAgentAvailable(agencyId: number | null | undefined): Promise<boolean> {
   return (await getAgentAvailability(agencyId)).available
+}
+
+/**
+ * Availability for ONE user's own run. Identical to `isAgentAvailable`, except
+ * that a verified founder (platform_entitlements, this agency AND user) is not
+ * stopped by `no_product_access`: a subscription state must never block the
+ * founder. Every other reason (rollout audience, exclusion, AI disabled) still
+ * stops them; the founder check fails closed.
+ */
+export async function isAgentAvailableForUser(agencyId: number | null | undefined, userId: number | null | undefined): Promise<boolean> {
+  const a = await getAgentAvailability(agencyId)
+  if (a.available === true) return true
+  return 'reason' in a && a.reason === 'no_product_access' && (await founderEntitlement(agencyId, userId))
 }

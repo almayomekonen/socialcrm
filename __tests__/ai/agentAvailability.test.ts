@@ -190,7 +190,8 @@ describe('one decision for every surface', () => {
   ]
   it.each(SURFACES)('%s decides through isAgentAvailable, never isAgentEnabled directly', (file) => {
     const src = readFileSync(path.join(process.cwd(), file), 'utf8')
-    expect(src).toMatch(/await isAgentAvailable\(/)
+    // isAgentAvailableForUser is the same decision (getAgentAvailability), founder-aware for no_product_access only.
+    expect(src).toMatch(/await isAgentAvailable(?:ForUser)?\(/)
     expect(src).not.toMatch(/\bisAgentEnabled\(/)
   })
 })
