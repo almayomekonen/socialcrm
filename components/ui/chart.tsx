@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 // - Series colours come from the brand tokens and are exposed as
 //   `--color-<key>` on the container's style attribute (no injected <style>
 //   element, so nothing new for the CSP to allow).
-// - Chrome uses shadcn's neutral light values as Tailwind neutral-* classes — the shadcn
+// - Chrome uses the app tokens (surface / border / ink / gray) — the shadcn
 //   `background`/`muted` tokens are not defined in this theme.
 
 export type ChartConfig = Record<string, { label?: React.ReactNode; color?: string }>
@@ -47,7 +47,7 @@ function ChartContainer({
         data-slot='chart'
         style={{ ...vars, ...style }}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-neutral-500 [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-neutral-200/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-neutral-bg [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-neutral-bg [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
+          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-gray-500 [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-neutral-bg [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-neutral-bg [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
           className,
         )}
         {...props}
@@ -105,7 +105,7 @@ function ChartTooltipContent({
   return (
     <div
       dir={dir}
-      className={cn('grid min-w-32 items-start gap-1.5 rounded-lg border border-neutral-200/50 bg-white px-2.5 py-1.5 text-xs text-neutral-950 shadow-xl', className)}
+      className={cn('grid min-w-32 items-start gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-ink shadow-xl', className)}
     >
       {heading != null && heading !== '' && <div className='font-semibold'>{heading}</div>}
       <div className='grid gap-1.5'>
@@ -120,8 +120,8 @@ function ChartTooltipContent({
                 className={cn('shrink-0 rounded-[2px]', indicator === 'dot' ? 'size-2.5' : 'h-2.5 w-1')}
                 style={{ background: color }}
               />
-              <span className='flex-1 text-neutral-500'>{cfg?.label ?? String(item.name ?? '')}</span>
-              <span className='font-mono font-medium text-neutral-950 tabular-nums'>
+              <span className='flex-1 text-gray-500'>{cfg?.label ?? String(item.name ?? '')}</span>
+              <span className='font-mono font-medium text-ink tabular-nums'>
                 {typeof item.value === 'number' ? item.value.toLocaleString() : String(item.value ?? '')}
               </span>
             </div>
@@ -153,7 +153,7 @@ function ChartLegendContent({
         const key = String(nameKey ? item.payload?.[nameKey] : item.dataKey ?? 'value')
         const cfg = config[key]
         return (
-          <div key={i} className='flex items-center gap-1.5 text-neutral-500'>
+          <div key={i} className='flex items-center gap-1.5 text-gray-500'>
             <span aria-hidden className='size-2 shrink-0 rounded-[2px]' style={{ background: item.color }} />
             {cfg?.label}
           </div>

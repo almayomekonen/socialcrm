@@ -95,7 +95,7 @@ export default async function AnalyticsOverview({
           {hasTrend ? (
             <LeadsTrendChart points={points} showReplied={hasReplies} />
           ) : (
-            <p className='flex h-[250px] items-center justify-center text-sm text-neutral-500'>{t('today.analytics.trendEmpty')}</p>
+            <p className='flex h-[250px] items-center justify-center text-sm text-gray-500'>{t('today.analytics.trendEmpty')}</p>
           )}
         </CardContent>
       </Card>

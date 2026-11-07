@@ -31,7 +31,7 @@ export default function DashboardTabs({ label, tabs, actions }: { label: string;
   return (
     <section className='flex flex-col gap-4'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
-        <div role='tablist' aria-label={label} className='inline-flex h-9 w-fit items-center rounded-lg bg-neutral-100 p-[3px] text-neutral-500'>
+        <div role='tablist' aria-label={label} className='inline-flex h-9 w-fit items-center rounded-lg bg-neutral-bg p-[3px] text-gray-500'>
           {tabs.map((tab, i) => {
             const on = tab.id === current
             return (
@@ -48,13 +48,13 @@ export default function DashboardTabs({ label, tabs, actions }: { label: string;
                 tabIndex={on ? 0 : -1}
                 onClick={() => setActive(tab.id)}
                 onKeyDown={(e) => onKeyDown(e, i)}
-                className={`inline-flex h-[calc(100%-1px)] items-center justify-center gap-1.5 rounded-md border px-2.5 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/15 ${
-                  on ? 'border-neutral-200 bg-white text-neutral-950 shadow-[0_1px_3px_0_rgb(0_0_0/0.1),0_1px_2px_-1px_rgb(0_0_0/0.1)]' : 'border-transparent text-neutral-950/70 hover:text-neutral-950'
+                className={`inline-flex h-[calc(100%-1px)] items-center justify-center gap-1.5 rounded-md border px-2.5 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-primary/25 ${
+                  on ? 'border-border bg-surface text-ink shadow-[0_1px_3px_0_rgb(0_0_0/0.1),0_1px_2px_-1px_rgb(0_0_0/0.1)]' : 'border-transparent text-gray-500 hover:text-ink'
                 }`}
               >
                 {tab.label}
                 {tab.count != null && (
-                  <span className='inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-neutral-500/30 px-1 text-xs font-medium text-neutral-950 tabular-nums'>
+                  <span className='inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-tint px-1 text-xs font-medium text-primary-text tabular-nums'>
                     {tab.count}
                   </span>
                 )}

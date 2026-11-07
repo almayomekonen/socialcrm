@@ -43,16 +43,16 @@ export default function BriefHero({ brief, locale = 'he' }: { brief: TodayBrief;
     <Card className={cn('@container/card justify-between', sectionCard)}>
       <CardHeader>
         {brief.dateLabel && <CardDescription>{brief.dateLabel}</CardDescription>}
-        <h1 data-slot='card-title' className='text-2xl font-semibold text-neutral-950 @[250px]/card:text-3xl'>
+        <h1 data-slot='card-title' className='text-2xl font-semibold text-ink @[250px]/card:text-3xl'>
           {brief.firstName ? t('today.greetingWithName', { greeting: brief.greeting, name: brief.firstName }) : brief.greeting}
         </h1>
         <CardAction className='flex flex-wrap justify-end gap-2'>
           <Link href='/leads?import=1' className={`${btn.base} ${btn.outline} ${btn.sm}`}>
-            <Icon name='upload' className='size-4 shrink-0 bg-neutral-950' />
+            <Icon name='upload' className='size-4 shrink-0 bg-ink' />
             {t('today.hero.importExcel')}
           </Link>
           <Link href='/leads?add=1' className={`${btn.base} ${btn.default} ${btn.sm}`}>
-            <Icon name='plus' className='size-4 shrink-0 bg-white' />
+            <Icon name='plus' className='size-4 shrink-0 bg-surface' />
             {t('today.hero.addLead')}
           </Link>
         </CardAction>
@@ -60,14 +60,14 @@ export default function BriefHero({ brief, locale = 'he' }: { brief: TodayBrief;
       <CardFooter className='flex-col items-stretch gap-1.5 text-sm'>
         <div className='line-clamp-1 flex items-center gap-2 font-medium tabular-nums'>
           {headline(brief, t)}
-          <Icon name={brief.done ? 'circle-check' : 'bolt'} className='size-4 shrink-0 bg-neutral-950' />
+          <Icon name={brief.done ? 'circle-check' : 'bolt'} className='size-4 shrink-0 bg-ink' />
         </div>
-        <div className='text-neutral-500 tabular-nums'>{subline(brief, t)}</div>
+        <div className='text-gray-500 tabular-nums'>{subline(brief, t)}</div>
         {pct !== null && (
           <div className='mt-3 flex flex-col gap-2'>
-            <div className='flex items-center justify-between gap-3 text-neutral-500 tabular-nums'>
+            <div className='flex items-center justify-between gap-3 text-gray-500 tabular-nums'>
               <span className='flex flex-wrap gap-x-1.5'>
-                <span className='font-medium text-neutral-950'>{t('today.hero.handledToday', { count: brief.handledToday })}</span>
+                <span className='font-medium text-ink'>{t('today.hero.handledToday', { count: brief.handledToday })}</span>
                 <span aria-hidden>·</span>
                 <span>{t('today.hero.remainingShort', { count: brief.remaining })}</span>
                 {meetings > 0 && (
@@ -85,9 +85,9 @@ export default function BriefHero({ brief, locale = 'he' }: { brief: TodayBrief;
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={pct}
-              className='h-2 w-full overflow-hidden rounded-full bg-neutral-900/20'
+              className='h-2 w-full overflow-hidden rounded-full bg-primary-tint'
             >
-              <div className='h-full bg-neutral-900 transition-[width] motion-reduce:transition-none' style={{ width: `${pct}%` }} />
+              <div className='h-full bg-primary transition-[width] motion-reduce:transition-none' style={{ width: `${pct}%` }} />
             </div>
           </div>
         )}

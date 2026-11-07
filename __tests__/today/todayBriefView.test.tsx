@@ -9,7 +9,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest'
 import React from 'react'
-import { render, screen, cleanup, within } from '@testing-library/react'
+import { render, screen, cleanup, within, fireEvent } from '@testing-library/react'
 import TodayBriefView from '@/components/home/today/TodayBriefView'
 import BriefHero from '@/components/home/today/BriefHero'
 import BriefMission from '@/components/home/today/BriefMission'
@@ -144,11 +144,27 @@ describe('BriefMission', () => {
 })
 
 describe('BriefList', () => {
-  it('renders every item — no cap — as table rows under a header row', () => {
-    const items = Array.from({ length: 30 }, (_, i) => item({ id: i + 1, name: `ליד ${i + 1}` }))
+  it('pages 10 rows at a time; every item stays reachable (nothing capped)', () => {
+    const items = Array.from({ length: 25 }, (_, i) => item({ id: i + 1, name: `ליד ${i + 1}` }))
     render(<BriefList items={items} />)
-    expect(screen.getAllByRole('row')).toHaveLength(31)
     expect(screen.getByRole('columnheader', { name: 'ליד' })).toBeTruthy()
+    expect(screen.getAllByRole('row')).toHaveLength(11) // header + 10
+    expect(screen.getByText('עמוד 1 מתוך 3')).toBeTruthy()
+    expect(screen.getByText('מציג 1–10 מתוך 25')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'לעמוד הקודם' }) as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'לעמוד הבא' }))
+    expect(screen.getByText('ליד 11')).toBeTruthy()
+    expect(screen.queryByText('ליד 1')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'לעמוד האחרון' }))
+    expect(screen.getByText('עמוד 3 מתוך 3')).toBeTruthy()
+    expect(screen.getAllByRole('row')).toHaveLength(6) // header + 5
+    expect((screen.getByRole('button', { name: 'לעמוד הבא' }) as HTMLButtonElement).disabled).toBe(true)
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'שורות בעמוד' }), { target: { value: '30' } })
+    expect(screen.getAllByRole('row')).toHaveLength(26) // header + all 25
+    expect(screen.getByText('עמוד 1 מתוך 1')).toBeTruthy()
   })
 
   it('wait chip shows waitingFor ?? reason, toned by state', () => {

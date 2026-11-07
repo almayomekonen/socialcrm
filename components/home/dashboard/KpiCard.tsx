@@ -32,7 +32,7 @@ export default function KpiCard({ label, value, sub, delta, upIsGood = true, loc
         {delta != null && (
           <CardAction>
             <span data-tone={tone} dir='ltr' className={cn(badgeOutline, 'tabular-nums')}>
-              {delta !== 0 && <Icon name={trendIcon} className='size-3 shrink-0 bg-neutral-950' />}
+              {delta !== 0 && <Icon name={trendIcon} className='size-3 shrink-0 bg-ink' />}
               {pct}
               <span className='sr-only'> {t('today.analytics.vsPrevious')}</span>
             </span>
@@ -43,10 +43,10 @@ export default function KpiCard({ label, value, sub, delta, upIsGood = true, loc
         {delta != null && delta !== 0 && (
           <div className='line-clamp-1 flex items-center gap-2 font-medium'>
             <span dir='ltr' className='tabular-nums'>{pct}</span> {t('today.analytics.vsPrevious')}
-            <Icon name={trendIcon} className='size-4 shrink-0 bg-neutral-950' />
+            <Icon name={trendIcon} className='size-4 shrink-0 bg-ink' />
           </div>
         )}
-        <div className='text-neutral-500'>{sub}</div>
+        <div className='text-gray-500'>{sub}</div>
       </CardFooter>
     </Card>
   )

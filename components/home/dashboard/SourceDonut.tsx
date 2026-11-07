@@ -44,10 +44,10 @@ export default function SourceDonut({ slices }: { slices: SourceSlice[] }) {
                 if (!viewBox || !('cx' in viewBox) || viewBox.cx == null || viewBox.cy == null) return null
                 return (
                   <text x={viewBox.cx} y={viewBox.cy} textAnchor='middle' dominantBaseline='middle'>
-                    <tspan x={viewBox.cx} y={viewBox.cy - 6} className='fill-neutral-950 text-3xl font-bold tabular-nums'>
+                    <tspan x={viewBox.cx} y={viewBox.cy - 6} className='fill-ink text-3xl font-bold tabular-nums'>
                       {total.toLocaleString()}
                     </tspan>
-                    <tspan x={viewBox.cx} y={viewBox.cy + 18} className='fill-neutral-500 text-[13px]'>
+                    <tspan x={viewBox.cx} y={viewBox.cy + 18} className='fill-gray-500 text-[13px]'>
                       {t('today.analytics.sourcesTotal')}
                     </tspan>
                   </text>
@@ -64,11 +64,11 @@ export default function SourceDonut({ slices }: { slices: SourceSlice[] }) {
             <li key={s.key} className='flex flex-col gap-1.5'>
               <span className='flex items-center gap-2.5 text-sm'>
                 <span aria-hidden className='size-2.5 shrink-0 rounded-[3px]' style={{ background: SOURCE_COLOR[s.key] }} />
-                <span className='flex-1 truncate text-neutral-950'>{t(SOURCE_KEY[s.key])}</span>
-                <span className='text-neutral-500 tabular-nums'>{s.count}</span>
-                <span className='w-10 text-end font-medium text-neutral-950 tabular-nums'>{share}%</span>
+                <span className='flex-1 truncate text-ink'>{t(SOURCE_KEY[s.key])}</span>
+                <span className='text-gray-500 tabular-nums'>{s.count}</span>
+                <span className='w-10 text-end font-medium text-ink tabular-nums'>{share}%</span>
               </span>
-              <span aria-hidden className='h-1.5 overflow-hidden rounded-full bg-neutral-100'>
+              <span aria-hidden className='h-1.5 overflow-hidden rounded-full bg-neutral-bg'>
                 <span className='block h-full rounded-full' style={{ width: `${share}%`, background: SOURCE_COLOR[s.key] }} />
               </span>
             </li>

@@ -5,7 +5,7 @@ import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 import { Card, CardContent, CardFooter, CardHeader } from './card'
 
-const block = 'rounded-md bg-neutral-100 motion-safe:animate-pulse'
+const block = 'rounded-md bg-neutral-bg motion-safe:animate-pulse'
 
 export function AnalyticsOverviewSkeleton({ locale = 'he' }: { locale?: UiLocale } = {}) {
   return (
@@ -40,8 +40,8 @@ export function AnalyticsOverviewSkeleton({ locale = 'he' }: { locale?: UiLocale
 /** A tab panel (sources) while it streams in. */
 export function PanelSkeleton() {
   return (
-    <div aria-hidden className='flex items-center gap-8 rounded-lg border border-neutral-200 bg-white p-6'>
-      <div className='size-[180px] shrink-0 rounded-full border-[26px] border-neutral-100 motion-safe:animate-pulse' />
+    <div aria-hidden className='flex items-center gap-8 rounded-lg border border-border bg-surface p-6'>
+      <div className='size-[180px] shrink-0 rounded-full border-[26px] border-neutral-bg motion-safe:animate-pulse' />
       <div className='flex flex-1 flex-col gap-4'>
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className={`h-2 ${block}`} />
@@ -53,7 +53,7 @@ export function PanelSkeleton() {
 
 export function FunnelSkeleton() {
   return (
-    <div aria-hidden className='flex flex-col gap-5 rounded-lg border border-neutral-200 bg-white p-6'>
+    <div aria-hidden className='flex flex-col gap-5 rounded-lg border border-border bg-surface p-6'>
       <div className={`h-4 w-32 ${block}`} />
       {[0, 1, 2, 3].map((i) => (
         <div key={i} className={`h-2 ${block}`} />

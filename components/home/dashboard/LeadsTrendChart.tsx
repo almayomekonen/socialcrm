@@ -7,7 +7,7 @@ import { useT } from '@/lib/i18n/I18nProvider'
 import { dirFor } from '@/lib/i18n/config'
 
 // New leads vs leads that got a human reply, one point per business day — the
-// shadcn dashboard-01 "Area Chart – Interactive" in the neutral light theme.
+// shadcn dashboard-01 "Area Chart – Interactive" in the app colours (primary / success).
 // Time runs left → right regardless of page direction. Labels are precomputed
 // on the server.
 //
@@ -24,8 +24,8 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
   const tip = active != null ? points[active] : null
 
   const config = {
-    newLeads: { label: t('today.analytics.legendNew'), color: '#171717' },
-    replied: { label: t('today.analytics.legendReplied'), color: '#737373' },
+    newLeads: { label: t('today.analytics.legendNew'), color: 'var(--color-primary)' },
+    replied: { label: t('today.analytics.legendReplied'), color: 'var(--color-success)' },
   } satisfies ChartConfig
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -44,7 +44,7 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
       onKeyDown={onKeyDown}
       onFocus={() => setActive((a) => a ?? n - 1)}
       onBlur={() => setActive(null)}
-      className='relative rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-neutral-950/15'
+      className='relative rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-primary/25'
     >
       <ChartContainer config={config} className='aspect-auto h-[250px] w-full'>
         <AreaChart data={points} margin={{ top: 8, right: 0, left: 0, bottom: 0 }} accessibilityLayer={false}>
@@ -70,7 +70,7 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
               />
             }
           />
-          {tip && <ReferenceLine x={tip.short} stroke='#a3a3a3' strokeDasharray='4 4' />}
+          {tip && <ReferenceLine x={tip.short} stroke='var(--color-primary)' strokeDasharray='4 4' />}
           <Area dataKey='newLeads' type='monotone' fill='url(#fillNewLeads)' stroke='var(--color-newLeads)' strokeWidth={1.5} />
           {showReplied && (
             <Area dataKey='replied' type='monotone' fill='url(#fillReplied)' stroke='var(--color-replied)' strokeWidth={1.5} />
@@ -82,11 +82,11 @@ export default function LeadsTrendChart({ points, showReplied = true }: { points
         <div
           dir={dir}
           role='status'
-          className='pointer-events-none absolute end-2 top-0 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs whitespace-nowrap text-neutral-950 shadow-xl'
+          className='pointer-events-none absolute end-2 top-0 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs whitespace-nowrap text-ink shadow-xl'
         >
           <div className='mb-0.5 font-medium'>{tip.long}</div>
           <div className='tabular-nums'>{t('today.analytics.tipNew', { count: tip.newLeads })}</div>
-          {showReplied && <div className='text-neutral-500 tabular-nums'>{t('today.analytics.tipReplied', { count: tip.replied })}</div>}
+          {showReplied && <div className='text-gray-500 tabular-nums'>{t('today.analytics.tipReplied', { count: tip.replied })}</div>}
         </div>
       )}
     </div>

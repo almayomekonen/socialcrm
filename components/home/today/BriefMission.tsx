@@ -29,13 +29,13 @@ export default function BriefMission({ item, locale = 'he' }: { item: BriefItem;
     <Card className={cn('@container/card justify-between', sectionCard)}>
       <CardHeader>
         <CardDescription className='flex items-center gap-1.5'>
-          <Icon name='bolt' className='size-3.5 shrink-0 bg-neutral-500' />
+          <Icon name='bolt' className='size-3.5 shrink-0 bg-gray-500' />
           {t('today.mission.title')}
         </CardDescription>
         <Link
           href={href}
           data-slot='card-title'
-          className='truncate text-2xl font-semibold text-neutral-950 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-neutral-950/15 @[250px]/card:text-3xl'
+          className='truncate text-2xl font-semibold text-ink outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25 @[250px]/card:text-3xl'
         >
           {item.name || '—'}
         </Link>
@@ -52,12 +52,12 @@ export default function BriefMission({ item, locale = 'he' }: { item: BriefItem;
           </span>
           <Icon name='clock' className={`size-4 shrink-0 ${toneIcon[tone]}`} />
         </div>
-        {details.length > 0 && <div className='text-neutral-500 tabular-nums'>{details.join(' · ')}</div>}
+        {details.length > 0 && <div className='text-gray-500 tabular-nums'>{details.join(' · ')}</div>}
         <div className='mt-3 flex gap-2'>
           {openConversation ? (
             <>
               <Link href={href} className={primary}>
-                <Icon name='whatsapp' type='sol' className='size-4 shrink-0 bg-white' />
+                <Icon name='whatsapp' type='sol' className='size-4 shrink-0 bg-surface' />
                 {t('today.mission.openConversation')}
               </Link>
               {item.phone && (
@@ -66,7 +66,7 @@ export default function BriefMission({ item, locale = 'he' }: { item: BriefItem;
                   aria-label={t('today.mission.callName', { name: item.name || t('today.mission.leadFallback') })}
                   className={`${btn.base} ${btn.outline} ${btn.icon}`}
                 >
-                  <Icon name='phone' className='size-4 shrink-0 bg-neutral-950' />
+                  <Icon name='phone' className='size-4 shrink-0 bg-ink' />
                 </a>
               )}
             </>
@@ -74,7 +74,7 @@ export default function BriefMission({ item, locale = 'he' }: { item: BriefItem;
             <>
               {item.phone && (
                 <a href={`tel:${item.phone}`} className={primary}>
-                  <Icon name='phone' className='size-4 shrink-0 bg-white' />
+                  <Icon name='phone' className='size-4 shrink-0 bg-surface' />
                   {t('today.mission.call')}
                 </a>
               )}
