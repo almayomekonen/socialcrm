@@ -35,7 +35,7 @@ export default function SourceDonut({ slices }: { slices: SourceSlice[] }) {
 
   return (
     <div className='flex flex-col items-center gap-8 md:flex-row'>
-      <ChartContainer config={config} dir='ltr' className='aspect-square h-[200px] shrink-0'>
+      <ChartContainer config={config} dir='ltr' className='aspect-square size-[200px] shrink-0'>
         <PieChart accessibilityLayer={false}>
           <ChartTooltip cursor={false} content={<ChartTooltipContent dir={dirFor(t.locale)} hideLabel nameKey='key' />} />
           <Pie data={data} dataKey='count' nameKey='key' innerRadius={64} outerRadius={90} paddingAngle={2} cornerRadius={4} strokeWidth={0}>

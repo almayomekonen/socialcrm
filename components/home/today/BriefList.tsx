@@ -16,6 +16,9 @@ const td = 'p-2 align-middle'
 
 export default function BriefList({ items, locale = 'he' }: { items: BriefItem[]; locale?: UiLocale }) {
   const t = translatorFor(locale)
+  const detailsOf = (it: BriefItem) => [it.waitingFor ? it.reason : null, it.windowHint].filter(Boolean).join(' · ')
+  // A column that is empty for every row says nothing (CLAUDE.md §11): omit it.
+  const hasDetails = items.some((it) => detailsOf(it) !== '')
   return (
     <div className='overflow-hidden rounded-lg border border-neutral-200 bg-white'>
       <div className='w-full overflow-x-auto'>
@@ -25,7 +28,7 @@ export default function BriefList({ items, locale = 'he' }: { items: BriefItem[]
               <th className={`${th} ps-4`}>{t('today.list.colLead')}</th>
               <th className={th}>{t('today.list.colStatus')}</th>
               <th className={th}>{t('today.list.colSource')}</th>
-              <th className={th}>{t('today.list.colDetails')}</th>
+              {hasDetails && <th className={th}>{t('today.list.colDetails')}</th>}
               <th className={`${th} pe-4 text-end`}>
                 <span className='sr-only'>{t('today.list.colActions')}</span>
               </th>
@@ -38,7 +41,6 @@ export default function BriefList({ items, locale = 'he' }: { items: BriefItem[]
               const tone = WAIT_STATE_TONE[it.state]
               // Same rule as the mission card: only a real thread link earns the WhatsApp action.
               const openConversation = Boolean(it.conversationId || it.href?.startsWith('/inbox'))
-              const details = [it.waitingFor ? it.reason : null, it.windowHint].filter(Boolean).join(' · ')
               return (
                 <tr key={it.id} className='border-b border-neutral-200 transition-colors last:border-0 hover:bg-neutral-50'>
                   <td className={`${td} ps-4`}>
@@ -59,7 +61,7 @@ export default function BriefList({ items, locale = 'he' }: { items: BriefItem[]
                     </span>
                   </td>
                   <td className={td}>{it.source && <span className={`${badgeOutline} px-1.5 text-neutral-500`}>{it.source}</span>}</td>
-                  <td className={`${td} max-w-72 truncate text-neutral-500`}>{details}</td>
+                  {hasDetails && <td className={`${td} max-w-72 truncate text-neutral-500`}>{detailsOf(it)}</td>}
                   <td className={`${td} pe-4`}>
                     <div className='flex justify-end gap-1'>
                       {openConversation && (
