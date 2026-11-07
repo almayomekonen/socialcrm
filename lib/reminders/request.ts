@@ -26,16 +26,42 @@ const E = '(?![\\p{L}])'
 const re = (src: string, flags = 'u') => new RegExp(src, flags)
 
 const MENTIONS = re(`${B}[ולה]?תזכור(?:ת|ות)${E}`)
-const CRM_WORDS = re(`${B}[ולה]?(?:משימ\\p{L}*|מעקב)${E}`)
-const CREATE = re(`${B}(?:תזכיר(?:י|ו)?|הזכר(?:י|ו)?|תזכרי)\\s+לי${E}`)
+const CRM_WORD = '[ולה]?(?:משימ\\p{L}*|מעקב)'
+const CRM_WORDS = re(`${B}${CRM_WORD}${E}`)
+/** "לא משימה", "בלי מעקב": the owner saying what this is NOT. Never a reason to route to tasks. */
+const NEGATED_CRM_SRC = `${B}(?:לא|בלי|אין)\\s+(?:זו\\s+|זה\\s+)?${CRM_WORD}${E}`
+const NEGATED_CRM = re(NEGATED_CRM_SRC)
+/** Global twin, for `replace` only (a global regex carries `lastIndex` between `test` calls). */
+const NEGATED_CRM_ALL = re(NEGATED_CRM_SRC, 'gu')
+const REMIND_VERB = '(?:תזכיר(?:י|ו)?|הזכר(?:י|ו)?|תזכרי)'
+/**
+ * An action said as an infinitive right after "תזכיר" ("תזכיר להתקשר", "תזכיר לבדוק"):
+ * the hif'il/hitpa'el "לה…" forms, and the common short ones. A NAME after "תזכיר"
+ * ("תזכיר לדני …") is not one: that is a message to someone, never a personal reminder.
+ */
+const ACTION = 'ל(?:ה\\p{L}{2,}|בדוק|שלוח|חזור|קנות|צאת|דבר|כתוב|עדכן|סגור|שלם|אסוף|קבוע|בקש|תאם|פגוש|שאול|ענות|סיים|ברר|קחת|תת|אכול|נסוע|לכת|בוא|הגיע)'
+const CREATE = re(`${B}(?:${REMIND_VERB}\\s+לי|${REMIND_VERB}(?=\\s+${ACTION}${E}))${E}`)
 const CANCEL_VERBS = '(?:ת?בטל(?:י|ו)?|לבטל|ת?מחק(?:י|ו)?|למחוק|תוריד(?:י)?|להוריד)'
 const RESCHEDULE_VERBS = '(?:תזיז(?:י|ו)?|להזיז|הזז(?:י)?|תדחה|תדחי|לדחות|דחה|תשנה|תשני|לשנות|שנה|תעביר(?:י)?|להעביר)'
 const CANCEL = re(`${B}${CANCEL_VERBS}${E}`)
 const RESCHEDULE = re(`${B}${RESCHEDULE_VERBS}${E}`)
 const LIST_CUE = re(`${B}(?:מה|אילו|איזה|איזו|כמה|תראה|תראי|הראה|תציג|הצג|רשימ\\p{L}*|יש|שלי|קרובות|הקרובות|מתוזמנות)${E}`)
 
-export function reminderIntent(text: string): ReminderIntent | null {
+/** Does the text ask to be reminded at all ("תזכיר", "הזכר", "תזכורת"), whatever followed? */
+export function mentionsReminder(text: string): boolean {
+  return MENTIONS.test(text) || re(`${B}${REMIND_VERB}${E}`).test(text)
+}
+
+/** "לא משימה! תזכורת": the owner correcting us. A reminder word, and every CRM word negated. */
+export function isReminderCorrection(text: string): boolean {
   const t = text.replace(/\s+/g, ' ').trim()
+  if (!NEGATED_CRM.test(t)) return false
+  const rest = t.replace(NEGATED_CRM_ALL, ' ')
+  return MENTIONS.test(rest) && !CRM_WORDS.test(rest) && !/(?:^|[^\p{L}])(?:לא|בלי)\s+[ולה]?תזכור/u.test(t)
+}
+
+export function reminderIntent(text: string): ReminderIntent | null {
+  const t = text.replace(/\s+/g, ' ').trim().replace(NEGATED_CRM_ALL, ' ').replace(/\s+/g, ' ').trim()
   if (!t || CRM_WORDS.test(t)) return null
   const mentions = MENTIONS.test(t)
   if (mentions && CANCEL.test(t)) return 'cancel'
@@ -65,16 +91,17 @@ export const stripTimes = (text: string) => strip(text, [OFFSET, HHMM, DIGIT_HOU
 export const stripDates = (text: string) => strip(text, [DATE]).replace(/\s+/g, ' ').trim()
 
 const TRIGGERS = [
-  `(?:תזכיר(?:י|ו)?|הזכר(?:י|ו)?|תזכרי)\\s+לי`,
+  `${REMIND_VERB}\\s+לי`,
+  REMIND_VERB,
   `(?:ת?קבע(?:י)?|צור(?:י)?|תיצור(?:י)?)\\s+(?:לי\\s+)?תזכורת`,
   `(?:ה)?תזכורת`,
   `(?:בבקשה|תודה|בבקשה תודה)`,
 ]
-const EDGES = /^[\s,.:;\-–—"'״׳]+|[\s,.:;\-–—!?"'״׳]+$/gu
+const EDGES = /^[\s,.:;!?\-–—"'״׳]+|[\s,.:;\-–—!?"'״׳]+$/gu
 
 /** What the owner asked to be reminded of, without the trigger and time words. "" when they said nothing else. */
 export function reminderText(text: string): string {
-  const once = strip(text.replace(/\s+/g, ' '), TRIGGERS)
+  const once = strip(text.replace(/\s+/g, ' ').replace(NEGATED_CRM_ALL, ' '), TRIGGERS)
   return stripDates(stripTimes(once)).replace(/^(?:ש|על|את)\s+/u, '').replace(EDGES, '').replace(/\s+/g, ' ').trim()
 }
 
