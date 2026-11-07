@@ -32,7 +32,17 @@ const NOTE_RULES = `- בוואטסאפ אפשר גם לבקש הוספת הער�
 - הערה היא לא משימה ולא מעקב. אם בעל העסק ביקש גם לחזור אליו במועד, זו בקשה נפרדת.
 - אל תכתוב שההערה נשמרה: המערכת תציג לבעל העסק כרטיס אישור.`
 
+/**
+ * Only when this agency's WA_ASSISTANT_REMINDERS_AGENCY_IDS switch is on. Personal
+ * reminders are handled by SocialCRM itself (lib/waAssistant/reminders/), never by
+ * the Agent, which has no reminder tool. So the Agent must never state a reminder
+ * fact: production 2026-11-07, it claimed a cancellation that never happened.
+ */
+const REMINDER_RULES = `- תזכורות אישיות (תזכורת שנשלחת לבעל העסק עצמו בזמן שביקש) מטופלות על ידי SocialCRM, לא על ידך, ואין לך כלי שרואה אותן.
+- לעולם אל תכתוב שתזכורת נקבעה, בוטלה, הוזזה, קיימת או לא קיימת, ואל תכתוב שאי אפשר לקבוע תזכורות.
+- אם בעל העסק שואל על תזכורת, כתוב רק: אפשר לכתוב "מה התזכורות שלי" כדי לראות אותן, או "בעוד שעה תזכיר לי…" כדי לקבוע תזכורת.`
+
 /** The surface rules for this agency's turn: the base rules, plus only the actions it has switched on. */
-export function waAgentRules(caps: { statusOn: boolean; notesOn: boolean }): string {
-  return [WA_AGENT_RULES, caps.statusOn ? STATUS_RULES : null, caps.notesOn ? NOTE_RULES : null].filter(Boolean).join('\n')
+export function waAgentRules(caps: { statusOn: boolean; notesOn: boolean; remindersOn?: boolean }): string {
+  return [WA_AGENT_RULES, caps.statusOn ? STATUS_RULES : null, caps.notesOn ? NOTE_RULES : null, caps.remindersOn ? REMINDER_RULES : null].filter(Boolean).join('\n')
 }

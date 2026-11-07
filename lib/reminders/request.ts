@@ -19,7 +19,7 @@ import { readClock } from './clock'
 import { readOffsets } from './offset'
 import { readDates } from '@/lib/waAssistant/meetings/when'
 
-export type ReminderIntent = 'create' | 'list' | 'cancel' | 'reschedule'
+export type ReminderIntent = 'create' | 'list' | 'cancel' | 'reschedule' | 'capability'
 
 const B = '(?<![\\p{L}])'
 const E = '(?![\\p{L}])'
@@ -45,6 +45,24 @@ const CANCEL_VERBS = '(?:ת?בטל(?:י|ו)?|לבטל|ת?מחק(?:י|ו)?|למח
 const RESCHEDULE_VERBS = '(?:תזיז(?:י|ו)?|להזיז|הזז(?:י)?|תדחה|תדחי|לדחות|דחה|תשנה|תשני|לשנות|שנה|תעביר(?:י)?|להעביר)'
 const CANCEL = re(`${B}${CANCEL_VERBS}${E}`)
 const RESCHEDULE = re(`${B}${RESCHEDULE_VERBS}${E}`)
+const CAPABILITY = re(`${B}(?:יכול|יכולה|יודע|יודעת|אפשר|ניתן)${E}`)
+/** Right after a reminder action: "בעצם תבטל אותה", "ביטלת?", "זה נקבע?". */
+const STATUS_QUESTION = re(`${B}(?:ביטלת|בוטל|בוטלה|קבעת|נקבע|נקבעה|הזזת|הוזז|הוזזה|נשלח|נשלחה|בתוקף|עדיין)${E}`)
+
+/**
+ * A short follow-up that refers back to the reminder just handled, with no
+ * reminder word of its own. Only consulted while a reminder action is the
+ * conversation's last step (../waAssistant/reminders/conversation.ts).
+ */
+export function followUpIntent(text: string): ReminderIntent | null {
+  const t = text.replace(/\s+/g, ' ').trim()
+  if (!t || CRM_WORDS.test(t)) return null
+  if (CANCEL.test(t)) return 'cancel'
+  if (RESCHEDULE.test(t)) return 'reschedule'
+  if (STATUS_QUESTION.test(t)) return 'list'
+  return null
+}
+
 const LIST_CUE = re(`${B}(?:מה|אילו|איזה|איזו|כמה|תראה|תראי|הראה|תציג|הצג|רשימ\\p{L}*|יש|שלי|קרובות|הקרובות|מתוזמנות)${E}`)
 
 /** Does the text ask to be reminded at all ("תזכיר", "הזכר", "תזכורת"), whatever followed? */
@@ -71,6 +89,10 @@ export function reminderIntent(text: string): ReminderIntent | null {
   if (/^\s*(?:ה)?תזכורות(?:\s+שלי)?[\s?.!]*$/u.test(t)) return 'list'
   if (mentions && /(?:^|[^\p{L}])(?:ה)?תזכורת\s+ל\p{L}/u.test(t)) return 'create'
   if (/^\s*(?:ת?קבע(?:י)?|צור(?:י)?|תיצור(?:י)?)\s+(?:לי\s+)?תזכורת/u.test(t)) return 'create'
+  // Anything else that talks about reminders ("כתבת לי שיש תזכורת ב-20:30", "ביטלת את
+  // התזכורת?") is answered from the owner's actual reminders, never by the Agent;
+  // a question about what is possible gets the capability answer.
+  if (mentions) return CAPABILITY.test(t) ? 'capability' : 'list'
   return null
 }
 
@@ -126,7 +148,7 @@ export function mentionsWhen(answer: string, today: string): boolean {
   return stripDates(stripTimes(answer)) !== answer.replace(/\s+/g, ' ').trim() || readDates(answer, today).dates.length > 0
 }
 
-const TARGET_NOISE = [CANCEL_VERBS, RESCHEDULE_VERBS, '(?:את|של|שלי|לי|בבקשה|תודה)', '[ולה]?תזכורת']
+const TARGET_NOISE = [CANCEL_VERBS, RESCHEDULE_VERBS, '(?:את|של|שלי|לי|בבקשה|תודה)', '[ולה]?תזכורת', '(?:אותה|אותו|אותן|אותם|זאת|הזאת|הזו|הזה|בעצם|רגע|אז|כן|אוקי|אוקיי)']
 
 /** The words that name WHICH reminder ("להתקשר לאבי"), with the verb, "התזכורת" and every time removed. */
 export function targetPhrase(text: string): string {

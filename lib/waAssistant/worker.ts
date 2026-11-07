@@ -183,7 +183,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
-    surfaceRules: waAgentRules({ statusOn, notesOn }),
+    surfaceRules: waAgentRules({ statusOn, notesOn, remindersOn }),
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {

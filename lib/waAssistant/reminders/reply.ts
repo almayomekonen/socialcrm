@@ -13,6 +13,8 @@ export type ReminderDeps = {
   submit?: typeof submitProposedAction
   ensure?: typeof ensureWaApprovalForAction
   decide?: typeof decideOnAction
+  /** What the owner is told about delivery (lib/reminders/delivery/available.ts). */
+  deliveryAvailable?: () => Promise<boolean>
 }
 
 export const plain = (stopReason: string, text: string, status: MeetingReply['status'] = 'answered'): MeetingReply => ({ status, stopReason, text, headline: null })

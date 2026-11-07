@@ -118,7 +118,7 @@ export async function discardRejectedDraft(input: { reminderId: number; owner: {
   })
 }
 
-export type ReminderView = { id: number; status: string; version: number; text: string | null; remindAtMs: number }
+export type ReminderView = { id: number; status: string; version: number; text: string | null; remindAtMs: number; updatedAtMs: number }
 
 const view = (r: Record<string, unknown>): ReminderView => ({
   id: Number(r.id),
@@ -126,6 +126,7 @@ const view = (r: Record<string, unknown>): ReminderView => ({
   version: Number(r.version),
   text: (r.text as string | null) ?? null,
   remindAtMs: new Date(r.remindAt as string).getTime(),
+  updatedAtMs: new Date(r.updatedAt as string).getTime(),
 })
 
 /** The owner's upcoming reminders (scheduled or claimed), soonest first. Agency AND user scoped. */
@@ -135,12 +136,12 @@ export async function listUpcomingReminders(owner: { agencyId: number; userId: n
     .whereIn('status', ['scheduled', 'claimed'])
     .orderBy([{ column: 'remindAt' }, { column: 'id' }])
     .limit(limit)
-    .select('id', 'status', 'version', 'text', 'remindAt')) as Record<string, unknown>[]
+    .select('id', 'status', 'version', 'text', 'remindAt', 'updatedAt')) as Record<string, unknown>[]
   return rows.map(view)
 }
 
 /** One reminder of this owner, any status, for the reply after a decision. */
 export async function readOwnReminder(owner: { agencyId: number; userId: number }, id: number): Promise<ReminderView | null> {
-  const row = (await db(T).where({ id, agencyId: owner.agencyId, userId: owner.userId }).first('id', 'status', 'version', 'text', 'remindAt')) as Record<string, unknown> | undefined
+  const row = (await db(T).where({ id, agencyId: owner.agencyId, userId: owner.userId }).first('id', 'status', 'version', 'text', 'remindAt', 'updatedAt')) as Record<string, unknown> | undefined
   return row ? view(row) : null
 }

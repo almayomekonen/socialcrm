@@ -60,6 +60,9 @@ export const REMINDER_COPY = {
   askWhichCancel: 'איזו לבטל? אפשר לכתוב את השעה שלה.',
   askWhichMove: 'איזו להזיז? אפשר לכתוב למשל: "תזיז את התזכורת של 14:35 ל-16:00".',
   askNewTime: 'לאיזו שעה להזיז?',
+  /** What the assistant can do with personal reminders. True whatever the delivery switch; it promises no delivery. */
+  capability:
+    'כן. אפשר לקבוע כאן תזכורות אישיות, ולהציג, להזיז או לבטל אותן. למשל: "בעוד שעה תזכיר לי להתקשר לאבי", "מה התזכורות שלי", "תבטל את התזכורת להתקשר לאבי". כל שינוי נעשה רק אחרי אישור בכרטיס.',
 } as const
 
 /** ONE short question about the one thing that is unclear in WHEN. */
@@ -94,8 +97,17 @@ export function dailyLimit(atMs: number): string {
 
 export const alreadyScheduled = (atMs: number, fromMs: number) => `כבר קבעתי את התזכורת הזו ל${whenLabel(atMs, fromMs)}.`
 
-export function createCard(input: { text: string; atMs: number; fromMs: number }): string {
-  return ['*לקבוע תזכורת?*', `תזכורת: ${said(input.text)}`, `מתי: ${whenLabel(input.atMs, input.fromMs)}`, 'אשלח לך הודעה כאן בזמן הזה.', 'האישור בתוקף ל-15 דקות.'].join('\n')
+/**
+ * What the owner is told about delivery. Never a promise the system cannot keep:
+ * while automatic delivery is unavailable, the reminder is saved in SocialCRM and
+ * the owner is told that no message will come. No switch or setting is named.
+ */
+export const DELIVERY_ON = 'אשלח לך הודעה כאן בזמן הזה.'
+export const DELIVERY_OFF = 'התזכורת תישמר ב-SocialCRM, אבל כרגע לא תישלח עליה הודעה אוטומטית כאן.'
+export const SAVED_DELIVERY_OFF = 'התזכורת שמורה ב-SocialCRM. כרגע לא תישלח עליה הודעה אוטומטית כאן.'
+
+export function createCard(input: { text: string; atMs: number; fromMs: number; delivery: boolean }): string {
+  return ['*לקבוע תזכורת?*', `תזכורת: ${said(input.text)}`, `מתי: ${whenLabel(input.atMs, input.fromMs)}`, input.delivery ? DELIVERY_ON : DELIVERY_OFF, 'האישור בתוקף ל-15 דקות.'].join('\n')
 }
 
 export function cancelCard(input: { text: string | null; atMs: number; fromMs: number }): string {
@@ -131,10 +143,12 @@ export function listReply(rows: { text: string | null; remindAtMs: number }[], f
 }
 
 /** Built ONLY from a verified outcome and the re-read row. */
-export function doneReply(op: 'create' | 'cancel' | 'reschedule', input: { text: string | null; atMs: number; fromMs: number; already?: boolean }): string {
+export function doneReply(op: 'create' | 'cancel' | 'reschedule', input: { text: string | null; atMs: number; fromMs: number; already?: boolean; delivery?: boolean }): string {
   const head =
     op === 'create' ? (input.already ? '*התזכורת הזו כבר קבועה*' : '*התזכורת נקבעה*')
     : op === 'cancel' ? (input.already ? '*התזכורת הזו כבר בוטלה*' : '*התזכורת בוטלה*')
     : '*התזכורת הוזזה*'
-  return [head, `תזכורת: ${said(input.text)}`, `${op === 'cancel' ? 'היה אמור להישלח' : 'מתי'}: ${whenLabel(input.atMs, input.fromMs)}`].join('\n')
+  const lines = [head, `תזכורת: ${said(input.text)}`, `${op === 'cancel' ? 'היה אמור להישלח' : 'מתי'}: ${whenLabel(input.atMs, input.fromMs)}`]
+  if (op !== 'cancel' && input.delivery === false) lines.push(SAVED_DELIVERY_OFF)
+  return lines.join('\n')
 }

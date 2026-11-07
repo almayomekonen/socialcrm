@@ -1,6 +1,6 @@
 /** Reminder Engine Phase 6: the owner's request, read from their own words (pure). */
 import { describe, expect, it } from 'vitest'
-import { isReminderCorrection, mergeWhen, reminderIntent, reminderText, targetPhrase, targetTime } from '@/lib/reminders/request'
+import { followUpIntent, isReminderCorrection, mergeWhen, reminderIntent, reminderText, targetPhrase, targetTime } from '@/lib/reminders/request'
 
 describe('reminderIntent', () => {
   it.each([
@@ -33,6 +33,40 @@ describe('reminderIntent', () => {
     'תזכיר לדני מחר את הפגישה', // "remind Danny": no "לי", no action verb → not ours
   ])('not a personal reminder: %s', (text) => {
     expect(reminderIntent(text)).toBeNull()
+  })
+})
+
+describe('any other message about reminders is answered from the data, never by the Agent', () => {
+  // Production 2026-11-07, agency 103, jobs 77–78.
+  it.each([
+    ['אבל כתבת לי שיש תזכורת ב20:30', 'list'],
+    ['אבל כתבתי לי שיש תזכורת ב20:30', 'list'],
+    ['ביטלת את התזכורת?', 'list'],
+    ['מה קורה עם התזכורת?', 'list'],
+    ['אתה יכול לקבוע תזכורות בכלל?', 'capability'],
+    ['אפשר לקבוע תזכורת?', 'capability'],
+  ])('%s → %s', (text, intent) => {
+    expect(reminderIntent(text)).toBe(intent)
+  })
+})
+
+describe('follow-ups right after a reminder action (no reminder word)', () => {
+  // Production 2026-11-07, agency 103, jobs 75–76.
+  it.each([
+    ['בעצם תבטל אותה', 'cancel'],
+    ['תבטל', 'cancel'],
+    ['תזיז אותה ל-21:00', 'reschedule'],
+    ['ביטלת?', 'list'],
+    ['זה נקבע?', 'list'],
+  ])('%s → %s', (text, intent) => {
+    expect(followUpIntent(text)).toBe(intent)
+  })
+  it.each(['תודה', 'כמה לידים חדשים יש היום?', 'תקבע פגישה עם אבי'])('not a reminder follow-up: %s', (text) => {
+    expect(followUpIntent(text)).toBeNull()
+  })
+  it('a pronoun is not a target phrase', () => {
+    expect(targetPhrase('בעצם תבטל אותה')).toBe('')
+    expect(targetPhrase('תזיז אותה ל-21:00')).toBe('')
   })
 })
 
