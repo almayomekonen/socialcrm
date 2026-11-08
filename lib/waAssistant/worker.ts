@@ -28,6 +28,8 @@ import { waAgentRules } from './agentRules'
 import type { LeadUpdateProposeDeps } from './leadUpdates/propose'
 import type { LeadUpdateDecideDeps } from './leadUpdates/decide'
 import type { TaskDecideDeps } from './tasks/decide'
+import type { QuoteProposeDeps } from './quotes/propose'
+import type { QuoteDecideDeps } from './quotes/decide'
 import { agentClarifyStopReason, assistantCapabilities, routeProposal } from './route'
 import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
@@ -52,8 +54,9 @@ import type { ReminderDeps } from './reminders/reply'
  *
  * WRITES: `create_meeting` (WA_ASSISTANT_MEETINGS_AGENCY_IDS), `create_task` /
  * `create_follow_up` (WA_ASSISTANT_TASKS_AGENCY_IDS, ./tasks/),
- * `update_lead_status` (WA_ASSISTANT_STATUS_AGENCY_IDS) and `add_lead_note`
- * (WA_ASSISTANT_NOTES_AGENCY_IDS, both ./leadUpdates/), each only for
+ * `update_lead_status` (WA_ASSISTANT_STATUS_AGENCY_IDS), `add_lead_note`
+ * (WA_ASSISTANT_NOTES_AGENCY_IDS, both ./leadUpdates/) and `create_quote`
+ * (WA_ASSISTANT_QUOTES_AGENCY_IDS, ./quotes/, never sent to the customer), each only for
  * an agency on its own list, and never on the owner's words alone: the
  * proposal becomes a confirmation card (./meetings/propose.ts) and only a tap on
  * its button executes it through the existing Action Runtime
@@ -81,6 +84,7 @@ export type WaAssistantDeps = {
   meetings?: { propose?: ProposeDeps; decide?: DecideDeps }
   tasks?: { propose?: TaskProposeDeps; decide?: TaskDecideDeps }
   leadUpdates?: { propose?: LeadUpdateProposeDeps; decide?: LeadUpdateDecideDeps }
+  quotes?: { propose?: QuoteProposeDeps; decide?: QuoteDecideDeps }
   reminders?: ReminderDeps
 }
 
@@ -152,7 +156,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   if (job.kind === 'decision') {
     const r =
       writesOn
-        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), ...caps, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide, reminders: deps.reminders } })
+        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), ...caps, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide, reminders: deps.reminders, quotes: deps.quotes?.decide } })
         : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed() })
   }
@@ -207,7 +211,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     result,
     caps,
     nowMs: startedAt.getTime(),
-    deps: { meetings: deps.meetings?.propose, tasks: deps.tasks?.propose, leadUpdates: deps.leadUpdates?.propose },
+    deps: { meetings: deps.meetings?.propose, tasks: deps.tasks?.propose, leadUpdates: deps.leadUpdates?.propose, quotes: deps.quotes?.propose },
   })
   if (routed) return finishMeeting(job, platform, who.phoneE164, routed, deps, { durationMs: elapsed(), costUsd: result.costUsd })
 

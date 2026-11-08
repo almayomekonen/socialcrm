@@ -13,11 +13,13 @@ import type { MeetingReply } from './meetings/types'
 import { decideReminderCard, opOfAction } from './reminders/decide'
 import { REMINDER_COPY } from './reminders/copy'
 import type { ReminderDeps } from './reminders/reply'
+import { decideQuoteCard, type QuoteDecideDeps } from './quotes/decide'
+import { QUOTE_COPY } from './quotes/copy'
 
 /**
  * A tap on any confirmation card's button, routed by the STORED action's type:
  * meetings to the existing `decideMeeting` (unchanged), tasks and follow-ups to
- * `decideTaskCard`. Each capability needs its own per-agency switch at the
+ * `decideTaskCard`, quotes to `decideQuoteCard`. Each capability needs its own per-agency switch at the
  * moment of the tap, so turning one off also stops its pending cards.
  */
 const refused = (stopReason: string, text: string | null): MeetingReply => ({
@@ -36,7 +38,8 @@ export async function decideCard(input: {
   statusOn?: boolean
   notesOn?: boolean
   remindersOn?: boolean
-  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps }
+  quotesOn?: boolean
+  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps; quotes?: QuoteDecideDeps }
 }): Promise<MeetingReply> {
   const { job, scope, nowMs } = input
   const m = DECISION_ID_RE.exec(job.question ?? '')
@@ -85,6 +88,22 @@ export async function decideCard(input: {
       approve: m[1] === 'approve',
       nowMs,
       deps: input.deps?.leadUpdates,
+    })
+  }
+  if (record?.actionType === 'create_quote') {
+    if (!input.quotesOn) return refused('quotes_disabled', COPY.notAvailable)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', QUOTE_COPY.changed)
+    }
+    return decideQuoteCard({
+      job,
+      scope,
+      card,
+      args: record.args as { clientId: number },
+      approve: m[1] === 'approve',
+      nowMs,
+      deps: input.deps?.quotes,
     })
   }
   const reminderOp = record ? opOfAction(record.actionType) : null
