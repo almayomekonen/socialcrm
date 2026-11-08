@@ -35,3 +35,27 @@ an in-memory store for R2, under the real client code.
 
 Real mode (`QUOTE_CLOUD_MODE=real`) needs separate approval, a test bucket and
 `.env.quote-cloud.local`. See the header of `__tests__/live/cloud/env.ts`.
+
+Real mode also fails unless the bucket is empty before and after the run.
+
+## Real `after()` and cron recovery
+
+`__tests__/live/after/`. A real `next start`, with `serverGuard.cjs` preloaded and
+an environment built by the test (nothing inherited). The server can reach only
+loopback and the local `socialcrm_quotes_test`; Meta, R2 and the PDF renderer are
+local fakes, and no model is called. It needs a build made under the same guard,
+with placeholder values only:
+
+```
+NEXT_TELEMETRY_DISABLED=1 AFTER_ALLOW_HOSTS=fonts.googleapis.com,fonts.gstatic.com \
+AFTER_REFUSALS_FILE=/tmp/build-refusals.log \
+NODE_OPTIONS="--max-old-space-size=8192 --require $PWD/__tests__/live/after/serverGuard.cjs" \
+node node_modules/next/dist/bin/next build
+```
+
+then `NODE_ENV=test npx vitest run --config vitest.quote-after.config.ts`.
+
+The flags it sets exist only in that local server process and name one synthetic
+agency. It proves the reply returns before the render starts, and that a server
+killed mid-render is recovered by the real cron route. Vercel's 60-second limit
+can only be observed on a real deployment.

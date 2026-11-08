@@ -13,11 +13,12 @@ import { HarnessRefused, assertRealBucket, assertSafeToRun, installNetworkGuard,
  *       real S3 client code.
  * real  Real Cloudflare Browser Run and real R2. Requires .env.quote-cloud.local
  *       (chmod 600, git-ignored) and a bucket that is visibly a test bucket and
- *       is confirmed by name. Writes only under tenants/<synthetic agency>/ and
- *       deletes what it wrote. NOT TO BE RUN WITHOUT SEPARATE APPROVAL.
+ *       is confirmed by name. Writes only under tenants/<synthetic agency>/,
+ *       deletes what it wrote, and fails unless the bucket is empty before and after. NOT TO BE RUN WITHOUT SEPARATE APPROVAL.
  */
 
 export const CLOUD_AGENCY = 99801
+export const CLOUD_EXEMPT_AGENCY = 99802
 export const CLOUD_FILE = '.env.quote-cloud.local'
 export type CloudContext = { mode: 'dry' | 'real'; guard: NetworkGuard; chrome: boolean }
 
@@ -25,7 +26,7 @@ assertSafeToRun(process.env)
 const mode = process.env.QUOTE_CLOUD_MODE === 'real' ? 'real' : 'dry'
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const FAKE_ACCOUNT = 'a'.repeat(32)
-const ids = String(CLOUD_AGENCY)
+const ids = `${CLOUD_AGENCY},${CLOUD_EXEMPT_AGENCY}`
 
 const file = mode === 'real' ? (existsSync(CLOUD_FILE) ? readPrivateEnvFile(CLOUD_FILE) : null) : null
 if (mode === 'real') {
