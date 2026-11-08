@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 // First on purpose: this module re-reads .env.test with override when it loads, which would undo everything set below.
 import '@/config/db'
 import { priceFor, maxCacheWriteRate } from '@/lib/ai/usage/pricing'
-import { createBudget, effectiveCapUsd, type BudgetState } from './budget'
+import { createBudget, effectiveCapUsd, reserveFor, type BudgetState } from './budget'
 import { createFakeProvider, type FakeProvider } from './fakeProvider'
 import { HarnessRefused, assertSafeToRun, installNetworkGuard, readPrivateEnvFile, scrubSecrets, type NetworkGuard } from './safety'
 
@@ -66,7 +66,7 @@ const price = hit.price
 const budget = createBudget({
   inner: guarded,
   capUsd,
-  reserveUsd: 0.1,
+  reserveUsd: reserveFor(capUsd),
   // Worst case: uncached input at the highest input rate this model bills.
   price: { inputPerM: Math.max(price.input, maxCacheWriteRate(price) ?? 0), cachedInputPerM: price.cachedInput, outputPerM: price.output },
   defaultMaxOutputTokens: 1200,

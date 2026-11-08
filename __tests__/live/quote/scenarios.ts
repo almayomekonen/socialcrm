@@ -82,8 +82,16 @@ export const ZERO_SCENARIOS: readonly Scenario[] = [
   auth('Z3', 'Zero, then a bare "כן"', [{ turns: [FIRST_ZERO, 'כן'], steps: [ASKS_FREE, { kind: 'question', stopPrefix: 'quote_clarify_' }] }]),
   auth('Z4', 'Zero, then a real price', [{ turns: [FIRST_ZERO, 'לא, 5,000'], steps: [ASKS_FREE, card({ lines: [{ quantity: 1, unitAmount: 5000 }], basis: 'incl_vat', total: 5000 })] }]),
   auth('Z5', '"בחינם" with the zero in the request', [one(`תכין הצעת מחיר בחינם לדוד כהן ${OWN}, 0 שקל כולל מע"מ`, ZERO_CARD)]),
-  auth('Z5b', '"בחינם" with no digit', [one(`תכין הצעת מחיר בחינם לדוד כהן ${OWN}`, { kind: 'no_card' })]),
+  auth('Z5b', '"בחינם" with no digit', [one(`תכין הצעת מחיר בחינם לדוד כהן ${OWN}`, card({ lines: [{ quantity: 1, unitAmount: 0 }], basis: 'excl_vat', subtotal: 0, tax: 0, total: 0 }))]),
+  auth('Z5c', '"ללא תשלום" with no digit', [one(`תכין הצעת מחיר ללא תשלום לדוד כהן ${OWN}`, card({ lines: [{ quantity: 1, unitAmount: 0 }], basis: 'excl_vat', subtotal: 0, tax: 0, total: 0 }))]),
   auth('Z6', 'A free line inside a paid quote', [one('הצעת מחיר לדוד כהן: ארונות 1,000, התקנה 0, כולל מע"מ', card({ lines: [{ quantity: 1, unitAmount: 1000 }, { quantity: 1, unitAmount: 0 }], basis: 'incl_vat', total: 1000 }))]),
+]
+
+/** Free wording with no digit, on its own: QUOTE_LIVE_SET=free runs only these. */
+export const FREE_WORDING_SCENARIOS: readonly Scenario[] = [
+  ...ZERO_SCENARIOS.filter((s) => s.id === 'Z5b' || s.id === 'Z5c'),
+  auth('Z7', 'A named free line beside a priced one', [one('הצעת מחיר לדוד כהן: התקנה בחינם, ארונות 1,000, כולל מע"מ', card({ lines: [{ quantity: 1, unitAmount: 0 }, { quantity: 1, unitAmount: 1000 }], basis: 'incl_vat', total: 1000 }))]),
+  auth('Z8', 'A hedged "אולי בחינם"', [one(`תכין הצעת מחיר לדוד כהן ${OWN}, אולי בחינם`, { kind: 'no_card' })]),
 ]
 
 export const variantFor = (s: Scenario, repeat: number): ScenarioVariant => s.variants[repeat % s.variants.length]

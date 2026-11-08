@@ -62,16 +62,32 @@ export function discountRequested(said: readonly string[]): boolean {
   return false
 }
 
-const NOT_FREE = /(?<![\p{L}])לא\s+(?:ב?חינם|ללא\s+תשלום)/u
-const FREE = /(?<![\p{L}])ב?חינם(?![\p{L}])|(?<![\p{L}])(?:ללא|בלי)\s+(?:תשלום|עלות|חיוב)(?![\p{L}])/u
+const NOT_FREE = /(?<![\p{L}])לא\s+(?:ב?חינם|ללא\s+תשלום|בלי\s+תשלום)/u
+// "ללא תשלום מראש" is about WHEN the customer pays, not whether: those words never mean free.
+const NOT_ABOUT_PRICE = String.raw`(?!\s+(?:מראש|מקדמ\p{L}*|נוס\p{L}*|עכשיו|כרגע|בשלב|חלק\p{L}*|ב?מזומן|ב?תשלומים|עד|מע["״'׳]?מ))`
+const FREE = new RegExp(String.raw`(?<![\p{L}])ב?חינם(?![\p{L}])|(?<![\p{L}])(?:ללא|בלי)\s+(?:תשלום|עלות|חיוב)(?![\p{L}])${NOT_ABOUT_PRICE}`, 'u')
+const HEDGED = /(?<![\p{L}])(?:אולי|האם|אם|כנראה|לא\s+בטוח)(?![\p{L}])|[?？]\s*$/u
 
-/** Did the owner say this is free? The newest message that speaks about it decides ("לא בחינם" takes it back). */
+/**
+ * Did the owner say this is free? Only those words count: "כן", "מחיר טוב" or
+ * "במתנה" never do, and a hedge or a question is not a statement. The newest
+ * message that speaks about it decides ("לא בחינם" takes it back).
+ */
 export function freeStated(said: readonly string[]): boolean {
   for (const text of said) {
     if (NOT_FREE.test(text)) return false
-    if (FREE.test(text)) return true
+    if (FREE.test(text)) return !HEDGED.test(text)
   }
   return false
+}
+
+/**
+ * "5,000 בחינם": the owner gave a price as well, so the word alone may not zero
+ * the whole quote. A stated 0 settles it; a quantity or a validity is not a price.
+ */
+export function freeContradicted(lines: readonly ProposedLine[], amounts: readonly number[], validityDays: number | null): boolean {
+  if (isStated(0, amounts)) return false
+  return amounts.some((a) => a > 0 && a !== validityDays && !lines.some((l) => l.quantity === a))
 }
 
 /**
@@ -79,12 +95,14 @@ export function freeStated(said: readonly string[]): boolean {
  * line's whole amount ("3 חלונות ב-3,000"). A quantity other than 1, and any
  * discount (as an amount or as a percent), must be said too. A stated percent
  * wins over any amount beside it: the application computes that amount itself.
+ * `freeSaid` grounds exactly one price, zero: every other number still has to be
+ * one the owner wrote.
  */
-export function lineGrounded(l: ProposedLine, amounts: readonly number[], percents: readonly number[] = []): boolean {
+export function lineGrounded(l: ProposedLine, amounts: readonly number[], percents: readonly number[] = [], freeSaid = false): boolean {
   const qty = l.quantity ?? 1
   if (l.unitAmount == null) return false
   if (qty !== 1 && !isStated(qty, amounts)) return false
-  if (!isStated(l.unitAmount, amounts) && !isStated(round2(l.unitAmount * qty), amounts)) return false
+  if (!(freeSaid && l.unitAmount === 0) && !isStated(l.unitAmount, amounts) && !isStated(round2(l.unitAmount * qty), amounts)) return false
   if (l.discountPercent != null && l.discountPercent !== 0) return isStated(l.discountPercent, percents)
   if (l.discountAmount != null && l.discountAmount !== 0 && !isStated(l.discountAmount, amounts)) return false
   return true

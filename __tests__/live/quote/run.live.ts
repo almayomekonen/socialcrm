@@ -19,12 +19,15 @@ import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { agency, recipient, user } from '../../ownerWhatsappReminders/reminderFixtures'
 import { AUTHORIZED_AGENCY, EXEMPT_AGENCY, type LiveContext } from './env'
-import { SCENARIOS as FULL_SET, ZERO_SCENARIOS, variantFor, type CardExpect, type Scenario, type ScenarioVariant } from './scenarios'
+import { SCENARIOS as FULL_SET, FREE_WORDING_SCENARIOS, ZERO_SCENARIOS, variantFor, type CardExpect, type Scenario, type ScenarioVariant } from './scenarios'
 import { scoreRun, type RunObservation, type RunScore, type TurnObservation } from './evaluate'
 import type { PersistedState } from './persistenceScore'
 
 const ctx = (globalThis as unknown as { __quoteLive: LiveContext }).__quoteLive
-const SCENARIOS = process.env.QUOTE_LIVE_SET === 'zero' ? ZERO_SCENARIOS : FULL_SET
+const SETS: Record<string, readonly Scenario[]> = { zero: ZERO_SCENARIOS, free: FREE_WORDING_SCENARIOS }
+const chosenSet = process.env.QUOTE_LIVE_SET
+if (chosenSet !== undefined && !SETS[chosenSet]) throw new Error(`unknown QUOTE_LIVE_SET: ${chosenSet}`)
+const SCENARIOS = chosenSet ? SETS[chosenSet] : FULL_SET
 const REPORT_DIR = process.env.QUOTE_LIVE_REPORT_DIR || path.join('node_modules', '.cache', 'quote-live')
 const JSONL = path.join(REPORT_DIR, `${ctx.mode}.jsonl`)
 const TABLES = ['wa_assistant_jobs', 'wa_assistant_approvals', 'agent_action_approvals', 'agent_actions']

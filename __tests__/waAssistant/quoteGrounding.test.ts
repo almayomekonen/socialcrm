@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { zodSchema } from 'ai'
-import { discountRequested, freeStated, isStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from '@/lib/waAssistant/quotes/grounding'
+import { discountRequested, freeContradicted, freeStated, isStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from '@/lib/waAssistant/quotes/grounding'
 import { answersPending } from '@/lib/waAssistant/continuation'
 import { REQUEST_WORDS } from '@/lib/waAssistant/request'
 import { agentAnswerSchema } from '@/lib/agent/answerSchema'
@@ -103,7 +103,31 @@ describe('a free quote is said out loud', () => {
     [['לא בחינם', 'בחינם'], false],
     [['בחינם', 'לא בחינם'], true],
     [['תשלום מלא'], false],
+    [['הצעת מחיר ללא תשלום לדוד כהן'], true],
+    [['בלי חיוב'], true],
   ])('%j → %s', (said, expected) => expect(freeStated(said)).toBe(expected))
+
+  it.each([
+    'מחיר טוב', 'במחיר מיוחד', 'במתנה', 'על חשבון הבית', 'סבבה', 'בסדר', 'מעולה', 'בשמחה', 'חינמי',
+    'ללא תשלום מראש', 'בלי תשלום מקדמה', 'ללא חיוב נוסף', 'ללא עלות נוספת', 'בלי תשלום עכשיו', 'ללא תשלום במזומן', 'ללא תשלומים',
+    'אולי בחינם', 'בחינם?', 'האם ללא תשלום', 'אם זה בחינם', 'לא בטוח אם בחינם', 'לא ללא תשלום', 'לא בלי תשלום',
+  ])('"%s" is not a statement that it is free', (text) => expect(freeStated([text])).toBe(false))
+
+  const zero = line(0)
+  it('the free words ground a zero price, and nothing else', () => {
+    expect(lineGrounded(zero, [], [], false)).toBe(false)
+    expect(lineGrounded(zero, [], [], true)).toBe(true)
+    expect(lineGrounded(line(500), [], [], true)).toBe(false)
+    expect(lineGrounded(line(0, { quantity: 2 }), [], [], true)).toBe(false)
+    expect(lineGrounded(line(0, { discountAmount: 50 }), [], [], true)).toBe(false)
+  })
+  it('a price stated beside the free words contradicts them, but a quantity, a validity or a stated 0 does not', () => {
+    expect(freeContradicted([zero], [5000], null)).toBe(true)
+    expect(freeContradicted([line(0, { quantity: 3 })], [3], null)).toBe(false)
+    expect(freeContradicted([zero], [30], 30)).toBe(false)
+    expect(freeContradicted([zero], [5000, 0], null)).toBe(false)
+    expect(freeContradicted([zero], [], null)).toBe(false)
+  })
 })
 
 describe('the VAT basis comes from the owner, never assumed', () => {

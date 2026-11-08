@@ -29,6 +29,9 @@ export function effectiveCapUsd(fileCap: number, override: string | undefined): 
   return Math.min(fileCap, lowered)
 }
 
+/** The margin held back on top of each worst-case request: a small cap must not lose most of itself to a fixed margin. */
+export const reserveFor = (capUsd: number) => Math.min(0.1, capUsd * 0.05)
+
 const usd = (tokens: number, perM: number) => (tokens * perM) / 1_000_000
 
 export function ceilingFor(body: string, maxOutputTokens: number, price: BudgetPrice): number {

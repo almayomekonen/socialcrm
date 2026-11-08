@@ -11,7 +11,7 @@ import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from '../meetings/types'
 import { requestMessages } from '../request'
 import { chooseLead } from '../leadChoice'
-import { discountRequested, freeStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from './grounding'
+import { discountRequested, freeContradicted, freeStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from './grounding'
 import { QUOTE_COPY, quoteButtons, quoteCard } from './copy'
 
 /**
@@ -70,7 +70,8 @@ export async function proposeQuote(input: {
   if (!proposed.length || !validQuoteTitle(title)) return clarify(QUOTE_COPY.askItems, 'items', lead.name)
   const amounts = statedAmounts(said)
   const percents = statedPercents(said)
-  if (!proposed.every((l) => lineGrounded(l, amounts, percents))) return clarify(QUOTE_COPY.askPrice, 'price', lead.name)
+  const free = freeStated(said)
+  if (!proposed.every((l) => lineGrounded(l, amounts, percents, free))) return clarify(QUOTE_COPY.askPrice, 'price', lead.name)
   // The owner asked for a discount and the proposal carries none: never a clean-looking card without it.
   if (discountRequested(said) && !proposed.some((l) => (l.discountPercent ?? 0) > 0 || (l.discountAmount ?? 0) > 0))
     return clarify(QUOTE_COPY.askDiscount, 'discount', lead.name)
@@ -81,8 +82,11 @@ export async function proposeQuote(input: {
 
   const tax = await (input.deps?.taxRate ?? resolveConfiguredTaxRateForLine)(scope.agencyId)
   if (!tax) return refuse('quote_tax_missing', QUOTE_COPY.taxMissing)
+  const allFree = free && proposed.every((l) => l.unitAmount === 0)
+  if (allFree && freeContradicted(proposed, amounts, validityDays)) return clarify(QUOTE_COPY.askPrice, 'price', lead.name)
   const stated = statedBasis(said)
-  const priceBasis = stated === 'incl_vat' || stated === 'excl_vat' ? stated : null
+  // Zero is zero on either basis, so a free quote is never held up asking about VAT.
+  const priceBasis = stated === 'incl_vat' || stated === 'excl_vat' ? stated : allFree ? 'excl_vat' : null
   if (tax.ratePercent !== 0 && !priceBasis) return clarify(QUOTE_COPY.askVat, 'vat', lead.name)
 
   const lines = proposed.map((l) => {
@@ -116,6 +120,7 @@ export async function proposeQuote(input: {
     requestedTotal: priced.requestedTotal,
     exact: priced.exact,
     validityDays,
+    free: priced.totals.totalAmount === 0,
   })
   // The send path cuts a button message at Meta's limit. A cut card could lose its total, and nobody approves what they cannot see.
   if (text.length > MAX_BUTTON_BODY_CHARS) return refuse('quote_card_too_long', QUOTE_COPY.tooLongForCard)

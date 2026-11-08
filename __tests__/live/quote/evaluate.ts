@@ -1,5 +1,5 @@
 import { ils } from '@/lib/quotes/pdf/format'
-import { statedAmounts, statedPercents } from '@/lib/waAssistant/quotes/grounding'
+import { freeStated, statedAmounts, statedPercents } from '@/lib/waAssistant/quotes/grounding'
 import { expectedPricing, scorePersistence, type PersistedState } from './persistenceScore'
 import type { CardExpect, ScenarioVariant, StepExpect } from './scenarios'
 
@@ -48,7 +48,7 @@ function scoreCard(c: CardExpect, t: TurnObservation, said: string[], run: RunOb
   const amounts = statedAmounts(said)
   const percents = statedPercents(said)
   for (const l of lines) {
-    if (!amounts.some((n) => close(n, l.unitAmount) || close(n, l.unitAmount * l.quantity))) out.push({ kind: 'invented_value', detail: `unit price ${l.unitAmount}` })
+    if (!(l.unitAmount === 0 && freeStated(said)) && !amounts.some((n) => close(n, l.unitAmount) || close(n, l.unitAmount * l.quantity))) out.push({ kind: 'invented_value', detail: `unit price ${l.unitAmount}` })
     if (l.quantity !== 1 && !amounts.some((n) => close(n, l.quantity))) out.push({ kind: 'invented_value', detail: `quantity ${l.quantity}` })
     if (l.discountPercent != null ? !percents.includes(l.discountPercent) : l.discountAmount != null && !amounts.some((n) => close(n, l.discountAmount as number))) out.push({ kind: 'invented_value', detail: `discount on ${l.title}` })
   }

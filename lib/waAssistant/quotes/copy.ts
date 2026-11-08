@@ -58,6 +58,8 @@ export function quoteCard(input: {
   requestedTotal: number
   exact: boolean
   validityDays: number | null
+  /** The owner said it is free: nothing about a VAT basis the owner never gave. */
+  free?: boolean
 }): string {
   const { totals } = input
   const out = ['*ליצור הצעת מחיר?*', `ליד: ${name(input.lead)}`, `נושא: ${name(input.title)}`, 'פריטים:']
@@ -66,7 +68,7 @@ export function quoteCard(input: {
     const discount = l.discount > 0 ? `, הנחה ${percent != null ? `${formatQty(percent)}% (${ils(l.discount)})` : ils(l.discount)}` : ''
     out.push(`${i + 1}. ${name(l.title)}: ${formatQty(l.quantity)} × ${unitIls(l.unitPrice)}${discount} = ${ils(totals.lines[i].lineSubtotal)}`)
   })
-  out.push(`(מחירי הפריטים לפני מע"מ. ${BASIS_LABEL[input.basis]}.)`)
+  out.push(input.free ? '(הצעה בחינם, ללא חיוב.)' : `(מחירי הפריטים לפני מע"מ. ${BASIS_LABEL[input.basis]}.)`)
   out.push(`סכום לפני מע"מ: ${ils(totals.subtotalAmount)}`)
   if (totals.discountAmount > 0) out.push(`הנחות: ${ils(totals.discountAmount)}`)
   out.push(`מע"מ (${formatQty(input.ratePercent)}%): ${ils(totals.taxAmount)}`)

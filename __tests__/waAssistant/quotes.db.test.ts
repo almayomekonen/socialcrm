@@ -662,6 +662,64 @@ describe('a quote that totals ₪0', () => {
     await noWrites()
   })
 
+  it.each([
+    ['בחינם', 'תכין הצעת מחיר בחינם לדוד כהן עבור שיפוץ מטבח'],
+    ['ללא תשלום', 'תכין הצעת מחיר ללא תשלום לדוד כהן עבור שיפוץ מטבח'],
+  ])('"%s" with no digit: a ₪0 card, and a quote only after the tap', async (_word, words) => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(0)], priceBasis: null }), [o.lead])])
+    const c = await card(o, h, words)
+    expect(c.body).toContain('₪0.00')
+    expect(c.body).toContain('(הצעה בחינם, ללא חיוב.)')
+    expect(c.body).not.toContain('המחירים שנמסרו')
+    expect(await quotesOf(A)).toHaveLength(0)
+    expect(await db('bill_numbering_sequences').where({ agencyId: A })).toHaveLength(0)
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(await quotesOf(A)).toMatchObject([{ status: 'ready', quoteNumber: '1', totalAmount: '0.00' }])
+  })
+
+  it.each([
+    'תכין הצעת מחיר לדוד כהן עבור שיפוץ מטבח במחיר טוב',
+    'תכין הצעת מחיר לדוד כהן עבור שיפוץ מטבח',
+    'תכין הצעת מחיר לדוד כהן עבור שיפוץ מטבח, ללא תשלום מראש',
+    'תכין הצעת מחיר לדוד כהן עבור שיפוץ מטבח, אולי בחינם',
+    'תכין הצעת מחיר לדוד כהן עבור שיפוץ מטבח בחינם?',
+  ])('a zero the owner did not state stays refused: "%s"', async (words) => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(0)], priceBasis: null }), [o.lead])])
+    await say(o, words)
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askPrice)
+    await noWrites()
+  })
+
+  it('a price beside the free word: the model cannot zero it, it asks', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(0)], priceBasis: null }), [o.lead])])
+    await say(o, 'הצעת מחיר לדוד כהן עבור שיפוץ מטבח, 5,000 בחינם')
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askPrice)
+    await noWrites()
+  })
+
+  it('the free word does not ground any other invented price', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(500)], priceBasis: 'incl_vat' }), [o.lead])])
+    await say(o, 'תכין הצעת מחיר בחינם לדוד כהן עבור שיפוץ מטבח')
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askPrice)
+    await noWrites()
+  })
+
+  it('a free line by name inside a paid quote', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(1000), item(0, { title: 'התקנה' })] }), [o.lead])])
+    const c = await card(o, h, 'הצעת מחיר לדוד כהן: ארונות 1,000, התקנה בחינם, כולל מע"מ')
+    expect(c.body).toContain('₪1,000.00')
+    expect(c.body).not.toContain('הצעה בחינם')
+  })
+
   it('a free line inside a paid quote needs no question', async () => {
     const o = await owner()
     const h = harness([answer(quote(o.lead, { lines: [item(1000), item(0, { title: 'התקנה' })] }), [o.lead])])

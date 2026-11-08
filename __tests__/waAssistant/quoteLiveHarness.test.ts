@@ -3,7 +3,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { BudgetStop, ceilingFor, createBudget, effectiveCapUsd } from '../live/quote/budget'
+import { BudgetStop, ceilingFor, createBudget, effectiveCapUsd, reserveFor } from '../live/quote/budget'
 import { HarnessRefused, assertRealBucket, assertSafeToRun, installNetworkGuard, readPrivateEnvFile, scrubSecrets, type NetworkGuard } from '../live/quote/safety'
 import { scoreRun, type RunObservation, type TurnObservation } from '../live/quote/evaluate'
 import { EMPTY_PERSISTED, type PersistedState } from '../live/quote/persistenceScore'
@@ -60,6 +60,14 @@ describe('budget', () => {
     expect(effectiveCapUsd(8, '1')).toBe(1)
     expect(effectiveCapUsd(1, '8')).toBe(1)
     for (const bad of ['', ' ', 'abc', '0', '-1', 'NaN']) expect(() => effectiveCapUsd(8, bad)).toThrow(BudgetStop)
+  })
+  it('the reserve scales down with a small cap, and spend still cannot pass it', async () => {
+    expect(reserveFor(8)).toBe(0.1)
+    expect(reserveFor(0.5)).toBeCloseTo(0.025, 8)
+    const b = createBudget({ inner: ok({ input_tokens: 2000, output_tokens: 1000 }) as never, capUsd: 0.5, reserveUsd: reserveFor(0.5), price, defaultMaxOutputTokens: 1000 })
+    for (let i = 0; i < 200; i++) await b.fetch('https://x', req()).catch(() => undefined)
+    expect(b.state.stopped).toBe(true)
+    expect(b.state.spentUsd).toBeLessThanOrEqual(0.5)
   })
   it('a provider refusal costs nothing', async () => {
     const b = make(ok(undefined, 401) as never)
@@ -125,6 +133,12 @@ describe('scoring', () => {
   it('a correct card passes', () => expect(scoreRun(H1, run(turn())).passed).toBe(true))
   it('wrong lead', () => expect(kinds(run(turn({}, { ...args, clientId: 8 })))).toContain('wrong_lead'))
   it('an invented price', () => expect(kinds(run(turn({}, { ...args, lines: [{ ...args.lines[0], unitAmount: 15000 }], expectedTotalAmount: 15000 })))).toContain('invented_value'))
+  it('a zero price is invented unless the owner said it is free', () => {
+    const v = (words: string) => ({ turns: [words], steps: [{ kind: 'card' as const, card: { lead: 'דוד כהן', lines: [{ quantity: 1, unitAmount: 0 }], basis: 'excl_vat' as const, subtotal: 0, tax: 0, total: 0 } }] })
+    const zero = turn({}, { ...args, lines: [{ ...args.lines[0], unitAmount: 0 }], priceBasis: 'excl_vat', expectedTotalAmount: 0 })
+    expect(kinds(run(zero), v('הצעת מחיר לדוד כהן'))).toContain('invented_value')
+    expect(kinds(run(zero), v('הצעת מחיר בחינם לדוד כהן'))).not.toContain('invented_value')
+  })
   it('a VAT error: wrong basis, wrong total', () => {
     expect(kinds(run(turn({}, { ...args, priceBasis: 'excl_vat' })))).toContain('vat_error')
     expect(kinds(run(turn({}, { ...args, expectedTotalAmount: 21830 })))).toContain('vat_error')
