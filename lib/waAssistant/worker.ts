@@ -37,6 +37,7 @@ import { admitAgentRequest } from '@/db/credits/agentRequests'
 import { creditLimitReply } from './creditLimitReply'
 import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
+import { proposeRecordChange, type ChangeProposal } from './recordChanges/propose'
 
 /**
  * The WhatsApp assistant worker: one queued owner message -> at most one reply.
@@ -66,7 +67,7 @@ import type { ReminderDeps } from './reminders/reply'
  * list, cancel and reschedule the owner's own reminders, handled BEFORE the
  * Agent and without it; writes only through cards and the Action Runtime.
  *
- * NOTE (architecture-rules §1, §6): ~285 lines, over the 250 soft limit since the
+ * NOTE (architecture-rules §1, §6): ~290 lines, over the 250 soft limit since the
  * status/note routing was added; the reminder routing added 6 lines and lives in
  * ./reminders/. Owed extraction, next touch: the per-action proposal routing
  * (meeting / task / lead update) moves to ./route.ts, leaving this file the job
@@ -190,7 +191,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
-    surfaceRules: waAgentRules({ statusOn, notesOn, remindersOn }),
+    surfaceRules: waAgentRules({ statusOn, notesOn, remindersOn, tasksOn, meetingsOn }),
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {
@@ -223,6 +224,11 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   }
   if (((statusOn && proposed?.actionType === 'update_lead_status') || (notesOn && proposed?.actionType === 'add_lead_note')) && !result.answer.proposedBatch) {
     const r = await proposeLeadUpdate({ job, scope: who.scope, proposal: proposed as Parameters<typeof proposeLeadUpdate>[0]['proposal'], evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.leadUpdates?.propose })
+    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
+  }
+
+  if (((tasksOn && (proposed?.actionType === 'update_task' || proposed?.actionType === 'complete_task')) || (meetingsOn && (proposed?.actionType === 'reschedule_meeting' || proposed?.actionType === 'cancel_meeting'))) && !result.answer.proposedBatch) {
+    const r = await proposeRecordChange({ job, scope: who.scope, proposal: proposed as ChangeProposal, evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime() })
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
   }
 
