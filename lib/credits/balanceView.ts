@@ -1,7 +1,8 @@
 import { db } from '@/config/db'
 import { freeRequestsUsed, spendableMillis } from '@/db/credits/agentRequests'
 import { creditPeriodKey, walletBalance } from '@/db/credits/ledger'
-import { listCreditPackCharges, type PackPurchaseRow } from '@/db/credits/purchases'
+import { listCreditPackCharges, packFinalDeclineOnCard, type PackPurchaseRow } from '@/db/credits/purchases'
+import { purchaseOutcome, type PurchaseOutcome } from './purchaseOutcome'
 import { getActivePaymentMethod } from '@/db/payments/paymentMethods'
 import { toCredits } from './balance'
 import { isAdmin, type Roles } from '@/types/roles'
@@ -23,6 +24,9 @@ export type CreditBalanceView = {
   state: 'ok' | 'low' | 'exhausted'
   packs: PackConfig[]
   purchases: PackPurchaseRow[]
+  /** The saved card took a final decline on a pack and cannot buy until replaced. */
+  cardDeclined: boolean
+  latestPurchase: PurchaseOutcome
 }
 
 export async function getCreditBalanceView(agencyId: number, nowMs = Date.now()): Promise<CreditBalanceView> {
@@ -52,6 +56,8 @@ export async function getCreditBalanceView(agencyId: number, nowMs = Date.now())
     state,
     packs: isPackSellable(agencyId, agency?.plan) ? allPacks() : [],
     purchases,
+    cardDeclined: method ? await packFinalDeclineOnCard(method.id) : false,
+    latestPurchase: purchaseOutcome(purchases[0], nowMs),
   }
 }
 
