@@ -21,6 +21,7 @@ import { agency, recipient, user } from '../../ownerWhatsappReminders/reminderFi
 import { AUTHORIZED_AGENCY, EXEMPT_AGENCY, type LiveContext } from './env'
 import { SCENARIOS, variantFor, type CardExpect, type Scenario, type ScenarioVariant } from './scenarios'
 import { scoreRun, type RunObservation, type RunScore, type TurnObservation } from './evaluate'
+import type { PersistedState } from './persistenceScore'
 
 const ctx = (globalThis as unknown as { __quoteLive: LiveContext }).__quoteLive
 const REPORT_DIR = process.env.QUOTE_LIVE_REPORT_DIR || path.join('node_modules', '.cache', 'quote-live')
@@ -70,6 +71,23 @@ function scriptTurn(s: Scenario, v: ScenarioVariant, turn: number, leads: Record
   ctx.fake.next = { findName: named, headline: 'h', proposal: { actionType: 'create_quote', args: { clientId: id, title: 'שיפוץ מטבח', ...priced(c.lines, c.basis), validityDays: c.validityDays ?? null }, evidenceRefs: [`lead:${id}`] } }
 }
 
+/** Everything the quote tables hold. Not filtered by agency, so a quote written to the wrong one is seen. */
+async function readPersisted(): Promise<PersistedState> {
+  const n = (v: unknown) => Number(v)
+  const quotes = (await db('sales_quotes').orderBy('id').select('id', 'agencyId', 'leadId', 'status', 'quoteNumber', 'quoteYear', 'title', 'subtotalAmount', 'taxAmount', 'discountAmount', 'totalAmount', 'sentAt', 'automationKey', 'metadata', db.raw(`to_char("expiresAt", 'YYYY-MM-DD') as "expiresAt"`))) as any[]
+  const items = (await db('sales_quote_items').orderBy('id').select('quoteId', 'agencyId', 'lineNumber', 'title', 'quantity', 'unitPrice', 'discount', 'taxRatePercentSnapshot', 'lineSubtotal', 'lineTaxAmount', 'lineTotal')) as any[]
+  const orphans = (await db('sales_quote_items as i').leftJoin('sales_quotes as q', 'q.id', 'i.quoteId').whereNull('q.id').count<{ count: string }>('i.id as count').first())?.count
+  const numbering = (await db('bill_numbering_sequences').select('agencyId', 'year', 'kind', 'nextValue')) as any[]
+  const actions = (await db('agent_actions').select('actionId', 'actionType', 'executionStatus', 'verificationState', 'targetIds')) as PersistedState['actions']
+  return {
+    quotes: quotes.map((q) => ({ ...q, id: n(q.id), agencyId: n(q.agencyId), leadId: n(q.leadId), quoteNumber: q.quoteNumber == null ? null : n(q.quoteNumber), quoteYear: q.quoteYear == null ? null : n(q.quoteYear), subtotalAmount: n(q.subtotalAmount), taxAmount: n(q.taxAmount), discountAmount: n(q.discountAmount), totalAmount: n(q.totalAmount) })),
+    items: items.map((i) => ({ ...i, quoteId: n(i.quoteId), agencyId: n(i.agencyId), lineNumber: n(i.lineNumber), quantity: n(i.quantity), unitPrice: n(i.unitPrice), discount: n(i.discount), taxRatePercentSnapshot: n(i.taxRatePercentSnapshot), lineSubtotal: n(i.lineSubtotal), lineTaxAmount: n(i.lineTaxAmount), lineTotal: n(i.lineTotal) })),
+    orphanItems: n(orphans ?? 0),
+    numbering: numbering.map((r) => ({ agencyId: n(r.agencyId), year: n(r.year), kind: r.kind, nextValue: n(r.nextValue) })),
+    actions,
+  }
+}
+
 async function runScenario(s: Scenario, repeat: number): Promise<{ variant: ScenarioVariant; run: RunObservation; score: RunScore; costUsd: number }> {
   await reset()
   const before = ctx.budget.spentUsd
@@ -113,21 +131,20 @@ async function runScenario(s: Scenario, repeat: number): Promise<{ variant: Scen
     await inbound({ type: 'text', text: { body: variant.turns[i] } })
     await runWaAssistantWorker({}, deps)
     const job = (await db('wa_assistant_jobs').orderBy('id', 'desc').first('stopReason')) as { stopReason: string | null }
-    const action = (await db('agent_actions').where({ agencyId }).orderBy('createdAt', 'desc').first('args')) as { args: Record<string, any> } | undefined
+    const action = (await db('agent_actions').where({ agencyId }).orderBy('createdAt', 'desc').first('actionId', 'args')) as { actionId: string; args: Record<string, any> } | undefined
     const last = replies.at(-1)
     turns.push({ stopReason: job?.stopReason ?? null, body: last?.body ?? '', buttons: last?.buttons?.length ?? 0, proposal, action: last?.buttons?.length ? (action ?? null) : null })
   }
 
-  let stored: RunObservation['stored'] = null
+  let approvalStop: string | null = null
   const approve = replies.at(-1)?.buttons?.[0]?.id
   if (approve) {
     await inbound({ type: 'interactive', interactive: { type: 'button_reply', button_reply: { id: approve, title: 'x' } } })
     await runWaAssistantWorker({}, deps)
-    const q = (await db('sales_quotes').where({ agencyId }).first('id', 'totalAmount', 'status')) as { id: string; totalAmount: string; status: string } | undefined
-    if (q) stored = { totalAmount: Number(q.totalAmount), status: q.status, lineCount: (await db('sales_quote_items').where({ quoteId: q.id })).length }
+    approvalStop = ((await db('wa_assistant_jobs').orderBy('id', 'desc').first('stopReason')) as { stopReason: string | null } | undefined)?.stopReason ?? null
   }
 
-  const run: RunObservation = { turns, leadIdByName, ownerE164: `+${digits}`, outboundTo, stored }
+  const run: RunObservation = { turns, leadIdByName, ownerE164: `+${digits}`, outboundTo, agencyId, approved: Boolean(approve), approvalStop, finishedAtMs: Date.now(), persisted: await readPersisted() }
   return { variant, run, score: scoreRun(variant, run), costUsd: ctx.budget.spentUsd - before }
 }
 
@@ -153,7 +170,7 @@ it(`H1–H19 (${ctx.mode})`, { timeout: 4 * 60 * 60 * 1000 }, async () => {
     const r = await runScenario(s, repeat)
     if (ctx.budget.stopped && r.run.turns.length < r.variant.turns.length) break
     results.push({ id: s.id, repeat, score: r.score, costUsd: r.costUsd, turns: r.run.turns.length })
-    appendFileSync(JSONL, `${JSON.stringify({ id: s.id, repeat, score: r.score, costUsd: r.costUsd, turns: r.run.turns.map((t) => ({ stopReason: t.stopReason, buttons: t.buttons, body: t.body, proposal: t.proposal })) })}\n`)
+    appendFileSync(JSONL, `${JSON.stringify({ id: s.id, repeat, score: r.score, costUsd: r.costUsd, turns: r.run.turns.map((t) => ({ stopReason: t.stopReason, buttons: t.buttons, body: t.body, proposal: t.proposal })), approved: r.run.approved, approvalStop: r.run.approvalStop, persisted: r.run.persisted })}\n`)
   }
 
   const b = ctx.budget

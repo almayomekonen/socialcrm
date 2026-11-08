@@ -1,6 +1,6 @@
-import { priceOwnerQuote } from '@/lib/quotes/ownerPricing'
 import { ils } from '@/lib/quotes/pdf/format'
 import { statedAmounts, statedPercents } from '@/lib/waAssistant/quotes/grounding'
+import { expectedPricing, scorePersistence, type PersistedState } from './persistenceScore'
 import type { CardExpect, ScenarioVariant, StepExpect } from './scenarios'
 
 /** Scores one run from what actually happened. Pure, so its rules are unit-tested. */
@@ -12,31 +12,28 @@ export type TurnObservation = {
   /** The model's raw proposal, before any check. */
   proposal: { actionType: string; args: Record<string, any> } | null
   /** The arguments recorded for approval on this turn, when a card was made. */
-  action: { args: Record<string, any> } | null
+  action: { actionId?: string; args: Record<string, any> } | null
 }
 export type RunObservation = {
   turns: TurnObservation[]
   leadIdByName: Record<string, number>
   ownerE164: string
   outboundTo: string[]
-  /** The stored quote after approval, when a card was approved. */
-  stored: { totalAmount: number; lineCount: number; status: string } | null
+  agencyId: number
+  /** Whether this run tapped approve on a card. */
+  approved: boolean
+  /** The job's outcome after the tap, null when there was no tap. */
+  approvalStop: string | null
+  /** When the run ended, for checking a stored expiry. */
+  finishedAtMs: number
+  /** Everything the database holds at the end of the run. Read every time, card or no card. */
+  persisted: PersistedState
 }
-export type FindingKind = 'omission' | 'invented_value' | 'wrong_lead' | 'vat_error' | 'incomplete_card' | 'unexpected_outcome' | 'customer_contact' | 'stored_mismatch'
+export type FindingKind = 'omission' | 'invented_value' | 'wrong_lead' | 'vat_error' | 'incomplete_card' | 'unexpected_outcome' | 'customer_contact' | 'stored_mismatch' | 'persistence_missing' | 'persistence_unexpected' | 'number_consumed' | 'orphan_items' | 'wrong_action'
 export type Finding = { kind: FindingKind; detail: string }
 export type RunScore = { passed: boolean; findings: Finding[]; modelInventionsCaught: number }
 
 const close = (a: number, b: number) => Math.abs(a - b) < 0.005
-
-function expectedTotals(c: CardExpect, rate: number) {
-  const p = priceOwnerQuote({
-    lines: c.lines.map((l, i) => ({ title: `x${i}`, quantity: l.quantity, unitAmount: l.unitAmount, discountAmount: l.discountPercent ? (l.quantity * l.unitAmount * l.discountPercent) / 100 : l.discountAmount })),
-    priceBasis: c.basis === 'no_vat' ? null : c.basis,
-    ratePercent: rate,
-  })
-  if ('reason' in p) throw new Error(`scenario does not price: ${p.reason}`)
-  return p.totals
-}
 
 function scoreCard(c: CardExpect, t: TurnObservation, said: string[], run: RunObservation, out: Finding[]): void {
   const a = t.action?.args
@@ -66,7 +63,7 @@ function scoreCard(c: CardExpect, t: TurnObservation, said: string[], run: RunOb
 
   if (c.basis !== 'no_vat' && a.priceBasis !== c.basis) out.push({ kind: 'vat_error', detail: `basis ${a.priceBasis}, expected ${c.basis}` })
   if (a.expectedRatePercent !== rate) out.push({ kind: 'vat_error', detail: `rate ${a.expectedRatePercent}, expected ${rate}` })
-  const totals = expectedTotals(c, rate)
+  const totals = expectedPricing(c, rate).totals
   const wantTotal = c.total ?? totals.totalAmount
   if (!close(a.expectedTotalAmount, wantTotal)) out.push({ kind: 'vat_error', detail: `total ${a.expectedTotalAmount}, expected ${wantTotal}` })
 
@@ -77,12 +74,6 @@ function scoreCard(c: CardExpect, t: TurnObservation, said: string[], run: RunOb
     if (!t.body.includes(l.title)) out.push({ kind: 'incomplete_card', detail: `line "${l.title}" not shown` })
   })
   if (t.body.length > 1024) out.push({ kind: 'incomplete_card', detail: `body is ${t.body.length} characters` })
-
-  if (run.stored) {
-    if (!close(run.stored.totalAmount, a.expectedTotalAmount)) out.push({ kind: 'stored_mismatch', detail: `stored ${run.stored.totalAmount}, card ${a.expectedTotalAmount}` })
-    if (run.stored.lineCount !== lines.length) out.push({ kind: 'stored_mismatch', detail: `stored ${run.stored.lineCount} lines of ${lines.length}` })
-    if (run.stored.status !== 'ready') out.push({ kind: 'stored_mismatch', detail: `status ${run.stored.status}` })
-  }
 }
 
 function scoreStep(step: StepExpect, t: TurnObservation, said: string[], run: RunObservation, out: Finding[]): void {
@@ -113,5 +104,6 @@ export function scoreRun(variant: ScenarioVariant, run: RunObservation): RunScor
       if (lines.some((l) => l.unitAmount != null && !known.some((n) => close(n, l.unitAmount as number) || close(n, (l.unitAmount as number) * (l.quantity ?? 1))))) modelInventionsCaught++
     }
   })
+  findings.push(...scorePersistence(variant, run))
   return { passed: findings.length === 0, findings, modelInventionsCaught }
 }
