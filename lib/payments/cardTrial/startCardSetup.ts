@@ -18,7 +18,7 @@ import {
 } from '@/db/payments/paymentMethods'
 import { isGrowLocalMockEnabled, localMockCreateTokenOnlyProcess, localMockOrigin } from '@/lib/payments/grow/localMock'
 import { validateCardHolder } from './cardHolder'
-import { CARD_STORAGE_CONSENT_VERSION, CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
+import { cardStorageConsent, CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
 
 /**
  * Opens a Grow "Get Token Only" payment page for this agency. Nothing here
@@ -149,7 +149,7 @@ export async function startCardSetupForUser(
     reference,
     holder: holder.holder,
     termsVersion: needsTerms(input.purpose) ? CARD_TRIAL_TERMS_VERSION : null,
-    cardStorageConsentVersion: CARD_STORAGE_CONSENT_VERSION,
+    cardStorageConsentVersion: cardStorageConsent(input.returnTo).version,
   })
   // One live setup per agency: a callback for an older page can no longer activate anything.
   await supersedePendingPaymentMethods(db, requester.agencyId, 'superseded_by_newer_setup', methodId)

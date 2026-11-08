@@ -69,6 +69,8 @@ describe('adding a card from the purchase page', () => {
     expect(sent.successUrl).toMatch(/\/billing\/success\?source=card_update&return=credits$/)
     expect(sent.cancelUrl).toMatch(/\/billing\/credits$/)
     expect(sent.notifyUrl).toMatch(/\/api\/payments\/grow\/notify$/)
+    const saved = await db('billing_payment_methods').where({ agencyId: o.agencyId }).first()
+    expect(saved.cardStorageConsentVersion).toBe('2026-11-08')
   })
 
   it('leaves every other card setup exactly as it was', async () => {

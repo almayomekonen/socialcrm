@@ -9,7 +9,7 @@ import {
   entitledCardAddLines,
   CARD_TRIAL_CONSENT_LABEL,
   CARD_TRIAL_CONSENT_LINK_TEXT,
-  CARD_STORAGE_CONSENT_LABEL,
+  cardStorageConsent,
   cardTrialDisclosureLines,
   CARD_TRIAL_AMOUNT,
 } from '@/lib/payments/cardTrial/terms'
@@ -204,7 +204,7 @@ export default function CardTrialSetupForm({ purpose, returnTo, mode = 'subscrip
         )}
         <Checkbox
           className='items-start rounded-none border-0 border-b border-gray-100 bg-transparent px-1 py-3 last:border-b-0 has-[:checked]:bg-transparent mobile:py-2.5'
-          lbl={t.locale === 'he' ? CARD_STORAGE_CONSENT_LABEL : <span {...terms}>{CARD_STORAGE_CONSENT_LABEL}</span>}
+          lbl={t.locale === 'he' ? cardStorageConsent(returnTo).label : <span {...terms}>{cardStorageConsent(returnTo).label}</span>}
           checked={storageAccepted}
           onChange={(e) => setStorageAccepted(e.target.checked)}
         />
