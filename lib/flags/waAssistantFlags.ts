@@ -125,9 +125,17 @@ export function isWaAssistantNotesAgency(agencyId: number | null | undefined): b
  * Reminder Engine). Gates the Settings opt-in (consent v5). The WhatsApp
  * routing comes in a later phase. Same rules: absence blocks, explicit ids only,
  * only on top of the assistant itself. Withdrawing is never gated.
+ *
+ * WA_ASSISTANT_REMINDERS_AUDIENCE: exactly `all` offers personal reminders to
+ * every agency in the assistant's audience (new agencies included, excluded ones
+ * never) and the explicit list is then ignored. Anything else, or absent: the
+ * list above, as before. This decides who is OFFERED reminders, nothing more:
+ * consent v5, opt-out, the send window, limits and capacity are checked per
+ * recipient where they always were.
  */
 export function isWaAssistantRemindersAgency(agencyId: number | null | undefined): boolean {
   if (!isWaAssistantAgency(agencyId)) return false
+  if (process.env.WA_ASSISTANT_REMINDERS_AUDIENCE?.trim() === 'all') return true
   return parseIds(process.env.WA_ASSISTANT_REMINDERS_AGENCY_IDS).includes(agencyId as number)
 }
 
