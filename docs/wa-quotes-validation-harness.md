@@ -36,7 +36,24 @@ an in-memory store for R2, under the real client code.
 Real mode (`QUOTE_CLOUD_MODE=real`) needs separate approval, a test bucket and
 `.env.quote-cloud.local`. See the header of `__tests__/live/cloud/env.ts`.
 
-Real mode also fails unless the bucket is empty before and after the run.
+Real mode also fails unless the bucket is empty before and after the run. The
+file must also set `QUOTE_CLOUD_MAX_RENDERS` (at most 20) and
+`QUOTE_CLOUD_MAX_RETRIES` (at most 3), and the R2 limits `QUOTE_CLOUD_MAX_R2_UPLOADS`
+(16), `_DELETES` (16), `_READS` (26), `_LISTS` (8) and `_OBJECTS` (16). There is no
+default, and over a limit that operation no longer leaves the machine. One S3 call
+is one HTTP attempt (`AWS_MAX_ATTEMPTS=1`).
+
+**The bucket-scoped R2 token is the actual boundary against Production.** The
+harness can see a bucket's name, not whose it is. Its checks (test name, confirmed
+name, empty bucket, approved key prefixes) are backstops, so the token must be
+limited to the one test bucket.
+
+Rendered PDFs and page images are kept for review in the git-ignored
+`.quote-cloud-artifacts/<mode>/`, with `INDEX.md` naming each scenario. They stay
+on this machine. Remove them with `rm -rf .quote-cloud-artifacts`.
+
+The harness's own walls are proved from outside, dry only:
+`NODE_ENV=test npx vitest run --config vitest.quote-cloud-guard.config.ts`.
 
 ## Real `after()` and cron recovery
 
