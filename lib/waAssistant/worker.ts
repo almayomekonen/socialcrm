@@ -33,6 +33,8 @@ import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
 import { handleReminderMessage } from './reminders/route'
+import { admitAgentRequest } from '@/db/credits/agentRequests'
+import { creditLimitReply } from './creditLimitReply'
 import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
 
@@ -64,7 +66,7 @@ import type { ReminderDeps } from './reminders/reply'
  * list, cancel and reschedule the owner's own reminders, handled BEFORE the
  * Agent and without it; writes only through cards and the Action Runtime.
  *
- * NOTE (architecture-rules §1, §6): ~270 lines, over the 250 soft limit since the
+ * NOTE (architecture-rules §1, §6): ~285 lines, over the 250 soft limit since the
  * status/note routing was added; the reminder routing added 6 lines and lives in
  * ./reminders/. Owed extraction, next touch: the per-action proposal routing
  * (meeting / task / lead update) moves to ./route.ts, leaving this file the job
@@ -170,6 +172,13 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   // Personal reminders (WA_ASSISTANT_REMINDERS_AGENCY_IDS only): deterministic, before the Agent, so with the switch on "תזכיר לי" never becomes a task.
   const reminder = remindersOn ? await handleReminderMessage({ job, scope: who.scope, nowMs: startedAt.getTime(), deps: deps.reminders }) : null
   if (reminder) return finishMeeting(job, platform, who.phoneE164, reminder, deps, { durationMs: elapsed() })
+
+  // The free allowance / purchased credits: decided once per job, before any model runs (db/credits/agentRequests.ts).
+  const access = await admitAgentRequest({ agencyId: job.agencyId, userId: job.userId, source: 'whatsapp', operation: { kind: 'wa_assistant_job', id: String(job.id) }, nowMs: startedAt.getTime() })
+  if ('reason' in access) {
+    const text = access.reason === 'unavailable' ? failureReply('error') : await creditLimitReply(job.agencyId, access.notice, who.scope.role)
+    return finish(job, { status: 'answered', stopReason: access.reason, reply: text ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' }, durationMs: elapsed() })
+  }
 
   await (deps.typing ?? sendPlatformTypingIndicator)({ ...platform, inboundWamid: job.wamid, jobId: job.id })
 

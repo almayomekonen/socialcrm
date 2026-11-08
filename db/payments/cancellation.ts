@@ -5,7 +5,7 @@ import { getTrialState, hasActiveProductAccess } from '@/lib/trial'
 import { getAgencyTrial } from '@/db/trial'
 import { RENEWAL_LEAD_HOURS } from '@/lib/payments/cardTrial/terms'
 import { hasConfirmedPaymentMethod, supersedePendingPaymentMethods } from './paymentMethods'
-import { insertNextAttempt, mapCharge } from './charges'
+import { SUBSCRIPTION_CHARGE_KINDS, insertNextAttempt, mapCharge } from './charges'
 import { renewalPeriodKey, TRIAL_END_PERIOD_KEY } from './periodKeys'
 
 /**
@@ -76,6 +76,7 @@ export async function reopenCurrentPeriodAfterResume(trx: Knex.Transaction, agen
   const sub = await trx('subscriptions').where({ agencyId }).first('expiresAt')
   const rows = await trx('billing_charges as c')
     .where({ 'c.agencyId': agencyId, 'c.status': 'cancelled', 'c.errorClass': 'cancelled_by_customer' })
+    .whereIn('c.kind', SUBSCRIPTION_CHARGE_KINDS as string[])
     .whereNotExists((q) => q.select(1).from('billing_charges as later').whereRaw('later."agencyId" = c."agencyId" AND later."periodKey" = c."periodKey" AND later.attempt > c.attempt'))
     .orderBy('c.id', 'desc')
     .select('c.*')

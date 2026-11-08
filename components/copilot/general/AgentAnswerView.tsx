@@ -32,6 +32,7 @@ const DENIAL: Record<string, string> = {
   'over-quota': 'הגעת למכסת השימוש היומית. נסה שוב מחר.',
   'subscription-required': 'חידוש המנוי מחזיר את העוזר החכם.',
   'trial-not-started': 'תקופת הניסיון עוד לא התחילה.',
+  'ai-credits-exhausted': 'נוצלו הבקשות הכלולות החודש. אפשר להוסיף קרדיטים בעמוד מנוי ותשלום; ה-CRM ממשיך לעבוד כרגיל.',
   forbidden: 'העוזר עדיין לא זמין בחשבון הזה.',
   disabled: 'העוזר לא זמין כרגע.',
   'no-providers': 'העוזר לא זמין כרגע.',

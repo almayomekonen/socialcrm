@@ -1,7 +1,7 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { CARD_TRIAL_AMOUNT, CARD_TRIAL_PERIOD, RENEWAL_LEAD_HOURS } from '@/lib/payments/cardTrial/terms'
-import { insertNextAttempt, mapCharge } from './charges'
+import { SUBSCRIPTION_CHARGE_KINDS, insertNextAttempt, mapCharge } from './charges'
 import { TRIAL_END_PERIOD_KEY, renewalPeriodKeySql } from './periodKeys'
 
 /**
@@ -65,7 +65,7 @@ export async function scheduleDueRenewals(limit: number): Promise<number> {
             AND s."expiresAt" <= now() + (? || ' hours')::interval
             AND s."cancelAtPeriodEnd" = false
             AND s."growDirectDebitId" IS NULL
-            AND EXISTS (SELECT 1 FROM billing_charges ok WHERE ok."agencyId" = a.id AND ok.status = 'succeeded')
+            AND EXISTS (SELECT 1 FROM billing_charges ok WHERE ok."agencyId" = a.id AND ok.status = 'succeeded' AND ok.kind IN ('trial_conversion','renewal'))
             AND NOT EXISTS (SELECT 1 FROM billing_charges bc WHERE bc."agencyId" = a.id AND bc."periodKey" = ${keySql})
           ORDER BY s."expiresAt" ASC
           LIMIT ?
@@ -94,7 +94,7 @@ const REOPENABLE_ERRORS = new Set(['cancelled_by_customer', 'no_active_method', 
 export async function scheduleImmediateAttemptForOpenPeriod(trx: Knex.Transaction, agencyId: number, paymentMethodId: number): Promise<number | null> {
   const sub = await trx('subscriptions').where({ agencyId }).first('cancelAtPeriodEnd')
   if (!sub || sub.cancelAtPeriodEnd) return null
-  const latest = await trx('billing_charges').where({ agencyId }).orderBy('id', 'desc').first()
+  const latest = await trx('billing_charges').where({ agencyId }).whereIn('kind', SUBSCRIPTION_CHARGE_KINDS as string[]).orderBy('id', 'desc').first()
   if (!latest) return null
   const reopenable =
     latest.status === 'failed_final' ||

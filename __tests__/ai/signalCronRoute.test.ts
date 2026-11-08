@@ -157,6 +157,8 @@ describe('the cron entry', () => {
       // leases, retention). An integration cron with no part in the signal
       // pipeline, and inert unless FACEBOOK_MESSENGER_ENABLED records receipts.
       { path: '/api/cron/messenger-events', schedule: '*/1 * * * *' },
+      // The WhatsApp webhook-receipt drain: an integration cron, no part of the signal pipeline. (Pin was not updated when it was scheduled.)
+      { path: '/api/cron/whatsapp-webhook-events', schedule: '* * * * *' },
       // Billing (05a33aaa, 2026-09-16): the subscription charge pass. A payments
       // cron with no part in the signal pipeline; this pin was not updated when
       // it was scheduled.
@@ -169,10 +171,17 @@ describe('the cron entry', () => {
       // platform number and an agency allowlist are set, and sends only with
       // OWNER_WA_REMINDERS_SEND_ENABLED=1.
       { path: '/api/cron/owner-wa-reminders', schedule: '*/1 * * * *' },
+      // Reminder Engine Phase 5: owner personal reminders. No part of the signal
+      // pipeline; sends only with OWNER_PERSONAL_REMINDERS_SEND_ENABLED=1 and the DB
+      // switch on. (This pin was not updated when it was scheduled.)
+      { path: '/api/cron/personal-reminders', schedule: '*/1 * * * *' },
       // WhatsApp assistant (pilot): the backstop drain for owner questions to the
       // platform number, plus its lease reaper and 24-hour text purge. No part of
       // the signal pipeline; inert unless WA_ASSISTANT_AGENCY_IDS names an agency.
       { path: '/api/cron/wa-assistant', schedule: '*/1 * * * *' },
+      // Usage credits: settles AI usage into agency AI wallets. No part of the
+      // signal pipeline; returns immediately unless CREDITS_METERING=1.
+      { path: '/api/cron/usage-credits', schedule: '*/10 * * * *' },
     ])
   })
 })

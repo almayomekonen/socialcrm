@@ -1,6 +1,6 @@
 import { db } from '@/config/db'
 import { decryptCardToken, getActivePaymentMethod } from './paymentMethods'
-import { CHARGES_TABLE, mapCharge, type AttemptContext } from './charges'
+import { CHARGES_TABLE, isCreditPackCharge, mapCharge, type AttemptContext } from './charges'
 import { renewalPeriodKey } from './periodKeys'
 
 /**
@@ -41,8 +41,11 @@ export async function beginChargeAttempt(chargeId: number): Promise<AttemptConte
     }
 
     if (Date.now() - charge.nextAttemptAt.getTime() > STALE_UNDISPATCHED_MS) return stop('cancelled', 'stale_undispatched')
-    if (!sub) return stop('failed_final', 'no_subscription')
-    if (sub.cancelAtPeriodEnd) return stop('cancelled', 'cancelled_by_customer')
+    // A one-time pack does not depend on a subscription: a trialling agency with a saved card can buy one.
+    if (!isCreditPackCharge(charge.kind)) {
+      if (!sub) return stop('failed_final', 'no_subscription')
+      if (sub.cancelAtPeriodEnd) return stop('cancelled', 'cancelled_by_customer')
+    }
 
     const agency = await trx('agencies').where({ id: agencyId }).first('plan')
     if (charge.kind === 'trial_conversion' && agency?.plan === 'pro') return stop('cancelled', 'already_paid')

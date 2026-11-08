@@ -11,7 +11,19 @@ import { exactGrowIdentifier } from '@/lib/payments/grow/identifiers'
  * no-op. The dispatch step itself lives in chargeDispatch.ts.
  */
 
-export type ChargeKind = 'trial_conversion' | 'renewal'
+export type SubscriptionChargeKind = 'trial_conversion' | 'renewal'
+/** One-time usage-credit packs (lib/credits/config.ts). Never a subscription period. */
+export type CreditPackChargeKind = 'credits_200' | 'credits_500'
+export type ChargeKind = SubscriptionChargeKind | CreditPackChargeKind
+
+/**
+ * Every query that reasons about the SUBSCRIPTION (renewal eligibility, the
+ * latest period attempt, failure notices, resume) filters on these kinds, so a
+ * credit-pack purchase can never be mistaken for, or retried as, a period charge.
+ */
+export const SUBSCRIPTION_CHARGE_KINDS: readonly SubscriptionChargeKind[] = ['trial_conversion', 'renewal']
+export const CREDIT_PACK_CHARGE_KINDS: readonly CreditPackChargeKind[] = ['credits_200', 'credits_500']
+export const isCreditPackCharge = (kind: string): kind is CreditPackChargeKind => (CREDIT_PACK_CHARGE_KINDS as readonly string[]).includes(kind)
 export type ChargeStatus = 'pending' | 'in_flight' | 'succeeded' | 'failed_final' | 'failed_retryable' | 'unknown' | 'cancelled'
 
 export type ChargeRow = {
@@ -71,6 +83,7 @@ export async function claimDueCharges(workerId: string, limit: number, agencyId:
       WHERE c.id IN (
         SELECT id FROM billing_charges
          WHERE status = 'pending' AND "nextAttemptAt" <= now()
+           AND kind IN ('trial_conversion','renewal')
            AND (?::integer IS NULL OR "agencyId" = ?::integer)
          ORDER BY "nextAttemptAt" ASC, id ASC
          FOR UPDATE SKIP LOCKED
@@ -80,6 +93,20 @@ export async function claimDueCharges(workerId: string, limit: number, agencyId:
     [workerId, agencyId, agencyId, limit],
   )
   return (res.rows ?? []).map(mapCharge)
+}
+
+/**
+ * Claims ONE pending credit-pack purchase for immediate dispatch by the request
+ * that created it. Credit packs are never claimed by the scheduled pass
+ * (claimDueCharges), so a purchase is only ever charged while its buyer waits.
+ */
+export async function claimCreditPackCharge(chargeId: number, agencyId: number, workerId: string): Promise<ChargeRow | null> {
+  const rows = await db(CHARGES_TABLE)
+    .where({ id: chargeId, agencyId, status: 'pending' })
+    .whereIn('kind', CREDIT_PACK_CHARGE_KINDS as CreditPackChargeKind[])
+    .update({ status: 'in_flight', lockedAt: new Date(), lockedBy: workerId, updatedAt: new Date() })
+    .returning('*')
+  return rows[0] ? mapCharge(rows[0]) : null
 }
 
 /**

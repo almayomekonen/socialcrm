@@ -27,7 +27,15 @@ export type Charge = {
   id: number | string
   transactionId: string
   createdAt: Date | string
+  /** A one-time credit pack. Its amount IS stored, so it is shown; subscription rows have none. */
+  pack?: { kind: string; credits: number | null; amount: number }
 }
+
+const packLine = (pack: NonNullable<Charge['pack']>, t: ReturnType<typeof translatorFor>) =>
+  t('settings.payment.history.pack', {
+    credits: String(pack.credits ?? ''),
+    price: `₪${pack.amount.toLocaleString('he-IL')}`,
+  })
 
 export default function BillingHistory({ charges, locale = 'he' }: { charges: Charge[]; locale?: UiLocale }) {
   const t = translatorFor(locale)
@@ -49,6 +57,7 @@ export default function BillingHistory({ charges, locale = 'he' }: { charges: Ch
                     <p className='text-sm text-gray-900'>
                       {formatRenewalDate(new Date(charge.createdAt), { withYear: true }, locale)}
                     </p>
+                    {charge.pack && <p className='mt-0.5 text-sm text-gray-700'>{packLine(charge.pack, t)}</p>}
                     <p className='mt-0.5 truncate font-mono text-xs text-gray-400'>{charge.transactionId}</p>
                   </div>
                   <span className='shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700'>

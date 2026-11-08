@@ -1,5 +1,7 @@
 'use server'
 
+import { randomUUID } from 'crypto'
+import { admitAgentRequest } from '@/db/credits/agentRequests'
 import { runAgentInvestigation, type AgentTurn } from '@/lib/agent/run'
 import { resolveAgentScope } from '@/lib/agent/scope'
 import { submitProposedAction, submitProposedBatch } from '@/lib/agent/actions/bridge'
@@ -104,7 +106,13 @@ export async function askAgent(
 
   const history = sanitiseHistory(options?.history)
 
+  // The free allowance / purchased credits: one request per question, decided before any model runs.
+  const investigationId = `inv_${randomUUID()}`
+  const access = await admitAgentRequest({ agencyId: scope.agencyId, userId: scope.userId, source: 'web', operation: { kind: 'agent_investigation', id: investigationId }, nowMs: requestStartedAt })
+  if ('reason' in access) return { ok: false, reason: 'gate_denied', message: 'ai-credits-exhausted', investigationId, costUsd: 0 }
+
   let result = await runAgentInvestigation({
+    investigationId,
     question: trimmed.slice(0, MAX_QUESTION_CHARS),
     history,
     onProgress: options?.onProgress,
