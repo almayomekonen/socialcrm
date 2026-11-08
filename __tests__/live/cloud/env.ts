@@ -74,7 +74,10 @@ const dryFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const store = (globalThis as unknown as { __dryBucket?: Map<string, { Body: Uint8Array }> }).__dryBucket
   const key = decodeURIComponent(new URL(url).pathname.split('/').slice(2).join('/'))
   const hit = store?.get(key)
-  return hit ? new Response(Buffer.from(hit.Body), { status: 200 }) : new Response('', { status: 404 })
+  if (!hit) return new Response('', { status: 404 })
+  // What S3 and R2 do with a signed link's response-* parameters, so the same header checks run in both modes.
+  const { searchParams } = new URL(url)
+  return new Response(Buffer.from(hit.Body), { status: 200, headers: { 'content-type': searchParams.get('response-content-type') ?? 'binary/octet-stream', 'content-disposition': searchParams.get('response-content-disposition') ?? '' } })
 }) as typeof fetch
 
 const guard = installNetworkGuard({ allowedHosts: ['api.cloudflare.com', `${account}.r2.cloudflarestorage.com`], inner: mode === 'dry' ? dryFetch : undefined })

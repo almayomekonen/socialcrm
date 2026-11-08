@@ -164,7 +164,9 @@ describe('allowed', () => {
     expect(url.pathname).toContain(PATH)
     expect(url.searchParams.get('X-Amz-Expires')).toBe('60')
     expect(url.searchParams.get('response-content-type')).toBe('application/pdf')
-    expect(url.searchParams.get('response-content-disposition')).toContain('Quote-00007')
+    const disposition = url.searchParams.get('response-content-disposition')!
+    expect(decodeURIComponent(disposition.split("filename*=UTF-8''")[1])).toBe('Quote-00007-דוד_כהן.pdf')
+    expect(disposition).toContain('attachment; filename="Quote-00007-_______.pdf"')
     expect(res.headers.get('cache-control')).toContain('no-store')
     expect(res.headers.get('referrer-policy')).toBe('no-referrer')
   }
@@ -175,6 +177,20 @@ describe('allowed', () => {
   it("the lead's own rep too", async () => {
     h.cookie = await session(OWNER_REP)
     await expectRedirect(await open())
+  })
+})
+
+describe('a refused caller is never handed a link', () => {
+  it.each([
+    ['another agency, even its admin', FOREIGN_ADMIN],
+    ['a rep without the lead', OTHER_REP],
+  ])('%s: 404, no Location, no signing', async (_who, id) => {
+    h.cookie = await session(id)
+    const res = await open()
+    expect(res.status).toBe(404)
+    expect(res.headers.get('location')).toBeNull()
+    expect(await res.text()).not.toMatch(/X-Amz|r2\.cloudflarestorage/)
+    expect(send).not.toHaveBeenCalled()
   })
 })
 

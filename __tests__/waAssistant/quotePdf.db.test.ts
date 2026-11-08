@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * A quote's PDF, against a real (local test) PostgreSQL: a real quote made through
@@ -28,7 +28,7 @@ import { startQuotePdf } from '@/lib/waAssistant/quotes/pdfJob'
 import { notifyOwnerOfQuotePdf, quoteDownloadLink } from '@/lib/waAssistant/quotes/pdfNotice'
 import { sweepQuotePdfs } from '@/lib/waAssistant/quotes/pdfSweep'
 import { QUOTE_RENDER_STALE_MS, markQuoteDocumentReady } from '@/db/quotes/documents'
-import { PdfRenderError } from '@/lib/pdf/renderer'
+import { PdfRenderError, renderPdfFromHtml } from '@/lib/pdf/renderer'
 import { StorageUnavailableError } from '@/lib/storage/objects'
 import { PLATFORM, TOKEN, agency, cleanup, recipient, resetBetweenTests, user } from '../ownerWhatsappReminders/reminderFixtures'
 
@@ -357,5 +357,139 @@ describe('the WhatsApp follow-up', () => {
     const p = pdfDeps()
     await start(f, p.deps)
     expect(p.send).not.toHaveBeenCalled()
+  })
+})
+
+describe('Cloudflare failure responses, through the real renderer client (fetch stubbed)', () => {
+  const OK_PDF = () => new Response(Buffer.from('%PDF-1.7 stub'), { status: 200, headers: { 'content-type': 'application/pdf' } })
+  const real = () => pdfDeps({ render: renderPdfFromHtml })
+  const script = (...responses: (() => Response | Promise<Response>)[]) => {
+    fetchGuard.mockReset()
+    fetchGuard.mockImplementation(async () => (responses.length > 1 ? responses.shift()! : responses[0])())
+  }
+  const reasons = async (quoteId: number) => (await docs(quoteId)).map((d) => d.failureReason ?? d.status)
+  const failedNotice = (send: ReturnType<typeof pdfDeps>['send']) => send.mock.calls.filter((c) => String(c[0].body).includes('לא הצלחתי להכין את קובץ ה-PDF'))
+  const readyNotice = (send: ReturnType<typeof pdfDeps>['send']) => send.mock.calls.filter((c) => String(c[0].body).includes('/api/quotes/'))
+  const quoteStands = async (quoteId: number) => expect((await db('sales_quotes').where({ id: quoteId }).first('status')).status).toBe('ready')
+
+  beforeEach(() => {
+    vi.stubEnv('PDF_RENDERER', 'cloudflare')
+    vi.stubEnv('R2_ACCOUNT_ID', 'a'.repeat(32))
+    vi.stubEnv('CLOUDFLARE_BROWSER_RENDERING_API_TOKEN', 'stub-token')
+    vi.stubEnv('PDF_RENDER_TIMEOUT_MS', '30000')
+  })
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('the request goes to Cloudflare Browser Run, with the bearer token', async () => {
+    const f = await approvedQuote()
+    const d = real()
+    script(OK_PDF)
+    await start(f, d.deps)
+    const [url, init] = fetchGuard.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain(`https://api.cloudflare.com/client/v4/accounts/${'a'.repeat(32)}/browser-run/pdf`)
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer stub-token')
+  })
+
+  it.each([401, 403])('%i: pdf_auth is permanent: no retry, and the owner hears once, at once', async (status) => {
+    const f = await approvedQuote()
+    const d = real()
+    script(() => new Response('{"success":false}', { status }))
+    await start(f, d.deps)
+    expect(await reasons(f.quoteId)).toEqual(['pdf_auth'])
+    expect(failedNotice(d.send)).toHaveLength(1)
+    await sweepQuotePdfs({ deps: d.deps })
+    await sweepQuotePdfs({ deps: d.deps })
+    expect(fetchGuard).toHaveBeenCalledTimes(1)
+    expect(d.send).toHaveBeenCalledTimes(1)
+    expect(d.put).not.toHaveBeenCalled()
+    await quoteStands(f.quoteId)
+  })
+
+  it('429 with a short Retry-After: waits once inside the same attempt and succeeds, with no failed row', async () => {
+    const f = await approvedQuote()
+    const d = real()
+    script(() => new Response('', { status: 429, headers: { 'retry-after': '1' } }), OK_PDF)
+    await start(f, d.deps)
+    expect(fetchGuard).toHaveBeenCalledTimes(2)
+    expect(await reasons(f.quoteId)).toEqual(['ready'])
+    expect(readyNotice(d.send)).toHaveLength(1)
+    expect(failedNotice(d.send)).toHaveLength(0)
+  })
+
+  it('429 with a Retry-After too long to wait: fails as rate_limited, says nothing, and the sweep retries', async () => {
+    const f = await approvedQuote()
+    const d = real()
+    script(() => new Response('', { status: 429, headers: { 'retry-after': '3600' } }), OK_PDF)
+    await start(f, d.deps)
+    expect(fetchGuard).toHaveBeenCalledTimes(1)
+    expect(await reasons(f.quoteId)).toEqual(['pdf_rate_limited'])
+    expect(d.send).not.toHaveBeenCalled()
+    await sweepQuotePdfs({ deps: d.deps })
+    expect(await reasons(f.quoteId)).toEqual(['pdf_rate_limited', 'ready'])
+    expect(readyNotice(d.send)).toHaveLength(1)
+  })
+
+  it('429 twice: the one wait is spent, and the attempt fails as rate_limited', async () => {
+    const f = await approvedQuote()
+    const d = real()
+    script(() => new Response('', { status: 429, headers: { 'retry-after': '1' } }))
+    await start(f, d.deps)
+    expect(fetchGuard).toHaveBeenCalledTimes(2)
+    expect(await reasons(f.quoteId)).toEqual(['pdf_rate_limited'])
+  })
+
+  it('500: three attempts, one notice on the last, and then silence', async () => {
+    const f = await approvedQuote()
+    const d = real()
+    script(() => new Response('oops', { status: 500 }))
+    await start(f, d.deps)
+    await sweepQuotePdfs({ deps: d.deps })
+    expect(d.send).not.toHaveBeenCalled()
+    await sweepQuotePdfs({ deps: d.deps })
+    expect(await reasons(f.quoteId)).toEqual(['pdf_bad_status', 'pdf_bad_status', 'pdf_bad_status'])
+    expect(failedNotice(d.send)).toHaveLength(1)
+    await sweepQuotePdfs({ deps: d.deps })
+    await sweepQuotePdfs({ deps: d.deps })
+    expect(fetchGuard).toHaveBeenCalledTimes(3)
+    expect(d.send).toHaveBeenCalledTimes(1)
+    expect(d.put).not.toHaveBeenCalled()
+    await quoteStands(f.quoteId)
+  })
+
+  it.each([
+    ['invalid JSON', '{"success":'],
+    ['a JSON error', '{"success":false,"errors":[{"code":1000}]}'],
+    ['HTML', '<html>not a pdf</html>'],
+    ['an empty body', ''],
+  ])('200 with %s: never stored as a PDF, and retried', async (_what, body) => {
+    const f = await approvedQuote()
+    const d = real()
+    script(() => new Response(body, { status: 200 }), OK_PDF)
+    await start(f, d.deps)
+    expect(await reasons(f.quoteId)).toEqual(['pdf_invalid_output'])
+    expect(d.put).not.toHaveBeenCalled()
+    expect(d.send).not.toHaveBeenCalled()
+    await sweepQuotePdfs({ deps: d.deps })
+    expect(await reasons(f.quoteId)).toEqual(['pdf_invalid_output', 'ready'])
+    expect(d.put).toHaveBeenCalledTimes(1)
+    expect(readyNotice(d.send)).toHaveLength(1)
+  })
+
+  it('a client-side timeout: pdf_timeout, retried, and one notice when attempts run out', async () => {
+    vi.stubEnv('PDF_RENDER_TIMEOUT_MS', '30')
+    const f = await approvedQuote()
+    const d = real()
+    fetchGuard.mockReset()
+    fetchGuard.mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => init.signal!.addEventListener('abort', () => reject(init.signal!.reason))))
+    await start(f, d.deps)
+    expect(await reasons(f.quoteId)).toEqual(['pdf_timeout'])
+    await sweepQuotePdfs({ deps: d.deps })
+    await sweepQuotePdfs({ deps: d.deps })
+    await sweepQuotePdfs({ deps: d.deps })
+    expect(await reasons(f.quoteId)).toEqual(['pdf_timeout', 'pdf_timeout', 'pdf_timeout'])
+    expect(fetchGuard).toHaveBeenCalledTimes(3)
+    expect(failedNotice(d.send)).toHaveLength(1)
+    expect(d.send).toHaveBeenCalledTimes(1)
+    await quoteStands(f.quoteId)
   })
 })

@@ -1,11 +1,5 @@
-import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import { promisify } from 'node:util'
 import { NextRequest } from 'next/server'
-import { S3Client, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -30,45 +24,29 @@ import { deleteObject, getObjectBytes, headObject, listObjects } from '@/lib/sto
 import { startQuotePdf } from '@/lib/waAssistant/quotes/pdfJob'
 import { sweepQuotePdfs } from '@/lib/waAssistant/quotes/pdfSweep'
 import { CLOUD_AGENCY, CLOUD_EXEMPT_AGENCY, type CloudContext } from './env'
+import { filenameFrom, installDryBucket, pdfText } from './helpers'
 
 const ctx = (globalThis as unknown as { __quoteCloud: CloudContext }).__quoteCloud
-const sh = promisify(execFile)
 const notice = { send: vi.fn(async () => ({ kind: 'sent' as const, wamid: 'wamid.CLOUD' })) as never }
 const USER = 998010
 const EXEMPT_USER = 998020
+const REP_WITH_LEAD = 998011
+const REP_WITHOUT_LEAD = 998012
 const TENANTS = [CLOUD_AGENCY, CLOUD_EXEMPT_AGENCY]
 let leadId = 0
 let exemptLeadId = 0
+let repLeadId = 0
 let seq = 0
 
-type Stored = { Body: Uint8Array; Metadata?: Record<string, string>; ContentType?: string }
-function installDryBucket() {
-  const bucket = new Map<string, Stored>()
-  ;(globalThis as unknown as { __dryBucket: Map<string, Stored> }).__dryBucket = bucket
-  vi.spyOn(S3Client.prototype, 'send').mockImplementation((async (c: { input: { Key?: string; Prefix?: string; Body?: Uint8Array; Metadata?: Record<string, string>; ContentType?: string } }) => {
-    const key = c.input.Key ?? ''
-    if (c instanceof PutObjectCommand) return bucket.set(key, { Body: c.input.Body as Uint8Array, Metadata: c.input.Metadata, ContentType: c.input.ContentType }), {}
-    if (c instanceof HeadObjectCommand) {
-      const o = bucket.get(key)
-      if (!o) throw Object.assign(new Error('NotFound'), { name: 'NotFound', $metadata: { httpStatusCode: 404 } })
-      return { ContentLength: o.Body.byteLength, ContentType: o.ContentType, Metadata: o.Metadata }
-    }
-    if (c instanceof GetObjectCommand) return { Body: { transformToByteArray: async () => bucket.get(key)!.Body } }
-    if (c instanceof DeleteObjectCommand) return bucket.delete(key), {}
-    if (c instanceof ListObjectsV2Command) return { Contents: [...bucket.keys()].filter((k) => k.startsWith(c.input.Prefix ?? '')).map((Key) => ({ Key, Size: 1 })) }
-    throw new Error(`dry bucket: unexpected ${c.constructor.name}`)
-  }) as never)
-}
-
-type QuoteOver = { discountPercent?: number; unitAmount?: number; priceBasis?: 'incl_vat' | 'excl_vat' | null; exempt?: boolean }
+type QuoteOver = { discountPercent?: number; unitAmount?: number; priceBasis?: 'incl_vat' | 'excl_vat' | null; exempt?: boolean; leadId?: number; lineTitle?: string }
 const quote = async (lines: number, over: QuoteOver = {}) => {
   const unitAmount = over.unitAmount ?? 1000
   const r = await createQuoteSystem({
     agencyId: over.exempt ? CLOUD_EXEMPT_AGENCY : CLOUD_AGENCY,
-    leadId: over.exempt ? exemptLeadId : leadId,
+    leadId: over.leadId ?? (over.exempt ? exemptLeadId : leadId),
     createdByUserId: over.exempt ? EXEMPT_USER : USER,
     title: 'שיפוץ מטבח כולל ארונות',
-    lines: Array.from({ length: lines }, (_, i) => ({ title: `פריט בדיקה מספר ${i + 1}`, quantity: 1, unitAmount, discountAmount: over.discountPercent ? (unitAmount * over.discountPercent) / 100 : undefined })),
+    lines: Array.from({ length: lines }, (_, i) => ({ title: over.lineTitle ?? `פריט בדיקה מספר ${i + 1}`, quantity: 1, unitAmount, discountAmount: over.discountPercent ? (unitAmount * over.discountPercent) / 100 : undefined })),
     priceBasis: over.priceBasis === undefined ? 'excl_vat' : over.priceBasis,
     validityDays: 30,
     finalize: true,
@@ -94,18 +72,6 @@ async function allObjects(): Promise<string[]> {
   return keys
 }
 
-async function pdfText(bytes: Uint8Array) {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'quote-cloud-read-'))
-  try {
-    const f = path.join(dir, 'q.pdf')
-    writeFileSync(f, bytes)
-    const [text, fonts, info] = await Promise.all([sh('pdftotext', [f, '-']), sh('pdffonts', [f]), sh('pdfinfo', [f])])
-    return { text: text.stdout, fonts: fonts.stdout, pages: Number(/Pages:\s+(\d+)/.exec(info.stdout)?.[1] ?? 0) }
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-}
-
 beforeAll(async () => {
   if (ctx.mode === 'dry') installDryBucket()
   // A test bucket with anything in it may not be the bucket it claims to be.
@@ -122,6 +88,9 @@ beforeAll(async () => {
   await db('users').insert({ id: EXEMPT_USER, agencyId: CLOUD_EXEMPT_AGENCY, email: 'cloud-exempt@t.test', role: 'ADMIN', firstName: 'א', lastName: 'ב' } as never).onConflict('id').ignore()
   const [e] = await db('clients').insert({ firstName: 'רונית', lastName: 'לוי', phone: '0501234568', agencyId: CLOUD_EXEMPT_AGENCY, userId: EXEMPT_USER, createdById: EXEMPT_USER, lead: true, status: 'new' }).returning('id')
   exemptLeadId = Number(e.id)
+  await db('users').insert([REP_WITH_LEAD, REP_WITHOUT_LEAD].map((id) => ({ id, agencyId: CLOUD_AGENCY, email: `r${id}@t.test`, role: 'AGNT', firstName: 'נ', lastName: String(id) })) as never).onConflict('id').ignore()
+  const [r] = await db('clients').insert({ firstName: 'דוד', lastName: 'כהן', phone: '0501234569', agencyId: CLOUD_AGENCY, userId: REP_WITH_LEAD, createdById: REP_WITH_LEAD, lead: true, status: 'new' }).returning('id')
+  repLeadId = Number(r.id)
   h.cookie = await encrypt({ id: USER, sv: 0, typ: 'session' })
 }, 120_000)
 
@@ -159,7 +128,6 @@ describe(`quote PDF, cloud path (${ctx.mode})`, () => {
     expect(head.metadata.sha256).toBe(d.contentHash)
     expect(Buffer.from(bytes.subarray(0, 5)).toString('latin1')).toBe('%PDF-')
     const pdf = await pdfText(bytes)
-    expect(pdf.fonts).toContain('NotoSansHebrew')
     expect(pdf.pages).toBeGreaterThanOrEqual(minPages)
     expect(pdf.text).toContain('כהן')
   }, 200_000)
@@ -222,6 +190,40 @@ describe(`quote PDF, cloud path (${ctx.mode})`, () => {
     h.cookie = saved
     expect(new URL(res.headers.get('location') as string).pathname).toBe('/auth')
   })
+
+  it('mixed Hebrew, digits and Latin: the fonts are embedded and the text survives', async () => {
+    const q = await quote(1, { unitAmount: 1694.92, lineTitle: 'דלת 80×210 דגם X-200 (2 יחידות)' })
+    await start(q.quoteId)
+    const text = await documentText(q.quoteId)
+    for (const part of ['דלת', 'יחידות', 'X-200', '1,694.92']) expect(text).toContain(part)
+  }, 200_000)
+
+  it('the download: the agency and lead rules hold, and R2 serves the Hebrew filename and the PDF type', async () => {
+    const q = await quote(1, { leadId: repLeadId })
+    await start(q.quoteId)
+    const [d] = await docsOf(q.quoteId)
+    const as = async (id: number) => {
+      h.cookie = await encrypt({ id, sv: 0, typ: 'session' })
+      return open(d.contentHash as string)
+    }
+    try {
+      for (const refused of [EXEMPT_USER, REP_WITHOUT_LEAD]) {
+        const res = await as(refused)
+        expect(res.status).toBe(404)
+        expect(res.headers.get('location')).toBeNull()
+      }
+      const ok = await as(REP_WITH_LEAD)
+      expect(ok.status).toBe(302)
+      const got = await fetch(ok.headers.get('location') as string)
+      expect(got.status).toBe(200)
+      expect(got.headers.get('content-type')).toBe('application/pdf')
+      const number = String(q.quoteNumber).padStart(5, '0')
+      expect(filenameFrom(got.headers.get('content-disposition'))).toEqual({ utf8: `Quote-${number}-דוד_כהן.pdf`, ascii: `Quote-${number}-_______.pdf` })
+      expect(createHash('sha256').update(new Uint8Array(await got.arrayBuffer())).digest('hex')).toBe(d.contentHash)
+    } finally {
+      h.cookie = await encrypt({ id: USER, sv: 0, typ: 'session' })
+    }
+  }, 200_000)
 
   it('an upload failure is recorded, and the cron sweep retries it into one current PDF', async () => {
     const q = await quote(1)
