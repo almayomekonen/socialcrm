@@ -1,6 +1,7 @@
 'use server'
 
 import { requireProductAccess } from '@/lib/requireUser'
+import { COPILOT_LIMIT_NOTE, runCopilotRequest } from '@/lib/credits/copilotRequest'
 import { getPerms } from '@/db/filter'
 import { getLeadsByName, getNamedLeadById, type NamedLead, type Scope } from '@/db/briefing'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
@@ -68,7 +69,7 @@ export async function askGeneralQuestion(
   const n = Number(activeLeadIdRaw)
   const activeLeadId = Number.isFinite(n) && n > 0 ? n : undefined
   try {
-    const answer = await resolveAnswer(text, user, mode, activeLeadId, conversationState)
+    const answer = await runCopilotRequest<GeneralAnswer>(user, () => ({ kind: 'guide', answer: COPILOT_LIMIT_NOTE }), () => resolveAnswer(text, user, mode, activeLeadId, conversationState))
     const subjectActive = activeLeadId != null
     await safeTrack(user, 'general_mode.question_asked', { qlen: text.length, subjectActive })
 

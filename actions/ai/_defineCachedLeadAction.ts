@@ -7,6 +7,7 @@ import { LeadIntelligenceInputs, getLeadIntelligenceInputs } from '@/db/aiSummar
 import type { AiRunResult, TaskKind } from '@/lib/ai/types'
 import { persistAssistantTurn } from '@/lib/copilot/persistConversation'
 import { getTaskConfig } from '@/lib/ai/tasks'
+import { runCopilotRequest } from '@/lib/credits/copilotRequest'
 
 class AiNonCacheableError<T> extends Error {
   constructor(public result: AiRunResult<T>) {
@@ -32,6 +33,8 @@ export type CachedLeadActionConfig<T> = {
   }
   requiresLeadName: boolean
   pollutionLogPrefix: string
+  /** A Copilot button the user pressed: one request against the allowance (a cached answer settles as void). */
+  countsAsCopilotRequest?: boolean
   persist?: {
     actionId: string
     userText: string
@@ -168,11 +171,14 @@ export function defineCachedLeadAction<T>(config: CachedLeadActionConfig<T>) {
       leadName: (leadMeta?.name as string | undefined) ?? null,
     }
 
-    try {
-      return await getCacheForLead(leadId)(args)
-    } catch (err) {
-      if (err instanceof AiNonCacheableError) return err.result as AiRunResult<T>
-      throw err
+    const generate = async (): Promise<AiRunResult<T>> => {
+      try {
+        return await getCacheForLead(leadId)(args)
+      } catch (err) {
+        if (err instanceof AiNonCacheableError) return err.result as AiRunResult<T>
+        throw err
+      }
     }
+    return config.countsAsCopilotRequest ? runCopilotRequest<AiRunResult<T>>(user, () => ({ ok: false, reason: 'ai-credits-exhausted' }), generate) : generate()
   }
 }

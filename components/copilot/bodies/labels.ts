@@ -36,5 +36,6 @@ export const ERROR_COPY: Record<CopilotResponseErrorReason, string> = {
   'invalid-input': 'הקלט לא תקין או שהפלט נדחה. נסה שוב.',
   'subscription-required': 'תקופת ה-Pro הסתיימה. כדי להמשיך להשתמש ב-AI יש להפעיל מנוי.',
   'trial-not-started': 'יש להתחיל את תקופת הניסיון כדי להשתמש ב-AI.',
+  'ai-credits-exhausted': 'נוצלו הבקשות הכלולות החודש. אפשר להוסיף קרדיטים בעמוד מנוי ותשלום; ה-CRM ממשיך לעבוד כרגיל.',
   unknown: 'משהו השתבש. נסה שוב.',
 }

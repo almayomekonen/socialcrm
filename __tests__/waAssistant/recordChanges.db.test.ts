@@ -80,7 +80,7 @@ const tap = async (o: Owner, id: string, h: H) => {
   await runWaAssistantWorker({}, h.deps)
   return h.last()
 }
-const taskRow = (id: number) => db('tasks').where({ id }).first('title', 'completed', db.raw(`to_char("dueDate", 'YYYY-MM-DD') as "dueDate"`))
+const taskRow = (id: number) => db('tasks').where({ id }).first('title', 'completed', db.raw(`to_char("dueDate", 'YYYY-MM-DD') as "dueDate"`)) as Promise<{ title: string; completed: boolean; dueDate: string }>
 
 beforeAll(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined)

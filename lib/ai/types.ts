@@ -39,6 +39,8 @@ export type AiFailureReason =
   // message. See lib/ai/access.ts.
   | 'subscription-required'
   | 'trial-not-started'
+  // The included requests and purchased credits are used up (lib/credits/copilotRequest.ts).
+  | 'ai-credits-exhausted'
 
 export type AiFailure = {
   ok: false
