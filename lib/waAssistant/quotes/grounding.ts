@@ -62,6 +62,18 @@ export function discountRequested(said: readonly string[]): boolean {
   return false
 }
 
+const NOT_FREE = /(?<![\p{L}])לא\s+(?:ב?חינם|ללא\s+תשלום)/u
+const FREE = /(?<![\p{L}])ב?חינם(?![\p{L}])|(?<![\p{L}])(?:ללא|בלי)\s+(?:תשלום|עלות|חיוב)(?![\p{L}])/u
+
+/** Did the owner say this is free? The newest message that speaks about it decides ("לא בחינם" takes it back). */
+export function freeStated(said: readonly string[]): boolean {
+  for (const text of said) {
+    if (NOT_FREE.test(text)) return false
+    if (FREE.test(text)) return true
+  }
+  return false
+}
+
 /**
  * A line's price is grounded when the owner said it per unit, or said the
  * line's whole amount ("3 חלונות ב-3,000"). A quantity other than 1, and any

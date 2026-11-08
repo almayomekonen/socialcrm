@@ -11,7 +11,7 @@ import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from '../meetings/types'
 import { requestMessages } from '../request'
 import { chooseLead } from '../leadChoice'
-import { discountRequested, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from './grounding'
+import { discountRequested, freeStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from './grounding'
 import { QUOTE_COPY, quoteButtons, quoteCard } from './copy'
 
 /**
@@ -102,6 +102,8 @@ export async function proposeQuote(input: {
     if (priced.reason === 'vat_basis_required') return clarify(QUOTE_COPY.askVat, 'vat', lead.name)
     return clarify(QUOTE_COPY.askPrice, 'price', lead.name)
   }
+  // A ₪0 quote takes a real number, and "0" alone may be a slip: the owner says it is free before any card exists.
+  if (priced.totals.totalAmount === 0 && !freeStated(said)) return clarify(QUOTE_COPY.askFree, 'free', lead.name)
 
   const text = quoteCard({
     lead: lead.name,

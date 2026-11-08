@@ -3,7 +3,7 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { BudgetStop, ceilingFor, createBudget } from '../live/quote/budget'
+import { BudgetStop, ceilingFor, createBudget, effectiveCapUsd } from '../live/quote/budget'
 import { HarnessRefused, assertRealBucket, assertSafeToRun, installNetworkGuard, readPrivateEnvFile, scrubSecrets, type NetworkGuard } from '../live/quote/safety'
 import { scoreRun, type RunObservation, type TurnObservation } from '../live/quote/evaluate'
 import { EMPTY_PERSISTED, type PersistedState } from '../live/quote/persistenceScore'
@@ -54,6 +54,12 @@ describe('budget', () => {
     const c = make((async () => { throw new Error('reset') }) as never)
     await c.fetch('https://x', body).catch(() => undefined)
     expect(c.state.spentUsd).toBeCloseTo(ceilingFor(body.body, 1000, price), 8)
+  })
+  it('a run can lower the cap but never raise it, and an unreadable value stops the run', () => {
+    expect(effectiveCapUsd(8, undefined)).toBe(8)
+    expect(effectiveCapUsd(8, '1')).toBe(1)
+    expect(effectiveCapUsd(1, '8')).toBe(1)
+    for (const bad of ['', ' ', 'abc', '0', '-1', 'NaN']) expect(() => effectiveCapUsd(8, bad)).toThrow(BudgetStop)
   })
   it('a provider refusal costs nothing', async () => {
     const b = make(ok(undefined, 401) as never)

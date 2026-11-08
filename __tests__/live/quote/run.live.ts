@@ -19,11 +19,12 @@ import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { agency, recipient, user } from '../../ownerWhatsappReminders/reminderFixtures'
 import { AUTHORIZED_AGENCY, EXEMPT_AGENCY, type LiveContext } from './env'
-import { SCENARIOS, variantFor, type CardExpect, type Scenario, type ScenarioVariant } from './scenarios'
+import { SCENARIOS as FULL_SET, ZERO_SCENARIOS, variantFor, type CardExpect, type Scenario, type ScenarioVariant } from './scenarios'
 import { scoreRun, type RunObservation, type RunScore, type TurnObservation } from './evaluate'
 import type { PersistedState } from './persistenceScore'
 
 const ctx = (globalThis as unknown as { __quoteLive: LiveContext }).__quoteLive
+const SCENARIOS = process.env.QUOTE_LIVE_SET === 'zero' ? ZERO_SCENARIOS : FULL_SET
 const REPORT_DIR = process.env.QUOTE_LIVE_REPORT_DIR || path.join('node_modules', '.cache', 'quote-live')
 const JSONL = path.join(REPORT_DIR, `${ctx.mode}.jsonl`)
 const TABLES = ['wa_assistant_jobs', 'wa_assistant_approvals', 'agent_action_approvals', 'agent_actions']
@@ -48,6 +49,12 @@ function scriptTurn(s: Scenario, v: ScenarioVariant, turn: number, leads: Record
     lines: lines.map((l, i) => ({ title: `פריט ${i + 1}`, quantity: l.quantity === 1 ? null : l.quantity, unitAmount: l.unitAmount, discountAmount: l.discountAmount ?? null, discountPercent: l.discountPercent ?? null })),
     priceBasis: basis === 'no_vat' ? null : s.id === 'H4' && turn === 0 ? null : basis,
   })
+  if (s.id.startsWith('Z')) {
+    const id = leads['דוד כהן']
+    const lines = step?.kind === 'card' ? step.card.lines : [{ quantity: 1, unitAmount: 0 }]
+    ctx.fake.next = { findName: 'דוד כהן', headline: 'h', proposal: { actionType: 'create_quote', args: { clientId: id, title: 'עבודה', ...priced(lines, 'incl_vat'), validityDays: null }, evidenceRefs: [`lead:${id}`] } }
+    return
+  }
   if (s.id === 'H16') {
     const id = leads['דוד כהן']
     ctx.fake.next = { findName: 'דוד כהן', headline: 'h', proposal: { actionType: 'create_quote', args: { clientId: id, title: 'חלונות', lines: Array.from({ length: 30 }, (_, i) => ({ title: `חלון ${i + 1}`, quantity: null, unitAmount: 100, discountAmount: null, discountPercent: null })), priceBasis: 'incl_vat', validityDays: null }, evidenceRefs: [`lead:${id}`] } }
@@ -56,6 +63,11 @@ function scriptTurn(s: Scenario, v: ScenarioVariant, turn: number, leads: Record
   if ((s.id === 'H9' || s.id === 'H10') && turn === 0) {
     const id = leads['דוד כהן']
     ctx.fake.next = { findName: 'דוד כהן', headline: 'h', proposal: { actionType: 'create_quote', args: { clientId: id, title: 'שיפוץ מטבח', lines: [{ title: 'שיפוץ מטבח', quantity: null, unitAmount: 18500, discountAmount: null, discountPercent: null }], priceBasis: 'incl_vat', validityDays: null }, evidenceRefs: [`lead:${id}`] } }
+    return
+  }
+  if (s.id === 'H15' && v.steps[0].kind === 'question' && v.steps[0].stopPrefix === 'quote_clarify_free' && turn === 0) {
+    const id = leads['דוד כהן']
+    ctx.fake.next = { findName: 'דוד כהן', headline: 'h', proposal: { actionType: 'create_quote', args: { clientId: id, title: 'שיפוץ מטבח', lines: [{ title: 'שיפוץ מטבח', quantity: null, unitAmount: 0, discountAmount: null, discountPercent: null }], priceBasis: 'incl_vat', validityDays: null }, evidenceRefs: [`lead:${id}`] } }
     return
   }
   if (s.id === 'H5' && turn === 0) {

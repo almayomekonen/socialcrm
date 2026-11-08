@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 // First on purpose: this module re-reads .env.test with override when it loads, which would undo everything set below.
 import '@/config/db'
 import { priceFor, maxCacheWriteRate } from '@/lib/ai/usage/pricing'
-import { createBudget, type BudgetState } from './budget'
+import { createBudget, effectiveCapUsd, type BudgetState } from './budget'
 import { createFakeProvider, type FakeProvider } from './fakeProvider'
 import { HarnessRefused, assertSafeToRun, installNetworkGuard, readPrivateEnvFile, scrubSecrets, type NetworkGuard } from './safety'
 
@@ -33,7 +33,7 @@ if (mode === 'model' && !file?.QUOTE_LIVE_API_KEY) throw new HarnessRefused(`${K
 
 // Self-test spends nothing (a scripted provider), so its figures are simulated and its own cap never ends the run.
 const SELF_TEST_CAP_USD = 1000
-const capUsd = mode === 'self' ? SELF_TEST_CAP_USD : Number(file?.QUOTE_LIVE_MAX_USD ?? HARD_CAP_USD)
+const capUsd = mode === 'self' ? SELF_TEST_CAP_USD : effectiveCapUsd(Number(file?.QUOTE_LIVE_MAX_USD ?? HARD_CAP_USD), process.env.QUOTE_LIVE_CAP_USD)
 if (mode === 'model' && (!(capUsd > 0) || capUsd > HARD_CAP_USD)) throw new HarnessRefused(`the cap must be above 0 and at most ${HARD_CAP_USD}`)
 // Named on purpose, never defaulted: the run must use the model Production uses, and that value lives in Vercel, not in this repo.
 if (mode === 'model' && !file?.QUOTE_LIVE_MODEL) throw new HarnessRefused(`${KEY_FILE} must name QUOTE_LIVE_MODEL`)

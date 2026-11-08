@@ -596,3 +596,75 @@ describe('the switch', () => {
     expect(await quotesOf(A)).toHaveLength(0)
   })
 })
+
+describe('a quote that totals ₪0', () => {
+  const ZERO = 'תכין הצעת מחיר לדוד כהן עבור שיפוץ מטבח, 0 שקל כולל מע"מ'
+  const zero = (o: Owner) => answer(quote(o.lead, { lines: [item(0)] }), [o.lead])
+  const noWrites = async () => {
+    expect(await quotesOf(A)).toHaveLength(0)
+    expect(await actionsOf(A)).toHaveLength(0)
+    expect(await db('bill_numbering_sequences').where({ agencyId: A })).toHaveLength(0)
+  }
+
+  it('asks first: no card, no action, no number', async () => {
+    const o = await owner()
+    const h = harness([zero(o)])
+    await say(o, ZERO)
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askFree)
+    expect(h.last().buttons ?? []).toHaveLength(0)
+    await noWrites()
+  })
+
+  it('"בחינם" answers the question: a card, then a ₪0 quote with a number', async () => {
+    const o = await owner()
+    const h = harness([zero(o), zero(o)])
+    await say(o, ZERO)
+    await run(h)
+    const c = await card(o, h, 'בחינם')
+    expect(c.body).toContain('₪0.00')
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(await quotesOf(A)).toMatchObject([{ status: 'ready', quoteNumber: '1', totalAmount: '0.00' }])
+  })
+
+  it('a bare "כן" is not the explicit confirmation: it asks again and writes nothing', async () => {
+    const o = await owner()
+    const h = harness([zero(o), zero(o)])
+    await say(o, ZERO)
+    await run(h)
+    await say(o, 'כן')
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askFree)
+    await noWrites()
+  })
+
+  it('a real price instead takes the normal path', async () => {
+    const o = await owner()
+    const h = harness([zero(o), answer(quote(o.lead, { lines: [item(5000)] }), [o.lead])])
+    await say(o, ZERO)
+    await run(h)
+    expect((await card(o, h, 'לא, 5,000')).body).toContain('₪5,000.00')
+  })
+
+  it('said free in the request: straight to the card', async () => {
+    const o = await owner()
+    const h = harness([zero(o)])
+    expect((await card(o, h, `${ZERO}, בחינם`)).body).toContain('₪0.00')
+  })
+
+  it('a 100% discount is a ₪0 quote too', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(20000, { discountPercent: 100 })], priceBasis: 'excl_vat' }), [o.lead])])
+    await say(o, 'הצעת מחיר לדוד כהן על ארונות 20,000 עם 100% הנחה, לפני מע"מ')
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askFree)
+    await noWrites()
+  })
+
+  it('a free line inside a paid quote needs no question', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(1000), item(0, { title: 'התקנה' })] }), [o.lead])])
+    expect((await card(o, h, 'הצעת מחיר לדוד כהן: ארונות 1,000, התקנה 0, כולל מע"מ')).body).toContain('₪1,000.00')
+  })
+})

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { zodSchema } from 'ai'
-import { discountRequested, isStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from '@/lib/waAssistant/quotes/grounding'
+import { discountRequested, freeStated, isStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from '@/lib/waAssistant/quotes/grounding'
 import { answersPending } from '@/lib/waAssistant/continuation'
 import { REQUEST_WORDS } from '@/lib/waAssistant/request'
 import { agentAnswerSchema } from '@/lib/agent/answerSchema'
@@ -88,6 +88,22 @@ describe('percent discounts', () => {
     [['ללא שום הנחה'], false],
     [['הנחתום מהשכונה'], false],
   ])('discount requested in %j → %s', (said, expected) => expect(discountRequested(said)).toBe(expected))
+})
+
+describe('a free quote is said out loud', () => {
+  it.each([
+    [['בחינם'], true],
+    [['כן, בחינם'], true],
+    [['זה חינם'], true],
+    [['ללא תשלום'], true],
+    [['בלי עלות'], true],
+    [['0 שקל'], false],
+    [['כן'], false],
+    [['לא בחינם'], false],
+    [['לא בחינם', 'בחינם'], false],
+    [['בחינם', 'לא בחינם'], true],
+    [['תשלום מלא'], false],
+  ])('%j → %s', (said, expected) => expect(freeStated(said)).toBe(expected))
 })
 
 describe('the VAT basis comes from the owner, never assumed', () => {

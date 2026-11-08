@@ -21,6 +21,14 @@ export class BudgetStop extends Error {
   }
 }
 
+/** A single run may lower the file's cap, never raise it. Anything unreadable stops the run rather than falling back. */
+export function effectiveCapUsd(fileCap: number, override: string | undefined): number {
+  if (override === undefined) return fileCap
+  const lowered = override.trim() === '' ? Number.NaN : Number(override)
+  if (!(lowered > 0)) throw new BudgetStop('QUOTE_LIVE_CAP_USD is not a positive number')
+  return Math.min(fileCap, lowered)
+}
+
 const usd = (tokens: number, perM: number) => (tokens * perM) / 1_000_000
 
 export function ceilingFor(body: string, maxOutputTokens: number, price: BudgetPrice): number {
