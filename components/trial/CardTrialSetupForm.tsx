@@ -35,9 +35,8 @@ const HEBREW = translatorFor('he')
  * that it must be asked explicitly in our interface too, so it is a separate
  * checkbox: ticking one must never be read as agreeing to the other.
  *
- * Nothing on this screen starts a trial: the CTA opens Grow's payment page, and
- * only the verified callback activates anything. The submit button is disabled
- * while a setup is being opened, so one customer cannot leave two live setups.
+ * Nothing here starts a trial: the CTA opens Grow's page, and only the verified
+ * callback activates anything. Submit is disabled while a setup is being opened.
  */
 
 const ERRORS: Record<string, MessageKey> = {
@@ -62,6 +61,7 @@ export type CardTrialSetupFormProps = {
   submitLabel: string
   /** Injected in tests; defaults to a real navigation to Grow's hosted page. */
   onRedirect?: (url: string) => void
+  returnTo?: 'credits'
   /**
    * Follow the interface language (settings → billing). The recorded terms (the
    * two consents and the disclosure lines) stay Hebrew either way, in a Hebrew
@@ -128,7 +128,7 @@ function EmphasisedLine({ line }: { line: string }) {
   )
 }
 
-export default function CardTrialSetupForm({ purpose, mode = 'subscription', defaultFullName = '', defaultPhone = '', submitLabel, onRedirect, translated = false }: CardTrialSetupFormProps) {
+export default function CardTrialSetupForm({ purpose, returnTo, mode = 'subscription', defaultFullName = '', defaultPhone = '', submitLabel, onRedirect, translated = false }: CardTrialSetupFormProps) {
   const ui = useT()
   const t = translated ? ui : HEBREW
   const terms = t.locale === 'he' ? {} : untranslatedAttrs(t.locale)
@@ -145,7 +145,7 @@ export default function CardTrialSetupForm({ purpose, mode = 'subscription', def
     setError(null)
     trackTrialStartClicked().catch(() => {})
     try {
-      const res = await startCardSetup({ purpose, fullName, phone, acceptedTerms: accepted, acceptedCardStorage: storageAccepted })
+      const res = await startCardSetup({ purpose, returnTo, fullName, phone, acceptedTerms: accepted, acceptedCardStorage: storageAccepted })
       if ('error' in res) {
         setError({
           field: res.error === 'invalid_holder' ? res.field : null,

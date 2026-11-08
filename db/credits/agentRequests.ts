@@ -108,6 +108,17 @@ export async function admitAgentRequest(input: AgentRequestInput): Promise<Agent
   }
 }
 
+/** The owner's own latest WhatsApp request that was refused in the last day, to offer as a draft. Never re-run. */
+export async function lastBlockedQuestion(agencyId: number, userId: number, nowMs = Date.now()): Promise<string | null> {
+  const row = (await db(`${T} as r`)
+    .join('wa_assistant_jobs as j', db.raw('j.id::text = r."operationId"'))
+    .where({ 'r.agencyId': agencyId, 'r.userId': userId, 'r.tier': 'blocked', 'r.operationKind': 'wa_assistant_job', 'j.agencyId': agencyId })
+    .where('r.createdAt', '>', new Date(nowMs - 86_400_000))
+    .orderBy('r.id', 'desc')
+    .first('j.question')) as { question: string | null } | undefined
+  return row?.question?.trim().slice(0, 300) || null
+}
+
 export type SettlementSummary = { settled: number; exempt: number; unpriced: number; voided: number; skipped: number }
 
 type Aggregate = { calls: number; cost: number | null; unpriced: boolean; last: Date | null; models: string[] }

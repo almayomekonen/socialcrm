@@ -16,7 +16,7 @@ import { buyCreditPack } from '@/actions/credits'
 import type { CreditBalanceView } from '@/lib/credits/balanceView'
 
 const view = (over: Partial<CreditBalanceView> = {}): CreditBalanceView => ({
-  periodKey: '2026-11', metering: true, enforced: true, canPurchase: true, hasCard: true, freeLimit: 50, freeUsed: 12, purchasedAvailable: 0, exemptThisPeriod: 0, state: 'ok', packs: [], purchases: [], ...over,
+  periodKey: '2026-11', metering: true, enforced: true, canPurchase: true, hasCard: true, freeLimit: 50, freeUsed: 12, purchasedAvailable: 0, exemptThisPeriod: 0, state: 'ok', packs: [], purchases: [], cardDeclined: false, latestPurchase: null, ...over,
 })
 const PACK = [{ kind: 'credits_200' as const, credits: 200, priceIls: 49 }]
 afterEach(() => {

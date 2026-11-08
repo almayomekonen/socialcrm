@@ -29,6 +29,9 @@ type Props = {
   purpose: 'card_trial' | 'card_update' | 'reactivate'
   /** Injected in tests. */
   poll?: () => Promise<CardSetupState>
+  /** Where this setup was started from; every exit returns there. A fixed path, never from the query string. */
+  returnTo?: string
+  navigate?: (url: string) => void
   /**
    * Display language (i18n Phase F5) — the page's `ui_locale` hint. Words only:
    * the polling, its bounds and every navigation are the same in every language.
@@ -42,7 +45,11 @@ const HEADLINE: Record<Props['purpose'], MessageKey> = {
   reactivate: 'trial.verifier.headline.reactivate',
 }
 
-export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, locale = 'he' }: Props) {
+const assignLocation = (url: string) => window.location.assign(url)
+
+export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, locale = 'he', returnTo, navigate = assignLocation }: Props) {
+  const homeHref = returnTo ?? '/dashboard'
+  const billingHref = returnTo ?? '/settings/update_payment'
   const t = translatorFor(locale)
   const [status, setStatus] = useState<CardSetupState>({ state: 'verifying', callbackReceived: false, firstChargeAt: null, chargesEnabled: false, sandbox: false })
   const [timedOut, setTimedOut] = useState(false)
@@ -56,6 +63,7 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, 
       const next = await poll().catch(() => null)
       if (!active) return
       if (next) setStatus(next)
+      if (next?.state === 'confirmed' && returnTo) navigate(returnTo)
       if (next && next.state !== 'verifying') return
       if (Date.now() - startedAt >= MAX_WAIT_MS) {
         setTimedOut(true)
@@ -68,7 +76,7 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, 
       active = false
       clearTimeout(timer)
     }
-  }, [poll])
+  }, [poll, returnTo, navigate])
 
   const chargeDate = formatBillingDate(status.firstChargeAt)
   const amount = String(CARD_TRIAL_AMOUNT)
@@ -91,7 +99,7 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, 
             </p>
           )}
           {purpose !== 'card_trial' && <p className='text-sm text-gray-600'>{t('trial.verifier.saved')}</p>}
-          <Btn variant='solid' size='large' lbl={t('trial.verifier.enter')} className='w-full justify-center' onClick={() => window.location.assign('/dashboard')} />
+          <Btn variant='solid' size='large' lbl={t('trial.verifier.enter')} className='w-full justify-center' onClick={() => window.location.assign(homeHref)} />
         </>
       ) : status.state === 'failed' ? (
         <>
@@ -102,7 +110,7 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, 
             size='large'
             lbl={t('trial.verifier.toBilling')}
             className='w-full justify-center'
-            onClick={() => window.location.assign('/settings/update_payment')}
+            onClick={() => window.location.assign(billingHref)}
           />
         </>
       ) : timedOut ? (
@@ -115,8 +123,8 @@ export default function CardSetupVerifier({ purpose, poll = getCardSetupStatus, 
           </p>
           <p className='text-sm text-gray-600'>{t('trial.verifier.timedOutNote')}</p>
           <div className='flex flex-col gap-2'>
-            <Btn variant='solid' size='large' lbl={t('trial.verifier.toBilling')} className='w-full justify-center' onClick={() => window.location.assign('/settings/update_payment')} />
-            <Btn variant='outline' size='large' lbl={t('trial.verifier.back')} className='w-full justify-center' onClick={() => window.location.assign('/dashboard')} />
+            <Btn variant='solid' size='large' lbl={t('trial.verifier.toBilling')} className='w-full justify-center' onClick={() => window.location.assign(billingHref)} />
+            <Btn variant='outline' size='large' lbl={t('trial.verifier.back')} className='w-full justify-center' onClick={() => window.location.assign(homeHref)} />
           </div>
         </>
       ) : (

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { CreditBalanceView } from '@/lib/credits/balanceView'
 import type { UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
@@ -24,7 +25,7 @@ const STATUS_KEY: Record<string, MessageKey> = {
   cancelled: 'settings.payment.credits.historyStatus.cancelled',
 }
 
-export default function CreditBalance({ view, locale = 'he', linkMismatch = false }: { view: CreditBalanceView; locale?: UiLocale; linkMismatch?: boolean }) {
+export default function CreditBalance({ view, locale = 'he', linkMismatch = false, cardSetup }: { view: CreditBalanceView; locale?: UiLocale; linkMismatch?: boolean; cardSetup?: ReactNode }) {
   const t = translatorFor(locale)
   const label = t('settings.payment.credits.balance')
   const percent = view.freeLimit > 0 ? Math.min(100, Math.round((view.freeUsed / view.freeLimit) * 100)) : 0
@@ -63,14 +64,14 @@ export default function CreditBalance({ view, locale = 'he', linkMismatch = fals
 
         {view.packs.length > 0 &&
           !linkMismatch &&
-          (view.hasCard ? (
+          (view.hasCard && !view.cardDeclined ? (
             <div className='mt-1 flex flex-wrap gap-2'>
               {view.packs.map((p) => (
                 <CreditPackButton key={p.kind} kind={p.kind} credits={p.credits} price={ils(p.priceIls)} />
               ))}
             </div>
           ) : (
-            <p className='text-xs text-gray-500'>{t('settings.payment.credits.noCard')}</p>
+            (cardSetup ?? <p className='text-xs text-gray-500'>{t('settings.payment.credits.noCard')}</p>)
           ))}
       </div>
 
