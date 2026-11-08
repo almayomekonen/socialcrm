@@ -36,6 +36,8 @@ const lineArgs = z.object({
   quantity: z.number().positive(),
   unitAmount: z.number().min(0),
   discountAmount: z.number().min(0).nullable(),
+  /** The percent the owner stated, kept beside the amount computed from it so the approval binds both. */
+  discountPercent: z.number().min(0).max(100).nullable().optional(),
 })
 
 const createQuoteArgs = z.object({

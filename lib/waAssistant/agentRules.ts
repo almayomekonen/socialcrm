@@ -48,8 +48,9 @@ const REMINDER_RULES = `- תזכורות אישיות (תזכורת שנשלחת
  * words, computes VAT and totals, and asks when something is missing.
  */
 const QUOTE_RULES = `- בוואטסאפ אפשר גם לבקש יצירת הצעת מחיר לליד: create_quote עם clientId, title, lines, priceBasis ו-validityDays. "תכין הצעת מחיר ל...", "הצעת מחיר עבור..." הם create_quote. מצא קודם את הליד עם find_lead.
-- title הוא נושא ההצעה במילים של בעל העסק ("שיפוץ מטבח"). lines: פריט לכל דבר שבעל העסק תמחר, עם title, quantity, unitAmount ו-discountAmount.
+- title הוא נושא ההצעה במילים של בעל העסק ("שיפוץ מטבח"). lines: פריט לכל דבר שבעל העסק תמחר, עם title, quantity, unitAmount, discountAmount ו-discountPercent.
 - unitAmount הוא המחיר שבעל העסק אמר, בדיוק, כמספר (18,500 → 18500). quantity רק אם נאמרה כמות, אחרת null. discountAmount רק אם נאמר סכום הנחה, אחרת null.
+- אחוז הנחה שנאמר הוא discountPercent (10% → 10) עם discountAmount null. אל תחשב את הסכום בעצמך. הנחה באחוזים על כל ההצעה: אותו discountPercent בכל פריט.
 - לעולם אל תמציא מחיר, כמות או הנחה. מחיר שלא נאמר: unitAmount null, והמערכת תשאל.
 - priceBasis: incl_vat כשנאמר "כולל מע"מ", excl_vat כשנאמר "לפני מע"מ", "פלוס מע"מ" או "לא כולל מע"מ", אחרת null. אל תנחש.
 - validityDays רק אם בעל העסק אמר תוקף ("בתוקף ל-30 יום" → 30, "שבועיים" → 14), אחרת null.

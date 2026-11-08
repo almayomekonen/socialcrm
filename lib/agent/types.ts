@@ -335,7 +335,7 @@ export type ProposedAction =
       args: {
         clientId: number
         title: string
-        lines: { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null }[]
+        lines: { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null; discountPercent?: number | null }[]
         priceBasis: 'incl_vat' | 'excl_vat' | null
         validityDays: number | null
         expectedTotalAmount?: number

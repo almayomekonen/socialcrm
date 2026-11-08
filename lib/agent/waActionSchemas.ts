@@ -33,8 +33,10 @@ export const createQuoteProposal = z.object({
         quantity: z.union([z.number(), z.null()]),
         /** The price the owner said for this item, exactly. Null when none was said. */
         unitAmount: z.union([z.number(), z.null()]),
-        /** A discount amount the owner said for this item, or null. */
+        /** A discount AMOUNT the owner said for this item, or null. */
         discountAmount: z.union([z.number(), z.null()]),
+        /** A discount PERCENT the owner said ("10%" → 10), or null. The application computes the amount. */
+        discountPercent: z.union([z.number(), z.null()]),
       }),
     ),
     /** "כולל מע"מ" → incl_vat, "לפני/פלוס מע"מ" → excl_vat, otherwise null. */

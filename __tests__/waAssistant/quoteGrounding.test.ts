@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { zodSchema } from 'ai'
-import { isStated, lineGrounded, statedAmounts, statedBasis, validityStated } from '@/lib/waAssistant/quotes/grounding'
+import { discountRequested, isStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from '@/lib/waAssistant/quotes/grounding'
 import { answersPending } from '@/lib/waAssistant/continuation'
 import { REQUEST_WORDS } from '@/lib/waAssistant/request'
 import { agentAnswerSchema } from '@/lib/agent/answerSchema'
@@ -21,6 +21,7 @@ const line = (unitAmount: number | null, over: Partial<{ quantity: number | null
   quantity: over.quantity ?? null,
   unitAmount,
   discountAmount: over.discountAmount ?? null,
+  discountPercent: null as number | null,
 })
 
 describe('amounts the owner wrote', () => {
@@ -55,6 +56,38 @@ describe('a line is grounded only in what was said', () => {
     expect(isStated(18500, [18500])).toBe(true)
     expect(isStated(18500.01, [18500])).toBe(false)
   })
+})
+
+describe('percent discounts', () => {
+  it.each([
+    ['10% הנחה', [10]],
+    ['%10 הנחה', [10]],
+    ['12.5% הנחה', [12.5]],
+    ['הנחה של 10 אחוז', [10]],
+    ['15 אחוזים', [15]],
+    ['20,000 שקל', []],
+    ['0% הנחה', []],
+    ['150%', []],
+  ])('%s', (text, expected) => expect(statedPercents([text])).toEqual(expected))
+
+  it('a number written as a percent is not an amount', () => {
+    const said = ['ארונות 20,000 עם 10% הנחה']
+    expect(statedAmounts(said)).toEqual([20000])
+    expect(lineGrounded({ ...line(20000), discountAmount: 10 }, statedAmounts(said), statedPercents(said))).toBe(false)
+  })
+  it('a stated percent grounds the line; an unstated one does not', () => {
+    const said = ['ארונות 20,000 עם 10% הנחה']
+    expect(lineGrounded({ ...line(20000), discountPercent: 10 }, statedAmounts(said), statedPercents(said))).toBe(true)
+    expect(lineGrounded({ ...line(20000), discountPercent: 15 }, statedAmounts(said), statedPercents(said))).toBe(false)
+  })
+  it.each([
+    [['תן לו הנחה'], true],
+    [['10% הנחה'], true],
+    [['18,500 כולל מע"מ'], false],
+    [['בלי הנחה', 'תן לו הנחה'], false],
+    [['ללא שום הנחה'], false],
+    [['הנחתום מהשכונה'], false],
+  ])('discount requested in %j → %s', (said, expected) => expect(discountRequested(said)).toBe(expected))
 })
 
 describe('the VAT basis comes from the owner, never assumed', () => {

@@ -11,7 +11,7 @@ import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from '../meetings/types'
 import { requestMessages } from '../request'
 import { chooseLead } from '../leadChoice'
-import { lineGrounded, statedAmounts, statedBasis, validityStated } from './grounding'
+import { discountRequested, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from './grounding'
 import { QUOTE_COPY, quoteButtons, quoteCard } from './copy'
 
 /**
@@ -69,7 +69,11 @@ export async function proposeQuote(input: {
   const title = validQuoteTitle(p.args.title) ? p.args.title.trim() : proposed[0]?.title.trim()
   if (!proposed.length || !validQuoteTitle(title)) return clarify(QUOTE_COPY.askItems, 'items', lead.name)
   const amounts = statedAmounts(said)
-  if (!proposed.every((l) => lineGrounded(l, amounts))) return clarify(QUOTE_COPY.askPrice, 'price', lead.name)
+  const percents = statedPercents(said)
+  if (!proposed.every((l) => lineGrounded(l, amounts, percents))) return clarify(QUOTE_COPY.askPrice, 'price', lead.name)
+  // The owner asked for a discount and the proposal carries none: never a clean-looking card without it.
+  if (discountRequested(said) && !proposed.some((l) => (l.discountPercent ?? 0) > 0 || (l.discountAmount ?? 0) > 0))
+    return clarify(QUOTE_COPY.askDiscount, 'discount', lead.name)
 
   const validityDays = p.args.validityDays ?? null
   if (validityDays != null && (!validValidityDays(validityDays) || !validityStated(validityDays, said)))
@@ -81,14 +85,15 @@ export async function proposeQuote(input: {
   const priceBasis = stated === 'incl_vat' || stated === 'excl_vat' ? stated : null
   if (tax.ratePercent !== 0 && !priceBasis) return clarify(QUOTE_COPY.askVat, 'vat', lead.name)
 
-  const lines = proposed.map((l) => ({
-    title: l.title.trim(),
-    quantity: l.quantity ?? 1,
-    unitAmount: l.unitAmount as number,
-    discountAmount: l.discountAmount && l.discountAmount > 0 ? l.discountAmount : null,
-  }))
+  const lines = proposed.map((l) => {
+    const quantity = l.quantity ?? 1
+    const unitAmount = l.unitAmount as number
+    const discountPercent = l.discountPercent && l.discountPercent > 0 ? l.discountPercent : null
+    const computed = discountPercent != null ? Math.round(quantity * unitAmount * discountPercent) / 100 : null
+    return { title: l.title.trim(), quantity, unitAmount, discountAmount: computed ?? (l.discountAmount && l.discountAmount > 0 ? l.discountAmount : null), discountPercent }
+  })
   const priced = priceOwnerQuote({
-    lines: lines.map((l) => ({ ...l, discountAmount: l.discountAmount ?? undefined })),
+    lines: lines.map(({ discountPercent: _percent, ...l }) => ({ ...l, discountAmount: l.discountAmount ?? undefined })),
     priceBasis,
     ratePercent: tax.ratePercent,
   })
@@ -102,6 +107,7 @@ export async function proposeQuote(input: {
     lead: lead.name,
     title,
     lines: priced.lines,
+    discountPercents: lines.map((l) => l.discountPercent),
     totals: priced.totals,
     basis: priced.basis,
     ratePercent: priced.ratePercent,

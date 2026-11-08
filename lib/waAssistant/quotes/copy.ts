@@ -21,6 +21,7 @@ export const QUOTE_COPY = {
   askLead: 'לאיזה ליד להכין את הצעת המחיר?',
   askItems: 'על מה הצעת המחיר, ובאיזה מחיר?',
   askPrice: 'מה המחיר? כתבו את הסכום במספרים, למשל 18,500.',
+  askDiscount: 'כמה הנחה לתת? אפשר סכום או אחוז במספרים, למשל 10%.',
   askVat: 'המחיר כולל מע"מ או לפני מע"מ?',
   askValidity: 'לכמה ימים ההצעה בתוקף? אפשר גם בלי תוקף.',
   notAllowed: 'אין לך הרשאה ליצור הצעות מחיר, ולכן לא יצרתי דבר.',
@@ -48,6 +49,8 @@ export function quoteCard(input: {
   lead: string
   title: string
   lines: readonly PricedOwnerLine[]
+  /** The percent the owner stated for each line, or null. */
+  discountPercents?: readonly (number | null)[]
   totals: QuoteTotals
   basis: 'incl_vat' | 'excl_vat' | 'no_vat'
   ratePercent: number
@@ -58,7 +61,8 @@ export function quoteCard(input: {
   const { totals } = input
   const out = ['*ליצור הצעת מחיר?*', `ליד: ${name(input.lead)}`, `נושא: ${name(input.title)}`, 'פריטים:']
   input.lines.forEach((l, i) => {
-    const discount = l.discount > 0 ? `, הנחה ${ils(l.discount)}` : ''
+    const percent = input.discountPercents?.[i]
+    const discount = l.discount > 0 ? `, הנחה ${percent != null ? `${formatQty(percent)}% (${ils(l.discount)})` : ils(l.discount)}` : ''
     out.push(`${i + 1}. ${name(l.title)}: ${formatQty(l.quantity)} × ${unitIls(l.unitPrice)}${discount} = ${ils(totals.lines[i].lineSubtotal)}`)
   })
   out.push(`(מחירי הפריטים לפני מע"מ. ${BASIS_LABEL[input.basis]}.)`)

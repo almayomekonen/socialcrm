@@ -7,21 +7,29 @@
  * VAT basis the model produced on its own never reaches a card. A failed check
  * becomes ONE question to the owner, never a guess (care charter, Law 1).
  *
- * Deliberately narrow: digits (with thousands separators and decimals) and
- * "אלף" ("18.5 אלף"). Spelled-out Hebrew numbers and percentages are NOT read,
- * so they fail toward a question rather than toward a number nobody said.
+ * Deliberately narrow: digits (with thousands separators and decimals), "אלף"
+ * ("18.5 אלף"), and a percent written with digits ("10%", "%10", "10 אחוז").
+ * Spelled-out Hebrew numbers are NOT read, so they fail toward a question rather
+ * than toward a number nobody said.
  */
 
 export type StatedBasis = 'incl_vat' | 'excl_vat' | 'ambiguous' | null
 
 const NUMBER = /(?<![\d.,])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?(?![\d])(\s*(?:אלף|אלפים|אל"ף|k|K)(?![\p{L}]))?/gu
 const round2 = (n: number) => Math.round(n * 100) / 100
+const PERCENT_AFTER = /^\s*(?:%|אחוז(?:ים)?(?![\p{L}]))/u
+const PERCENT_BEFORE = /%\s*$/u
+const PERCENT = /(?<![\d.,])(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|אחוז(?:ים)?(?![\p{L}]))|%\s*(\d{1,3}(?:\.\d{1,2})?)(?![\d.,])/gu
 
-/** Every amount written in the owner's messages, including "18.5 אלף" as 18,500. */
+/**
+ * Every amount written in the owner's messages, including "18.5 אלף" as 18,500.
+ * A number written as a percent is not an amount: "10%" must never ground a ₪10 discount.
+ */
 export function statedAmounts(said: readonly string[]): number[] {
   const out = new Set<number>()
   for (const text of said) {
     for (const m of text.matchAll(NUMBER)) {
+      if (PERCENT_AFTER.test(text.slice(m.index + m[0].length)) || PERCENT_BEFORE.test(text.slice(0, m.index))) continue
       const base = Number(`${m[1].replace(/,/g, '')}${m[2] ? `.${m[2]}` : ''}`)
       if (!Number.isFinite(base)) continue
       out.add(round2(base))
@@ -31,20 +39,41 @@ export function statedAmounts(said: readonly string[]): number[] {
   return [...out]
 }
 
+/** Every percent written with digits in the owner's messages. */
+export function statedPercents(said: readonly string[]): number[] {
+  const out = new Set<number>()
+  for (const text of said) for (const m of text.matchAll(PERCENT)) out.add(Number(m[1] ?? m[2]))
+  return [...out].filter((p) => p > 0 && p <= 100)
+}
+
 export const isStated = (value: number, amounts: readonly number[]) => amounts.some((a) => Math.abs(a - value) < 0.005)
 
-export type ProposedLine = { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null }
+export type ProposedLine = { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null; discountPercent?: number | null }
+
+const NO_DISCOUNT = /(?:בלי|ללא|בלא|אין)\s+(?:שום\s+)?הנח/u
+const DISCOUNT = /(?<![\p{L}])[ובלה]?הנח[הת](?![\p{L}])/u
+
+/** Did the owner ask for a discount? The newest message that speaks about one decides ("בלי הנחה" answers our question). */
+export function discountRequested(said: readonly string[]): boolean {
+  for (const text of said) {
+    if (NO_DISCOUNT.test(text)) return false
+    if (DISCOUNT.test(text)) return true
+  }
+  return false
+}
 
 /**
  * A line's price is grounded when the owner said it per unit, or said the
  * line's whole amount ("3 חלונות ב-3,000"). A quantity other than 1, and any
- * discount, must be said too.
+ * discount (as an amount or as a percent), must be said too. A stated percent
+ * wins over any amount beside it: the application computes that amount itself.
  */
-export function lineGrounded(l: ProposedLine, amounts: readonly number[]): boolean {
+export function lineGrounded(l: ProposedLine, amounts: readonly number[], percents: readonly number[] = []): boolean {
   const qty = l.quantity ?? 1
   if (l.unitAmount == null) return false
   if (qty !== 1 && !isStated(qty, amounts)) return false
   if (!isStated(l.unitAmount, amounts) && !isStated(round2(l.unitAmount * qty), amounts)) return false
+  if (l.discountPercent != null && l.discountPercent !== 0) return isStated(l.discountPercent, percents)
   if (l.discountAmount != null && l.discountAmount !== 0 && !isStated(l.discountAmount, amounts)) return false
   return true
 }

@@ -46,8 +46,8 @@ async function owner(role = 'ADMIN', agencyId = A): Promise<Owner> {
   return { u, r, digits, lead: await lead(agencyId, u) }
 }
 
-type Line = { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null }
-const item = (unitAmount: number | null, over: Partial<Line> = {}): Line => ({ title: 'שיפוץ מטבח', quantity: null, unitAmount, discountAmount: null, ...over })
+type Line = { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null; discountPercent: number | null }
+const item = (unitAmount: number | null, over: Partial<Line> = {}): Line => ({ title: 'שיפוץ מטבח', quantity: null, unitAmount, discountAmount: null, discountPercent: null, ...over })
 const quote = (clientId: number, over: Partial<{ lines: Line[]; priceBasis: 'incl_vat' | 'excl_vat' | null; validityDays: number | null; title: string }> = {}) => ({
   actionType: 'create_quote' as const,
   args: { clientId, title: 'שיפוץ מטבח', lines: [item(18500)], priceBasis: 'incl_vat' as const, validityDays: null, ...over },
@@ -227,6 +227,36 @@ describe('created only after approval, numbered, ready, verified, once', () => {
     expect(c.body).toContain('*סה"כ: ₪11,800.00*')
   })
 
+  it('a stated 10% discount, excluding VAT: represented and calculated on card and quote', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(20000, { title: 'ארונות', discountPercent: 10 })], priceBasis: 'excl_vat' }), [o.lead])])
+    const c = await card(o, h, 'הצעת מחיר לדוד על ארונות, 20,000 עם 10% הנחה, לפני מע"מ')
+    expect(c.body).toContain('הנחה 10% (₪2,000.00)')
+    expect(c.body).toContain('הנחות: ₪2,000.00')
+    expect(c.body).toContain('סכום לפני מע"מ: ₪18,000.00')
+    expect(c.body).toContain('מע"מ (18%): ₪3,240.00')
+    expect(c.body).toContain('*סה"כ: ₪21,240.00*')
+    await tap(o.digits, c.approve)
+    await run(h)
+    const [q] = await db('sales_quotes').where({ agencyId: A }).select('subtotalAmount', 'discountAmount', 'taxAmount', 'totalAmount')
+    expect([q.subtotalAmount, q.discountAmount, q.taxAmount, q.totalAmount].map(Number)).toEqual([18000, 2000, 3240, 21240])
+  })
+
+  it('a stated 10% discount, including VAT: the total is 90% of the stated price', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(23600, { title: 'ארונות', discountPercent: 10 })] }), [o.lead])])
+    const c = await card(o, h, 'הצעת מחיר לדוד על ארונות, 23,600 כולל מע"מ עם 10% הנחה')
+    expect(c.body).toContain('*סה"כ: ₪21,240.00*')
+    expect(c.body).toContain('הנחה 10% (₪2,000.00)')
+  })
+
+  it('the percent is bound into the approved action', async () => {
+    const o = await owner()
+    await card(o, harness([answer(quote(o.lead, { lines: [item(20000, { title: 'ארונות', discountPercent: 10 })], priceBasis: 'excl_vat' }), [o.lead])]), 'הצעת מחיר לדוד על ארונות, 20,000 עם 10% הנחה, לפני מע"מ')
+    const [row] = await actionsOf(A)
+    expect((row.args as { lines: unknown[] }).lines[0]).toMatchObject({ unitAmount: 20000, discountAmount: 2000, discountPercent: 10 })
+  })
+
   it('a rounding difference is shown, and the stored total is the card\'s', async () => {
     const o = await owner()
     const h = harness([answer(quote(o.lead, { lines: [item(1.21, { title: 'בורג' })] }), [o.lead])])
@@ -298,6 +328,35 @@ describe('missing or unstated details → one question, never a guess', () => {
     expect(c.body).toContain('*סה"כ: ₪18,500.00*')
   })
 
+  it('a percent the owner never said → asks, nothing recorded', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(20000, { title: 'ארונות', discountPercent: 15 })], priceBasis: 'excl_vat' }), [o.lead])])
+    await say(o, 'הצעת מחיר לדוד על ארונות, 20,000 עם 10% הנחה, לפני מע"מ')
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askPrice)
+    expect(await actionsOf(A)).toHaveLength(0)
+  })
+
+  it('"10%" read as ₪10 is refused', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(20000, { title: 'ארונות', discountAmount: 10 })], priceBasis: 'excl_vat' }), [o.lead])])
+    await say(o, 'הצעת מחיר לדוד על ארונות, 20,000 עם 10% הנחה, לפני מע"מ')
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askPrice)
+  })
+
+  it('a requested discount the proposal dropped → asks; "10%" then completes it', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead, { lines: [item(20000, { title: 'ארונות' })], priceBasis: 'excl_vat' }), [o.lead])])
+    await say(o, 'הצעת מחיר לדוד על ארונות, 20,000 לפני מע"מ, עם הנחה')
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.askDiscount)
+    expect(await actionsOf(A)).toHaveLength(0)
+    h.runAgent.mockResolvedValueOnce(answer(quote(o.lead, { lines: [item(20000, { title: 'ארונות', discountPercent: 10 })], priceBasis: 'excl_vat' }), [o.lead]) as never)
+    const c = await card(o, h, '10%')
+    expect(c.body).toContain('*סה"כ: ₪21,240.00*')
+  })
+
   it('a validity the owner never said → asks', async () => {
     const o = await owner()
     const h = harness([answer(quote(o.lead, { validityDays: 30 }), [o.lead])])
@@ -319,6 +378,46 @@ describe('missing or unstated details → one question, never a guess', () => {
     h.runAgent.mockResolvedValueOnce(answer(quote(o.lead), [o.lead, second]) as never)
     const c = await card(o, h, '2')
     expect(c.body).toContain('ליד: דוד לוי')
+  })
+
+  describe('the item limit (H16): over it, nothing at all is created', () => {
+    const NAME = 'התקנת ארון מטבח עליון'
+    const items = (n: number) => Array.from({ length: n }, () => item(18500, { title: NAME }))
+    const nothing = async () => {
+      expect(await actionsOf(A)).toHaveLength(0)
+      expect(await db('wa_assistant_approvals').where({ agencyId: A })).toHaveLength(0)
+      expect(await db('sales_quotes').where({ agencyId: A })).toHaveLength(0)
+      expect(await db('sales_quote_items').where({ agencyId: A })).toHaveLength(0)
+      expect(await db('bill_numbering_sequences').where({ agencyId: A, kind: 'quote' })).toHaveLength(0)
+    }
+    const words = 'תכין הצעת מחיר לדוד כהן, כל פריט 18,500 שקל כולל מע"מ'
+
+    it('12 medium-length items fit and every one is on the card and in the quote', async () => {
+      const o = await owner()
+      const h = harness([answer(quote(o.lead, { lines: items(12) }), [o.lead])])
+      const c = await card(o, h, words)
+      expect(c.body.length).toBeLessThanOrEqual(1024)
+      expect(c.body.split(NAME)).toHaveLength(13)
+      expect(c.body).toContain('*סה"כ: ₪222,000.06*')
+      expect(c.body).toContain('שימו לב: בגלל עיגול לאגורות')
+      await tap(o.digits, c.approve)
+      await run(h)
+      expect(await db('sales_quote_items').where({ agencyId: A })).toHaveLength(12)
+    })
+
+    it.each([
+      [13, QUOTE_COPY.tooLongForCard],
+      [30, QUOTE_COPY.tooLongForCard],
+      [51, QUOTE_COPY.tooManyLines],
+    ])('%i items are refused', async (n, text) => {
+      const o = await owner()
+      const h = harness([answer(quote(o.lead, { lines: items(n) }), [o.lead])])
+      await say(o, words)
+      await run(h)
+      expect(h.last().body).toBe(text)
+      expect(h.last().buttons).toBeUndefined()
+      await nothing()
+    })
   })
 
   it('a card too long to show in full is refused, never cut', async () => {
