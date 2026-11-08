@@ -1,6 +1,6 @@
 import { db } from '@/config/db'
 import { isTokenChargeReconciliationEstablished } from '@/lib/payments/grow/providerEvidence'
-import { insertNextAttempt, listUnknownCharges, markChargeFailed, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
+import { insertNextAttempt, isCreditPackCharge, listUnknownCharges, markChargeFailed, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
 import { decryptCardToken, getPaymentMethodById } from '@/db/payments/paymentMethods'
 import { assertGrowRuntime } from '@/lib/payments/grow/config'
 import { lookupTokenTransactionsRaw } from '@/lib/payments/grow/api'
@@ -117,7 +117,8 @@ export async function reconcileUnknownCharges(limit: number, reconcile: ChargeRe
     } else if (verdict.kind === 'not_charged') {
       await db.transaction(async (trx) => {
         await markChargeFailed(trx, charge.id, { status: 'failed_retryable', errorClass: 'reconciled_not_charged', errorId: null, errorMessage: '', statusCode: null })
-        await insertNextAttempt(trx, charge, new Date(Date.now() + UNKNOWN_RETRY_DELAY_MS))
+        // A credit pack is bought only while its buyer waits: never re-attempted later on its own.
+        if (!isCreditPackCharge(charge.kind)) await insertNextAttempt(trx, charge, new Date(Date.now() + UNKNOWN_RETRY_DELAY_MS))
       })
       summary.notCharged++
     } else {

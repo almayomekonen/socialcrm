@@ -272,6 +272,8 @@ export type AnalyticsEventName =
    * Never the question, the answer, a phone number or a lead name.
    */
   | 'wa_assistant_turn'
+  | 'agent_free_allowance_exhausted'
+  | 'agent_request_blocked'
   /**
    * A platform owner granted Pro without payment (actions/quota.ts
    * upgradeAgencyToPro). Recorded on the TARGET agency. Props: reason,

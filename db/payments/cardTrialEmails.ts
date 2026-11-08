@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { SUBSCRIPTION_CHARGE_KINDS } from '@/db/payments/charges'
 import { firstChargeAt } from '@/lib/payments/cardTrial/firstCharge'
 
 /**
@@ -62,6 +63,7 @@ export async function agencyChargeFailure(agencyId: number): Promise<ChargeFailu
   const failure = await db('billing_charges as c')
     .join('subscriptions as s', 's.agencyId', 'c.agencyId')
     .where('c.agencyId', agencyId)
+    .whereIn('c.kind', SUBSCRIPTION_CHARGE_KINDS as string[])
     .whereIn('c.status', ['failed_final', 'failed_retryable'])
     .where('s.cancelAtPeriodEnd', false)
     .whereNotExists((q) =>

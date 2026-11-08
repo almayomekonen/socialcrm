@@ -1,7 +1,8 @@
 import { db } from '@/config/db'
 import { performAgencyUpgrade } from '@/lib/quota/performUpgrade'
 import { track } from '@/lib/analytics/track'
-import { markChargeFailed, markChargeSucceeded, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
+import { isCreditPackCharge, markChargeFailed, markChargeSucceeded, type ChargeRow, type PaidCharge } from '@/db/payments/charges'
+import { grantCreditPack } from '@/db/credits/purchases'
 import { notifyAgencyOwner } from '@/lib/payments/notifyOwner'
 
 /**
@@ -27,6 +28,7 @@ const LOG = '[SubscriptionCharge]'
 const isUniqueViolation = (err: unknown) => (err as { code?: string } | null)?.code === PG_UNIQUE_VIOLATION
 
 export async function applySuccessfulCharge(charge: ChargeRow, paid: PaidCharge): Promise<{ applied: boolean }> {
+  if (isCreditPackCharge(charge.kind)) return applySuccessfulCreditPack(charge, paid)
   try {
     const applied = await db.transaction(async (trx) => {
       const sub = await trx('subscriptions').where({ agencyId: charge.agencyId }).forUpdate().first('cancelAtPeriodEnd')
@@ -86,4 +88,40 @@ async function announce(charge: ChargeRow): Promise<void> {
   await track({ agencyId: charge.agencyId, event: 'subscription_activated', props: { period: charge.billingPeriod, source: 'card_token', kind: charge.kind } })
   await track({ agencyId: charge.agencyId, event: 'subscription_charge_succeeded', props: { chargeId: charge.id, kind: charge.kind, attempt: charge.attempt } })
   await notifyAgencyOwner('subscription.activated', charge.agencyId, LOG)
+}
+
+/**
+ * A Grow-confirmed CREDIT-PACK charge: the charge is marked `succeeded` and the
+ * credits are granted in ONE transaction. Nothing else happens — no `payments`
+ * row, no paid period, no subscription change, no subscription email.
+ *
+ * Idempotent twice over: markChargeSucceeded only moves an open dispatched
+ * attempt (a replay finds nothing to move and grants nothing), and the grant is
+ * keyed on the purchase's group identifier. A 23505 here can only be Grow
+ * reporting a transaction id already recorded on ANOTHER charge — surfaced for
+ * manual review, never granted.
+ */
+async function applySuccessfulCreditPack(charge: ChargeRow, paid: PaidCharge): Promise<{ applied: boolean }> {
+  try {
+    const applied = await db.transaction(async (trx) => {
+      if (!(await markChargeSucceeded(trx, charge.id, paid))) return false
+      await grantCreditPack(trx, charge)
+      return true
+    })
+    return { applied }
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err
+    await markChargeFailed(db, charge.id, {
+      status: 'failed_final',
+      errorClass: 'duplicate_provider_transaction',
+      errorId: null,
+      errorMessage: 'grow_transaction_already_recorded',
+      statusCode: paid.statusCode,
+    })
+    console.error(`${LOG} POSSIBLE DOUBLE CHARGE — credit-pack payment reported a Grow transaction already recorded; review manually`, {
+      chargeId: charge.id,
+      agencyId: charge.agencyId,
+    })
+    return { applied: false }
+  }
 }

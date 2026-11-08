@@ -10,6 +10,12 @@ import Packages from '@/components/settings/payment/Packages'
 import ProPlanCard from '@/components/settings/payment/ProPlanCard'
 import SubscriptionUsage from '@/components/settings/payment/SubscriptionUsage'
 import BillingHistory from '@/components/settings/payment/BillingHistory'
+import CreditBalance from '@/components/settings/payment/CreditBalance'
+import { canSeeCreditBalance } from '@/lib/credits/config'
+import { purchaseLinkAgency } from '@/lib/credits/purchaseLink'
+import { listPaidCreditPacks } from '@/db/credits/purchases'
+import { mergeChargeHistory } from '@/lib/credits/chargeHistory'
+import { getCreditBalanceView } from '@/lib/credits/balanceView'
 import TrialStatusCard from '@/components/trial/TrialStatusCard'
 import CardOnFileSummary from '@/components/trial/CardOnFileSummary'
 import { getCardTrialView } from '@/lib/payments/cardTrial/cardTrialView'
@@ -27,7 +33,7 @@ import { regionAttrs } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
 import type { MessageKey } from '@/lib/i18n/translate'
 
-type SearchParams = Promise<{ mode?: string | string[] }>
+type SearchParams = Promise<{ mode?: string | string[]; credits?: string | string[] }>
 
 /**
  * Settings → מנוי ותשלום. Two audiences, one route.
@@ -102,13 +108,17 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
   const trial = trialRow ? getTrialState(trialRow, new Date()) : null
   const trialActive = trial?.status === 'TRIAL_ACTIVE'
 
-  const charges = await db('payments')
+  const subscriptionCharges = await db('payments')
     .where({ agencyId: user.agencyId })
     .orderBy('createdAt', 'desc')
     .select('id', 'transactionId', 'createdAt')
+  const charges = mergeChargeHistory(subscriptionCharges, await listPaidCreditPacks(user.agencyId))
 
   // Usage only describes a subscription, so it is read only when there is one.
   const usage = isPro ? await getPlanUsage(user.agencyId, plan) : null
+  const creditBalance = canSeeCreditBalance(user.agencyId) ? await getCreditBalanceView(user.agencyId) : null
+  const linkAgency = purchaseLinkAgency(sp.credits)
+  const creditLinkMismatch = linkAgency !== null && linkAgency !== user.agencyId
 
   // The only way to pay is a saved card. Offer a setup only when the provider
   // can actually complete one AND this agency is eligible for some purpose —
@@ -184,6 +194,8 @@ export default async function page({ searchParams }: { searchParams?: SearchPara
       )}
 
       {usage && <SubscriptionUsage usage={usage} locale={locale} />}
+      {/* Usage credits: shown only to allowlisted agencies (CREDITS_UI / CREDITS_PURCHASES). */}
+      {creditBalance && <CreditBalance view={creditBalance} locale={locale} linkMismatch={creditLinkMismatch} />}
 
       <BillingHistory charges={charges} locale={locale} />
 
