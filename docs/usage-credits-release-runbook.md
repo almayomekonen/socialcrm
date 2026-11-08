@@ -38,7 +38,7 @@ All absent in Production on 2026-11-08. **Absence blocks.**
 | `CREDITS_LOW_BALANCE_PERCENT` | 20 | leave unset | Low-allowance warning |
 | `CREDITS_PACK_{200,500}_{CREDITS,PRICE_ILS}` | 200/49, 500/99 | leave unset | Pack definition (unvalidated prices, VAT included) |
 
-Agency lists take explicit ids only; `all` is ignored. **Dependencies already set in Production:** `AI_USAGE_LEDGER`, `CRON_SECRET`. Enforcing without `AI_USAGE_LEDGER=1` would leave paid requests undebited.
+An agency being enforced must also be in `CREDITS_PURCHASES_AGENCY_IDS`, or the WhatsApp link leads to a page with nothing to buy. Agency lists take explicit ids only; `all` is ignored, so a new agency is not covered until it is added. **Dependencies already set in Production:** `AI_USAGE_LEDGER`, `CRON_SECRET`. Enforcing without `AI_USAGE_LEDGER=1` would leave paid requests undebited.
 
 ## 3. Migration, then deploy
 
@@ -114,6 +114,6 @@ In `.env.local`: `CREDITS_METERING=1`, `CREDITS_UI_AGENCY_IDS=<id>`, and `AI_USA
 - **Pro:** the plan promises unlimited AI (fast and smart modes). Pro agencies stay unenforced until that changes and `CREDITS_ENFORCE_ON_PRO=1` is set.
 - **Grow documents:** no receipt or tax document exists for any Grow token charge. Confirm with Grow and the accountant.
 - **Refunds:** there is no refund path or process.
-- **Grow confirmation:** purchases need the token-charge dispatch evidence gate (`isTokenChargeDispatchEstablished`). An uncertain charge needs a manual owner while the Grow lookup is not established.
+- **Grow confirmation:** the Production dispatch and lookup evidence are recorded in `lib/payments/grow/providerEvidence.ts`. An uncertain charge is resolved by the existing reconcile job; one it cannot determine stays open and blocks further purchases for that agency.
 - **Prices:** 200/₪49 and 500/₪99 are not validated against the AI-cost model.
 - **Automation:** measurement and an alert exist, but no hard spend cap. Enforced today: each agency's auto-reply daily count and `AI_ENABLED`. `AI_DAILY_USD_CAP` is per server instance and in memory.

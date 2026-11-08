@@ -12,6 +12,9 @@ import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { creditLimitText } from '@/lib/waAssistant/creditLimitReply'
 import { creditPurchaseUrl, purchaseLinkAgency } from '@/lib/credits/purchaseLink'
+import { purchaseCreditPack } from '@/lib/credits/purchase'
+import { randomUUID } from 'crypto'
+import { seedMethod } from '../payments/helpers/billingFixtures'
 import { PLATFORM, TOKEN, agency, cleanup, recipient, resetBetweenTests, user } from '../ownerWhatsappReminders/reminderFixtures'
 
 const A = 103
@@ -36,6 +39,10 @@ beforeAll(async () => {
 beforeEach(async () => {
   await resetBetweenTests()
   await db('agent_requests').where({ agencyId: A }).del()
+  await db.raw('DELETE FROM billing_charges WHERE "agencyId" = ?', [A])
+  await db('billing_payment_methods').where({ agencyId: A }).del()
+  await db.raw('TRUNCATE agency_credit_ledger')
+  delete process.env.CREDITS_PURCHASES_AGENCY_IDS
   await db('wa_assistant_jobs').del()
   await db('agencies').where({ id: A }).update({ plan: 'pro', planReason: null, trialExempt: false, trialStartedAt: null, trialEndsAt: null })
   flags.agent = true
@@ -46,11 +53,14 @@ afterAll(async () => {
   await db('agent_requests').where({ agencyId: A }).del()
   await db('wa_assistant_jobs').del()
   await db('analytics_events').where({ agencyId: A }).del()
+  await db.raw('DELETE FROM billing_charges WHERE "agencyId" = ?', [A])
+  await db('billing_payment_methods').where({ agencyId: A }).del()
+  await db.raw('TRUNCATE agency_credit_ledger')
   await cleanup()
 })
 
-async function owner(digits: string) {
-  const u = await user(A, 'ADMIN')
+async function owner(digits: string, role = 'ADMIN') {
+  const u = await user(A, role)
   await recipient(A, u, digits, undefined, 'v3')
   return u
 }
@@ -70,7 +80,7 @@ describe('request 51 on WhatsApp', () => {
     expect(h.sendText).toHaveBeenCalledTimes(2)
     const body = h.sendText.mock.calls[1][0].body as string
     expect(body).toContain('השתמשתם ב-1 הבקשות')
-    expect(body).toContain('https://getsocialcrm.com/settings/update_payment')
+    expect(body).toContain('https://getsocialcrm.com/billing/credits')
     expect(body).not.toMatch(/\$|USD|token|provider/i)
     expect(await db('wa_assistant_jobs').where({ wamid: second.id }).first()).toMatchObject({ stopReason: 'credits_required', replyState: 'sent' })
 
@@ -78,6 +88,40 @@ describe('request 51 on WhatsApp', () => {
     await runWaAssistantWorker({}, h.deps)
     expect(h.sendText).toHaveBeenCalledTimes(2)
     expect(h.runAgent).toHaveBeenCalledTimes(1)
+  })
+
+  it('a rep who cannot buy is told to ask the admin, with no link to a page they cannot open', async () => {
+    await owner('972500007005', 'AGNT')
+    const h = harness()
+    await ask('972500007005', 'א')
+    await runWaAssistantWorker({}, h.deps)
+    await ask('972500007005', 'ב')
+    await runWaAssistantWorker({}, h.deps)
+    const body = h.sendText.mock.calls[1][0].body as string
+    expect(body).toContain('מנהל החשבון')
+    expect(body).not.toContain('http')
+  })
+
+  it('the whole flow: blocked, a Grow-confirmed purchase, and the very next message runs', async () => {
+    const u = await owner('972500007006')
+    const h = harness()
+    await ask('972500007006', 'א')
+    await runWaAssistantWorker({}, h.deps)
+    await ask('972500007006', 'ב')
+    await runWaAssistantWorker({}, h.deps)
+    expect(h.runAgent).toHaveBeenCalledTimes(1)
+
+    process.env.CREDITS_PURCHASES_AGENCY_IDS = String(A)
+    await seedMethod(A)
+    const chargeToken = vi.fn(async () => ({ kind: 'paid' as const, transactionId: `tx-flow-${u}`, transactionToken: 'tt', asmachta: '1', statusCode: '2' }))
+    expect(await purchaseCreditPack({ agencyId: A, kind: 'credits_200', requestKey: randomUUID() }, { chargeToken, dispatchAllowed: () => true } as never)).toEqual({ state: 'granted' })
+    expect(chargeToken).toHaveBeenCalledTimes(1)
+    expect(await db('agencies').where({ id: A }).first('plan')).toMatchObject({ plan: 'pro' })
+
+    await ask('972500007006', 'ג')
+    await runWaAssistantWorker({}, h.deps)
+    expect(h.runAgent).toHaveBeenCalledTimes(2)
+    expect((await requests()).map((r: Record<string, any>) => r.tier)).toEqual(['free', 'blocked', 'paid'])
   })
 
   it('a redelivered webhook counts once', async () => {
@@ -130,7 +174,7 @@ describe('the message and the link', () => {
     expect(purchaseLinkAgency('7.99999999999999.forged', 2000)).toBeNull()
     expect(purchaseLinkAgency(t, 1000 + 31 * 86_400_000)).toBeNull()
     delete process.env.CREDITS_LINK_SECRET
-    expect(creditPurchaseUrl(7)).toBe('https://getsocialcrm.com/settings/update_payment')
+    expect(creditPurchaseUrl(7)).toBe('https://getsocialcrm.com/billing/credits')
     expect(purchaseLinkAgency(t, 2000)).toBeNull()
   })
 })

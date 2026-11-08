@@ -176,7 +176,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   // The free allowance / purchased credits: decided once per job, before any model runs (db/credits/agentRequests.ts).
   const access = await admitAgentRequest({ agencyId: job.agencyId, userId: job.userId, source: 'whatsapp', operation: { kind: 'wa_assistant_job', id: String(job.id) }, nowMs: startedAt.getTime() })
   if ('reason' in access) {
-    const text = access.reason === 'unavailable' ? failureReply('error') : await creditLimitReply(job.agencyId, access.notice)
+    const text = access.reason === 'unavailable' ? failureReply('error') : await creditLimitReply(job.agencyId, access.notice, who.scope.role)
     return finish(job, { status: 'answered', stopReason: access.reason, reply: text ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' }, durationMs: elapsed() })
   }
 

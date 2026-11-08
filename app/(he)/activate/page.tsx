@@ -3,6 +3,7 @@ import { getUser } from '@/db/auth'
 import { isOnboarded } from '@/lib/activation/onboarding'
 import { isMobileRequest } from '@/lib/device'
 import { canEnterMobileWorkspace } from '@/lib/flags/mobileFlags'
+import { shouldOfferCreditsOnPhone } from '@/lib/credits/balanceView'
 import ActivationExperience from '@/components/activation/ActivationExperience'
 import MobileHandoff from '@/components/activation/mobile/MobileHandoff'
 import RegistrationPixel from '@/components/activation/RegistrationPixel'
@@ -21,6 +22,8 @@ export default async function ActivatePage() {
   // page previously never consulted the allowlist, so a phone parked on
   // /activate (registration, bookmark, or the onboarding bounce) stayed closed.
   if (mobile && onboarded && canEnterMobileWorkspace(user.agencyId)) redirect('/dashboard')
+  // Followed the WhatsApp purchase link while logged out: login lost it, so pick it up here.
+  if (mobile && onboarded && (await shouldOfferCreditsOnPhone(user))) redirect('/billing/credits')
   // Display only, read after every redirect decision: the signed-in user's interface language
   // (UI_LOCALE_ENABLED + the pilot allow-list + the stored preference), never the `ui_locale` cookie.
   const { locale } = await getUiLocaleState(user)

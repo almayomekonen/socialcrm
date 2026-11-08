@@ -4,7 +4,8 @@ import { creditPeriodKey, walletBalance } from '@/db/credits/ledger'
 import { listCreditPackCharges, type PackPurchaseRow } from '@/db/credits/purchases'
 import { getActivePaymentMethod } from '@/db/payments/paymentMethods'
 import { toCredits } from './balance'
-import { allPacks, canPurchaseCredits, isCreditEnforcedFor, isCreditsMeteringEnabled, isPackSellable, lowBalancePercent, monthlyAllowance, type PackConfig } from './config'
+import { isAdmin, type Roles } from '@/types/roles'
+import { allPacks, canPurchaseCredits, canSeeCreditBalance, isCreditEnforcedFor, isCreditsMeteringEnabled, isPackSellable, lowBalancePercent, monthlyAllowance, type PackConfig } from './config'
 
 /** The billing centre's picture of an agency's agent usage. READ ONLY. */
 
@@ -51,5 +52,19 @@ export async function getCreditBalanceView(agencyId: number, nowMs = Date.now())
     state,
     packs: isPackSellable(agencyId, agency?.plan) ? allPacks() : [],
     purchases,
+  }
+}
+
+/**
+ * A logged-out owner following the purchase link lands, after login, on the
+ * phone screen. Send them on only when there is something to buy.
+ */
+export async function shouldOfferCreditsOnPhone(user: { agencyId?: number; role?: string }): Promise<boolean> {
+  if (!user.agencyId || !isAdmin(user.role as Roles) || !canSeeCreditBalance(user.agencyId)) return false
+  try {
+    const v = await getCreditBalanceView(user.agencyId)
+    return v.enforced && v.state === 'exhausted' && v.packs.length > 0
+  } catch {
+    return false
   }
 }

@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 
 /**
- * The purchase link sent in WhatsApp. The page behind it needs a logged-in
+ * The purchase link sent in WhatsApp (app/(he)/billing/credits, reachable from a
+ * phone). The page behind it needs a logged-in
  * session and buys only for THAT session's agency, so the link carries no
  * authority. The signed token only lets the page say "this link belongs to
  * another account" instead of selling to the wrong one. CREDITS_LINK_SECRET is a
@@ -10,7 +11,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
  */
 
 const ORIGIN = 'https://getsocialcrm.com'
-const PATH = '/settings/update_payment'
+const PATH = '/billing/credits'
 const TTL_MS = 30 * 86_400_000
 
 const secret = () => process.env.CREDITS_LINK_SECRET?.trim() || null
