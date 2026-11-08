@@ -55,6 +55,19 @@ export function waAssistantAudience(): WaAssistantAudience {
   return { mode: 'list', agencyIds: waAssistantAgencyIds().filter((id) => !excludedIds.includes(id)), excludedIds }
 }
 
+/**
+ * One assistant capability for one agency. WA_ASSISTANT_<X>_AUDIENCE=all opens it
+ * to every agency in the assistant audience (new agencies included, excluded ones
+ * never); anything else keeps the explicit WA_ASSISTANT_<X>_AGENCY_IDS list. This
+ * decides only who is offered the capability: identity, product access, consent,
+ * roles, approval cards and limits are checked where they always were.
+ */
+function assistantFeatureOn(agencyId: number | null | undefined, audienceVar: string, idsVar: string): boolean {
+  if (!isWaAssistantAgency(agencyId)) return false
+  if (process.env[audienceVar]?.trim() === 'all') return true
+  return parseIds(process.env[idsVar]).includes(agencyId as number)
+}
+
 /** True when at least one agency can be in the audience (so inbound work is worth doing at all). */
 export function hasWaAssistantAudience(audience: WaAssistantAudience = waAssistantAudience()): boolean {
   return audience.mode === 'all' || audience.agencyIds.length > 0
@@ -74,13 +87,7 @@ export function isWaAssistantAgency(agencyId: number | null | undefined): boolea
  * assistant stays read-only exactly as before.
  */
 export function isWaAssistantMeetingsAgency(agencyId: number | null | undefined): boolean {
-  if (!isWaAssistantAgency(agencyId)) return false
-  const ids = (process.env.WA_ASSISTANT_MEETINGS_AGENCY_IDS ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => /^\d+$/.test(s))
-    .map(Number)
-  return ids.includes(agencyId as number)
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_MEETINGS_AUDIENCE', 'WA_ASSISTANT_MEETINGS_AGENCY_IDS')
 }
 
 /**
@@ -99,8 +106,7 @@ export function isWaAssistantSenderGuidanceEnabled(): boolean {
  * itself (so an exclusion or a lost audience still wins).
  */
 export function isWaAssistantTasksAgency(agencyId: number | null | undefined): boolean {
-  if (!isWaAssistantAgency(agencyId)) return false
-  return parseIds(process.env.WA_ASSISTANT_TASKS_AGENCY_IDS).includes(agencyId as number)
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_TASKS_AUDIENCE', 'WA_ASSISTANT_TASKS_AGENCY_IDS')
 }
 
 /**
@@ -110,14 +116,12 @@ export function isWaAssistantTasksAgency(agencyId: number | null | undefined): b
  * absence blocks, explicit ids only, and only on top of the assistant itself.
  */
 export function isWaAssistantStatusAgency(agencyId: number | null | undefined): boolean {
-  if (!isWaAssistantAgency(agencyId)) return false
-  return parseIds(process.env.WA_ASSISTANT_STATUS_AGENCY_IDS).includes(agencyId as number)
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_STATUS_AUDIENCE', 'WA_ASSISTANT_STATUS_AGENCY_IDS')
 }
 
 /** WA_ASSISTANT_NOTES_AGENCY_IDS: may ADD A NOTE to a lead (card → `add_lead_note`). Same rules. */
 export function isWaAssistantNotesAgency(agencyId: number | null | undefined): boolean {
-  if (!isWaAssistantAgency(agencyId)) return false
-  return parseIds(process.env.WA_ASSISTANT_NOTES_AGENCY_IDS).includes(agencyId as number)
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_NOTES_AUDIENCE', 'WA_ASSISTANT_NOTES_AGENCY_IDS')
 }
 
 /**
@@ -134,9 +138,7 @@ export function isWaAssistantNotesAgency(agencyId: number | null | undefined): b
  * recipient where they always were.
  */
 export function isWaAssistantRemindersAgency(agencyId: number | null | undefined): boolean {
-  if (!isWaAssistantAgency(agencyId)) return false
-  if (process.env.WA_ASSISTANT_REMINDERS_AUDIENCE?.trim() === 'all') return true
-  return parseIds(process.env.WA_ASSISTANT_REMINDERS_AGENCY_IDS).includes(agencyId as number)
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_REMINDERS_AUDIENCE', 'WA_ASSISTANT_REMINDERS_AGENCY_IDS')
 }
 
 const DEFAULT_DAILY_USD_CAP = 2

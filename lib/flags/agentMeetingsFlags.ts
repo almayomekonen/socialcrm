@@ -4,8 +4,8 @@
  * (web Agent and the WhatsApp owner assistant).
  *
  * Same rules as the WhatsApp status / notes switches: ABSENCE BLOCKS (unset or
- * empty means no agency), explicit numeric ids only, no `all`. Read per call,
- * never cached at module scope.
+ * empty means no agency), explicit numeric ids only. AGENT_LIST_MEETINGS_AUDIENCE=all
+ * offers it to every agency the Agent runs for. Read per call, never cached.
  *
  * WHERE IT IS CHECKED, all server-side, all from the authenticated scope:
  *   · lib/agent/tools/index.ts: the tool is registered only when on, so a
@@ -25,5 +25,6 @@ function parseIds(raw: string | undefined): number[] {
 
 export function isAgentListMeetingsAgency(agencyId: number | null | undefined): boolean {
   if (!Number.isSafeInteger(agencyId) || (agencyId as number) <= 0) return false
+  if (process.env.AGENT_LIST_MEETINGS_AUDIENCE?.trim() === 'all') return true
   return parseIds(process.env.AGENT_LIST_MEETINGS_AGENCY_IDS).includes(agencyId as number)
 }
