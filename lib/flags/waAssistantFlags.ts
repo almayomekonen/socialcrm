@@ -140,7 +140,12 @@ export function isWaAssistantRemindersAgency(agencyId: number | null | undefined
  */
 export function isWaAssistantQuotesAgency(agencyId: number | null | undefined): boolean {
   if (!isWaAssistantAgency(agencyId)) return false
-  return parseIds(process.env.WA_ASSISTANT_QUOTES_AGENCY_IDS).includes(agencyId as number)
+  return waAssistantQuotesAgencyIds().includes(agencyId as number)
+}
+
+/** The listed ids, for the background PDF sweep: empty means it does no work at all. */
+export function waAssistantQuotesAgencyIds(): number[] {
+  return parseIds(process.env.WA_ASSISTANT_QUOTES_AGENCY_IDS)
 }
 
 const DEFAULT_DAILY_USD_CAP = 2

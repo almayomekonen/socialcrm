@@ -65,9 +65,10 @@ const answer = (p: ReturnType<typeof quote> | null, evidenceLeads: number[]) => 
 function harness(results: unknown[] = []) {
   const runAgent = vi.fn(async (_input: Record<string, any>) => results.shift() as never)
   const sendText = vi.fn(async (_i: Record<string, any>) => ({ kind: 'sent' as const, wamid: `wamid.Q_${++seq}` }))
-  const deps = { runAgent: runAgent as never, sendText: sendText as never, typing: (async () => undefined) as never }
+  const startPdf = vi.fn(async () => 'started' as const)
+  const deps = { runAgent: runAgent as never, sendText: sendText as never, typing: (async () => undefined) as never, quotes: { decide: { startPdf: startPdf as never } } }
   const last = () => sendText.mock.calls.at(-1)![0] as { body: string; buttons?: { id: string; title: string }[]; toE164: string }
-  return { runAgent, sendText, deps, last }
+  return { runAgent, sendText, deps, last, startPdf }
 }
 async function say(o: Owner, body: string) {
   expect(
@@ -155,6 +156,8 @@ describe('created only after approval, numbered, ready, verified, once', () => {
     expect(h.last().body).toContain('מספר הצעה: 1')
     expect(h.last().body).toContain('סה"כ: ₪18,500.00')
     expect(h.last().body).toContain('ההצעה לא נשלחה ללקוח.')
+    expect(h.last().body).toContain('קישור להורדה יגיע כאן')
+    expect(h.startPdf).toHaveBeenCalledTimes(1)
     const [action] = await actionsOf(A)
     const quotes = await quotesOf(A)
     expect(quotes).toHaveLength(1)

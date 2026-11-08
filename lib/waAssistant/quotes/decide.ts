@@ -10,6 +10,7 @@ import type { MeetingReply } from '../meetings/types'
 import { QUOTE_COPY, quoteSuccessReply } from './copy'
 import { findQuoteByAutomationKeyQuery } from '@/db/quotes/quotes'
 import { quoteAutomationKey } from '@/lib/agent/actions/domain/createQuote'
+import { startQuotePdf } from './pdfJob'
 
 /**
  * A tap on a quote card. Same path as leadUpdates/decide.ts: the token is
@@ -20,7 +21,7 @@ import { quoteAutomationKey } from '@/lib/agent/actions/domain/createQuote'
  * Nothing here writes a quote, and nothing here sends anything to the customer.
  */
 
-export type QuoteDecideDeps = { decide?: typeof decideOnAction }
+export type QuoteDecideDeps = { decide?: typeof decideOnAction; startPdf?: typeof startQuotePdf }
 
 const reply = (status: MeetingReply['status'], stopReason: string, text: string | null): MeetingReply => ({ status, stopReason, text, headline: null })
 
@@ -57,10 +58,10 @@ export async function decideQuoteCard(input: {
       : reply('refused', `decision_${decided.reason}`, QUOTE_COPY.changed)
   }
   if (!approve) return reply('answered', 'quote_rejected', QUOTE_COPY.rejected)
-  return reportOutcome(decided.outcome, input.args, scope)
+  return reportOutcome(decided.outcome, input.args, scope, input.deps)
 }
 
-async function reportOutcome(outcome: ActionOutcome, args: { clientId: number }, scope: AgentScope): Promise<MeetingReply> {
+async function reportOutcome(outcome: ActionOutcome, args: { clientId: number }, scope: AgentScope, deps?: QuoteDecideDeps): Promise<MeetingReply> {
   if (outcome.report === 'VERIFIED_SUCCESS' || outcome.report === 'DUPLICATE_NOOP') {
     const reported = outcome.verification?.targetIds?.find((t) => t.kind === 'quote')?.id ?? outcome.execution?.targetIds?.find((t) => t.kind === 'quote')?.id
     // A duplicate may carry no target: the action's own automationKey finds its quote.
@@ -78,6 +79,8 @@ async function reportOutcome(outcome: ActionOutcome, args: { clientId: number },
       : undefined
     if (!row || row.status !== 'ready') return reply('failed', 'quote_unverified', QUOTE_COPY.unverified)
     const already = outcome.report === 'DUPLICATE_NOOP' || (outcome.execution?.detail as { created?: boolean } | undefined)?.created === false
+    // Idempotent and never throws: the PDF runs after this reply, and a failure there cannot touch the quote.
+    const pdf = await (deps?.startPdf ?? startQuotePdf)({ agencyId: scope.agencyId, quoteId, renderedByUserId: scope.userId })
     return {
       status: 'answered',
       stopReason: already ? 'quote_already_done' : 'quote_done',
@@ -87,6 +90,7 @@ async function reportOutcome(outcome: ActionOutcome, args: { clientId: number },
         quoteNumber: row.quoteNumber == null ? null : Number(row.quoteNumber),
         totalAmount: Number(row.totalAmount),
         already,
+        pdfPending: pdf === 'started',
       }),
       headline: 'הצעת המחיר נוצרה ב-SocialCRM',
     }

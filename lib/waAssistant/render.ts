@@ -15,7 +15,7 @@ import { MAX_REPLY_CHARS } from '@/lib/whatsapp/platform/sendText'
  *   - it fits one WhatsApp message.
  */
 
-const APP_ORIGIN = 'https://getsocialcrm.com'
+export const APP_ORIGIN = 'https://getsocialcrm.com'
 export const APP_LINK = `${APP_ORIGIN}/agent`
 /** Where an owner connects this phone (the code is issued there, in their own logged-in session). */
 export const CONNECT_LINK = `${APP_ORIGIN}/settings/whatsapp_reminders`

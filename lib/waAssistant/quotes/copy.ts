@@ -1,6 +1,7 @@
 import { redactContactDetails } from '../render'
 import { REJECT_TITLE } from '../meetings/copy'
-import { formatMoney, formatQty } from '@/lib/billing/pdf/format'
+import { formatQty } from '@/lib/billing/pdf/format'
+import { ils, unitIls } from '@/lib/quotes/pdf/format'
 import type { ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import type { QuoteTotals } from '@/lib/quotes/totals'
 import type { PricedOwnerLine } from '@/lib/quotes/ownerPricing'
@@ -15,10 +16,6 @@ import type { PricedOwnerLine } from '@/lib/quotes/ownerPricing'
 export const APPROVE_QUOTE_TITLE = 'לאשר וליצור'
 
 const name = (s: string) => redactContactDetails(s).trim() || 'ליד'
-export const ils = (n: number) => `₪${formatMoney(n)}`
-/** A before-VAT unit price keeps its stored precision (up to 4 places) so "qty × price = line" adds up on the card. */
-const unitIls = (n: number) =>
-  Math.round(n * 100) / 100 === n ? ils(n) : `₪${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
 
 export const QUOTE_COPY = {
   askLead: 'לאיזה ליד להכין את הצעת המחיר?',
@@ -86,13 +83,39 @@ export function quoteButtons(token: string): ReplyButton[] {
 }
 
 /** Built ONLY from a verified outcome and the re-read quote. */
-export function quoteSuccessReply(input: { lead: string; quoteNumber: number | null; totalAmount: number; already: boolean }): string {
+export function quoteSuccessReply(input: { lead: string; quoteNumber: number | null; totalAmount: number; already: boolean; pdfPending: boolean }): string {
   return [
     input.already ? '*הצעת המחיר הזו כבר נוצרה*' : '*הצעת המחיר נוצרה ב-SocialCRM*',
     `ליד: ${name(input.lead)}`,
     input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber}` : null,
     `סה"כ: ${ils(input.totalAmount)}`,
     'ההצעה לא נשלחה ללקוח.',
+    input.pdfPending ? 'קובץ PDF בהכנה, וקישור להורדה יגיע כאן בהודעה נפרדת.' : null,
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** Follow-ups to the OWNER only. Built from the stored quote; the link needs a SocialCRM login. */
+export function quotePdfReadyNotice(input: { quoteNumber: number | null; totalAmount: number; link: string }): string {
+  return [
+    '*קובץ הצעת המחיר מוכן*',
+    input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber}` : null,
+    `סה"כ: ${ils(input.totalAmount)}`,
+    `להורדה: ${input.link}`,
+    'הקישור נפתח אחרי התחברות ל-SocialCRM. אם נדרשת התחברות, אפשר ללחוץ עליו שוב אחריה.',
+    'ההצעה לא נשלחה ללקוח.',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+export function quotePdfFailedNotice(input: { quoteNumber: number | null }): string {
+  return [
+    '*לא הצלחתי להכין את קובץ ה-PDF של הצעת המחיר*',
+    input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber}` : null,
+    'ההצעה עצמה נשמרה ב-SocialCRM, ולא נוצרה הצעה נוספת. היא לא נשלחה ללקוח.',
+    'אפשר לפנות אלינו ונכין את הקובץ.',
   ]
     .filter(Boolean)
     .join('\n')
