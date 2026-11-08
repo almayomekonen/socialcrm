@@ -13,22 +13,22 @@ import {
 } from '@/db/waAssistantJobs'
 import { runAgentInvestigation } from '@/lib/agent/run'
 import { track } from '@/lib/analytics/track'
-import { WA_ASSISTANT_LIMITS, isWaAssistantMeetingsAgency, isWaAssistantNotesAgency, isWaAssistantRemindersAgency, isWaAssistantStatusAgency, isWaAssistantTasksAgency } from '@/lib/flags/waAssistantFlags'
+import { WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
 import { resolveAssistantScope } from './identity'
 import { COPY, NO_ACTIONS_NOTE, failureReply, refusalReply, replyForAnswer } from './render'
-import { proposeMeeting, type ProposeDeps } from './meetings/propose'
+import type { ProposeDeps } from './meetings/propose'
 import { type DecideDeps } from './meetings/decide'
 import { decideCard } from './decideCard'
-import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
-import { isRequestConversation, startsCleanRequest } from './request'
+import type { TaskProposeDeps } from './tasks/propose'
+import { startsCleanRequest } from './request'
 import { waAgentRules } from './agentRules'
-import { proposeLeadUpdate, type LeadUpdateProposeDeps } from './leadUpdates/propose'
+import type { LeadUpdateProposeDeps } from './leadUpdates/propose'
 import type { LeadUpdateDecideDeps } from './leadUpdates/decide'
-import { isClarifyingAnswer } from './tasks/draft'
 import type { TaskDecideDeps } from './tasks/decide'
+import { agentClarifyStopReason, assistantCapabilities, routeProposal } from './route'
 import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
@@ -64,11 +64,13 @@ import type { ReminderDeps } from './reminders/reply'
  * list, cancel and reschedule the owner's own reminders, handled BEFORE the
  * Agent and without it; writes only through cards and the Action Runtime.
  *
- * NOTE (architecture-rules §1, §6): ~270 lines, over the 250 soft limit since the
- * status/note routing was added; the reminder routing added 6 lines and lives in
- * ./reminders/. Owed extraction, next touch: the per-action proposal routing
- * (meeting / task / lead update) moves to ./route.ts, leaving this file the job
- * lifecycle (window, identity, limits, Agent run, one reply).
+ * The per-action proposal routing and the capability switches live in
+ * ./route.ts (the extraction this file owed); this file is the job lifecycle
+ * (window, identity, limits, Agent run, one reply).
+ *
+ * NOTE (architecture-rules §6): ~260 lines, a little over the 250 soft limit,
+ * most of it this header. One concern, linear per job; the next write
+ * capability adds its routing to ./route.ts, not here.
  */
 
 export type WaAssistantDeps = {
@@ -145,16 +147,12 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     return finish(job, { status: 'refused', refusalReason: limits.refusal.reason, reply, durationMs: elapsed() })
   }
 
-  const meetingsOn = isWaAssistantMeetingsAgency(job.agencyId)
-  const tasksOn = isWaAssistantTasksAgency(job.agencyId)
-  const statusOn = isWaAssistantStatusAgency(job.agencyId)
-  const notesOn = isWaAssistantNotesAgency(job.agencyId)
-  const remindersOn = isWaAssistantRemindersAgency(job.agencyId)
-  const writesOn = meetingsOn || tasksOn || statusOn || notesOn || remindersOn
+  const caps = assistantCapabilities(job.agencyId)
+  const { tasksOn, remindersOn, writesOn } = caps
   if (job.kind === 'decision') {
     const r =
       writesOn
-        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), meetingsOn, tasksOn, statusOn, notesOn, remindersOn, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide, reminders: deps.reminders } })
+        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), ...caps, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide, reminders: deps.reminders } })
         : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed() })
   }
@@ -181,7 +179,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
-    surfaceRules: waAgentRules({ statusOn, notesOn, remindersOn }),
+    surfaceRules: waAgentRules(caps),
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {
@@ -203,31 +201,19 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     })
   }
 
-  const proposed = result.answer.proposedAction
-  if (meetingsOn && proposed?.actionType === 'create_meeting' && !result.answer.proposedBatch) {
-    const r = await proposeMeeting({ job, scope: who.scope, proposal: proposed, evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.meetings?.propose })
-    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
-  }
-  if (tasksOn && (proposed?.actionType === 'create_task' || proposed?.actionType === 'create_follow_up') && !result.answer.proposedBatch) {
-    const r = await proposeTaskOrFollowUp({ job, scope: who.scope, proposal: proposed, evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.tasks?.propose })
-    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
-  }
-  if (((statusOn && proposed?.actionType === 'update_lead_status') || (notesOn && proposed?.actionType === 'add_lead_note')) && !result.answer.proposedBatch) {
-    const r = await proposeLeadUpdate({ job, scope: who.scope, proposal: proposed as Parameters<typeof proposeLeadUpdate>[0]['proposal'], evidence: result.evidence, agentRunId: result.investigationId, question: job.question.trim(), nowMs: startedAt.getTime(), deps: deps.leadUpdates?.propose })
-    return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed(), costUsd: result.costUsd })
-  }
+  const routed = await routeProposal({
+    job,
+    scope: who.scope,
+    result,
+    caps,
+    nowMs: startedAt.getTime(),
+    deps: { meetings: deps.meetings?.propose, tasks: deps.tasks?.propose, leadUpdates: deps.leadUpdates?.propose },
+  })
+  if (routed) return finishMeeting(job, platform, who.phoneE164, routed, deps, { durationMs: elapsed(), costUsd: result.costUsd })
 
   const note = result.answer.proposedAction || result.answer.proposedBatch ? NO_ACTIONS_NOTE : null
   const reply = replyForAnswer(result.answer, { note })
-  // The Agent's own question inside a request ("לאיזה ליד?") keeps that request open for the next message.
-  const asking = !note && isClarifyingAnswer(result.answer)
-  // "תקבע" opens both a meeting and a follow-up: it is a meeting only when the owner says so, or the open request already is one.
-  const continues =
-    asking && tasksOn && !/פגיש/u.test(job.question ?? '') && (await isRequestConversation('task', job))
-      ? 'task_clarify_agent'
-      : asking && meetingsOn && (await isRequestConversation('meeting', job))
-        ? 'meeting_clarify_agent'
-        : null
+  const continues = await agentClarifyStopReason(job, result, caps, note != null)
   return finish(job, {
     status: 'answered',
     stopReason: continues ?? result.stopReason,
