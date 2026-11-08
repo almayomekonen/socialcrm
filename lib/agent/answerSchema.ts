@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { addLeadNoteProposal, updateLeadStatusProposal } from './waActionSchemas'
+import { addLeadNoteProposal, createQuoteProposal, updateLeadStatusProposal } from './waActionSchemas'
 
 /**
  * The wire schema for one answer — the runtime mirror of the `Claim` union in
@@ -203,7 +203,7 @@ export const agentAnswerSchema = z.object({
    * every property in `required`, so an optional key would be dropped from the
    * emitted schema and never asked for.
    */
-  proposedAction: z.union([createTaskProposal, createFollowUpProposal, createMeetingProposal, updateLeadStatusProposal, addLeadNoteProposal, z.null()]),
+  proposedAction: z.union([createTaskProposal, createFollowUpProposal, createMeetingProposal, updateLeadStatusProposal, addLeadNoteProposal, createQuoteProposal, z.null()]),
   /** Null unless the user asked for one action across several leads. */
   proposedBatch: z.union([createTaskBatchProposal, z.null()]),
 })

@@ -30,6 +30,7 @@ describe('web Agent and WhatsApp-only actions', () => {
   it.each([
     { actionType: 'update_lead_status', args: { clientId: 5, status: 'closed' }, evidenceRefs: ['lead:5'] },
     { actionType: 'add_lead_note', args: { clientId: 5, content: 'x' }, evidenceRefs: ['lead:5'] },
+    { actionType: 'create_quote', args: { clientId: 5, title: 't', lines: [], priceBasis: null, validityDays: null }, evidenceRefs: ['lead:5'] },
   ])('$actionType is dropped: never submitted, never in the answer', async (proposal) => {
     runAgentInvestigation.mockResolvedValue(answerWith(proposal))
     const r = (await askAgent('תעביר את אבי לסגור')) as { answer: { proposedAction: unknown }; actionOutcome: unknown }

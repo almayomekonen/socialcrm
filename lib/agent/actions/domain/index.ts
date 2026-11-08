@@ -5,6 +5,7 @@ import { createFollowUpAction } from './createFollowUp'
 import { createMeetingAction } from './createMeeting'
 import { updateLeadStatusAction } from './updateLeadStatus'
 import { addLeadNoteAction } from './addLeadNote'
+import { createQuoteAction } from './createQuote'
 import { createReminderAction } from './reminderCreate'
 import { cancelReminderAction, rescheduleReminderAction } from './reminderChange'
 
@@ -23,10 +24,10 @@ const REMINDER_ACTIONS = [createReminderAction, cancelReminderAction, reschedule
  * than once in a serverless process.
  */
 export function registerDomainActions(): void {
-  for (const definition of [createTaskAction, createFollowUpAction, createMeetingAction, updateLeadStatusAction, addLeadNoteAction, ...REMINDER_ACTIONS]) {
+  for (const definition of [createTaskAction, createFollowUpAction, createMeetingAction, updateLeadStatusAction, addLeadNoteAction, createQuoteAction, ...REMINDER_ACTIONS]) {
     if (!getAgentAction(definition.type)) registerAgentAction(definition)
   }
 }
 
-export { createTaskAction, createFollowUpAction, createMeetingAction, updateLeadStatusAction, addLeadNoteAction }
+export { createTaskAction, createFollowUpAction, createMeetingAction, updateLeadStatusAction, addLeadNoteAction, createQuoteAction }
 export { createReminderAction, cancelReminderAction, rescheduleReminderAction }

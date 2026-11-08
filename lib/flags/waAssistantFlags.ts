@@ -131,6 +131,18 @@ export function isWaAssistantRemindersAgency(agencyId: number | null | undefined
   return parseIds(process.env.WA_ASSISTANT_REMINDERS_AGENCY_IDS).includes(agencyId as number)
 }
 
+/**
+ * WA_ASSISTANT_QUOTES_AGENCY_IDS: agencies whose assistant may CREATE A QUOTE
+ * for a lead from the owner's stated prices (card → `create_quote`). Creation
+ * only: nothing is ever sent to the customer from WhatsApp. Same rules:
+ * absence blocks, explicit ids only, only on top of the assistant itself.
+ * Intended pilot: 103 (not enabled in Production until approved).
+ */
+export function isWaAssistantQuotesAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantAgency(agencyId)) return false
+  return parseIds(process.env.WA_ASSISTANT_QUOTES_AGENCY_IDS).includes(agencyId as number)
+}
+
 const DEFAULT_DAILY_USD_CAP = 2
 
 export function waAssistantDailyUsdCap(): number {
