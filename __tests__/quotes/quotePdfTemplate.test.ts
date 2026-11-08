@@ -34,11 +34,31 @@ describe('Hebrew, right to left, and on the page', () => {
   })
   it('sets page margins on every page and keeps rows and the totals whole', async () => {
     const html = await render()
-    expect(html).toContain('@page { size: 210mm 297mm; margin: 16mm 0; }')
+    expect(html).toContain('@page { size: 210mm 297mm; margin: 16mm 0;')
     expect(html).toMatch(/<tr style="break-inside:avoid/)
-    const block = html.indexOf('break-inside:avoid', html.indexOf('</table>'))
+    const block = html.indexOf('<tbody style="break-inside:avoid')
+    expect(block).toBeGreaterThan(-1)
     expect(html.indexOf('סה&quot;כ לתשלום', block)).toBeGreaterThan(block)
     expect(html.indexOf('<footer', block)).toBeGreaterThan(block)
+    expect(html.indexOf('</tbody>', block)).toBeGreaterThan(html.indexOf('<footer', block))
+  })
+  it('the closing rows stay with the totals; earlier rows may break away', async () => {
+    const lines = Array.from({ length: 5 }, (_, i) => item({ id: i + 1, title: `שורה-${i + 1}` }))
+    const html = await render({}, lines)
+    const closing = html.indexOf('<tbody style="break-inside:avoid')
+    expect(html.indexOf('שורה-3')).toBeLessThan(closing)
+    for (const n of [4, 5]) expect(html.indexOf(`שורה-${n}`)).toBeGreaterThan(closing)
+  })
+  it('names every page after the first, with digits only in the CSS', async () => {
+    const html = await render({ quoteNumber: '12"}</style><script>alert(1)</script>' })
+    expect(html).toContain('@top-right { content: "הצעת מחיר מספר 121"')
+    expect(html).toContain('@page :first { @top-right { content: none; } }')
+    expect(html).not.toContain('content: "הצעת מחיר מספר 12"}')
+    expect(html.slice(0, html.indexOf('</style>'))).not.toContain('<script>')
+  })
+  it('the numeric headers carry the same gap as their values', async () => {
+    const html = await render()
+    expect((html.match(/<th style="padding:0 16px 8px 0/g) ?? []).length).toBe(3)
   })
   it('never calls itself an invoice', async () => {
     const html = await render()

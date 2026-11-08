@@ -1,5 +1,5 @@
 import type { IssuerData } from '@/lib/billing/issuer/fields'
-import { COLOR, FONT_FAMILY, PAGE, SP } from '@/lib/billing/pdf/html/styles'
+import { COLOR, FONT_FAMILY, PAGE, SP, TYPE } from '@/lib/billing/pdf/html/styles'
 import { fontFaceBlock } from '@/lib/billing/pdf/html/fontEmbed'
 import { formatPdfDate } from '@/lib/billing/pdf/format'
 import { DocumentFooter } from '@/lib/billing/pdf/html/components/DocumentFooter'
@@ -67,13 +67,15 @@ export async function renderQuoteHtml(input: QuoteTemplateInput): Promise<string
       <Gap />
       <QuoteRecipient name={quote.recipientNameSnapshot ?? ''} phone={quote.recipientPhoneSnapshot ?? ''} email={quote.recipientEmailSnapshot ?? ''} subject={quote.title} />
       <Gap />
-      <QuoteLinesTable items={items} />
-      <Gap />
-      {/* One block, so the footer can never land alone on a page of its own. */}
-      <div style={{ breakInside: 'avoid' }}>
-        <QuoteTotals subtotal={quote.subtotalAmount} discount={quote.discountAmount} tax={quote.taxAmount} total={quote.totalAmount} ratePercent={sharedRate(items)} />
-        <DocumentFooter customerFooter='' displayName={displayName} />
-      </div>
+      <QuoteLinesTable
+        items={items}
+        after={
+          <>
+            <QuoteTotals subtotal={quote.subtotalAmount} discount={quote.discountAmount} tax={quote.taxAmount} total={quote.totalAmount} ratePercent={sharedRate(items)} />
+            <DocumentFooter customerFooter='' displayName={displayName} />
+          </>
+        }
+      />
     </main>,
   )
   return `<!DOCTYPE html>
@@ -83,7 +85,8 @@ export async function renderQuoteHtml(input: QuoteTemplateInput): Promise<string
 <title>Quote</title>
 <style>
 ${fontFaceBlock()}
-@page { size: ${PAGE.width} ${PAGE.height}; margin: ${PAGE.margin} 0; }
+@page { size: ${PAGE.width} ${PAGE.height}; margin: ${PAGE.margin} 0; ${continuationHeader(quote.quoteNumber)} }
+@page :first { @top-right { content: none; } }
 html, body { margin: 0; padding: 0; background: white; }
 body { font-family: ${FONT_FAMILY}; color: ${COLOR.text}; }
 * { box-sizing: border-box; }
@@ -91,6 +94,16 @@ body { font-family: ${FONT_FAMILY}; color: ${COLOR.text}; }
 </head>
 <body>${body}</body>
 </html>`
+}
+
+/**
+ * Names the document on every page after the first. A page margin box, because
+ * the renderer runs with JavaScript off and page breaks are the browser's to
+ * choose. Digits only go into the CSS string: this text is inside a <style>.
+ */
+function continuationHeader(quoteNumber: number | string): string {
+  const number = String(quoteNumber).replace(/\D/g, '')
+  return `@top-right { content: "הצעת מחיר מספר ${number}"; direction: rtl; text-align: right; padding-right: ${PAGE.margin}; font-family: ${FONT_FAMILY}; font-size: ${TYPE.metadata}; color: ${COLOR.label}; }`
 }
 
 function Gap() {
