@@ -214,7 +214,7 @@ export default function WhatsappReplyDraft({
           </span>
         </div>
       )}
-      {error && <p className='mt-1 ps-10.5 text-xs text-red-500'>{t(error === 'limit' ? 'inbox.draft.draftLimit' : 'inbox.draft.draftFailed')}</p>}
+      {error && <p className='mt-1 ps-10.5 text-xs text-red-500'>{error === 'limit' ? t('inbox.draft.draftLimit') : t('inbox.draft.draftFailed')}</p>}
     </div>
   )
 }
