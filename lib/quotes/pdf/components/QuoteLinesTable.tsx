@@ -25,7 +25,7 @@ export type QuotePdfItem = {
  */
 const ROWS_KEPT_WITH_TOTALS = 2
 
-export function QuoteLinesTable({ items, after }: { items: readonly QuotePdfItem[]; after: ReactNode }) {
+export function QuoteLinesTable({ items, after, exempt = false }: { items: readonly QuotePdfItem[]; after: ReactNode; exempt?: boolean }) {
   const anyDiscount = items.some((i) => Number(i.discount) > 0)
   const closingFrom = Math.max(items.length - ROWS_KEPT_WITH_TOTALS, 0)
   const row = (item: QuotePdfItem, i: number) => (
@@ -48,7 +48,7 @@ export function QuoteLinesTable({ items, after }: { items: readonly QuotePdfItem
           <Th align='left'>כמות</Th>
           <Th align='left'>מחיר ליחידה</Th>
           {anyDiscount && <Th align='left'>הנחה</Th>}
-          <Th align='left'>סה&quot;כ לפני מע&quot;מ</Th>
+          <Th align='left'>{exempt ? <>סה&quot;כ</> : <>סה&quot;כ לפני מע&quot;מ</>}</Th>
         </tr>
       </thead>
       {closingFrom > 0 && <tbody>{items.slice(0, closingFrom).map((item, i) => row(item, i))}</tbody>}

@@ -44,7 +44,7 @@ export const QUOTE_COPY = {
   failed: 'הצעת המחיר לא נוצרה. אפשר לנסות שוב.',
 } as const
 
-const BASIS_LABEL = { incl_vat: 'המחירים שנמסרו כוללים מע"מ', excl_vat: 'המחירים שנמסרו לפני מע"מ', no_vat: 'העסק פטור ממע"מ' } as const
+const BASIS_LABEL = { incl_vat: 'המחירים שנמסרו כוללים מע"מ', excl_vat: 'המחירים שנמסרו לפני מע"מ' } as const
 
 export function quoteCard(input: {
   lead: string
@@ -68,10 +68,12 @@ export function quoteCard(input: {
     const discount = l.discount > 0 ? `, הנחה ${percent != null ? `${formatQty(percent)}% (${ils(l.discount)})` : ils(l.discount)}` : ''
     out.push(`${i + 1}. ${name(l.title)}: ${formatQty(l.quantity)} × ${unitIls(l.unitPrice)}${discount} = ${ils(totals.lines[i].lineSubtotal)}`)
   })
-  out.push(input.free ? '(הצעה בחינם, ללא חיוב.)' : `(מחירי הפריטים לפני מע"מ. ${BASIS_LABEL[input.basis]}.)`)
-  out.push(`סכום לפני מע"מ: ${ils(totals.subtotalAmount)}`)
+  // An exempt business has no VAT to state: no "before VAT" amount and no VAT line.
+  const exempt = input.basis === 'no_vat'
+  out.push(input.free ? '(הצעה בחינם, ללא חיוב.)' : input.basis === 'no_vat' ? '(העסק פטור ממע"מ.)' : `(מחירי הפריטים לפני מע"מ. ${BASIS_LABEL[input.basis]}.)`)
+  if (!exempt) out.push(`סכום לפני מע"מ: ${ils(totals.subtotalAmount)}`)
   if (totals.discountAmount > 0) out.push(`הנחות: ${ils(totals.discountAmount)}`)
-  out.push(`מע"מ (${formatQty(input.ratePercent)}%): ${ils(totals.taxAmount)}`)
+  if (!exempt) out.push(`מע"מ (${formatQty(input.ratePercent)}%): ${ils(totals.taxAmount)}`)
   out.push(`*סה"כ: ${ils(totals.totalAmount)}*`)
   if (!input.exact) {
     out.push(`שימו לב: בגלל עיגול לאגורות הסכום שיישמר הוא ${ils(totals.totalAmount)}, ולא ${ils(input.requestedTotal)} שנמסר.`)

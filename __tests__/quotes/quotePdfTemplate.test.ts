@@ -89,10 +89,39 @@ describe('content and totals are the stored values', () => {
     expect(html).not.toContain('הנחה')
     expect(html).not.toContain('הנחות')
   })
-  it('an exempt business shows 0% and says so', async () => {
-    const html = await render({ taxAmount: '0.00', subtotalAmount: '18500.00' }, [item({ taxRatePercentSnapshot: '0.0000', unitPrice: 18500, lineSubtotal: 18500 })], issuer({ businessType: 'exempt' }))
-    expect(html).toContain('עוסק פטור')
-    expect(html).toContain('מע&quot;מ (0%)')
+  describe('an exempt business', () => {
+    const exemptLine = item({ taxRatePercentSnapshot: '0.0000', unitPrice: 18500, lineSubtotal: 18500 })
+    const exemptQuote = { taxAmount: '0.00', subtotalAmount: '18500.00', totalAmount: '18500.00' }
+    it('says it is exempt and states no VAT anywhere', async () => {
+      const html = await render(exemptQuote, [exemptLine], issuer({ businessType: 'exempt', taxId: '034567891' }))
+      expect(html).toContain('עוסק פטור מס׳')
+      expect(html).toContain('034567891')
+      expect(html).not.toContain('ע.מ / ח.פ')
+      expect(html).not.toContain('מע&quot;מ')
+      expect(html).toContain('סה&quot;כ לתשלום')
+      expect(html).toContain('₪18,500.00')
+    })
+    it('still says it is exempt with no registration number', async () => {
+      const html = await render(exemptQuote, [exemptLine], issuer({ businessType: 'exempt', taxId: null }))
+      expect(html).toContain('עוסק פטור')
+      expect(html).not.toContain('מס׳')
+    })
+    it('keeps the discount, with no before-VAT wording', async () => {
+      const html = await render({ ...exemptQuote, discountAmount: '500.00', subtotalAmount: '18000.00', totalAmount: '18000.00' }, [item({ taxRatePercentSnapshot: '0.0000', discount: '500.00', lineSubtotal: 18000 })], issuer({ businessType: 'exempt' }))
+      expect(html).toContain('>הנחות<')
+      expect(html).toContain('₪500.00')
+      expect(html).not.toContain('מע&quot;מ')
+    })
+    it('a quote stored with VAT keeps showing that VAT', async () => {
+      const html = await render({}, [item()], issuer({ businessType: 'exempt' }))
+      expect(html).toContain('מע&quot;מ (18%)')
+      expect(html).toContain('₪2,822.03')
+    })
+  })
+  it('a business that charges VAT keeps every VAT label', async () => {
+    const html = await render()
+    for (const s of ['סכום לפני מע&quot;מ', 'סה&quot;כ לפני מע&quot;מ', 'מע&quot;מ (18%)', 'ע.מ / ח.פ']) expect(html).toContain(s)
+    expect(html).not.toContain('עוסק פטור')
   })
   it('lines on different rates: the row does not claim one rate', async () => {
     const html = await render({}, [item(), item({ id: 2, taxRatePercentSnapshot: '0.0000' })])

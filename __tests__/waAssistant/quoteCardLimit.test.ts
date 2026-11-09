@@ -39,6 +39,46 @@ describe('the actual card limit', () => {
   })
 })
 
+describe('an exempt business states no VAT on the card', () => {
+  const card = (lines: OwnerQuoteLineInput[], free = false) => {
+    const p = priceOwnerQuote({ lines, priceBasis: null, ratePercent: 0 })
+    if ('reason' in p) throw new Error(p.reason)
+    return quoteCard({ lead: 'דוד כהן', title: 'שיפוץ מטבח', lines: p.lines, totals: p.totals, basis: p.basis, ratePercent: p.ratePercent, requestedTotal: p.requestedTotal, exact: p.exact, validityDays: null, free })
+  }
+  it('the exact card', () => {
+    expect(card([{ title: 'שיפוץ מטבח', quantity: 1, unitAmount: 18500 }])).toBe(
+      [
+        '*ליצור הצעת מחיר?*',
+        'ליד: דוד כהן',
+        'נושא: שיפוץ מטבח',
+        'פריטים:',
+        '1. שיפוץ מטבח: 1 × ₪18,500.00 = ₪18,500.00',
+        '(העסק פטור ממע"מ.)',
+        '*סה"כ: ₪18,500.00*',
+        'ההצעה תישמר ב-SocialCRM. היא לא תישלח ללקוח.',
+        'האישור בתוקף ל-15 דקות.',
+      ].join('\n'),
+    )
+  })
+  it('keeps a discount', () => {
+    const text = card([{ title: 'שיפוץ מטבח', quantity: 1, unitAmount: 18500, discountAmount: 500 }])
+    expect(text).toContain('הנחות: ₪500.00')
+    expect(text).toContain('*סה"כ: ₪18,000.00*')
+    expect(text).not.toContain('לפני מע"מ')
+  })
+  it('a free quote says so, with no VAT line', () => {
+    const text = card([{ title: 'ייעוץ', quantity: 1, unitAmount: 0 }], true)
+    expect(text).toContain('(הצעה בחינם, ללא חיוב.)')
+    expect(text).not.toContain('מע"מ')
+  })
+  it('a business that charges VAT keeps its lines', () => {
+    const p = priceOwnerQuote({ lines: [{ title: 'שיפוץ מטבח', quantity: 1, unitAmount: 18500 }], priceBasis: 'incl_vat', ratePercent: 18 })
+    if ('reason' in p) throw new Error(p.reason)
+    const text = quoteCard({ lead: 'דוד כהן', title: 'שיפוץ מטבח', lines: p.lines, totals: p.totals, basis: p.basis, ratePercent: p.ratePercent, requestedTotal: p.requestedTotal, exact: p.exact, validityDays: null })
+    for (const s of ['(מחירי הפריטים לפני מע"מ. המחירים שנמסרו כוללים מע"מ.)', 'סכום לפני מע"מ: ₪15,677.97', 'מע"מ (18%): ₪2,822.03']) expect(text).toContain(s)
+  })
+})
+
 describe('whole-quote VAT rounding on VAT-inclusive prices', () => {
   // VAT is computed once on the whole quote, so each line's rounding adds up: 12 × 15,677.97 × 18% = 33,864.42.
   it('12 equal lines at ₪18,500 store ₪222,000.06, and the result says it is not exact', () => {
