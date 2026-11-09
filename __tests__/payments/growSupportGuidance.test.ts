@@ -113,14 +113,14 @@ describe('card storage is consented to in our own interface', () => {
   it('is a separate checkbox from the subscription agreement', () => {
     const form = read('components/trial/CardTrialSetupForm.tsx')
     expect(form).toContain('CARD_TRIAL_CONSENT_LABEL')
-    expect(form).toContain('CARD_STORAGE_CONSENT_LABEL')
+    expect(form).toContain('cardStorageConsent(returnTo).label')
     expect(form).toContain('acceptedCardStorage: storageAccepted')
   })
 
   it('is required server-side for every purpose, and recorded', () => {
     const action = read('lib/payments/cardTrial/startCardSetup.ts')
     expect(action).toContain("if (input.acceptedCardStorage !== true) return { error: 'card_storage_consent_required' }")
-    expect(action).toContain('cardStorageConsentVersion: CARD_STORAGE_CONSENT_VERSION')
+    expect(action).toContain('cardStorageConsentVersion: cardStorageConsent(input.returnTo).version')
     const db = read('db/payments/paymentMethods.ts')
     expect(db).toContain('cardStorageConsentAt: new Date()')
   })

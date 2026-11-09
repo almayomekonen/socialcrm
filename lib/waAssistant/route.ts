@@ -14,6 +14,7 @@ import { proposeMeeting, type ProposeDeps } from './meetings/propose'
 import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
 import { proposeLeadUpdate, type LeadUpdateProposeDeps } from './leadUpdates/propose'
 import { proposeQuote, type QuoteProposeDeps } from './quotes/propose'
+import { proposeRecordChange, type ChangeProposal } from './recordChanges/propose'
 import { isRequestConversation } from './request'
 import { isClarifyingAnswer } from './tasks/draft'
 import type { MeetingReply } from './meetings/types'
@@ -21,7 +22,7 @@ import type { MeetingReply } from './meetings/types'
 /**
  * Which writes this agency's assistant may PROPOSE, and the one place a
  * proposal is routed to its capability (./meetings, ./tasks, ./leadUpdates,
- * ./quotes). Extracted from worker.ts (architecture-rules §1: the owed
+ * ./quotes, ./recordChanges). Extracted from worker.ts (architecture-rules §1: the owed
  * extraction), which keeps the job lifecycle: window, identity, limits, the
  * Agent run and the one reply.
  *
@@ -82,6 +83,8 @@ export async function routeProposal(input: {
   if ((caps.statusOn && proposed.actionType === 'update_lead_status') || (caps.notesOn && proposed.actionType === 'add_lead_note'))
     return proposeLeadUpdate({ ...common, proposal: proposed as Parameters<typeof proposeLeadUpdate>[0]['proposal'], deps: deps?.leadUpdates })
   if (caps.quotesOn && proposed.actionType === 'create_quote') return proposeQuote({ ...common, proposal: proposed, deps: deps?.quotes })
+  if ((caps.tasksOn && (proposed.actionType === 'update_task' || proposed.actionType === 'complete_task')) || (caps.meetingsOn && (proposed.actionType === 'reschedule_meeting' || proposed.actionType === 'cancel_meeting')))
+    return proposeRecordChange({ ...common, proposal: proposed as ChangeProposal })
   return null
 }
 

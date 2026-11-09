@@ -35,6 +35,8 @@ import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
 import { handleReminderMessage } from './reminders/route'
+import { admitAgentRequest } from '@/db/credits/agentRequests'
+import { creditLimitReply } from './creditLimitReply'
 import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
 
@@ -69,9 +71,10 @@ import type { ReminderDeps } from './reminders/reply'
  *
  * The per-action proposal routing and the capability switches live in
  * ./route.ts (the extraction this file owed); this file is the job lifecycle
- * (window, identity, limits, Agent run, one reply).
+ * (window, identity, limits, the per-request credit admission, Agent run, one
+ * reply). A card tap returns before that admission: no model runs for it.
  *
- * NOTE (architecture-rules §6): ~260 lines, a little over the 250 soft limit,
+ * NOTE (architecture-rules §6): ~275 lines, a little over the 250 soft limit,
  * most of it this header. One concern, linear per job; the next write
  * capability adds its routing to ./route.ts, not here.
  */
@@ -172,6 +175,13 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   // Personal reminders (WA_ASSISTANT_REMINDERS_AGENCY_IDS only): deterministic, before the Agent, so with the switch on "תזכיר לי" never becomes a task.
   const reminder = remindersOn ? await handleReminderMessage({ job, scope: who.scope, nowMs: startedAt.getTime(), deps: deps.reminders }) : null
   if (reminder) return finishMeeting(job, platform, who.phoneE164, reminder, deps, { durationMs: elapsed() })
+
+  // The free allowance / purchased credits: decided once per job, before any model runs (db/credits/agentRequests.ts).
+  const access = await admitAgentRequest({ agencyId: job.agencyId, userId: job.userId, source: 'whatsapp', operation: { kind: 'wa_assistant_job', id: String(job.id) }, nowMs: startedAt.getTime() })
+  if ('reason' in access) {
+    const text = access.reason === 'unavailable' ? failureReply('error') : await creditLimitReply(job.agencyId, access.notice, who.scope.role)
+    return finish(job, { status: 'answered', stopReason: access.reason, reply: text ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' }, durationMs: elapsed() })
+  }
 
   await (deps.typing ?? sendPlatformTypingIndicator)({ ...platform, inboundWamid: job.wamid, jobId: job.id })
 

@@ -37,6 +37,11 @@ const CLIENT_ROOT: Record<string, string> = {
   'app/(he)/(app)/settings/(admin_settings)/edit_teams/page.tsx': 'components/agntsAndGrps/TeamCard.tsx',
 }
 
+/** A page that only wraps a server component in <Suspense>: the component does the localizing. */
+const SERVER_ROOT: Record<string, string> = {
+  'app/(he)/billing/credits/page.tsx': 'components/settings/payment/CreditsPageContent.tsx',
+}
+
 const REDIRECTS = [
   'app/(he)/(app)/settings/(admin_settings)/connections/page.tsx',
   'app/(he)/(app)/settings/(user_settings)/calendar/page.tsx',
@@ -69,6 +74,7 @@ function resolveModule(spec: string): string | null {
 function isLocalized(page: string): boolean {
   const src = code(page)
   if (SERVER_ENTRY.test(src)) return true
+  if (SERVER_ROOT[page] && SERVER_ENTRY.test(code(SERVER_ROOT[page]))) return true
   const reexport = src.match(/export \{ default \} from '(@\/[^']+)'/)
   const target = reexport && resolveModule(reexport[1])
   return !!target && SERVER_ENTRY.test(code(target))

@@ -343,6 +343,20 @@ export type ProposedAction =
       }
       evidenceRefs: string[]
     }
+  | {
+      /** WhatsApp only. The application finds the task from `match`; the model never gives its id. */
+      actionType: 'update_task'
+      args: { clientId: number; match: string | null; newTitle: string | null; newWhen: string | null }
+      evidenceRefs: string[]
+    }
+  | { /** WhatsApp only. */ actionType: 'complete_task'; args: { clientId: number; match: string | null }; evidenceRefs: string[] }
+  | {
+      /** WhatsApp only. The application finds the appointment from `match`. */
+      actionType: 'reschedule_meeting'
+      args: { clientId: number; match: string | null; newWhen: string | null }
+      evidenceRefs: string[]
+    }
+  | { /** WhatsApp only. */ actionType: 'cancel_meeting'; args: { clientId: number; match: string | null }; evidenceRefs: string[] }
 
 /**
  * One action across many leads. Expanded by the application into N ordinary

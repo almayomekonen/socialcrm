@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { SUBSCRIPTION_CHARGE_KINDS } from '@/db/payments/charges'
 import { getAgencyTrial } from '@/db/trial'
 import { getTrialState } from '@/lib/trial'
 import { getActivePaymentMethod, getLatestPaymentMethod, type PaymentMethodRow } from '@/db/payments/paymentMethods'
@@ -53,7 +54,7 @@ export async function getCardTrialView(agencyId: number): Promise<CardTrialView>
     getActivePaymentMethod(agencyId),
     getAgencyTrial(agencyId),
     db('subscriptions').where({ agencyId }).first('cancelAtPeriodEnd', 'expiresAt'),
-    db('billing_charges').where({ agencyId }).orderBy('id', 'desc').first('status', 'dispatchedAt'),
+    db('billing_charges').where({ agencyId }).whereIn('kind', SUBSCRIPTION_CHARGE_KINDS as string[]).orderBy('id', 'desc').first('status', 'dispatchedAt'),
   ])
 
   const state = trialRow ? getTrialState(trialRow, new Date()) : null

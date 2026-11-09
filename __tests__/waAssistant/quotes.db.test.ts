@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Quotes from WhatsApp, end to end against a real (local test) PostgreSQL: the
@@ -593,6 +593,44 @@ describe('the switch', () => {
     await tap(o.digits, c.approve)
     await run(h)
     expect(h.last().body).toBe(COPY.notAvailable)
+    expect(await quotesOf(A)).toHaveLength(0)
+  })
+})
+
+describe('the request allowance', () => {
+  const CREDITS = { CREDITS_METERING: '1', CREDITS_ENFORCE_ON_PRO: '1', CREDITS_MONTHLY_ALLOWANCE: '1' }
+  const requests = () => db('agent_requests').where({ agencyId: A }).select('tier')
+  beforeEach(async () => {
+    Object.assign(process.env, CREDITS, { CREDITS_ENFORCEMENT_AGENCY_IDS: String(A) })
+    await db('agent_requests').where({ agencyId: A }).del()
+  })
+  afterEach(async () => {
+    for (const k of [...Object.keys(CREDITS), 'CREDITS_ENFORCEMENT_AGENCY_IDS']) delete process.env[k]
+    await db('agent_requests').where({ agencyId: A }).del()
+  })
+
+  it('the request that drafts the card is counted once, and approving it costs nothing more', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead), [o.lead])])
+    const c = await card(o, h, REQUEST)
+    expect(await requests()).toEqual([{ tier: 'free' }])
+
+    // The allowance of 1 is now used up: the tap still executes, because it is not an AI request.
+    await tap(o.digits, c.approve)
+    await run(h)
+    expect(h.runAgent).toHaveBeenCalledTimes(1)
+    expect(await requests()).toEqual([{ tier: 'free' }])
+    expect(await quotesOf(A)).toHaveLength(1)
+  })
+
+  it('declining the card costs nothing more either', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead), [o.lead])])
+    const c = await card(o, h, REQUEST)
+    await tap(o.digits, c.reject)
+    await run(h)
+    expect(h.runAgent).toHaveBeenCalledTimes(1)
+    expect(await requests()).toEqual([{ tier: 'free' }])
     expect(await quotesOf(A)).toHaveLength(0)
   })
 })

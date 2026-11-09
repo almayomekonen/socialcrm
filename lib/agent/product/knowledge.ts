@@ -171,10 +171,10 @@ export const PRODUCT_TOPICS: readonly ProductTopic[] = [
     id: 'the_agent',
     title: 'הסוכן שלך',
     summary:
-      'הסוכן עונה על סמך הנתונים של העסק, ומסביר מה קורה, מה דורש טיפול ומה כדאי לעשות. הוא לא שולח הודעות ללידים ולא משנה סטטוסים. כשמבקשים ממנו, הוא יכול להציע ליצור משימה, לקבוע מעקב או לקבוע פגישה — המערכת מאמתת את הפעולה ומודיעה מה קרה. בוואטסאפ הוא זמין בפיילוט, ושם רק פגישה, ורק אחרי לחיצה על כפתור האישור. כשאין לו נתון, הוא אומר זאת במקום לנחש.',
+      'הסוכן עונה על סמך הנתונים של העסק, ומסביר מה קורה, מה דורש טיפול ומה כדאי לעשות. הוא לא שולח הודעות ללידים. כשמבקשים ממנו, הוא יכול להציע ליצור משימה, לקבוע מעקב או לקבוע פגישה. בוואטסאפ הוא יכול גם לעדכן סטטוס, להוסיף הערה, לעדכן משימה או לסמן אותה כבוצעה, ולהזיז או לבטל פגישה. כל שינוי בוואטסאפ מתבצע רק אחרי לחיצה על כפתור האישור, והמערכת מאמתת ומודיעה מה קרה. כשאין לו נתון, הוא אומר זאת במקום לנחש.',
     routes: ['/agent'],
     link: '/agent',
-    source: 'lib/agent/tools/index.ts (read tools) · lib/agent/actions (create_task / create_follow_up / create_meeting) · lib/waAssistant/worker.ts (WhatsApp: meetings only, WA_ASSISTANT_*)',
+    source: 'lib/agent/tools/index.ts (read tools) · lib/agent/actions (create_task / create_follow_up / create_meeting) · lib/waAssistant/worker.ts (WhatsApp: tasks, meetings, status, notes, each behind approval; WA_ASSISTANT_*)',
   },
   {
     id: 'pricing_trial',

@@ -56,9 +56,21 @@ const QUOTE_RULES = `- בוואטסאפ אפשר גם לבקש יצירת הצע
 - validityDays רק אם בעל העסק אמר תוקף ("בתוקף ל-30 יום" → 30, "שבועיים" → 14), אחרת null.
 - אל תחשב מע"מ או סכומים ואל תכתוב אותם: המערכת תחשב ותציג כרטיס אישור. אל תכתוב שההצעה נוצרה או נשלחה. הצעת מחיר לא נשלחת ללקוח מכאן.`
 
+/** Changing an EXISTING task. The system finds the record; the Agent never sees or gives its id. */
+const TASK_CHANGE_RULES = `- שינוי משימה שכבר קיימת: complete_task כשבעל העסק אומר שהיא בוצעה ("תסמן שהמשימה בוצעה", "סיימתי את המשימה"), update_task כשהוא משנה את הכותרת או התאריך. create_task רק למשימה חדשה.
+- clientId הוא הליד (חפש אותו עם find_lead). match הוא המילים של בעל העסק שמתארות איזו משימה, או null. newTitle הוא הכותרת החדשה במילים שלו, או null. newWhen הוא ציטוט מדויק של המילים שלו על המועד החדש, או null.
+- אם בעל העסק ענה על שאלה "לאיזו משימה", בקש שוב את אותה פעולה עם אותו ליד.
+- אל תכתוב שהמשימה עודכנה או סומנה: המערכת תמצא אותה ותציג כרטיס אישור.`
+
+/** Changing an EXISTING appointment. Same rules. */
+const MEETING_CHANGE_RULES = `- שינוי פגישה שכבר קיימת: reschedule_meeting כשבעל העסק מבקש להזיז או לדחות, cancel_meeting כשהוא מבקש לבטל. create_meeting רק לפגישה חדשה.
+- clientId הוא הליד. match הוא המילים שלו שמתארות איזו פגישה (למשל "של מחר"), או null. newWhen הוא ציטוט מדויק של המילים שלו על המועד החדש בלבד, בלי המועד הישן ("תזיז ממחר ליום ראשון ב-10" → match "מחר", newWhen "יום ראשון ב-10").
+- אם בעל העסק ענה על שאלה "לאיזו פגישה" או "לאיזה מועד", בקש שוב את אותה פעולה עם אותו ליד.
+- אל תכתוב שהפגישה הוזזה או בוטלה: המערכת תמצא אותה ותציג כרטיס אישור.`
+
 /** The surface rules for this agency's turn: the base rules, plus only the actions it has switched on. */
-export function waAgentRules(caps: { statusOn: boolean; notesOn: boolean; remindersOn?: boolean; quotesOn?: boolean }): string {
-  return [WA_AGENT_RULES, caps.statusOn ? STATUS_RULES : null, caps.notesOn ? NOTE_RULES : null, caps.remindersOn ? REMINDER_RULES : null, caps.quotesOn ? QUOTE_RULES : null]
+export function waAgentRules(caps: { statusOn: boolean; notesOn: boolean; remindersOn?: boolean; tasksOn?: boolean; meetingsOn?: boolean; quotesOn?: boolean }): string {
+  return [WA_AGENT_RULES, caps.statusOn ? STATUS_RULES : null, caps.notesOn ? NOTE_RULES : null, caps.remindersOn ? REMINDER_RULES : null, caps.quotesOn ? QUOTE_RULES : null, caps.tasksOn ? TASK_CHANGE_RULES : null, caps.meetingsOn ? MEETING_CHANGE_RULES : null]
     .filter(Boolean)
     .join('\n')
 }

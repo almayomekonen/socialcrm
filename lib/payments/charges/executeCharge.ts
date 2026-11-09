@@ -7,7 +7,9 @@ import { isTokenChargeDispatchEstablished } from '@/lib/payments/grow/providerEv
 import { assertGrowRuntime } from '@/lib/payments/grow/config'
 import { CHARGE_DESCRIPTION } from '@/lib/payments/cardTrial/terms'
 import { markPaymentMethodStatus } from '@/db/payments/paymentMethods'
-import { insertNextAttempt, markChargeFailed, markChargeUnknown, releaseUndispatchedClaim, type ChargeRow } from '@/db/payments/charges'
+import { insertNextAttempt, isCreditPackCharge, markChargeFailed, markChargeUnknown, releaseUndispatchedClaim, type ChargeRow } from '@/db/payments/charges'
+import { creditsSold } from '@/db/credits/purchases'
+import { creditPackDescription } from '@/lib/credits/config'
 import { beginChargeAttempt } from '@/db/payments/chargeDispatch'
 import { notifyAgencyOwner } from '@/lib/payments/notifyOwner'
 import { applySuccessfulCharge } from './applySuccessfulCharge'
@@ -51,6 +53,8 @@ const liveDeps: ExecuteDeps = {
  * key can turn a settled decline into a thrown charge pass.
  */
 async function failed(charge: ChargeRow, errorClass: 'final' | 'retryable'): Promise<void> {
+  // A declined credit pack is reported to the buyer on the spot; it is not a subscription payment failure.
+  if (isCreditPackCharge(charge.kind)) return
   await track({ agencyId: charge.agencyId, event: 'subscription_charge_failed', props: { chargeId: charge.id, kind: charge.kind, attempt: charge.attempt, errorClass } })
   await notifyAgencyOwner('subscription.payment_failed', charge.agencyId, LOG)
 }
@@ -70,7 +74,7 @@ export async function executeCharge(chargeId: number, deps: ExecuteDeps = liveDe
       cardToken,
       holder: method.holder,
       sum: charge.amount,
-      description: CHARGE_DESCRIPTION,
+      description: isCreditPackCharge(charge.kind) ? creditPackDescription(charge.kind, creditsSold(charge.periodKey)) : CHARGE_DESCRIPTION,
       uniqueIdentifier: charge.id,
     })
   } catch (err) {
@@ -108,14 +112,18 @@ export async function executeCharge(chargeId: number, deps: ExecuteDeps = liveDe
   if (errorClass === 'final') {
     await db.transaction(async (trx) => {
       await markChargeFailed(trx, charge.id, { status: 'failed_final', errorClass, ...detail })
-      await markPaymentMethodStatus(trx, method.id, 'invalid', 'final_decline')
+      // A one-time pack never changes the subscription's card: invalidating it here would
+      // make the next renewal stop silently (no_active_method, no email). The renewal
+      // meets the card itself and runs the normal final-decline path if it is really dead.
+      if (!isCreditPackCharge(charge.kind)) await markPaymentMethodStatus(trx, method.id, 'invalid', 'final_decline')
     })
     await failed(charge, 'final')
     return 'failed_final'
   }
   await db.transaction(async (trx) => {
     await markChargeFailed(trx, charge.id, { status: 'failed_retryable', errorClass, ...detail })
-    const next = nextRetryAt(charge.firstAttemptAt, charge.attempt)
+    // Credit packs are never retried later: a declined purchase is bought again only by the buyer.
+    const next = isCreditPackCharge(charge.kind) ? null : nextRetryAt(charge.firstAttemptAt, charge.attempt)
     if (next) await insertNextAttempt(trx, charge, next)
   })
   await failed(charge, 'retryable')

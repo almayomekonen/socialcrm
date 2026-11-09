@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto'
+import { canPurchaseCredits } from '@/lib/credits/config'
 import { db } from '@/config/db'
 import { isAdmin, type Roles } from '@/types/roles'
 import { getAgencyTrial } from '@/db/trial'
@@ -17,7 +18,7 @@ import {
 } from '@/db/payments/paymentMethods'
 import { isGrowLocalMockEnabled, localMockCreateTokenOnlyProcess, localMockOrigin } from '@/lib/payments/grow/localMock'
 import { validateCardHolder } from './cardHolder'
-import { CARD_STORAGE_CONSENT_VERSION, CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
+import { cardStorageConsent, CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_DESCRIPTION } from './terms'
 
 /**
  * Opens a Grow "Get Token Only" payment page for this agency. Nothing here
@@ -32,7 +33,7 @@ import { CARD_STORAGE_CONSENT_VERSION, CARD_TRIAL_TERMS_VERSION, TOKEN_PROCESS_D
  */
 
 export type CardSetupRequester = { id: number; agencyId: number; email: string | null; role: Roles }
-export type StartCardSetupInput = { purpose: PaymentMethodPurpose; fullName?: string; phone?: string; acceptedTerms?: boolean; acceptedCardStorage?: boolean }
+export type StartCardSetupInput = { purpose: PaymentMethodPurpose; returnTo?: 'credits'; fullName?: string; phone?: string; acceptedTerms?: boolean; acceptedCardStorage?: boolean }
 export type StartCardSetupResult =
   | { ok: true; url: string }
   | { error: 'unauthorized' | 'not_eligible' | 'provider_unavailable' | 'terms_required' | 'card_storage_consent_required' }
@@ -87,7 +88,8 @@ export async function isCardSetupEligible(agencyId: number, purpose: PaymentMeth
      * Gated on the rollout flag like every other card path, so the validation
      * window stays restricted to the allowlisted account.
      */
-    if (!isCardRequiredTrialEnabledForAgency(agencyId)) return false
+    // An agency allowed to buy credits needs a card to do it, whatever the trial rollout says.
+    if (!isCardRequiredTrialEnabledForAgency(agencyId) && !canPurchaseCredits(agencyId)) return false
     return status === 'PAID' || status === 'LEGACY'
   }
   return status === 'TRIAL_EXPIRED' && (await getLatestConfirmedPaymentMethod(agencyId)) !== null
@@ -147,7 +149,7 @@ export async function startCardSetupForUser(
     reference,
     holder: holder.holder,
     termsVersion: needsTerms(input.purpose) ? CARD_TRIAL_TERMS_VERSION : null,
-    cardStorageConsentVersion: CARD_STORAGE_CONSENT_VERSION,
+    cardStorageConsentVersion: cardStorageConsent(input.returnTo).version,
   })
   // One live setup per agency: a callback for an older page can no longer activate anything.
   await supersedePendingPaymentMethods(db, requester.agencyId, 'superseded_by_newer_setup', methodId)
@@ -159,8 +161,9 @@ export async function startCardSetupForUser(
       holder: holder.holder,
       reference,
       description: TOKEN_PROCESS_DESCRIPTION,
-      successUrl: `${origin}/billing/success?source=${SUCCESS_SOURCE[input.purpose]}`,
-      cancelUrl: input.purpose === 'trial_start' ? `${origin}/dashboard` : `${origin}/settings/update_payment`,
+      // A card added from the credit purchase page comes back there, not to the desktop billing screen.
+      successUrl: `${origin}/billing/success?source=${SUCCESS_SOURCE[input.purpose]}${input.returnTo === 'credits' ? '&return=credits' : ''}`,
+      cancelUrl: input.returnTo === 'credits' ? `${origin}/billing/credits` : input.purpose === 'trial_start' ? `${origin}/dashboard` : `${origin}/settings/update_payment`,
       notifyUrl: `${origin}/api/payments/grow/notify`,
     })
     await attachSetupProcess(methodId, grow.processId, grow.processToken)

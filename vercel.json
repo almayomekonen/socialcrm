@@ -67,6 +67,10 @@
     {
       "path": "/api/cron/wa-assistant",
       "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/cron/usage-credits",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

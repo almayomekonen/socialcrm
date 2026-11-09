@@ -82,7 +82,8 @@ export function asErrorReason(raw: string | null | undefined): CopilotResponseEr
     raw === 'all-providers-failed' ||
     raw === 'invalid-input' ||
     raw === 'subscription-required' ||
-    raw === 'trial-not-started'
+    raw === 'trial-not-started' ||
+    raw === 'ai-credits-exhausted'
   ) {
     return raw
   }

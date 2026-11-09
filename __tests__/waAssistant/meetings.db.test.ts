@@ -405,7 +405,8 @@ describe('act at once when the request is complete', () => {
     const h = harness([meetingAnswer(o.lead)])
     await card(o, h)
     const arg = (h.runAgent.mock.calls[0] as unknown[])[0] as { surfaceRules?: string }
-    expect(arg.surfaceRules).toBe(WA_AGENT_RULES)
+    expect(arg.surfaceRules).toContain(WA_AGENT_RULES)
+    expect(arg.surfaceRules).toContain('reschedule_meeting')
   })
 })
 

@@ -127,7 +127,8 @@ describe('every action receives identical arguments in every language', () => {
       await act(async () => fireEvent.click(screen.getAllByText(n.del).at(-1)!))
       seen[locale] = {
         send: calls(S.sendReply),
-        draft: calls(S.generateDraft),
+        // The second argument is a fresh id per press, so only its type can match across languages.
+        draft: (calls(S.generateDraft) as unknown[][]).map(([leadId, requestId]) => [leadId, typeof requestId]),
         read: calls(S.markRead),
         takeOver: calls(S.takeOver),
         delete: calls(S.deleteConversation),
@@ -136,7 +137,7 @@ describe('every action receives identical arguments in every language', () => {
       cleanup()
       resetInboxSpies()
     }
-    expect(seen.he).toMatchObject({ send: [[41, 'שלום Dana 👋 1,200 ₪', 1]], draft: [[41]], takeOver: [[1]], delete: [[1]] })
+    expect(seen.he).toMatchObject({ send: [[41, 'שלום Dana 👋 1,200 ₪', 1]], draft: [[41, 'string']], takeOver: [[1]], delete: [[1]] })
     expect(seen.en).toEqual(seen.he)
     expect(seen.ar).toEqual(seen.he)
   })

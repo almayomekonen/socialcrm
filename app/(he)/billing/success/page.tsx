@@ -29,13 +29,13 @@ type CardSource = keyof typeof CARD_SOURCES
  * verifier, which would sit "checking" for thirty seconds over a setup that was
  * never started, and it must certainly not imply that anything was paid.
  */
-async function ReturnedFlow({ searchParams }: { searchParams?: Promise<{ source?: string | string[] }> }) {
+async function ReturnedFlow({ searchParams }: { searchParams?: Promise<{ source?: string | string[]; return?: string | string[] }> }) {
   const sp = searchParams ? await searchParams : {}
   const raw = Array.isArray(sp.source) ? sp.source[0] : sp.source
   const cardSource = raw && raw in CARD_SOURCES ? (raw as CardSource) : null
   if (!cardSource) redirect('/settings/update_payment')
 
-  return <CardSetupVerifier purpose={cardSource} locale={await getPreLoginLocale()} />
+  return <CardSetupVerifier purpose={cardSource} returnTo={sp.return === 'credits' ? '/billing/credits' : undefined} locale={await getPreLoginLocale()} />
 }
 
 /**
@@ -53,7 +53,7 @@ async function ReturnedFlow({ searchParams }: { searchParams?: Promise<{ source?
  * The fallback deliberately says nothing about the outcome: it is on screen
  * before the verifier has asked the server anything.
  */
-export default function BillingSuccessPage({ searchParams }: { searchParams?: Promise<{ source?: string | string[] }> }) {
+export default function BillingSuccessPage({ searchParams }: { searchParams?: Promise<{ source?: string | string[]; return?: string | string[] }> }) {
   return (
     <main className='min-h-screen flex items-center justify-center bg-gray-50 px-4'>
       <Suspense fallback={<div className='h-40 w-full max-w-md' aria-busy='true' />}>

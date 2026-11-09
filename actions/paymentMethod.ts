@@ -29,6 +29,7 @@ export async function startCardSetup(input: StartCardSetupInput): Promise<StartC
       // and every remaining one is optional, so the compiler sees nothing wrong
       // and the server reads it as "not consented".
       acceptedCardStorage: input.acceptedCardStorage === true,
+      returnTo: input.returnTo === 'credits' ? 'credits' : undefined,
     },
   )
 }
