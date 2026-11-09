@@ -5,7 +5,8 @@ import { ils } from '../format'
 /**
  * The stored totals, unchanged: nothing is computed here. `subtotal` is after
  * line discounts, which is how the quote stores it, so the label says so
- * whenever a discount exists.
+ * whenever a discount exists. An exempt business has no VAT to state, so it
+ * gets neither a VAT row nor a "before VAT" amount.
  */
 export function QuoteTotals({
   subtotal,
@@ -13,20 +14,23 @@ export function QuoteTotals({
   tax,
   total,
   ratePercent,
+  exempt = false,
 }: {
   subtotal: number | string
   discount: number | string
   tax: number | string
   total: number | string
   ratePercent: number | null
+  exempt?: boolean
 }) {
   const hasDiscount = Number(discount) > 0
+  const totalOnly = exempt && !hasDiscount
   return (
     <section style={{ backgroundColor: COLOR.panel, padding: `${SP.lg} ${SP.xl}`, borderRadius: '8px', width: '300px', marginInlineStart: 'auto' }}>
       {hasDiscount && <Row label='הנחות' value={ils(discount)} />}
-      <Row label={hasDiscount ? 'סכום לפני מע"מ (אחרי הנחות)' : 'סכום לפני מע"מ'} value={ils(subtotal)} />
-      <Row label={ratePercent == null ? 'מע"מ' : `מע"מ (${formatQty(ratePercent)}%)`} value={ils(tax)} />
-      <div style={{ marginTop: SP.md, paddingTop: SP.md, borderTop: `1px solid ${COLOR.ruleFirm}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      {!exempt && <Row label={hasDiscount ? 'סכום לפני מע"מ (אחרי הנחות)' : 'סכום לפני מע"מ'} value={ils(subtotal)} />}
+      {!exempt && <Row label={ratePercent == null ? 'מע"מ' : `מע"מ (${formatQty(ratePercent)}%)`} value={ils(tax)} />}
+      <div style={{ ...(totalOnly ? {} : { marginTop: SP.md, paddingTop: SP.md, borderTop: `1px solid ${COLOR.ruleFirm}` }), display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div style={{ fontSize: TYPE.label, color: COLOR.label, fontWeight: 600, letterSpacing: TRACKING.caps }}>סה&quot;כ לתשלום</div>
         <div style={{ fontSize: TYPE.total, fontWeight: 600, color: COLOR.ink, letterSpacing: TRACKING.tight, ...LTR_RUN }}>{ils(total)}</div>
       </div>

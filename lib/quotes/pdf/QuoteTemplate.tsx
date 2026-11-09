@@ -59,6 +59,8 @@ function sharedRate(items: readonly QuotePdfItem[]): number | null {
 export async function renderQuoteHtml(input: QuoteTemplateInput): Promise<string> {
   const { quote, items, issuer } = input
   const displayName = issuer?.name?.trim() || input.fallbackName.trim()
+  // Both, because a quote stored with VAT must keep showing the VAT it carries.
+  const exempt = issuer?.businessType === 'exempt' && Number(quote.taxAmount) === 0
   const body = (await staticMarkup())(
     <main style={{ padding: `0 ${PAGE.margin}`, color: COLOR.text, fontFamily: FONT_FAMILY, fontSize: '11pt', lineHeight: 1.5 }}>
       <QuoteHeader issuer={issuer} displayName={displayName} quoteNumber={quote.quoteNumber} issuedDate={businessDate(quote.readyAt)} validUntil={quote.expiresAt ? formatPdfDate(quote.expiresAt as string) : ''} />
@@ -69,9 +71,10 @@ export async function renderQuoteHtml(input: QuoteTemplateInput): Promise<string
       <Gap />
       <QuoteLinesTable
         items={items}
+        exempt={exempt}
         after={
           <>
-            <QuoteTotals subtotal={quote.subtotalAmount} discount={quote.discountAmount} tax={quote.taxAmount} total={quote.totalAmount} ratePercent={sharedRate(items)} />
+            <QuoteTotals subtotal={quote.subtotalAmount} discount={quote.discountAmount} tax={quote.taxAmount} total={quote.totalAmount} ratePercent={sharedRate(items)} exempt={exempt} />
             <DocumentFooter customerFooter='' displayName={displayName} />
           </>
         }

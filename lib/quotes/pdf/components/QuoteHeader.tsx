@@ -16,6 +16,7 @@ export function QuoteHeader({
   validUntil: string
 }) {
   const taxId = issuer?.taxId?.trim() ?? ''
+  const exempt = issuer?.businessType === 'exempt'
   const contact = [issuer?.address, issuer?.phone, issuer?.email].map((s) => s?.trim() ?? '').filter(Boolean)
   return (
     <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: SP.xxl }}>
@@ -33,10 +34,10 @@ export function QuoteHeader({
         <div style={{ minWidth: 0, textAlign: 'left' }}>
           <div style={{ fontSize: TYPE.emph, fontWeight: 600, color: COLOR.text, letterSpacing: TRACKING.tight, overflowWrap: 'anywhere' }}>{displayName}</div>
           <div style={{ marginTop: SP.xs, fontSize: TYPE.metadata, color: COLOR.label, lineHeight: 1.7 }}>
-            {issuer?.businessType === 'exempt' && <div>עוסק פטור</div>}
+            {exempt && !taxId && <div>עוסק פטור</div>}
             {taxId && (
               <div>
-                <span>ע.מ / ח.פ</span> <span style={LTR_RUN}>{taxId}</span>
+                <span>{exempt ? 'עוסק פטור מס׳' : 'ע.מ / ח.פ'}</span> <span style={LTR_RUN}>{taxId}</span>
               </div>
             )}
             {contact.map((c) => (

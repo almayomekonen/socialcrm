@@ -49,14 +49,14 @@ export function documentCases(): void {
     for (const figure of ['15,677.97', '2,822.03', '18,500.00']) expect(text).toContain(figure)
   }, 200_000)
 
-  it('an exempt business shows 0% VAT, says it is exempt, and is stored under its own tenant', async () => {
+  it('an exempt business states no VAT, says it is exempt, and is stored under its own tenant', async () => {
     const q = await quote(1, { unitAmount: 18500, priceBasis: null, exempt: true })
     expect(await start(q.quoteId, {}, CLOUD_EXEMPT_AGENCY)).toBe('started')
     const [d] = await docsOf(q.quoteId)
     expect(d.path.startsWith(`tenants/${CLOUD_EXEMPT_AGENCY}/quotes/`)).toBe(true)
-    const { text } = await readDocument(q.quoteId, 'exempt', 'Exempt business: "עוסק פטור", 0% VAT (wording pending the accountant)')
+    const { text } = await readDocument(q.quoteId, 'exempt', 'Exempt business: "עוסק פטור", no VAT row (wording pending the accountant)')
     expect(text).toContain('פטור')
-    expect(text).toContain('0%')
+    expect(text).not.toContain('0%')
     expect(text).toContain('18,500.00')
     expect(text).not.toContain('2,822.03')
   }, 200_000)
