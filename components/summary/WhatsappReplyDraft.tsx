@@ -29,7 +29,7 @@ export default function WhatsappReplyDraft({
   const router = useRouter()
   const [draft, setDraft] = useState('')
   // Chrome only: the draft itself (what the rep types) is never touched by the language.
-  const [error, setError] = useState<boolean>(false)
+  const [error, setError] = useState<'failed' | 'limit' | null>(null)
   const [pending, startTransition] = useTransition()
   const [sending, setSending] = useState(false)
   const [emojiOpen, setEmojiOpen] = useState(false)
@@ -37,6 +37,8 @@ export default function WhatsappReplyDraft({
   const emojiBtnRef = useRef<HTMLButtonElement>(null)
   // Human Presence: the first keystroke parks the WhatsApp agent for this turn.
   const signalTyping = useComposerTypingSignal(conversationId)
+  // Set synchronously: `pending` only disables the button after a render.
+  const generatingRef = useRef(false)
 
   const hasDraft = draft.trim().length > 0
   const busy = pending || sending
@@ -75,11 +77,20 @@ export default function WhatsappReplyDraft({
    * subscription lapsed, and no message can be sent.
    */
   const generate = () => {
-    setError(false)
+    if (generatingRef.current) return
+    generatingRef.current = true
+    setError(null)
+    // One id per press: the server counts it once and will not run it twice.
+    const requestId = crypto.randomUUID()
     startTransition(async () => {
-      const res = await generateWhatsappReplyDraft(leadId)
-      if (res.ok) setDraft(res.message.slice(0, MAX_CHARS))
-      else setError(true)
+      try {
+        const res = await generateWhatsappReplyDraft(leadId, requestId)
+        if ('message' in res) setDraft(res.message.slice(0, MAX_CHARS))
+        else if (res.reason === 'ai-credits-exhausted') setError('limit')
+        else if (res.reason !== 'duplicate-request') setError('failed')
+      } finally {
+        generatingRef.current = false
+      }
     })
   }
 
@@ -92,7 +103,7 @@ export default function WhatsappReplyDraft({
   const handleSend = async () => {
     if (!hasDraft || sending) return
     setSending(true)
-    setError(false)
+    setError(null)
     try {
       const res = await sendWhatsappReply(leadId, draft, conversationId)
       if (res.ok === true) {
@@ -203,7 +214,7 @@ export default function WhatsappReplyDraft({
           </span>
         </div>
       )}
-      {error && <p className='mt-1 ps-10.5 text-xs text-red-500'>{t('inbox.draft.draftFailed')}</p>}
+      {error && <p className='mt-1 ps-10.5 text-xs text-red-500'>{t(error === 'limit' ? 'inbox.draft.draftLimit' : 'inbox.draft.draftFailed')}</p>}
     </div>
   )
 }

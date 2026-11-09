@@ -34,6 +34,7 @@ const TASK_CATEGORY: Record<TaskKind, Exclude<AiUsageCategory, 'unclassified'>> 
 const OPERATION_CATEGORY: Record<string, Exclude<AiUsageCategory, 'unclassified'>> = {
   wa_assistant_job: 'agent',
   copilot_request: 'agent',
+  whatsapp_reply_draft: 'agent',
   agent_investigation: 'agent',
   'voice.transcribe': 'agent',
   auto_response_job: 'automation',
