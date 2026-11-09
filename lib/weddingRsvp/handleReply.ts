@@ -4,6 +4,7 @@ import { getWeddingRsvpChoice, type WeddingRsvpChoice } from '@/lib/weddingRsvp/
 import { isHeadCountAnswer, parseHeadCount } from '@/lib/weddingRsvp/headCount'
 import { findLatestOutbound, withConversationLock } from '@/lib/weddingRsvp/history'
 import { replyInConversation } from '@/lib/weddingRsvp/reply'
+import { sendEventLinksAfterThanks } from '@/lib/weddingRsvp/eventLinks'
 
 export type WeddingRsvpRouteResult =
   | { handled: false }
@@ -50,6 +51,7 @@ export async function routeWeddingRsvpReply(args: {
       const latest = await findLatestOutbound(args.agencyId, args.conversationId)
       if (!isHeadCountAnswer(latest, args.messageId, new Date())) return { handled: false } as const
       const outcome = await replyInConversation({ ...args, body: REPLY_THANKS, metadata: { step: 'thanks', headCount } })
+      if (outcome.replied) await sendEventLinksAfterThanks(args)
       return { handled: true, headCount, ...outcome } as const
     })
   } catch (err) {
