@@ -88,3 +88,6 @@ _reference
 # lockfile); a package-lock.json only appears when someone runs `npm install`
 # instead of `pnpm install`, and committing both lets the two drift.
 package-lock.json
+
+# Quote PDFs and page images kept for visual review by the local cloud harness.
+/.quote-cloud-artifacts/

@@ -98,6 +98,7 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | `WA_ASSISTANT_TASKS_AGENCY_IDS` | absent | Absent = no tasks/follow-ups. Lets the assistant create tasks and follow-ups (below). Needs the assistant itself too |
 | `WA_ASSISTANT_STATUS_AGENCY_IDS` | absent | Absent = no status changes. Lets the assistant change a lead's status (below). Can fire the business's status automations. Needs the assistant itself too |
 | `WA_ASSISTANT_NOTES_AGENCY_IDS` | absent | Absent = no notes. Lets the assistant add a note to a lead (below). Needs the assistant itself too |
+| `WA_ASSISTANT_QUOTES_AGENCY_IDS` | absent | Absent = no quotes. Lets the assistant create a quote for a lead from the owner's stated prices, after a card. Creation only, nothing goes to the customer. Explicit ids only: unlike the other switches it has no `_AUDIENCE=all`, and `WA_ASSISTANT_AUDIENCE=all` does not open it. Needs the assistant itself too, a configured VAT rate for the agency, migration `20261111120000`, and the existing PDF renderer and R2 settings. After approval the owner gets the PDF's login-protected link in the same chat; the minute cron retries a failed render up to 3 attempts |
 | `AGENT_LIST_MEETINGS_AGENCY_IDS` | absent | Absent = no `list_meetings` tool. Lets the Agent list the user's own meetings by period ("מה יש לי מחר", "הפגישה הבאה שלי"), on the web Agent and on WhatsApp alike. Explicit ids only, no `all`. Not yet tried with a real model |
 | `AGENT_AGENCY_IDS`, `AI_ENABLED` | must include 103 | The Agent rollout the assistant reuses |
 | Platform number + token | existing | Same as owner reminders |
@@ -317,6 +318,47 @@ lead-intelligence cache warm after a status change (no request on this path).
 Tests: `__tests__/waAssistant/leadUpdates.db.test.ts` (end to end),
 `__tests__/ai/agent/actions/leadUpdates.integration.test.ts` (runtime),
 `__tests__/ai/agent/webActionTypes.test.ts`.
+
+# Quotes from WhatsApp
+
+An owner asks for a quote in their own words and states the prices. The Agent
+copies the figures into a `create_quote` proposal, SocialCRM checks them against
+the owner's words and computes VAT and totals, and nothing is created until the
+owner taps the card's button. The quote is never sent to the customer from
+WhatsApp. The owner gets a login-protected link to its PDF in the same chat.
+
+**Who gets it.** Only agencies named in `WA_ASSISTANT_QUOTES_AGENCY_IDS` that also
+have the assistant. Never widen this to all agencies: quotes deliberately do not
+use the `_AUDIENCE=all` mechanism the other capabilities have
+(`__tests__/waAssistant/quoteFlagAllowlist.test.ts`). The switch is read at the
+tap as well, so removing an id also stops that agency's open cards.
+
+**Requests and credits.** The message that drafts the card passes
+`admitAgentRequest` once. A tap returns before that call and no model runs, so
+approving or declining a card uses no request or credit, and still works once the
+allowance is used up (`__tests__/waAssistant/quotes.db.test.ts`). An owner's reply
+to one of the assistant's questions is a new message and counts as its own request.
+
+## Rollout (each step its own approval)
+
+1. Merge to `main` with the feature off: `WA_ASSISTANT_QUOTES_AGENCY_IDS` absent.
+2. Before the deploy, apply `20261111120000_quote_cancelled_numbering_documents.cjs`
+   by hand (`claude/release-deployment-workflow.md` §8b), after confirming with
+   `migrate:list` what else is pending, including the credits migrations from `main`.
+3. Confirm the Production PDF renderer (`lib/pdf/config.ts`) and R2
+   (`lib/storage/config.ts`) settings. The validation run used Workers Free pacing,
+   1 render per 10 seconds and 10 browser minutes a day: confirm the Production
+   plan covers the expected volume.
+4. Have the accountant approve the exempt-business wording on the PDF ("עוסק פטור",
+   0% VAT) before an exempt business gets a quote.
+5. Give the pilot agency a VAT rate, then set `WA_ASSISTANT_QUOTES_AGENCY_IDS=103`
+   and redeploy. Vercel's 60-second limit can only be observed on this real
+   deployment.
+
+To turn it off, remove the id. Validation harnesses:
+`docs/wa-quotes-validation-harness.md`. The real Cloudflare and R2 run and the
+visual review of its PDFs passed on 2026-11-09, on the branch before `main` was
+merged in.
 
 ## Next phases (not built)
 

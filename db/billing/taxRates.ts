@@ -87,6 +87,36 @@ export async function resolveActiveTaxRateForLine(
   return { id, ratePercent }
 }
 
+/**
+ * The same resolution as `resolveActiveTaxRateForLine`, WITHOUT the hardcoded
+ * fallback: `null` when the agency has no active VAT_STD row and is not exempt.
+ *
+ * For callers that must refuse rather than guess — a quote the owner approves
+ * on WhatsApp must carry the agency's real rate, and 18% because a row is
+ * missing would put an unconfigured number in front of a customer. An exempt
+ * business needs no row: its rate is 0 by law, whatever the table says.
+ *
+ * Same query and same business-type policy as the line resolver, so the two can
+ * never disagree when a row exists.
+ */
+export async function resolveConfiguredTaxRateForLine(
+  agencyId: number,
+  executor: typeof db = db,
+): Promise<{ id: number | null; ratePercent: number } | null> {
+  const [agencyRow, baseRow] = await Promise.all([
+    executor('agencies').where({ id: agencyId }).first('businessType'),
+    queryActiveTaxRateRow(agencyId, DEFAULT_TAX_CODE, undefined, executor),
+  ])
+  if (!agencyRow) return null
+  const businessType = (agencyRow.businessType ?? null) as BusinessType | null
+  if (businessType === 'exempt') return { id: null, ratePercent: 0 }
+  if (!baseRow) return null
+
+  const ratePercent = effectiveTaxRatePercent({ businessType, baseRatePercent: Number(baseRow.ratePercent) })
+  if (!Number.isFinite(ratePercent) || ratePercent < 0) return null
+  return { id: ratePercent === 0 ? null : Number(baseRow.id), ratePercent }
+}
+
 export async function getOrCreateDefaultTaxRate(): Promise<BillTaxRateRow> {
   const existing = await getActiveTaxRate()
   if (existing) return existing

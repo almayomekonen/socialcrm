@@ -21,6 +21,10 @@ export function invoicePdfKey(agencyId: number, invoiceId: number): string {
   return `${PREFIX}/${agencyId}/invoices/${invoiceId}/${randomUUID()}.pdf`
 }
 
+export function quotePdfKey(agencyId: number, quoteId: number): string {
+  return `${PREFIX}/${agencyId}/quotes/${quoteId}/${randomUUID()}.pdf`
+}
+
 export function isStorageKey(path: unknown): path is string {
   return typeof path === 'string' && path.startsWith(`${PREFIX}/`)
 }

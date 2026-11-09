@@ -25,16 +25,24 @@ import type { NumberingKind } from '@/lib/billing/numbering'
  * extreme concurrency, which the data spec accepts.
  */
 
+/**
+ * A sequence row's kind. `quote` shares this allocator for a DISPLAY number
+ * (sales_quotes.quoteNumber); it is a separate row per (agency, year, kind), so
+ * invoice and receipt numbering are unaffected. `NumberingKind` stays the legal
+ * set — nothing that formats or issues a legal document accepts `quote`.
+ */
+export type SequenceKind = NumberingKind | 'quote'
+
 export type AllocateNumberOptions = {
   agencyId: number
   year: number
-  kind: NumberingKind
+  kind: SequenceKind
 }
 
 export type BillNumberingSequenceRow = {
   agencyId: number
   year: number
-  kind: NumberingKind
+  kind: SequenceKind
   nextValue: number
   lastIssuedAt: string | null
   createdAt: string
@@ -53,7 +61,7 @@ export async function allocateNumberInTransaction(
   if (!Number.isInteger(year) || year < 2000 || year > 9999) {
     throw new Error('billing.numbering.invalid_year')
   }
-  if (kind !== 'invoice' && kind !== 'receipt') {
+  if (kind !== 'invoice' && kind !== 'receipt' && kind !== 'quote') {
     throw new Error('billing.numbering.invalid_kind')
   }
 

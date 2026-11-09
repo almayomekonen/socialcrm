@@ -4,7 +4,7 @@ import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import { answersPending, opensRequest, pointsBack, type RequestKind } from './continuation'
 
 /**
- * ONE request (a meeting, a task, a follow-up), spread over the owner's
+ * ONE request (a meeting, a task, a follow-up, a quote), spread over the owner's
  * messages. Context carries ONLY while the owner is answering a pending question
  * (continuation.ts judges that against the question actually asked): a message
  * with new content starts clean, and the abandoned request lends it no lead,
@@ -20,6 +20,7 @@ export const REQUEST_WORDS: Record<RequestKind, RegExp> = {
   task: /משימ|מעקב|תזכיר|תזכורת|לחזור|תחזור|לבדוק|תבדוק|להתקשר|תתקשר/u,
   status: /סטטוס|תעביר|להעביר|תסמן|לסמן/u,
   note: /הערה|הערות|תרשום|לרשום|רשום/u,
+  quote: /הצע(?:ת|ה|ות)\s*מחיר|הצעת\s*ה?מחיר/u,
 }
 /** "כן" / "יאללה" answering "…כבר עברה. למחר באותה שעה?" means tomorrow. */
 const BARE_YES = /^\s*(כן|כ|בטח|יאללה|אוקיי|אוקי|ok|okay|סבבה|נכון|למחר)[\s.!]*$/iu
@@ -86,7 +87,7 @@ export async function startsCleanRequest(job: WaAssistantJob): Promise<boolean> 
   const q = job.question?.trim() ?? ''
   if (pointsBack(q)) return false
   const rows = await recentRows(job)
-  const pendingKind = (['meeting', 'status', 'note'] as const).find((k) => rows[1]?.stopReason?.startsWith(`${k}_clarify_`))
+  const pendingKind = (['meeting', 'status', 'note', 'quote'] as const).find((k) => rows[1]?.stopReason?.startsWith(`${k}_clarify_`))
   const kind: RequestKind = pendingKind ?? 'task'
   const { said, pending } = replay(kind, rows, q, Number.POSITIVE_INFINITY)
   return pending ? said.length === 1 : opensRequest(q)

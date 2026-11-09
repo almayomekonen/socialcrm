@@ -326,6 +326,24 @@ export type ProposedAction =
       evidenceRefs: string[]
     }
   | {
+      /**
+       * WhatsApp only. A quote from the owner's own figures. The application
+       * adds `expectedTotalAmount` / `expectedRatePercent` (the card's numbers)
+       * before the action is recorded; the model never supplies them.
+       */
+      actionType: 'create_quote'
+      args: {
+        clientId: number
+        title: string
+        lines: { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null; discountPercent?: number | null }[]
+        priceBasis: 'incl_vat' | 'excl_vat' | null
+        validityDays: number | null
+        expectedTotalAmount?: number
+        expectedRatePercent?: number
+      }
+      evidenceRefs: string[]
+    }
+  | {
       /** WhatsApp only. The application finds the task from `match`; the model never gives its id. */
       actionType: 'update_task'
       args: { clientId: number; match: string | null; newTitle: string | null; newWhen: string | null }

@@ -42,6 +42,20 @@ const REMINDER_RULES = `- תזכורות אישיות (תזכורת שנשלחת
 - לעולם אל תכתוב שתזכורת נקבעה, בוטלה, הוזזה, קיימת או לא קיימת, ואל תכתוב שאי אפשר לקבוע תזכורות.
 - אם בעל העסק שואל על תזכורת, כתוב רק: אפשר לכתוב "מה התזכורות שלי" כדי לראות אותן, או "בעוד שעה תזכיר לי…" כדי לקבוע תזכורת.`
 
+/**
+ * Only when this agency's WA_ASSISTANT_QUOTES_AGENCY_IDS switch is on. The model
+ * copies the owner's figures; SocialCRM checks every number against the owner's
+ * words, computes VAT and totals, and asks when something is missing.
+ */
+const QUOTE_RULES = `- בוואטסאפ אפשר גם לבקש יצירת הצעת מחיר לליד: create_quote עם clientId, title, lines, priceBasis ו-validityDays. "תכין הצעת מחיר ל...", "הצעת מחיר עבור..." הם create_quote. מצא קודם את הליד עם find_lead.
+- title הוא נושא ההצעה במילים של בעל העסק ("שיפוץ מטבח"). lines: פריט לכל דבר שבעל העסק תמחר, עם title, quantity, unitAmount, discountAmount ו-discountPercent.
+- unitAmount הוא המחיר שבעל העסק אמר, בדיוק, כמספר (18,500 → 18500). quantity רק אם נאמרה כמות, אחרת null. discountAmount רק אם נאמר סכום הנחה, אחרת null.
+- אחוז הנחה שנאמר הוא discountPercent (10% → 10) עם discountAmount null. אל תחשב את הסכום בעצמך. הנחה באחוזים על כל ההצעה: אותו discountPercent בכל פריט.
+- לעולם אל תמציא מחיר, כמות או הנחה. מחיר שלא נאמר: unitAmount null, והמערכת תשאל.
+- priceBasis: incl_vat כשנאמר "כולל מע"מ", excl_vat כשנאמר "לפני מע"מ", "פלוס מע"מ" או "לא כולל מע"מ", אחרת null. אל תנחש.
+- validityDays רק אם בעל העסק אמר תוקף ("בתוקף ל-30 יום" → 30, "שבועיים" → 14), אחרת null.
+- אל תחשב מע"מ או סכומים ואל תכתוב אותם: המערכת תחשב ותציג כרטיס אישור. אל תכתוב שההצעה נוצרה או נשלחה. הצעת מחיר לא נשלחת ללקוח מכאן.`
+
 /** Changing an EXISTING task. The system finds the record; the Agent never sees or gives its id. */
 const TASK_CHANGE_RULES = `- שינוי משימה שכבר קיימת: complete_task כשבעל העסק אומר שהיא בוצעה ("תסמן שהמשימה בוצעה", "סיימתי את המשימה"), update_task כשהוא משנה את הכותרת או התאריך. create_task רק למשימה חדשה.
 - clientId הוא הליד (חפש אותו עם find_lead). match הוא המילים של בעל העסק שמתארות איזו משימה, או null. newTitle הוא הכותרת החדשה במילים שלו, או null. newWhen הוא ציטוט מדויק של המילים שלו על המועד החדש, או null.
@@ -55,6 +69,8 @@ const MEETING_CHANGE_RULES = `- שינוי פגישה שכבר קיימת: resch
 - אל תכתוב שהפגישה הוזזה או בוטלה: המערכת תמצא אותה ותציג כרטיס אישור.`
 
 /** The surface rules for this agency's turn: the base rules, plus only the actions it has switched on. */
-export function waAgentRules(caps: { statusOn: boolean; notesOn: boolean; remindersOn?: boolean; tasksOn?: boolean; meetingsOn?: boolean }): string {
-  return [WA_AGENT_RULES, caps.statusOn ? STATUS_RULES : null, caps.notesOn ? NOTE_RULES : null, caps.remindersOn ? REMINDER_RULES : null, caps.tasksOn ? TASK_CHANGE_RULES : null, caps.meetingsOn ? MEETING_CHANGE_RULES : null].filter(Boolean).join('\n')
+export function waAgentRules(caps: { statusOn: boolean; notesOn: boolean; remindersOn?: boolean; tasksOn?: boolean; meetingsOn?: boolean; quotesOn?: boolean }): string {
+  return [WA_AGENT_RULES, caps.statusOn ? STATUS_RULES : null, caps.notesOn ? NOTE_RULES : null, caps.remindersOn ? REMINDER_RULES : null, caps.quotesOn ? QUOTE_RULES : null, caps.tasksOn ? TASK_CHANGE_RULES : null, caps.meetingsOn ? MEETING_CHANGE_RULES : null]
+    .filter(Boolean)
+    .join('\n')
 }

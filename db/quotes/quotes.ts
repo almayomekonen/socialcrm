@@ -6,6 +6,7 @@ import { buildQuoteFromTemplate } from '@/lib/quotes/fromTemplate'
 import type { QuoteStatus } from '@/lib/quotes/status'
 import { getQuoteTemplateSystem } from './templates'
 import { resolveQuoteRecipientSystem } from './recipient'
+import { insertQuoteWithItems } from './insertQuote'
 
 /**
  * Quote persistence — the sales entity's data layer.
@@ -27,9 +28,9 @@ import { resolveQuoteRecipientSystem } from './recipient'
  * mirror the table columns one-for-one and would be no clearer in a separate
  * file; the rest is ONE concern — quote persistence — with a single write path
  * whose transaction reads as one linear sequence. Splitting it would mean
- * passing the built quote between modules to no reader's benefit. The
- * extraction to make when it grows again is the creation path moving to
- * `db/quotes/createQuote.ts`, leaving reads and types here.
+ * passing the built quote between modules to no reader's benefit. The insert
+ * itself now lives in `db/quotes/insertQuote.ts` (shared with the owner-lines
+ * path in `db/quotes/createQuote.ts`); reads, types and the template path stay.
  */
 
 export type SalesQuoteRow = {
@@ -60,6 +61,7 @@ export type SalesQuoteRow = {
   sentAt: string | null
   sentByUserId: number | null
   decidedAt: string | null
+  cancelledAt: string | null
   declineReason: string | null
   convertedInvoiceId: number | null
   convertedAt: string | null
@@ -238,56 +240,19 @@ export async function createQuoteFromTemplateSystem(input: CreateQuoteFromTempla
       validityDaysOverride: input.validityDaysOverride ?? null,
     })
 
-    /**
-     * Conflict target names the partial index's columns AND its predicate —
-     * Postgres needs both to infer a partial unique index. Targeting the index
-     * rather than using a bare `ON CONFLICT DO NOTHING` matters: a bare form
-     * would also silently swallow any other unique violation.
-     */
-    const inserted = await trx.raw(
-      `
-      INSERT INTO sales_quotes (
-        "agencyId","leadId","createdByUserId","ownerUserId","templateId",status,
-        title,currency,locale,
-        "subtotalAmount","taxAmount","discountAmount","totalAmount",
-        "recipientNameSnapshot","recipientEmailSnapshot","recipientPhoneSnapshot",
-        "introText","termsText","expiresAt","automationKey"
-      ) VALUES (
-        :agencyId,:leadId,:createdByUserId,:ownerUserId,:templateId,'draft',
-        :title,:currency,:locale,
-        :subtotalAmount,:taxAmount,:discountAmount,:totalAmount,
-        :recipientName,:recipientEmail,:recipientPhone,
-        :introText,:termsText,:expiresAt::date,:automationKey
-      )
-      ON CONFLICT ("agencyId","automationKey") WHERE "automationKey" IS NOT NULL DO NOTHING
-      RETURNING id
-      `,
-      {
-        agencyId,
-        leadId,
-        createdByUserId,
-        ownerUserId: recipient.ownerUserId,
-        templateId: built.quote.templateId,
-        title: built.quote.title,
-        currency: built.quote.currency,
-        locale: built.quote.locale,
-        subtotalAmount: built.quote.subtotalAmount,
-        taxAmount: built.quote.taxAmount,
-        discountAmount: built.quote.discountAmount,
-        totalAmount: built.quote.totalAmount,
-        recipientName: built.quote.recipientNameSnapshot,
-        recipientEmail: built.quote.recipientEmailSnapshot,
-        recipientPhone: built.quote.recipientPhoneSnapshot,
-        introText: built.quote.introText,
-        termsText: built.quote.termsText,
-        expiresAt: built.quote.expiresAt,
-        automationKey,
-      },
-    )
+    // The shared idempotent insert (db/quotes/insertQuote.ts): draft only, and a
+    // taken key writes nothing.
+    const inserted = await insertQuoteWithItems(trx, {
+      agencyId,
+      leadId,
+      createdByUserId,
+      ownerUserId: recipient.ownerUserId,
+      automationKey,
+      header: built.quote,
+      items: built.items,
+    })
 
-    const quoteId = inserted?.rows?.[0]?.id ? Number(inserted.rows[0].id) : null
-
-    if (quoteId == null) {
+    if ('conflict' in inserted) {
       // Someone else owns this key. Return THEIR quote; write nothing.
       const winner = automationKey
         ? ((await findQuoteByAutomationKeyQuery(agencyId, automationKey, trx)) as { id: number } | undefined)
@@ -295,25 +260,7 @@ export async function createQuoteFromTemplateSystem(input: CreateQuoteFromTempla
       if (!winner) return { ok: false, reason: 'conflict_unresolved' as const }
       return { ok: true, quoteId: Number(winner.id), created: false }
     }
-
-    await trx('sales_quote_items').insert(
-      built.items.map((i) => ({
-        quoteId,
-        agencyId,
-        lineNumber: i.lineNumber,
-        title: i.title,
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        discount: i.discount,
-        taxRateId: i.taxRateId,
-        taxRatePercentSnapshot: i.taxRatePercentSnapshot,
-        lineSubtotal: i.lineSubtotal,
-        lineTaxAmount: i.lineTaxAmount,
-        lineTotal: i.lineTotal,
-        isOptional: i.isOptional,
-      })),
-    )
+    const quoteId = inserted.quoteId
 
     return { ok: true, quoteId, created: true }
   })

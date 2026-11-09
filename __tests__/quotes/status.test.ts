@@ -15,7 +15,8 @@ const at = (iso: string) => Date.parse(iso)
 
 describe('the status vocabulary is append-only', () => {
   it('declares exactly the values the CHECK constraint admits', () => {
-    expect([...QUOTE_STATUSES]).toEqual(['draft', 'ready', 'sent', 'accepted', 'declined', 'expired'])
+    // `cancelled` appended by 20261111120000 — appended, never inserted mid-list.
+    expect([...QUOTE_STATUSES]).toEqual(['draft', 'ready', 'sent', 'accepted', 'declined', 'expired', 'cancelled'])
   })
 })
 
