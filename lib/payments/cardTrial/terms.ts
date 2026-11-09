@@ -98,6 +98,27 @@ export const CARD_STORAGE_CONSENT_LABEL =
 export const CARD_STORAGE_CONSENT_VERSION = '2026-09-16'
 
 /**
+ * The card-storage consent on the credit purchase path.
+ *
+ * The subscription wording above is true for a subscription, and false here: a
+ * card saved in order to buy credits is never charged on its own. Every pack is
+ * a separate purchase the customer confirms at the amount on screen, and saving
+ * the card starts no renewal. Its own version, so a stored card records which
+ * promise it was saved under.
+ */
+export const CREDIT_CARD_STORAGE_CONSENT_LABEL =
+  'אני מאשר/ת שפרטי הכרטיס יישמרו באופן מאובטח אצל ספק הסליקה Grow לצורך רכישות עתידיות. כל רכישה של חבילת קרדיטים תתבצע רק לאחר אישור מפורש שלי, והסכום שיוצג לי הוא הסכום שיחויב. שמירת הכרטיס אינה מאשרת חיובים אוטומטיים או חידוש מנוי.'
+
+export const CREDIT_CARD_STORAGE_CONSENT_VERSION = '2026-11-08'
+
+/** The wording and version are chosen together, so a screen can never show one and record the other. */
+export function cardStorageConsent(returnTo?: 'credits'): { label: string; version: string } {
+  return returnTo === 'credits'
+    ? { label: CREDIT_CARD_STORAGE_CONSENT_LABEL, version: CREDIT_CARD_STORAGE_CONSENT_VERSION }
+    : { label: CARD_STORAGE_CONSENT_LABEL, version: CARD_STORAGE_CONSENT_VERSION }
+}
+
+/**
  * What an already-entitled account is told when it adds a first card.
  *
  * The ordinary disclosure promises a seven-day trial and a ₪89 charge at the

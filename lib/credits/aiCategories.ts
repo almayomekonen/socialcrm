@@ -33,6 +33,8 @@ const TASK_CATEGORY: Record<TaskKind, Exclude<AiUsageCategory, 'unclassified'>> 
 /** Operations a worker or the Agent names itself (`withAiOperation`, `fallbackOperation`). */
 const OPERATION_CATEGORY: Record<string, Exclude<AiUsageCategory, 'unclassified'>> = {
   wa_assistant_job: 'agent',
+  copilot_request: 'agent',
+  whatsapp_reply_draft: 'agent',
   agent_investigation: 'agent',
   'voice.transcribe': 'agent',
   auto_response_job: 'automation',

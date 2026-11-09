@@ -1,6 +1,7 @@
 'use server'
 
 import { requireProductAccess } from '@/lib/requireUser'
+import { runReplyDraftRequest } from '@/lib/credits/replyDraftRequest'
 import { runStructured } from '@/lib/ai/router'
 import { getLeadIntelligenceInputs } from '@/db/aiSummaries'
 import { getFullLead } from '@/db/clients'
@@ -21,6 +22,9 @@ import { buildWhatsappReplyUserMessage } from '@/lib/ai/prompts/whatsappReplyDra
  * through defineCachedLeadAction, so there is NO cache and NO persistence: every
  * call is a fresh generation (enables "regenerate") and nothing is written to
  * ai_messages / inbox. The returned message only populates a client-side draft.
+ *
+ * Each generated draft is one request against the agency's allowance, whether or
+ * not it is sent. See runReplyDraftRequest for what does not count.
  */
 
 export type WhatsappReplyDraftResult = { ok: true; message: string } | { ok: false; reason: string }
@@ -29,6 +33,7 @@ const RECENT_MESSAGE_LIMIT = 10
 
 export async function generateWhatsappReplyDraft(
   leadIdRaw: number | string,
+  requestId?: string,
 ): Promise<WhatsappReplyDraftResult> {
   const leadId = Number(leadIdRaw)
   if (!Number.isFinite(leadId) || leadId <= 0) return { ok: false, reason: 'invalid-input' }
@@ -49,22 +54,28 @@ export async function generateWhatsappReplyDraft(
     recent,
   )
 
-  const out = await runStructured({
-    kind: 'lead.followup',
-    schema: LeadFollowupSchema,
-    schemaName: 'WhatsappReplyDraft',
-    schemaDescription: 'טיוטת תשובה אחת בוואטסאפ, מבוססת על נתוני הליד וההודעות האחרונות',
-    system: LEAD_FOLLOWUP_SYSTEM_PROMPT,
-    user: userMessage,
-    leadId,
-    agencyId: user.agencyId,
-    userId: user.id,
-  })
+  return runReplyDraftRequest<WhatsappReplyDraftResult>(
+    { user, leadId, requestId },
+    (refusal) => ({ ok: false, reason: refusal }),
+    async () => {
+      const out = await runStructured({
+        kind: 'lead.followup',
+        schema: LeadFollowupSchema,
+        schemaName: 'WhatsappReplyDraft',
+        schemaDescription: 'טיוטת תשובה אחת בוואטסאפ, מבוססת על נתוני הליד וההודעות האחרונות',
+        system: LEAD_FOLLOWUP_SYSTEM_PROMPT,
+        user: userMessage,
+        leadId,
+        agencyId: user.agencyId,
+        userId: user.id,
+      })
 
-  if (out.ok === false) return { ok: false, reason: out.reason }
+      if (out.ok === false) return { result: { ok: false, reason: out.reason }, delivered: false }
 
-  const { result } = sanitizeLeadFollowup(out.data as LeadFollowup)
-  if (!result) return { ok: false, reason: 'invalid-output' }
+      const { result } = sanitizeLeadFollowup(out.data as LeadFollowup)
+      if (!result) return { result: { ok: false, reason: 'invalid-output' }, delivered: false }
 
-  return { ok: true, message: result.message }
+      return { result: { ok: true, message: result.message }, delivered: true }
+    },
+  )
 }

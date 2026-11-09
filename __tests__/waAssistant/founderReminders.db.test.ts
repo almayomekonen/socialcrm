@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Founder entitlement and personal reminders: the 50-live and 30-per-day limits
@@ -16,6 +16,10 @@ import { enterDispatch } from '@/db/ownerPersonalReminders/dispatchGate'
 import { REMINDER_COPY } from '@/lib/waAssistant/reminders/copy'
 import { enableDelivery, inboundFrom, insertReminder, resetControls } from '../reminders/deliveryFixtures'
 import { MIN, agencies, ask, card, harness, owner, press, reminders, reset, say, run, setEnv, teardown, type Owner } from './reminderHarness'
+
+/** 2026-11-09 in Asia/Jerusalem (UTC+2). Only Date is pinned; timers run normally. */
+const NOON_ISRAEL = Date.UTC(2026, 10, 9, 10, 0)
+const LATE_ISRAEL = Date.UTC(2026, 10, 9, 21, 47)
 
 let A: number
 let B: number
@@ -46,6 +50,9 @@ beforeEach(async () => {
   setEnv([A, B])
   await resetControls()
 })
+afterEach(() => {
+  vi.useRealTimers()
+})
 afterAll(async () => {
   await db.raw('TRUNCATE platform_entitlements') // row triggers do not fire on TRUNCATE (test cleanup only)
   await resetControls()
@@ -72,6 +79,8 @@ describe('reminder limits: waived for the founder only, and audited', () => {
   })
 
   it('30 for the recipient today: waived for the founder, enforced for another owner', async () => {
+    // Noon: the 30 and the new request must fall on one business day.
+    vi.useFakeTimers({ toFake: ['Date'], now: NOON_ISRAEL })
     const f = await owner(A)
     const o = await owner(A)
     await grant(f)
@@ -80,6 +89,14 @@ describe('reminder limits: waived for the founder only, and audited', () => {
     expect((await card(f, harness(), 'בעוד 10 דקות תזכיר לי להתקשר לאבי')).body).toContain('*לקבוע תזכורת?*')
     expect(await waivers(f)).toEqual(['daily_limit'])
     expect((await ask(o, harness(), 'בעוד 10 דקות תזכיר לי להתקשר לאבי')).body).toContain('הגעת למקסימום של 30 תזכורות')
+  })
+
+  it('the day is the day the reminder fires: 23:57 is outside tomorrow\'s 30, 00:07 is inside', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: LATE_ISRAEL })
+    const o = await owner(A)
+    await live(o, 30, 15 * MIN) // 00:02 tomorrow
+    expect(await card(o, harness(), 'בעוד 10 דקות תזכיר לי להתקשר לאבי')).toBeTruthy()
+    expect((await ask(o, harness(), 'בעוד 20 דקות תזכיר לי להתקשר לדני')).body).toContain('הגעת למקסימום של 30')
   })
 
   it('rescheduling with 50 live: waived for the founder; listing and cancelling work as for anyone', async () => {

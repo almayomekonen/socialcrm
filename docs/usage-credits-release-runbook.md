@@ -6,6 +6,8 @@
 
 Every agency gets 50 free agent requests per calendar month (Asia/Jerusalem). After that, requests need purchased credits, debited at actual provider cost. Customers never see cost.
 
+Counted against the same 50: a WhatsApp Agent job, a web Agent question, a Copilot question, and an AI WhatsApp reply draft that was produced. A draft that failed to generate is voided and does not count.
+
 **A counted request** is one unique owner message or question that reaches the AI agent: a WhatsApp assistant job about to run the Agent, or a web Agent question. Retries, tool calls and provider fallbacks of that request are the same request.
 
 **Not counted, not charged:** duplicate webhooks, button decisions, deterministic replies (reminder create, list, cancel), reminder delivery, auto-replies, conversation analysis, generated summaries, and Copilot or lead-action AI (measured internally only).

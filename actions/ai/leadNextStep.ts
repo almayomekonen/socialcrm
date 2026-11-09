@@ -13,6 +13,7 @@ const TTL_SECONDS = 60 * 60 * 6 // 6h
 
 export const generateLeadNextBestStep = defineCachedLeadAction<LeadNextStep>({
   kind: 'lead.nextStep',
+  countsAsCopilotRequest: true,
   schema: LeadNextStepSchema,
   schemaName: 'LeadNextStep',
   schemaDescription: 'הצעד הבא הקונקרטי לקידום הליד, עם נימוק קצר ודרגת דחיפות',

@@ -15,11 +15,12 @@ const DAY_END = '20:00'
 
 export type Conflict = { startAt: Date; endAt: Date }
 
-export async function findMeetingConflicts(input: { agencyId: number; organizerUserId: number; startAt: Date; endAt: Date }): Promise<Conflict[]> {
+export async function findMeetingConflicts(input: { agencyId: number; organizerUserId: number; startAt: Date; endAt: Date; excludeMeetingId?: number }): Promise<Conflict[]> {
   const rows = (await db('meetings')
     .where({ agency_id: input.agencyId, organizer_user_id: input.organizerUserId, status: 'scheduled' })
     .where('start_at', '<', input.endAt)
     .where('end_at', '>', input.startAt)
+    .modify((q) => (input.excludeMeetingId ? q.whereNot('id', input.excludeMeetingId) : q))
     .orderBy('start_at')
     .select('start_at', 'end_at')) as { start_at: Date; end_at: Date }[]
   return rows.map((r) => ({ startAt: new Date(r.start_at), endAt: new Date(r.end_at) }))
@@ -34,11 +35,13 @@ export async function suggestFreeSlots(input: {
   durationMinutes: number
   nowMs: number
   limit?: number
+  /** A meeting being moved does not block its own later slots. */
+  excludeMeetingId?: number
 }): Promise<string[]> {
   const dayStart = businessInstantMs(input.date, DAY_START)
   const dayEnd = businessInstantMs(input.date, DAY_END)
   const durMs = input.durationMinutes * 60_000
-  const busy = await findMeetingConflicts({ agencyId: input.agencyId, organizerUserId: input.organizerUserId, startAt: new Date(dayStart), endAt: new Date(dayEnd) })
+  const busy = await findMeetingConflicts({ agencyId: input.agencyId, organizerUserId: input.organizerUserId, excludeMeetingId: input.excludeMeetingId, startAt: new Date(dayStart), endAt: new Date(dayEnd) })
   const slotMs = SLOT_MIN * 60_000
   const first = dayStart + Math.ceil(Math.max(0, input.afterMs - dayStart) / slotMs) * slotMs
   const out: string[] = []

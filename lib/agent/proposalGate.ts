@@ -35,7 +35,7 @@ export function groundedProposal(
   if (!proposal) return null
   // A closed list, matching the registry. An action type the gate does not know
   // cannot reach the runtime, whatever the schema happened to admit.
-  const KNOWN = ['create_task', 'create_follow_up', 'create_meeting', 'update_lead_status', 'add_lead_note']
+  const KNOWN = ['create_task', 'create_follow_up', 'create_meeting', 'update_lead_status', 'add_lead_note', 'update_task', 'complete_task', 'reschedule_meeting', 'cancel_meeting']
   if (!KNOWN.includes(proposal.actionType)) return null
 
   const clientId = proposal.args?.clientId

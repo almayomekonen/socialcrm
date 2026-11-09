@@ -66,7 +66,16 @@ async function noticeFor(trx: Knex.Transaction, input: AgentRequestInput, period
 
 /** Decide ONE owner request, once. Must run before any model call. */
 export async function admitAgentRequest(input: AgentRequestInput): Promise<AgentAdmission> {
-  if (!isCreditsMeteringEnabled()) return { allowed: true, tier: 'unmetered' }
+  return (await admitAgentRequestOnce(input)).admission
+}
+
+/**
+ * The same decision, plus whether THIS call made it. For a caller whose request
+ * id comes from the browser: a repeat must not run another model call, because
+ * an id that could be replayed would be unlimited AI for one counted request.
+ */
+export async function admitAgentRequestOnce(input: AgentRequestInput): Promise<{ admission: AgentAdmission; firstSeen: boolean }> {
+  if (!isCreditsMeteringEnabled()) return { admission: { allowed: true, tier: 'unmetered' }, firstSeen: true }
   const nowMs = input.nowMs ?? Date.now()
   const key = { agencyId: input.agencyId, operationKind: input.operation.kind, operationId: input.operation.id }
   let plan: string | null = null
@@ -100,11 +109,30 @@ export async function admitAgentRequest(input: AgentRequestInput): Promise<Agent
       console.info(`${LOG} blocked`, { agencyId: input.agencyId, requestId: Number(out.row.id), source: input.source, notice: out.row.notice })
       await track({ agencyId: input.agencyId, userId: input.userId ?? undefined, event: out.row.notice === 'full' ? 'agent_free_allowance_exhausted' : 'agent_request_blocked', props: { source: input.source } })
     }
-    return decisionOf(out.row)
+    return { admission: decisionOf(out.row), firstSeen: out.created }
   } catch (err) {
     console.error(`${LOG} admission failed`, { agencyId: input.agencyId, code: (err as { code?: string })?.code ?? null })
     // No proof of an allowance or a balance: an enforced agency's paid work does not run.
-    return isCreditEnforcedFor(input.agencyId, plan) ? { allowed: false, reason: 'unavailable', notice: null } : { allowed: true, tier: 'unmetered' }
+    const admission: AgentAdmission = isCreditEnforcedFor(input.agencyId, plan) ? { allowed: false, reason: 'unavailable', notice: null } : { allowed: true, tier: 'unmetered' }
+    return { admission, firstSeen: true }
+  }
+}
+
+/**
+ * The request produced nothing for the user: it stops counting and any hold is
+ * released, so trying again is one request, not two. Only an open free or paid
+ * request; a founder's stays open and settles as exempt, as it always has.
+ * Failing to void leaves the request counted, which is the safe direction.
+ */
+export async function voidUndeliveredRequest(agencyId: number, operation: { kind: string; id: string }, nowMs = Date.now()): Promise<void> {
+  try {
+    await db(T)
+      .where({ agencyId, operationKind: operation.kind, operationId: operation.id })
+      .whereNull('settledAt')
+      .whereIn('tier', ['free', 'paid'])
+      .update({ tier: 'void', settledAt: new Date(nowMs) })
+  } catch (err) {
+    console.error(`${LOG} void failed`, { agencyId, code: (err as { code?: string })?.code ?? null })
   }
 }
 

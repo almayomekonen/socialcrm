@@ -12,6 +12,7 @@ export const draft: I['draft'] = {
   send: 'Send message',
   chars: '{count} / {max} characters',
   draftFailed: "Couldn't draft a reply right now. Try again.",
+  draftLimit: "This month's included requests are used up. You can add credits on the Subscription and billing page; the CRM keeps working as usual.",
   copied: 'Draft copied',
   copyFailed: 'Copy failed',
   sent: 'Message sent — awaiting delivery confirmation',

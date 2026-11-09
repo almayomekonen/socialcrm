@@ -1,8 +1,9 @@
 'use server'
 
 import { requireProductAccess } from '@/lib/requireUser'
+import { runCopilotRequest } from '@/lib/credits/copilotRequest'
 import { runStructured } from '@/lib/ai/router'
-import { resolveCopilotModeRole, isCopilotModeId, DEFAULT_COPILOT_MODE_ID } from '@/lib/ai/copilotModes'
+import { resolveCopilotModeRole, isCopilotModeId, DEFAULT_COPILOT_MODE_ID, type CopilotModeId } from '@/lib/ai/copilotModes'
 import { persistAssistantTurn } from '@/lib/copilot/persistConversation'
 import {
   LEAD_ASK_QUESTION_SYSTEM_PROMPT,
@@ -46,7 +47,23 @@ export async function askLeadQuestion(
   const persistMode = isCopilotModeId(modeRaw) ? modeRaw : DEFAULT_COPILOT_MODE_ID
 
   const user = await requireProductAccess()
+  const args: AskArgs = { leadId, question, lenses, rawAttachments, roleOverride, copilotModeId, persistMode, modeRaw, user }
+  return runCopilotRequest<AiRunResult<LeadAskAnswer | ConversationalReply>>(user, () => ({ ok: false, reason: 'ai-credits-exhausted' }), () => answerLeadQuestion(args))
+}
 
+type AskArgs = {
+  leadId: number
+  question: string
+  lenses: ReturnType<typeof normalizeLenses>
+  rawAttachments: ReturnType<typeof normalizeAttachmentPayloads>
+  roleOverride: ReturnType<typeof resolveCopilotModeRole>
+  copilotModeId: CopilotModeId | undefined
+  persistMode: CopilotModeId
+  modeRaw: unknown
+  user: Awaited<ReturnType<typeof requireProductAccess>>
+}
+
+async function answerLeadQuestion({ leadId, question, lenses, rawAttachments, roleOverride, copilotModeId, persistMode, modeRaw, user }: AskArgs): Promise<AiRunResult<LeadAskAnswer | ConversationalReply>> {
   const normalizedQuestion = normalizeInput(question)
   let classification: { intent: Intent; confidence: number } = quickClassifyIntent(normalizedQuestion, question)
 

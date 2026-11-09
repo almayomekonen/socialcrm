@@ -38,4 +38,5 @@ export type CopilotResponseErrorReason =
   | 'invalid-input'
   | 'subscription-required'
   | 'trial-not-started'
+  | 'ai-credits-exhausted'
   | 'unknown'

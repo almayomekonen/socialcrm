@@ -13,6 +13,7 @@ const TTL_SECONDS = 60 * 60 * 6 // 6h
 
 export const generateLeadFollowupMessage = defineCachedLeadAction<LeadFollowup>({
   kind: 'lead.followup',
+  countsAsCopilotRequest: true,
   schema: LeadFollowupSchema,
   schemaName: 'LeadFollowupMessage',
   schemaDescription: 'הודעת המשך אחת מוכנה לשליחה ללקוח, עם נימוק תפעולי קצר',

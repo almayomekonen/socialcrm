@@ -13,6 +13,8 @@ import type { MeetingReply } from './meetings/types'
 import { decideReminderCard, opOfAction } from './reminders/decide'
 import { REMINDER_COPY } from './reminders/copy'
 import type { ReminderDeps } from './reminders/reply'
+import { decideRecordChange, type ChangeDecideDeps } from './recordChanges/decide'
+import { CHANGE_COPY, type ChangeType } from './recordChanges/copy'
 
 /**
  * A tap on any confirmation card's button, routed by the STORED action's type:
@@ -27,6 +29,8 @@ const refused = (stopReason: string, text: string | null): MeetingReply => ({
   headline: null,
 })
 
+
+const isChangeType = (t: string): t is ChangeType => t === 'update_task' || t === 'complete_task' || t === 'reschedule_meeting' || t === 'cancel_meeting'
 export async function decideCard(input: {
   job: WaAssistantJob
   scope: AgentScope
@@ -36,7 +40,7 @@ export async function decideCard(input: {
   statusOn?: boolean
   notesOn?: boolean
   remindersOn?: boolean
-  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps }
+  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps; changes?: ChangeDecideDeps }
 }): Promise<MeetingReply> {
   const { job, scope, nowMs } = input
   const m = DECISION_ID_RE.exec(job.question ?? '')
@@ -86,6 +90,15 @@ export async function decideCard(input: {
       nowMs,
       deps: input.deps?.leadUpdates,
     })
+  }
+  if (record && isChangeType(record.actionType)) {
+    const on = record.actionType === 'update_task' || record.actionType === 'complete_task' ? input.tasksOn : input.meetingsOn
+    if (!on) return refused('record_change_disabled', COPY.notAvailable)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', CHANGE_COPY.changed)
+    }
+    return decideRecordChange({ job, scope, card, actionType: record.actionType, args: record.args as Parameters<typeof decideRecordChange>[0]['args'], approve: m[1] === 'approve', nowMs, deps: input.deps?.changes })
   }
   const reminderOp = record ? opOfAction(record.actionType) : null
   if (record && reminderOp) {
