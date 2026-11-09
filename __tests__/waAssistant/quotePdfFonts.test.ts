@@ -45,7 +45,8 @@ describe('render limits and log redaction', () => {
   const URL_PDF = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/browser-run/pdf?cacheTTL=0`
   const make = () => {
     const inner = vi.fn(async () => new Response('ok'))
-    return { inner, l: createRenderLimiter({ inner: inner as never, accountId: ACCOUNT, limits }) }
+    let clock = 0
+    return { inner, l: createRenderLimiter({ inner: inner as never, accountId: ACCOUNT, limits, now: () => clock, sleep: async (ms) => void (clock += ms) }) }
   }
   const send = (l: ReturnType<typeof make>['l'], body: string) => l.fetch(URL_PDF, { method: 'POST', body })
 
@@ -67,7 +68,7 @@ describe('render limits and log redaction', () => {
     await expect(send(l, 'd')).rejects.toBeInstanceOf(HarnessRefused)
     await expect(send(l, 'e')).rejects.toBeInstanceOf(HarnessRefused)
     expect(inner).toHaveBeenCalledTimes(3)
-    expect(l.state).toEqual({ requests: 3, retries: 0, refused: 2, stopped: true })
+    expect(l.state).toMatchObject({ requests: 3, retries: 0, refused: 2, stopped: true, stopReason: 'limit' })
   })
   it('counts a repeated body as a retry and stops at the retry limit', async () => {
     const { inner, l } = make()

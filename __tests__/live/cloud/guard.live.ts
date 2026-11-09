@@ -3,11 +3,12 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { BROWSER_BUDGET_MS, MIN_START_GAP_MS, NO_RESPONSE_CHARGE_MS } from './renderLimit'
 
 /** Each case runs the whole cloud harness as a child, in dry mode, and reads what it did. */
 
 type PerKind = { upload: number; delete: number; read: number; list: number }
-type Log = { puts: string[]; deletes: string[]; remaining: string[]; limiter: { requests: number; retries: number; refused: number; stopped: boolean }; limits: { maxRenders: number; maxRetries: number }; wallRefusals: string[]; r2: { attempts: PerKind; completed: PerKind; refused: PerKind; objectsCreated: number }; r2Limits: Record<string, number> }
+type Log = { puts: string[]; deletes: string[]; remaining: string[]; limiter: { requests: number; retries: number; refused: number; stopped: boolean; stopReason: string | null; browserMs: number; reportedResponses: number; unmeasured: number; minStartGapMs: number | null }; limits: { maxRenders: number; maxRetries: number }; wallRefusals: string[]; r2: { attempts: PerKind; completed: PerKind; refused: PerKind; objectsCreated: number }; r2Limits: Record<string, number> }
 type Run = { exit: number; output: string; log: Log | null; tests: { status: string; title: string }[]; report: string; artifacts: string }
 
 const OUTSIDE = 'tenants/5/quotes/1/customer.pdf'
@@ -155,7 +156,11 @@ describe('a complete dry run', () => {
     const r = await child({})
     expect(r.exit, r.report.slice(0, 1500)).toBe(0)
     expect(r.tests.every((t) => t.status === 'passed')).toBe(true)
-    expect(r.log!.limiter).toEqual({ requests: 17, retries: 1, refused: 0, stopped: false })
+    // 17 also proves the 1ms timeout test's request left: a timeout spent during pacing would never be counted.
+    expect(r.log!.limiter).toMatchObject({ requests: 17, retries: 1, refused: 0, stopped: false, stopReason: null, reportedResponses: 0, unmeasured: 17 })
+    expect(r.log!.limiter.minStartGapMs).toBeGreaterThanOrEqual(MIN_START_GAP_MS)
+    expect(r.log!.limiter.browserMs).toBeGreaterThanOrEqual(NO_RESPONSE_CHARGE_MS)
+    expect(r.log!.limiter.browserMs).toBeLessThan(BROWSER_BUDGET_MS)
     expect(r.log!.limits).toEqual({ maxRenders: 20, maxRetries: 3 })
     expect(r.log!.r2Limits).toEqual({ uploads: 16, deletes: 16, reads: 26, lists: 8, objects: 16 })
     expect(r.log!.r2.attempts).toEqual({ upload: 14, delete: 14, read: 22, list: 5 })

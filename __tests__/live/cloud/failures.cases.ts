@@ -37,6 +37,8 @@ export function failureCases(): void {
   // This proves our client aborts on time. It says nothing about a timeout on Cloudflare's side.
   it('a client-side timeout aborts the request, is classified, and stores nothing', async () => {
     const q = await quote(1)
+    // The renderer starts its timeout before fetching: a wait for the 11-second gap would use up the 1ms.
+    await ctx.limiter.waitForSlot()
     await withEnv('PDF_RENDER_TIMEOUT_MS', '1', async () => {
       expect(await start(q.quoteId)).toBe('started')
     })

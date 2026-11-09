@@ -43,6 +43,16 @@ file must also set `QUOTE_CLOUD_MAX_RENDERS` (at most 20) and
 default, and over a limit that operation no longer leaves the machine. One S3 call
 is one HTTP attempt (`AWS_MAX_ATTEMPTS=1`).
 
+The harness is paced for Workers Free (1 Browser Run request every 10 seconds, 10
+browser minutes a day). Every request, retries included, starts at least 11 seconds
+after the one before it, in dry runs too, so a complete dry run takes about 3
+minutes more than the rendering itself and the guard suite 8 to 16 minutes.
+`X-Browser-Ms-Used` is the browser time of that one request, so the harness adds
+the values up and refuses every further request at 300 seconds. A response without
+a usable value is charged its elapsed time, and a request with no response is
+charged 60 seconds. Browser time already used on the account that day is not
+visible to the harness.
+
 **The bucket-scoped R2 token is the actual boundary against Production.** The
 harness can see a bucket's name, not whose it is. Its checks (test name, confirmed
 name, empty bucket, approved key prefixes) are backstops, so the token must be
