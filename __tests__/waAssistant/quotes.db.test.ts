@@ -597,6 +597,91 @@ describe('the switch', () => {
   })
 })
 
+describe('every agency, with WA_ASSISTANT_QUOTES_AUDIENCE=all', () => {
+  beforeEach(() => {
+    delete process.env.WA_ASSISTANT_QUOTES_AGENCY_IDS
+    process.env.WA_ASSISTANT_QUOTES_AUDIENCE = 'all'
+  })
+  afterEach(() => {
+    delete process.env.WA_ASSISTANT_QUOTES_AUDIENCE
+    delete process.env.WA_ASSISTANT_EXCLUDED_AGENCY_IDS
+  })
+
+  it('two agencies each create their own quote, each in its own agency, each numbered in its own sequence', async () => {
+    const a = await owner()
+    const b = await owner('ADMIN', B)
+    const ha = harness([answer(quote(a.lead), [a.lead])])
+    const ca = await card(a, ha, REQUEST)
+    expect(String(ha.runAgent.mock.calls[0][0].surfaceRules)).toContain('create_quote')
+    await tap(a.digits, ca.approve)
+    await run(ha)
+    const hb = harness([answer(quote(b.lead), [b.lead])])
+    const cb = await card(b, hb, REQUEST)
+    await tap(b.digits, cb.approve)
+    await run(hb)
+    const [qa] = await quotesOf(A)
+    const [qb] = await quotesOf(B)
+    expect(qa).toMatchObject({ leadId: a.lead, status: 'ready' })
+    expect(qb).toMatchObject({ leadId: b.lead, status: 'ready' })
+    expect([Number(qa.quoteNumber), Number(qb.quoteNumber)]).toEqual([1, 1])
+  })
+
+  it("one agency's owner cannot quote another agency's lead, nor approve its card", async () => {
+    const a = await owner()
+    const b = await owner('ADMIN', B)
+    const h = harness([answer(quote(a.lead), [a.lead])])
+    await say(b, REQUEST)
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.leadNotAllowed)
+    expect(await actionsOf(B)).toHaveLength(0)
+
+    const ha = harness([answer(quote(a.lead), [a.lead])])
+    const ca = await card(a, ha, REQUEST)
+    await tap(b.digits, ca.approve)
+    await run(ha)
+    expect(await quotesOf(A)).toHaveLength(0)
+    expect(await quotesOf(B)).toHaveLength(0)
+  })
+
+  it('an agency with no VAT rate is still refused, and gets no quote', async () => {
+    const c = await owner('ADMIN', C)
+    const h = harness([answer(quote(c.lead), [c.lead])])
+    await say(c, REQUEST)
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.taxMissing)
+    expect(await quotesOf(C)).toHaveLength(0)
+  })
+
+  it("a rep still cannot quote a colleague's lead", async () => {
+    const boss = await owner()
+    const rep = await owner('AGNT')
+    const h = harness([answer(quote(boss.lead), [boss.lead])])
+    await say(rep, REQUEST)
+    await run(h)
+    expect(h.last().body).toBe(QUOTE_COPY.leadNotAllowed)
+    expect(await quotesOf(A)).toHaveLength(0)
+  })
+
+  it('an excluded agency gets no quotes at all', async () => {
+    process.env.WA_ASSISTANT_EXCLUDED_AGENCY_IDS = String(B)
+    const b = await owner('ADMIN', B)
+    const h = harness([answer(quote(b.lead), [b.lead])])
+    // Excluded from the assistant itself: the message is not even queued.
+    expect(await processPlatformMessage({ id: `wamid.__wa_q_${++seq}`, from: b.digits, timestamp: String(Math.floor(Date.now() / 1000)), type: 'text', text: { body: REQUEST } })).not.toBe('assistant_queued')
+    await run(h)
+    expect(h.runAgent).not.toHaveBeenCalled()
+    expect(await actionsOf(B)).toHaveLength(0)
+    expect(await quotesOf(B)).toHaveLength(0)
+  })
+
+  it('still a card: nothing is created before the tap', async () => {
+    const o = await owner()
+    const h = harness([answer(quote(o.lead), [o.lead])])
+    await card(o, h, REQUEST)
+    expect(await quotesOf(A)).toHaveLength(0)
+  })
+})
+
 describe('the request allowance', () => {
   const CREDITS = { CREDITS_METERING: '1', CREDITS_ENFORCE_ON_PRO: '1', CREDITS_MONTHLY_ALLOWANCE: '1' }
   const requests = () => db('agent_requests').where({ agencyId: A }).select('tier')

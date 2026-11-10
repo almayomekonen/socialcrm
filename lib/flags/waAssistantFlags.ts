@@ -144,16 +144,25 @@ export function isWaAssistantRemindersAgency(agencyId: number | null | undefined
 /**
  * WA_ASSISTANT_QUOTES_AGENCY_IDS: agencies whose assistant may CREATE A QUOTE
  * for a lead from the owner's stated prices (card → `create_quote`). Creation
- * only: nothing is ever sent to the customer from WhatsApp. Same rules:
- * absence blocks, explicit ids only, only on top of the assistant itself.
- * Intended pilot: 103 (not enabled in Production until approved).
+ * only: nothing is ever sent to the customer from WhatsApp. Absence blocks,
+ * explicit ids only, only on top of the assistant itself.
+ *
+ * WA_ASSISTANT_QUOTES_AUDIENCE: exactly `all` offers quote creation to every
+ * agency in the assistant's audience (excluded ones never) and the list above
+ * is then ignored (owner decision, 2026-11-10). It opens CREATION only; every
+ * per-request check is unchanged: the owner's card, role, lead visibility, VAT
+ * configuration, pricing validation and the request allowance.
  */
 export function isWaAssistantQuotesAgency(agencyId: number | null | undefined): boolean {
-  if (!isWaAssistantAgency(agencyId)) return false
-  return waAssistantQuotesAgencyIds().includes(agencyId as number)
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_QUOTES_AUDIENCE', 'WA_ASSISTANT_QUOTES_AGENCY_IDS')
 }
 
-/** The listed ids, for the background PDF sweep: empty means it does no work at all. */
+/** Every agency in the assistant's audience may create quotes. */
+export function waAssistantQuotesForAll(): boolean {
+  return process.env.WA_ASSISTANT_QUOTES_AUDIENCE?.trim() === 'all'
+}
+
+/** The listed ids, for the background PDF sweep. Empty (and not `all`) means it does no work at all. */
 export function waAssistantQuotesAgencyIds(): number[] {
   return parseIds(process.env.WA_ASSISTANT_QUOTES_AGENCY_IDS)
 }
