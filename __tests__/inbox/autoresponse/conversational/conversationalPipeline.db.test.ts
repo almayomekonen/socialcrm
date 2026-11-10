@@ -275,6 +275,55 @@ describe('mixed conversations and transitions', () => {
   })
 })
 
+describe('scheduling requests stay business even when the model reads them as personal', () => {
+  it.each([
+    'אחי אפשר לקבוע למחר?',
+    'מה קורה, יש לכם מקום בחמישי?',
+    'אני רוצה לסגור איתכם תאריך',
+  ])('"%s" + a model that says personal → corrected to scheduling and handed to the team', async (text) => {
+    const t = await makeTenant(`sch${Math.random().toString(36).slice(2, 7)}`)
+    enable(t.agencyId)
+    script = [personal('חחח ברור אחי, מתי שבא לך')]
+    await says(t, text)
+    await drain()
+    expect(calls).toHaveLength(1)
+    expect(sent).toHaveLength(1)
+    expect(sent[0].body).toContain('ממתינה כעת לטיפול הצוות')
+    expect(sent[0].body).not.toContain('מתי שבא לך')
+    expect((await getAiState(t.conversationId))?.aiState).toBe('escalated')
+    expect(await memoryOf(t)).toMatchObject({ mode: 'scheduling' })
+    expect(await personalNotices(t)).toHaveLength(0)
+  })
+
+  it('an existing customer asking to move the appointment ("תזיז לי את הפגישה לשבוע הבא") is handed to the team', async () => {
+    const t = await makeTenant('sch_move', { leadStatus: 'closed' })
+    enable(t.agencyId)
+    script = [personal('סבבה אחי, אין בעיה')]
+    await says(t, 'תזיז לי את הפגישה לשבוע הבא')
+    await drain()
+    expect(sent.at(-1)?.body).toContain('ממתינה כעת לטיפול הצוות')
+    expect((await getAiState(t.conversationId))?.aiState).toBe('escalated')
+  })
+
+  it('when the model already reads it as business, the existing behaviour is unchanged: the answer is sent', async () => {
+    const t = await makeTenant('sch_ok')
+    enable(t.agencyId)
+    script = [business('אין לי אפשרות לבדוק זמינות מכאן. לאיזה חודש התכוונתם?', 'scheduling')]
+    await says(t, 'מה קורה, יש לכם מקום בחמישי?')
+    await drain()
+    expect(sent.map((x) => x.body)).toEqual(['אין לי אפשרות לבדוק זמינות מכאן. לאיזה חודש התכוונתם?'])
+  })
+
+  it('a friend\'s "חייבים להיפגש" is not a scheduling request: the personal reply is sent', async () => {
+    const t = await makeTenant('sch_friend')
+    enable(t.agencyId)
+    script = [personal('חחח ברור אחי, עבר מלא זמן!')]
+    await says(t, 'מתגעגע אחי, חייבים להיפגש')
+    await drain()
+    expect(sent.map((x) => x.body)).toEqual(['חחח ברור אחי, עבר מלא זמן!'])
+  })
+})
+
 describe('existing customers and finished leads', () => {
   it('a closed lead is an existing customer: answered with the relationship, the next appointment, and no welcome', async () => {
     const t = await makeTenant('c1', { leadStatus: 'closed' })

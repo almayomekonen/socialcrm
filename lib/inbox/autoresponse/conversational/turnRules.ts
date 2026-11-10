@@ -31,6 +31,28 @@ export function meetingOnlyHandoff(text: string, previousOutbound?: string): boo
   return detectHumanRequest(text, { previousOutbound }) && !isExplicitPersonRequest(text)
 }
 
+/**
+ * A request TO THE BUSINESS to book, move, cancel or check a slot. Deterministic,
+ * and it wins over the model: "אחי אפשר לקבוע למחר?" is business even when it is
+ * said like a friend. It needs a verb AND a slot or business object, so a friend's
+ * "חייבים לקבוע" or "חייבים להיפגש" stays personal.
+ */
+const SLOT = '(?:פגישה|הפגישה|פגישת|תור|התור|תאריך|מועד|המועד|שעה|ל?מחר|ל?מחרתיים|ל?היום|ל?שבוע\\s+הבא|ב?יום\\s+(?:ראשון|שני|שלישי|רביעי|חמישי|שישי)|ב?(?:ראשון|שני|שלישי|רביעי|חמישי|שישי)|בשבת|[בל][-־]?\\d{1,2}(?:[./:]\\d{1,2})?|אירוע|האירוע|איתכם|אצלכם)'
+const B = '(?<![\\p{L}])'
+const E = '(?![\\p{L}])'
+const SCHEDULING = [
+  new RegExp(`${B}(?:לקבוע|לתאם|לשריין|לסגור|תקבע(?:ו|י)?|תתאם(?:ו|י)?|תשריין(?:ו|י)?)${E}(?:\\s+\\S+){0,3}?\\s+${SLOT}${E}`, 'u'),
+  // "נקבע/נתאם" is how friends make plans too: only with a business object, never with just a day.
+  new RegExp(`${B}(?:נקבע|נתאם|נסגור)${E}(?:\\s+\\S+){0,3}?\\s+(?:פגישה|תור|תאריך|מועד|איתכם|אצלכם)${E}`, 'u'),
+  new RegExp(`${B}(?:ת?זיז(?:ו|י)?|להזיז|לדחות|תדחה|תדחו|לבטל|תבטל(?:ו|י)?|לשנות|תשנה)${E}(?:\\s+\\S+){0,3}?\\s+(?:את\\s+)?(?:ה)?(?:פגישה|תור|אירוע|מועד|תאריך)${E}`, 'u'),
+  new RegExp(`${B}(?:יש\\s+לכם|יש\\s+אצלכם|אתם)\\s+(?:עדיין\\s+)?(?:מקום|זמן|תאריך|פנוי(?:ים|ה)?|זמינ(?:ים|ות)?)${E}`, 'u'),
+  new RegExp(`${B}(?:מתי\\s+אתם\\s+פנויים|מתי\\s+יש\\s+(?:לכם\\s+)?(?:מקום|תור|זמן))${E}`, 'u'),
+]
+export function isSchedulingRequest(text: string): boolean {
+  const t = (text ?? '').replace(/\s+/g, ' ').trim()
+  return !!t && SCHEDULING.some((re) => re.test(t))
+}
+
 const NEW_BOOKING_MODES: ReadonlySet<ConversationMode> = new Set(['prospect', 'scheduling', 'service_request', 'pricing'])
 export const meetingNeedsTeam = (mode: ConversationMode): boolean => NEW_BOOKING_MODES.has(mode)
 

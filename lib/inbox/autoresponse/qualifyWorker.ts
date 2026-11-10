@@ -99,7 +99,7 @@ import {
   startConversationalTurn,
 } from './conversational/hooks'
 import { isSocialMode } from './conversational/mode'
-import { meetingNeedsTeam, meetingOnlyHandoff, socialReopen, socialTurn } from './conversational/turnRules'
+import { isSchedulingRequest, meetingNeedsTeam, meetingOnlyHandoff, socialReopen, socialTurn } from './conversational/turnRules'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -726,6 +726,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     presenceWatch.stop()
     return doSkip('human_typing')
   }
+  // A booking / change / availability request is business whatever the model read: it goes to the team.
+  const schedulingOverride = !!convo && modeOf(gen) === 'personal' && isSchedulingRequest(lastInboundText)
+  if (schedulingOverride) gen.conversationMode = 'scheduling'
 
   // ── Validate the reply; resolve shape/safety violations BEFORE the policy ──
   // A validation failure is NOT model uncertainty. Shape → one stricter
@@ -881,6 +884,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     if (deferredMeeting && post.action === 'escalate' && post.reason === 'human_request' && !meetingNeedsTeam(modeOf(gen))) {
       post = { action: 'send' }
     }
+    // The model called a scheduling request personal: the team handles it, as a meeting request always was.
+    if (schedulingOverride) post = { action: 'escalate', reason: 'scheduling_request' }
     // A topic the owner asked a person to handle (owner-configured only).
     if (gen.escalationTopic && (identity.agentProfile?.escalationTopics.length ?? 0) > 0) {
       post = { action: 'escalate', reason: 'escalation_topic' }
@@ -892,6 +897,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       confidence: gen.modeConfidence ?? null,
       relationship: convo.crm.relationship,
       socialHint: convo.socialHint,
+      schedulingOverride,
       decision: post.action,
     })
   }

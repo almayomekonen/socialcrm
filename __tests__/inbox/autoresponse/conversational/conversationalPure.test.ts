@@ -14,7 +14,7 @@ import {
   socialHintHolds,
   type ConversationMemory,
 } from '@/lib/inbox/autoresponse/conversational/mode'
-import { personalReplyWarranted, socialReopen, socialTurn } from '@/lib/inbox/autoresponse/conversational/turnRules'
+import { isSchedulingRequest, meetingNeedsTeam, meetingOnlyHandoff, personalReplyWarranted, socialReopen, socialTurn } from '@/lib/inbox/autoresponse/conversational/turnRules'
 import {
   AGENT_PROFILE_LIMITS,
   agentProfileGroundedFacts,
@@ -216,5 +216,44 @@ describe('the layered prompt', () => {
     expect(user).toContain('רמז מהתור הקודם')
     expect(user).not.toContain('התשובה הקודמת לא נשלחה')
     expect(buildConversationalUser(base, { crm, memory: null, nowMs: NOW, personalRepair: true })).toContain('התשובה הקודמת לא נשלחה')
+  })
+})
+
+describe('scheduling requests are business, however casually they are said', () => {
+  it.each([
+    'אחי אפשר לקבוע למחר?',
+    'מה קורה, יש לכם מקום בחמישי?',
+    'תזיז לי את הפגישה לשבוע הבא',
+    'אני רוצה לסגור איתכם תאריך',
+    'אפשר לתאם פגישה ליום ראשון?',
+    'אתם פנויים ב-15 לחודש?',
+    'אפשר לבטל את התור של מחר?',
+    'מתי אתם פנויים השבוע?',
+    'בא לי לשריין אצלכם את האולם לאוגוסט',
+    'יש לכם עדיין תאריך פנוי ביוני?',
+    'נקבע פגישה לשבוע הבא?',
+    'אחי תקבע לי ל-10',
+  ])('%s → scheduling', (text) => {
+    expect(isSchedulingRequest(text)).toBe(true)
+  })
+
+  it.each([
+    'מתגעגע אחי, חייבים להיפגש',
+    'חייבים לקבוע',
+    'נקבע למחר בערב?',
+    'מה אתה עושה מחר?',
+    'נצא הערב?',
+    'אחי מה קורה?',
+    'הפגישה שלנו עדיין בתוקף?',
+  ])('%s → not a scheduling request', (text) => {
+    expect(isSchedulingRequest(text)).toBe(false)
+  })
+
+  it('meeting words without an explicit person request go to the model; a new booking need still needs the team', () => {
+    expect(meetingOnlyHandoff('אפשר לקבוע פגישה?')).toBe(true)
+    expect(meetingOnlyHandoff('אפשר לדבר עם נציג?')).toBe(false)
+    expect(meetingNeedsTeam('scheduling')).toBe(true)
+    expect(meetingNeedsTeam('personal')).toBe(false)
+    expect(meetingNeedsTeam('existing_customer')).toBe(false)
   })
 })
