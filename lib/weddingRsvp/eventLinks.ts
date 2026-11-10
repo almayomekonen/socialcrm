@@ -1,23 +1,20 @@
 import { db } from '@/config/db'
-import { resolveWhatsappOutboundTargetForConversation } from '@/lib/inbox/whatsappOutboundTarget'
 import { WEDDING_RSVP_SOURCE, isWeddingAgency } from '@/lib/weddingRsvp/config'
 import { replyInConversation } from '@/lib/weddingRsvp/reply'
-import { toCustomerPhoneE164 } from '@/lib/whatsapp/optOut/phone'
 
 /**
  * TEMPORARY, like the rest of lib/weddingRsvp. After a guest's head count has been
- * answered with the thank-you, one more text carrying the Waze and Bit links.
- * WEDDING_WAZE_URL, WEDDING_BIT_URL and WEDDING_EVENT_LINKS_TEST_PHONE must all be
- * valid, or nothing is sent.
+ * answered with the thank-you, two CTA messages carrying the Waze and Bit links.
+ * WEDDING_WAZE_URL and WEDDING_BIT_URL must both be valid, or nothing is sent.
  *
- * CONTROLLED ROLLOUT. Only the guest matching WEDDING_EVENT_LINKS_TEST_PHONE gets
- * the links; there is deliberately no way to send to everyone yet.
+ * Every guest who completes the RSVP flow gets them: whoever reached the thank-you
+ * already passed the RSVP follow-up gate (allowlist or a template RSVP request).
  */
 
 export const EVENT_LINKS_STEP = 'event_links'
 export const EVENT_LINKS_CLAIM_KEY = 'eventLinksClaimedAt'
 
-type EventLinks = { waze: string; bit: string; testPhone: string }
+type EventLinks = { waze: string; bit: string }
 
 /** The string exactly as configured, or null. It is sent verbatim, so it must already be a complete link. */
 function readHttpsUrl(value: string | undefined): string | null {
@@ -34,13 +31,8 @@ function readHttpsUrl(value: string | undefined): string | null {
 export function readEventLinks(): { links: EventLinks | null; invalid: string[] } {
   const waze = readHttpsUrl(process.env.WEDDING_WAZE_URL)
   const bit = readHttpsUrl(process.env.WEDDING_BIT_URL)
-  const testPhone = toCustomerPhoneE164(process.env.WEDDING_EVENT_LINKS_TEST_PHONE)
-  const invalid = [
-    ...(waze ? [] : ['WEDDING_WAZE_URL']),
-    ...(bit ? [] : ['WEDDING_BIT_URL']),
-    ...(testPhone ? [] : ['WEDDING_EVENT_LINKS_TEST_PHONE']),
-  ]
-  return { links: waze && bit && testPhone ? { waze, bit, testPhone } : null, invalid }
+  const invalid = [...(waze ? [] : ['WEDDING_WAZE_URL']), ...(bit ? [] : ['WEDDING_BIT_URL'])]
+  return { links: waze && bit ? { waze, bit } : null, invalid }
 }
 
 export type EventLinkMessage = { link: 'waze' | 'bit'; body: string; label: string; url: string }
@@ -61,20 +53,6 @@ export function ctaUrlInteractive({ body, label, url }: EventLinkMessage): Recor
 /** What the conversation shows: the body plus the button, as the RSVP buttons are stored. */
 export function eventLinkStoredText({ body, label }: EventLinkMessage): string {
   return `${body}\n\n[${label}]`
-}
-
-/**
- * Is this conversation's recipient the configured test phone? Asks the same resolver
- * `replyInConversation` sends through, so the number compared is the number messaged.
- */
-async function isTestRecipient(
-  args: { agencyId: number; conversationId: number; leadId: number | null },
-  testPhone: string,
-): Promise<boolean> {
-  if (args.leadId == null || args.leadId <= 0) return false
-  const resolved = await resolveWhatsappOutboundTargetForConversation(args.agencyId, args.leadId, args.conversationId)
-  if (resolved.ok === false) return false
-  return toCustomerPhoneE164(resolved.target.customerWaId) === testPhone
 }
 
 /**
@@ -139,8 +117,6 @@ export async function sendEventLinksAfterThanks(args: {
       console.warn('[WeddingRsvp] event links disabled: missing or invalid configuration', { invalid })
       return
     }
-    // Before the claim: a guest outside the test must keep theirs for the real rollout.
-    if (!(await isTestRecipient(args, links.testPhone))) return
     if (!(await claimEventLinks(args.agencyId, args.conversationId))) return
 
     for (const message of eventLinkMessages(links)) {

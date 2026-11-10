@@ -30,14 +30,27 @@ const { sendInvitationViaIntegration, invitationStatuses } = await import('@/lib
 const { sendRsvpRequestViaIntegration } = await import('@/lib/weddingRsvp/integrationRsvp')
 const { routeWeddingRsvpReply } = await import('@/lib/weddingRsvp/handleReply')
 const { REPLY_ATTENDING, REPLY_NOT_ATTENDING, REPLY_THANKS, WEDDING_RSVP_SOURCE } = await import('@/lib/weddingRsvp/config')
-const { EVENT_LINKS_CLAIM_KEY, EVENT_LINKS_STEP, eventLinkMessages, eventLinkStoredText, sendEventLinksAfterThanks } =
-  await import('@/lib/weddingRsvp/eventLinks')
+const {
+  EVENT_LINKS_CLAIM_KEY,
+  EVENT_LINKS_STEP,
+  eventLinkMessages,
+  eventLinkStoredText,
+  readEventLinks,
+  sendEventLinksAfterThanks,
+} = await import('@/lib/weddingRsvp/eventLinks')
 const { handleInboundWebhookMessage } = await import('@/lib/whatsapp/handleInboundWebhookMessage')
 const { ingestWhatsappStatuses } = await import('@/lib/inbox/ingestWhatsappStatuses')
 
 const AGENCY = 103
 const PN = '__wedding_links_pn'
 const GUEST = '972545550021'
+/** A second, unrelated guest: proves the links are not tied to any one number. */
+const SECOND_GUEST = '972545550022'
+/**
+ * The test baseline keeps a global unique index on clients.leadSource (production
+ * does not), so the second guest is an existing Lead — the invite reuses it by phone.
+ */
+const SECOND_GUEST_SOURCE = '__wedding_links_second_guest'
 const WAZE = 'https://waze.com/ul?q=SERA%20%D7%A1%D7%A8%D7%94%20%D7%A2%D7%9E%D7%A7%20%D7%94%D7%90%D7%9C%D7%94&navigate=yes'
 const BIT = 'https://bit.test.invalid/group/private-token'
 const [WAZE_MESSAGE, BIT_MESSAGE] = eventLinkMessages({ waze: WAZE, bit: BIT })
@@ -74,14 +87,18 @@ const claimedRows = async () => (await thanksRows()).filter((r) => r.metadata[EV
 const linksAttempts = () => graph.filter(isWaze).length
 
 async function cleanup() {
-  const ids = (await db('inbox_conversations').where({ agencyId: AGENCY, customerWaId: GUEST }).pluck('id')) as number[]
+  const ids = (await db('inbox_conversations')
+    .where({ agencyId: AGENCY })
+    .whereIn('customerWaId', [GUEST, SECOND_GUEST])
+    .pluck('id')) as number[]
   await db('inbox_messages').whereIn('conversationId', ids).del()
   await db('conversation_ai_state').whereIn('conversationId', ids).del()
   await db('inbox_participants').whereIn('conversationId', ids).del()
   await db('inbox_conversations').whereIn('id', ids).del()
-  await db('clients').where({ agencyId: AGENCY, leadSource: 'wedding_invite' }).del()
+  await db('clients').where({ agencyId: AGENCY }).whereIn('leadSource', ['wedding_invite', SECOND_GUEST_SOURCE]).del()
   await db('whatsapp_opt_outs')
-    .where({ agencyId: AGENCY, customerPhoneE164: `+${GUEST}` })
+    .where({ agencyId: AGENCY })
+    .whereIn('customerPhoneE164', [`+${GUEST}`, `+${SECOND_GUEST}`])
     .del()
 }
 
@@ -143,7 +160,6 @@ beforeEach(async () => {
   h.beforePersist = null
   process.env.WEDDING_WAZE_URL = WAZE
   process.env.WEDDING_BIT_URL = BIT
-  process.env.WEDDING_EVENT_LINKS_TEST_PHONE = GUEST
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_url: unknown, init: RequestInit) => {
@@ -179,7 +195,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   delete process.env.WEDDING_WAZE_URL
   delete process.env.WEDDING_BIT_URL
-  delete process.env.WEDDING_EVENT_LINKS_TEST_PHONE
+  delete process.env.WEDDING_EVENT_LINKS_TEST_PHONE // only set by the stale-config test
 })
 
 afterAll(async () => {
@@ -416,8 +432,7 @@ describe('the pre-send claim: at most one attempt per conversation', () => {
   })
 })
 
-describe('controlled rollout: only WEDDING_EVENT_LINKS_TEST_PHONE receives the links', () => {
-  const OTHER_PHONE = '972545559999'
+describe('every guest who completes the RSVP receives the links', () => {
   const allLogs = () => [
     vi.spyOn(console, 'error').mockImplementation(() => {}),
     vi.spyOn(console, 'warn').mockImplementation(() => {}),
@@ -425,77 +440,139 @@ describe('controlled rollout: only WEDDING_EVENT_LINKS_TEST_PHONE receives the l
   ]
   const printed = (spies: ReturnType<typeof allLogs>) => JSON.stringify(spies.map((s) => s.mock.calls))
 
-  it.each([
-    ['E.164 digits', '972545550021'],
-    ['with a plus', '+972545550021'],
-    ['Israeli local', '0545550021'],
-    ['local with dashes', '054-555-0021'],
-    ['international with spaces', '+972 54-555-0021'],
-  ])('the configured phone receives the links once: %s', async (_name, configured) => {
-    process.env.WEDDING_EVENT_LINKS_TEST_PHONE = configured
+  /** Invite + template RSVP request for SECOND_GUEST, then route in THEIR conversation. */
+  async function secondGuest() {
+    await db('clients').insert({
+      agencyId: AGENCY,
+      firstName: 'אורחת',
+      lastName: 'שנייה',
+      phone: SECOND_GUEST,
+      lead: true,
+      status: 'new',
+      leadSource: SECOND_GUEST_SOURCE,
+      createdById: userId,
+      userId,
+      handlerId: userId,
+    })
+    expect(
+      (
+        await sendInvitationViaIntegration({
+          invitationId: 'dddddddd-0002-4333-8333-333333333333',
+          phone: SECOND_GUEST,
+          firstName: 'אורחת',
+          lastName: 'שנייה',
+        })
+      ).httpStatus,
+    ).toBe(200)
+    expect(
+      (
+        await sendRsvpRequestViaIntegration({
+          requestId: 'eeeeeeee-0002-4333-8333-333333333333',
+          phone: SECOND_GUEST,
+          firstName: 'אורחת',
+          lastName: 'שנייה',
+        })
+      ).httpStatus,
+    ).toBe(200)
+    const conv = await db('inbox_conversations').where({ agencyId: AGENCY, customerWaId: SECOND_GUEST }).first('id', 'leadId')
+    const ids = { conversationId: Number(conv.id), leadId: Number(conv.leadId) }
+    const send = async (row: Record<string, unknown>, raw: Record<string, unknown>) => {
+      const max = await db('inbox_messages').where({ conversationId: ids.conversationId }).max('sequence as max').first()
+      const [m] = await db('inbox_messages')
+        .insert({
+          conversationId: ids.conversationId,
+          agencyId: AGENCY,
+          leadId: ids.leadId,
+          channel: 'whatsapp',
+          direction: 'inbound',
+          fromId: SECOND_GUEST,
+          toId: PN,
+          status: 'received',
+          sequence: (Number(max?.max) || 0) + 1,
+          externalId: `wamid.IN2${Math.random()}`,
+          rawPayload: JSON.stringify({}),
+          payload: JSON.stringify({}),
+          ...row,
+        })
+        .returning('id')
+      return routeWeddingRsvpReply({
+        agencyId: AGENCY,
+        ...ids,
+        messageId: Number(m.id),
+        rawMessage: { from: SECOND_GUEST, ...raw },
+      })
+    }
+    return {
+      ...ids,
+      tap: () =>
+        send(
+          { type: 'button', text: 'tap', payload: JSON.stringify({ payload: 'wedding_rsvp_attending', text: 'tap' }) },
+          { id: 'wamid.tap2', type: 'button', button: { payload: 'wedding_rsvp_attending', text: 'tap' } },
+        ),
+      answer: (n: string) => send({ type: 'text', text: n }, { id: 'wamid.count2', type: 'text', text: { body: n } }),
+    }
+  }
+  const linksTo = (phone: string) =>
+    graph.filter((p) => p.type === 'interactive' && (p as unknown as { to: string }).to === phone).map((p) => `CTA:${ctaUrl(p)}`)
+
+  it('needs no test-phone variable: only the two URLs are required configuration', () => {
+    delete process.env.WEDDING_EVENT_LINKS_TEST_PHONE
+    expect(readEventLinks()).toEqual({ links: { waze: WAZE, bit: BIT }, invalid: [] })
+    delete process.env.WEDDING_WAZE_URL
+    delete process.env.WEDDING_BIT_URL
+    expect(readEventLinks()).toEqual({ links: null, invalid: ['WEDDING_WAZE_URL', 'WEDDING_BIT_URL'] })
+  })
+
+  it('a guest named in no configuration receives both links once', async () => {
+    expect(process.env.WEDDING_EVENT_LINKS_TEST_PHONE).toBeUndefined()
     await tap('wedding_rsvp_attending')
     expect(await answer('4')).toEqual(THANKED)
     expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS, ...LINKS])
     expect(await claimedRows()).toHaveLength(1)
   })
 
-  it('a different guest gets the normal flow, no links, and keeps their claim', async () => {
-    process.env.WEDDING_EVENT_LINKS_TEST_PHONE = OTHER_PHONE
-    const spies = allLogs()
-    await tap('wedding_rsvp_attending')
-    expect(await answer('4')).toEqual(THANKED)
-    expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS])
-    expect(await linksRows()).toHaveLength(0)
-    expect(await claimedRows()).toHaveLength(0)
-    expect(printed(spies)).not.toContain(OTHER_PHONE)
-  })
-
-  it('a different guest can still receive the links if later made the configured phone', async () => {
-    process.env.WEDDING_EVENT_LINKS_TEST_PHONE = OTHER_PHONE
+  it('two different guests each receive their own pair, once, even after re-confirming', async () => {
+    const other = await secondGuest()
     await tap('wedding_rsvp_attending')
     await answer('4')
-    process.env.WEDDING_EVENT_LINKS_TEST_PHONE = GUEST
+    await other.tap()
+    expect(await other.answer('3')).toEqual({ handled: true, headCount: 3, replied: true })
     await reconfirm()
-    expect(linksAttempts()).toBe(1)
+    await other.tap()
+    await other.answer('2')
+
+    expect(linksTo(GUEST)).toEqual(LINKS)
+    expect(linksTo(SECOND_GUEST)).toEqual(LINKS)
+    const claims = await db('inbox_messages')
+      .whereIn('conversationId', [conversationId, other.conversationId])
+      .whereRaw(`metadata->>'${EVENT_LINKS_CLAIM_KEY}' IS NOT NULL`)
+      .pluck('conversationId')
+    expect(claims.map(Number).sort()).toEqual([conversationId, other.conversationId].sort())
   })
 
-  it.each([
-    ['missing', undefined],
-    ['empty', ''],
-    ['whitespace', '   '],
-    ['not a number', 'not-a-phone'],
-    ['too short', '12345'],
-    ['leading zeros prefix', '00972545550021'],
-  ])('%s test phone disables the feature safely', async (_name, configured) => {
-    if (configured === undefined) delete process.env.WEDDING_EVENT_LINKS_TEST_PHONE
-    else process.env.WEDDING_EVENT_LINKS_TEST_PHONE = configured
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    await tap('wedding_rsvp_attending')
-    expect(await answer('4')).toEqual(THANKED)
-    expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS])
-    expect(await claimedRows()).toHaveLength(0)
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('event links disabled'), {
-      invalid: ['WEDDING_EVENT_LINKS_TEST_PHONE'],
-    })
-  })
-
-  it('an invalid test phone is never printed', async () => {
-    process.env.WEDDING_EVENT_LINKS_TEST_PHONE = '555-not-valid-555'
+  it('a stale WEDDING_EVENT_LINKS_TEST_PHONE naming someone else restricts nothing and is never printed', async () => {
+    process.env.WEDDING_EVENT_LINKS_TEST_PHONE = '972545559999'
     const spies = allLogs()
     await tap('wedding_rsvp_attending')
-    await answer('4')
-    expect(printed(spies)).not.toContain('not-valid')
+    expect(await answer('4')).toEqual(THANKED)
+    expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS, ...LINKS])
+    expect(printed(spies)).not.toContain('972545559999')
   })
 
-  it('a guest outside the test still has the existing decline and head-count behavior', async () => {
-    process.env.WEDDING_EVENT_LINKS_TEST_PHONE = OTHER_PHONE
+  it('an unprompted number, with no head-count question asked, sends nothing', async () => {
+    expect(await answer('4')).toEqual({ handled: false })
+    expect(texts()).toEqual([])
+    expect(await claimedRows()).toHaveLength(0)
+  })
+
+  it('the existing decline and head-count behavior is unchanged', async () => {
     await tap('wedding_rsvp_attending')
     await answer('4')
     const { rsvp } = await invitationStatuses({ invitations: [], phones: [GUEST] })
     expect(rsvp).toEqual([expect.objectContaining({ phone: GUEST, rsvp: 'attending', headcount: 4 })])
     expect(await answer('4')).toEqual({ handled: false })
     await tap('wedding_rsvp_not_attending')
-    expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS, REPLY_NOT_ATTENDING])
+    expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS, ...LINKS, REPLY_NOT_ATTENDING])
   })
 })
 
@@ -670,6 +747,7 @@ describe('privacy across the whole flow', () => {
     expect(logged).not.toContain(GUEST)
     expect(logged).not.toContain('test-token')
     expect(logged).not.toContain('test.invalid')
+    expect(logged).not.toContain(WAZE)
   })
 })
 
