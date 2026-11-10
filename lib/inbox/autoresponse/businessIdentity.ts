@@ -21,6 +21,14 @@ import {
   parseBusinessProfile,
   type BusinessProfile,
 } from './businessProfile'
+import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
+import { getAgentProfile } from '@/db/autoResponseSettings'
+import {
+  agentProfileGroundedFacts,
+  formatAgentProfileBlock,
+  isEmptyAgentProfile,
+  type AgentProfile,
+} from './conversational/agentProfile'
 
 export type BusinessIdentity = {
   agencyId: number
@@ -37,6 +45,12 @@ export type BusinessIdentity = {
    * the agent falls back to reading the description as prose, exactly as before.
    */
   profile: BusinessProfile | null
+  /**
+   * The owner's structured agent profile (greeting, persona, tone, FAQ,
+   * escalation topics). Loaded only for an agency on the conversational agent;
+   * null otherwise, so nothing changes for anyone else.
+   */
+  agentProfile?: AgentProfile | null
 }
 
 export function emptyBusinessIdentity(agencyId: number): BusinessIdentity {
@@ -71,6 +85,8 @@ export async function loadBusinessIdentity(agencyId: number, channel: string): P
   // A profile derived from different text is not used. The owner edited their
   // description; serving the old structure would answer from words they removed.
   const profile = isProfileCurrent(stored, guidance) ? stored : null
+  // Its own query, only on the conversational agent: see getAgentProfile.
+  const agentProfile = canUseConversationalAgent(id) ? await getAgentProfile(id, channel) : null
   return {
     agencyId: id,
     name: trimmedOrNull(agency.name),
@@ -78,6 +94,8 @@ export async function loadBusinessIdentity(agencyId: number, channel: string): P
     agentInstructions: trimmedOrNull(own?.agentInstructions),
     isOwnProductBusiness: isOwnBusinessAccount(id),
     profile,
+    // Present only when configured (and only on the conversational agent): every other identity is unchanged.
+    ...(agentProfile && !isEmptyAgentProfile(agentProfile) ? { agentProfile } : {}),
   }
 }
 
@@ -89,7 +107,10 @@ export async function loadBusinessIdentity(agencyId: number, channel: string): P
  */
 export function groundedFactsFor(identity: BusinessIdentity): string | null {
   const fallback = [identity.guidance, identity.agentInstructions].filter(Boolean).join('\n') || null
-  return groundedFactsFromProfile(identity.profile, fallback)
+  const base = groundedFactsFromProfile(identity.profile, fallback)
+  // The owner's FAQ answers are their own verified words, so they may license a figure too.
+  const faq = identity.agentProfile ? agentProfileGroundedFacts(identity.agentProfile) : null
+  return [base, faq].filter(Boolean).join('\n') || null
 }
 
 /** True when the owner has given the agent real facts to speak from. */
@@ -125,6 +146,8 @@ export function formatBusinessIdentityBlock(identity: BusinessIdentity): string 
   if (identity.agentInstructions) {
     lines.push(`הנחיות מבעל/ת העסק לניהול השיחה: ${identity.agentInstructions}`)
   }
+  const agentProfileBlock = identity.agentProfile ? formatAgentProfileBlock(identity.agentProfile) : null
+  if (agentProfileBlock) lines.push(agentProfileBlock)
 
   lines.push(
     'את/ה הנציג/ה של העסק הזה ושל אף עסק אחר. שאלות על מי אתם, מה אתם מציעים, או שהלקוח הגיע מפרסום שלכם — ענה/י ישירות, אך ורק ממה שכתוב למעלה.',

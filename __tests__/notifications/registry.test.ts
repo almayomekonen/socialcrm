@@ -146,6 +146,8 @@ describe('invariant 1 — exactly one entry per type', () => {
       // is genuinely the integrations bucket, and the mapping is recorded here
       // so the reuse stays intentional rather than looking like a slip.
       subscription: 'integrations',
+      // The conversational auto-response's personal-conversation notice is about a conversation.
+      conversation: 'messages',
     }
     for (const def of entries) {
       expect(def.category).toBe(prefixToCategory[def.type.split('.')[0]])

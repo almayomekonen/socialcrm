@@ -253,6 +253,39 @@ function firstForbiddenMatch(t: string, facts?: string | null): string | null {
   return null
 }
 
+/**
+ * CONVERSATIONAL AGENT ONLY (IRE_CONVERSATIONAL_AGENCY_IDS; see opts.conversational).
+ *
+ * QUANTITIES ARE NOT PRICES. "אין לי מחיר מדויק עבור 150 איש" and "גם 300 אורחים
+ * מתאימים" were rejected: a guest count next to the word "מחיר" read as a price
+ * figure, and the grounding check then demanded that the customer's own number
+ * appear in the business facts. Only a number DIRECTLY followed by a count noun
+ * (or a range of them) is masked. Anything with a currency, "ש״ח" or a price unit
+ * ("למנה", "לחודש") is untouched, so an unknown price is still refused.
+ */
+const QUANTITY_NOUN =
+  '(?:אורחים|אורח|איש|אנשים|מוזמנים|משתתפים|משתתף|עובדים|עובד|ילדים|מבוגרים|מנות|שולחנות|כיסאות|שעות|דקות|ימים|שבועות|חודשים|שנים|קומות|חדרים|מ["״]ר|מטר|רכבים|יחידות|פריטים|guests|people|persons|hours|days)'
+const QUANTITY = new RegExp(
+  `(?<![\\d₪$€.,])\\d[\\d,]*(?:\\s*(?:[-–]|עד|ל[-־]?)\\s*\\d[\\d,]*)?\\s+${QUANTITY_NOUN}(?![\\p{L}])`,
+  'gu',
+)
+export function maskQuantities(text: string): string {
+  return (text ?? '').replace(QUANTITY, 'כמות')
+}
+
+/**
+ * A promise that a PERSON will act: "אדם מהצוות יחזור לאשר", "הצוות יאשר".
+ * Nothing in the system commits anyone; only a real handoff (the escalation
+ * path) may say the request is waiting. Asking ("מתי נוח שיחזרו?") is allowed.
+ */
+const TEAM_PROMISE =
+  /(?:אדם|מישהו|נציג(?:ה)?|הצוות|צוות)\s+(?:מהצוות\s+|שלנו\s+)?(?:יחזור|יחזרו|יאשר|יאשרו|יצור|ייצור|יצרו|ייצרו|ידבר|ידברו|יתקשר|יתקשרו|יעדכן|יעדכנו|יטפל|יטפלו)(?![\p{L}])/u
+
+/** Per sentence: "מתי נוח שאדם מהצוות יחזור?" asks; "אדם מהצוות יחזור לאשר." promises. */
+function teamPromiseOutsideQuestion(text: string): boolean {
+  return (text.match(/[^.!?\n]+[.!?\n]?/g) ?? []).some((sentence) => !sentence.trim().endsWith('?') && TEAM_PROMISE.test(sentence))
+}
+
 /** Diagnostic metrics for a validated reply — observability only, never gates. */
 export interface ValidationDetails {
   /** Trimmed length actually evaluated. */
@@ -399,23 +432,35 @@ export function validateAutoResponse(
      * nothing is grounded, which is the safe default.
      */
     groundedFacts?: string | null
+    /**
+     * Conversational agent only. Absent ⇒ every rule below behaves exactly as
+     * before. Present: the verbatim greeting line does not count toward the
+     * length limits (the body gets the ordinary ones), quantities are not read
+     * as prices (maskQuantities), and a promise that a person will act is
+     * refused like any other unsupported callback.
+     */
+    conversational?: { greetingLine?: string | null }
   },
 ): ValidationResult {
   const t = (text ?? '').trim()
+  const conv = opts?.conversational
   const policy = opts?.questionPolicy ?? 'require_one'
-  const maxSentences = opts?.greetingTurn ? MAX_SENTENCES_GREETING : MAX_SENTENCES
-  const maxChars = opts?.greetingTurn ? MAX_CHARS_GREETING : MAX_CHARS
-  const sentences = t
+  const greeting = conv?.greetingLine?.trim() ?? ''
+  const greetingAside = !!conv && !!opts?.greetingTurn && !!greeting && t.startsWith(greeting)
+  const measured = greetingAside ? t.slice(greeting.length).trim() : t
+  const maxSentences = opts?.greetingTurn && !greetingAside ? MAX_SENTENCES_GREETING : MAX_SENTENCES
+  const maxChars = opts?.greetingTurn && !greetingAside ? MAX_CHARS_GREETING : MAX_CHARS
+  const sentences = measured
     .split(/[.!?\n]+/)
     .map((s) => s.trim())
     .filter(Boolean)
   const questionMarks = (t.match(/\?/g) ?? []).length
-  const matchedForbidden = firstForbiddenMatch(t, opts?.groundedFacts)
+  const matchedForbidden = firstForbiddenMatch(conv ? maskQuantities(t) : t, opts?.groundedFacts)
   const details: ValidationDetails = { length: t.length, sentenceCount: sentences.length, questionMarks, matchedForbidden }
 
   if (!t) return { ok: false, violation: 'empty', details }
   if (sentences.length > maxSentences) return { ok: false, violation: 'too_long', details }
-  if (t.length > maxChars) return { ok: false, violation: 'too_long', details }
+  if (measured.length > maxChars) return { ok: false, violation: 'too_long', details }
   if (isGenericFiller(t)) return { ok: false, violation: 'filler', details }
   if (policy === 'require_one' && questionMarks === 0 && !movesForward(t)) {
     return { ok: false, violation: 'no_question', details }
@@ -425,6 +470,9 @@ export function validateAutoResponse(
     return { ok: false, violation: 'unsupported_transfer_claim', details }
   }
   if (!opts?.escalating && !CALLBACK_QUESTION.test(t) && CALLBACK_PROMISE.some((re) => re.test(t))) {
+    return { ok: false, violation: 'unsupported_callback_promise', details }
+  }
+  if (conv && !opts?.escalating && teamPromiseOutsideQuestion(t)) {
     return { ok: false, violation: 'unsupported_callback_promise', details }
   }
   if (matchedForbidden) return { ok: false, violation: 'forbidden', details }
