@@ -20,18 +20,32 @@ export const EVENT_LINKS_STEP = 'event_links'
 export const EVENT_LINKS_CLAIM_KEY = 'eventLinksClaimedAt'
 
 /**
- * The gift template, as approved on the wedding WABA (Hebrew, MARKETING): a static
- * BODY and two static URL buttons, no variables — so a send names it and nothing else.
+ * The gift template exactly as APPROVED on the wedding WABA (Meta id 1488651796568494,
+ * Hebrew, MARKETING): a static BODY and two static URL buttons, no variables — so a
+ * send names it and nothing else. The labels here only feed the stored text.
  *   BODY      למי שרוצה לשלוח מתנה לחתונה 💝
- *   BUTTON 1  URL  "שליחת מתנה ב-Bit"   → the Bit group link
- *   BUTTON 2  URL  "הצטרפות ב-PayBox"   → https://links.payboxapp.com/EvZawEB4W7b
+ *   BUTTON 1  URL  "שליחת מתנה ב-Bit"      → the Bit group link
+ *   BUTTON 2  URL  "שליחת מתנה ב-PayBox"   → https://links.payboxapp.com/EvZawEB4W7b
  */
 export const GIFT_TEMPLATE = {
   name: 'wedding_gift_links',
   language: 'he',
   body: 'למי שרוצה לשלוח מתנה לחתונה 💝',
-  buttons: ['שליחת מתנה ב-Bit', 'הצטרפות ב-PayBox'],
+  buttons: ['שליחת מתנה ב-Bit', 'שליחת מתנה ב-PayBox'],
 } as const
+
+/**
+ * Is the gift template APPROVED right now, per the local projection (kept current by
+ * Meta's status webhooks and the template-sync cron)? Checked BEFORE the claim: a
+ * paused, disabled or missing template must not spend a guest's one claim.
+ */
+async function giftTemplateApproved(agencyId: number): Promise<boolean> {
+  const row = await db('whatsapp_templates')
+    .where({ agencyId, name: GIFT_TEMPLATE.name, language: GIFT_TEMPLATE.language, status: 'approved' })
+    .whereNull('archivedAt')
+    .first('id')
+  return Boolean(row)
+}
 
 type EventLinks = { waze: string }
 
@@ -147,6 +161,10 @@ export async function sendEventLinksAfterThanks(args: {
     const { links, invalid } = readEventLinks()
     if (!links) {
       console.warn('[WeddingRsvp] event links disabled: missing or invalid configuration', { invalid })
+      return
+    }
+    if (!(await giftTemplateApproved(args.agencyId))) {
+      console.warn('[WeddingRsvp] event links disabled: gift template not approved', { template: GIFT_TEMPLATE.name })
       return
     }
     if (!(await claimEventLinks(args.agencyId, args.conversationId))) return

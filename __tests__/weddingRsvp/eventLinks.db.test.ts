@@ -169,8 +169,35 @@ beforeAll(async () => {
   process.env.WEDDING_INTEGRATION_USER_ID = String(userId)
 })
 
+/** The local projection of the approved gift template (what the sync/webhooks maintain in production). */
+const giftTemplateRow = () => db('whatsapp_templates').where({ agencyId: AGENCY, name: GIFT_TEMPLATE.name })
+async function setGiftTemplate(status: string | null, extra: Record<string, unknown> = {}) {
+  await giftTemplateRow().del()
+  if (status === null) return
+  await db('whatsapp_templates').insert({
+    agencyId: AGENCY,
+    wabaId: '__wedding_links_waba',
+    metaTemplateId: '__gift',
+    name: GIFT_TEMPLATE.name,
+    displayTitle: GIFT_TEMPLATE.name,
+    language: GIFT_TEMPLATE.language,
+    category: 'MARKETING',
+    status,
+    bodyText: GIFT_TEMPLATE.body,
+    components: JSON.stringify([
+      { type: 'BODY', text: GIFT_TEMPLATE.body },
+      {
+        type: 'BUTTONS',
+        buttons: GIFT_TEMPLATE.buttons.map((text, i) => ({ type: 'URL', text, url: i === 0 ? BIT : PAYBOX })),
+      },
+    ]),
+    ...extra,
+  })
+}
+
 beforeEach(async () => {
   await cleanup()
+  await setGiftTemplate('approved')
   graph = []
   respond = () => undefined
   h.beforePersist = null
@@ -214,6 +241,7 @@ afterEach(() => {
 
 afterAll(async () => {
   await cleanup()
+  await giftTemplateRow().del()
   await db('whatsapp_connections').where({ phone_number_id: PN }).del()
   await db('users').where({ id: userId }).del()
   if (agencyCreated) await db('agencies').where({ id: AGENCY }).del()
@@ -275,6 +303,45 @@ describe('when the links must not be sent', () => {
     expect(await answer('4')).toEqual(THANKED)
     expect(graph.some(isWaze)).toBe(false)
     expect(await linksRows()).toHaveLength(0)
+  })
+})
+
+describe('the gift template must be APPROVED before anything is claimed or sent', () => {
+  it.each([
+    ['missing', null],
+    ['pending', 'pending'],
+    ['paused', 'paused'],
+    ['disabled', 'disabled'],
+    ['rejected', 'rejected'],
+  ])('%s template: thank-you unaffected, no Waze, no template, no claim', async (_name, status) => {
+    await setGiftTemplate(status)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await tap('wedding_rsvp_attending')
+    expect(await answer('4')).toEqual(THANKED)
+    expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS])
+    expect(await claimedRows()).toHaveLength(0)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('gift template not approved'), { template: GIFT_TEMPLATE.name })
+  })
+
+  it('an archived approved row does not count', async () => {
+    await setGiftTemplate('approved', { archivedAt: new Date() })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await tap('wedding_rsvp_attending')
+    await answer('4')
+    expect(graph.filter(isGift)).toHaveLength(0)
+    expect(await claimedRows()).toHaveLength(0)
+  })
+
+  it('a guest who completed while it was pending still gets both messages once it is approved', async () => {
+    await setGiftTemplate('pending')
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await tap('wedding_rsvp_attending')
+    await answer('4')
+    expect(await claimedRows()).toHaveLength(0)
+    await setGiftTemplate('approved')
+    await reconfirm()
+    expect(texts().filter((t) => LINKS.includes(t))).toEqual(LINKS)
+    expect(await claimedRows()).toHaveLength(1)
   })
 })
 
@@ -647,7 +714,7 @@ describe('the two event-link messages', () => {
       name: 'wedding_gift_links',
       language: 'he',
       body: 'למי שרוצה לשלוח מתנה לחתונה 💝',
-      buttons: ['שליחת מתנה ב-Bit', 'הצטרפות ב-PayBox'],
+      buttons: ['שליחת מתנה ב-Bit', 'שליחת מתנה ב-PayBox'],
     })
     // cta_url display_text ≤ 20; template URL button text ≤ 25; bodies ≤ 1024.
     expect([...WAZE_MESSAGE.body].length).toBeLessThanOrEqual(1024)
@@ -661,7 +728,7 @@ describe('the two event-link messages', () => {
     await answer('4')
     const rows = await linksRows()
     expect(rows.map((r) => r.text).sort()).toEqual([WAZE_STORED, GIFT_STORED].sort())
-    expect(GIFT_STORED).toBe('למי שרוצה לשלוח מתנה לחתונה 💝\n\n[שליחת מתנה ב-Bit] [הצטרפות ב-PayBox]')
+    expect(GIFT_STORED).toBe('למי שרוצה לשלוח מתנה לחתונה 💝\n\n[שליחת מתנה ב-Bit] [שליחת מתנה ב-PayBox]')
     for (const row of rows) {
       expect(row).toMatchObject({ sentByUserId: null, status: 'sent' })
       expect(row.metadata).toMatchObject({ source: WEDDING_RSVP_SOURCE, step: EVENT_LINKS_STEP })
