@@ -7,7 +7,10 @@ import { isMobileWorkspaceRequest } from '@/lib/device'
 import { getMasterEnabled, getChannelSettings, getAgentProfile } from '@/db/autoResponseSettings'
 import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 import AutoResponseSettingsForm from '@/components/settings/autoResponse/AutoResponseSettingsForm'
-import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
+import ResponderSelector from '@/components/settings/autoResponse/ResponderSelector'
+import { resolveResponderChoice } from '@/lib/inbox/autoresponse/responderChoice'
+import { canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
+import { parseQuestionnaireDefinition } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
 import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
 import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
@@ -58,6 +61,17 @@ export default async function AutoResponseSettingsPage() {
     conversational ? getAgentProfile(user.agencyId, 'whatsapp') : Promise.resolve(undefined),
   ])
 
+  // The persisted responder and what this agency can actually run (one rule,
+  // shared with the switch action). Never inferred from replyMode alone.
+  const choice = resolveResponderChoice({
+    responder: channel?.responder,
+    mode: channel?.mode,
+    replyMode: channel?.replyMode,
+    questionnaireAllowed: canUseWhatsappQuestionnaire(user.agencyId),
+    questionnairePublished: parseQuestionnaireDefinition(channel?.questionnaire ?? null).ok,
+  })
+  const builderHref = canUseQuestionnaireBuilder(user.agencyId) ? '/settings/questionnaire' : undefined
+
   return (
     <>
       {proLocked && (
@@ -70,10 +84,6 @@ export default async function AutoResponseSettingsPage() {
           />
         </div>
       )}
-      <QuestionnaireModeNotice
-        active={channel?.responder === 'questionnaire'}
-        builderHref={canUseQuestionnaireBuilder(user.agencyId) ? '/settings/questionnaire' : undefined}
-      />
       <AutoResponseSettingsForm
         masterEnabled={master}
         channelEnabled={channel?.enabled ?? false}
@@ -85,6 +95,8 @@ export default async function AutoResponseSettingsPage() {
         fixedBody={channel?.fixedBody ?? null}
         delaySeconds={channel?.delaySeconds ?? 0}
         {...(conversational ? { agentProfile: agentProfile ?? null } : {})}
+        agentSettingsVisible={choice.stored !== 'questionnaire'}
+        responderSlot={channel ? <ResponderSelector choice={choice} builderHref={builderHref} /> : undefined}
       />
     </>
   )

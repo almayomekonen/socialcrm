@@ -56,3 +56,17 @@ describe('AutoResponseSettingsForm delay field', () => {
     expect(input.value).toBe('0')
   })
 })
+
+describe('AutoResponseSettingsForm with the questionnaire active', () => {
+  it('hides the agent reply style but keeps the master switch and the selector slot', () => {
+    render(<AutoResponseSettingsForm {...props} delaySeconds={0} agentSettingsVisible={false} responderSlot={<div data-testid='slot' />} />)
+    expect(screen.getByTestId('slot')).toBeTruthy()
+    expect(screen.getByLabelText('מענה אוטומטי בוואטסאפ')).toBeTruthy()
+    expect(screen.getByText('הגדרות הסוכן מוסתרות כי השאלון פעיל. הן נשמרות כמו שהן.')).toBeTruthy()
+  })
+
+  it('agent active (default): no hidden-settings note', () => {
+    render(<AutoResponseSettingsForm {...props} delaySeconds={0} />)
+    expect(screen.queryByText(/הגדרות הסוכן מוסתרות/)).toBeNull()
+  })
+})

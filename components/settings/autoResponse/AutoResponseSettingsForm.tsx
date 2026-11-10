@@ -39,6 +39,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [pending, startTransition] = useTransition()
   // Conversational agent only (the page passes agentProfile only then).
   const showProfile = initial.agentProfile !== undefined
+  const agentSettingsVisible = initial.agentSettingsVisible !== false
   const [profileBaseline, setProfileBaseline] = useState<AgentProfileDraft>(() => toAgentProfileDraft(initial.agentProfile ?? null))
   const [profile, setProfile] = useState<AgentProfileDraft>(profileBaseline)
   const profileDirty = showProfile && JSON.stringify(profile) !== JSON.stringify(profileBaseline)
@@ -163,8 +164,14 @@ export default function AutoResponseSettingsForm(initial: Props) {
         )}
       </section>
 
+      {initial.responderSlot}
+
       {master && (
         <>
+          {!agentSettingsVisible && (
+            <p className='mt-8 max-w-2xl text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.responder.agentHidden')}</p>
+          )}
+          {agentSettingsVisible && (
           <AutoResponseReplyStyle
             replyMode={replyMode}
             onReplyMode={(m) => set('replyMode', m)}
@@ -187,8 +194,9 @@ export default function AutoResponseSettingsForm(initial: Props) {
             nameId={nameId}
             maxLength={BODY_MAX}
           />
+          )}
 
-          {replyMode === 'ai' && showProfile && (
+          {agentSettingsVisible && replyMode === 'ai' && showProfile && (
             <AutoResponseAgentProfile
               value={profile}
               onChange={(next) => {
@@ -199,7 +207,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
             />
           )}
 
-          {replyMode === 'ai' && (
+          {agentSettingsVisible && replyMode === 'ai' && (
             <AgentPreview
               draftDescription={guidance}
               draftAgentInstructions={agentInstructions}

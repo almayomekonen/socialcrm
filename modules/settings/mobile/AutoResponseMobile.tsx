@@ -5,6 +5,10 @@ import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
 import AutoResponseToggle from './AutoResponseToggle'
 import { regionAttrs, untranslatedAttrs, type UiLocale } from '@/lib/i18n/config'
 import { translatorFor } from '@/lib/i18n/translators'
+import ResponderSelector from '@/components/settings/autoResponse/ResponderSelector'
+import { resolveResponderChoice } from '@/lib/inbox/autoresponse/responderChoice'
+import { canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
+import { parseQuestionnaireDefinition } from '@/lib/inbox/autoresponse/questionnaire/definition'
 
 /**
  * מענה אוטומטי, on a phone: is it on, what does it say, and how to stop it.
@@ -71,6 +75,20 @@ export default async function AutoResponseMobile({
         <p className='rounded-xl border border-warning-border bg-warning-bg px-3.5 py-3 text-[13px] leading-relaxed text-warning-text'>
           {t('admin.mobile.autoResponse.questionnaire')}
         </p>
+      )}
+
+      {/* Which method answers, read-only: switching asks for a confirmation and is desk work. */}
+      {channel && (
+        <ResponderSelector
+          readOnly
+          choice={resolveResponderChoice({
+            responder: channel.responder,
+            mode: channel.mode,
+            replyMode: channel.replyMode,
+            questionnaireAllowed: canUseWhatsappQuestionnaire(agencyId),
+            questionnairePublished: parseQuestionnaireDefinition(channel.questionnaire ?? null).ok,
+          })}
+        />
       )}
 
       <section aria-labelledby='auto-response-message' className='flex flex-col gap-2'>

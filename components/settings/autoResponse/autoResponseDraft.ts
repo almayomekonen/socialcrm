@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { AutoResponseReplyMode } from '@/db/autoResponseSettings'
 import type { MessageKey } from '@/lib/i18n/translate'
 import type { AgentProfile } from '@/lib/inbox/autoresponse/conversational/agentProfile'
@@ -19,6 +20,14 @@ export type AutoResponseFormProps = {
   businessName: string
   /** Conversational agent only: the owner's structured agent profile. Undefined ⇒ the section is not shown. */
   agentProfile?: AgentProfile | null
+  /** The response-method selector (AI agent / questionnaire), rendered under the master switch. */
+  responderSlot?: ReactNode
+  /**
+   * False while the questionnaire is the stored responder: the agent's reply
+   * style, profile and preview are hidden (their values stay in the draft, so a
+   * save writes them back unchanged). Undefined ⇒ shown, as before.
+   */
+  agentSettingsVisible?: boolean
 }
 
 export type Draft = {
