@@ -11,6 +11,7 @@ import AutoResponseReplyStyle from './AutoResponseReplyStyle'
 import AgentPreview from './AgentPreview'
 import AutoResponseTiming from './AutoResponseTiming'
 import AutoResponseSaveBar from './AutoResponseSaveBar'
+import AutoResponseAgentProfile, { fromAgentProfileDraft, toAgentProfileDraft, type AgentProfileDraft } from './AutoResponseAgentProfile'
 
 /**
  * Workspace control for WhatsApp Auto Response. Master switch gates everything;
@@ -36,6 +37,11 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [errorCode, setError] = useState<SaveErrorCode | null>(null)
   const error = errorCode ? t(SAVE_ERROR_KEY[errorCode]) : null
   const [pending, startTransition] = useTransition()
+  // Conversational agent only (the page passes agentProfile only then).
+  const showProfile = initial.agentProfile !== undefined
+  const [profileBaseline, setProfileBaseline] = useState<AgentProfileDraft>(() => toAgentProfileDraft(initial.agentProfile ?? null))
+  const [profile, setProfile] = useState<AgentProfileDraft>(profileBaseline)
+  const profileDirty = showProfile && JSON.stringify(profile) !== JSON.stringify(profileBaseline)
 
   const bodyId = useId()
   const instructionsId = useId()
@@ -48,7 +54,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [unsupported, setUnsupported] = useState<string[]>([])
   const [savedDescription, setSavedDescription] = useState(initial.guidance ?? '')
-  const dirty = (Object.keys(draft) as (keyof Draft)[]).some((k) => draft[k] !== baseline[k])
+  const dirty = (Object.keys(draft) as (keyof Draft)[]).some((k) => draft[k] !== baseline[k]) || profileDirty
   const fixedBodyError = errorCode === 'fixed_body_required' ? error : undefined
   const businessNameError = errorCode === 'business_name_required' ? error : undefined
 
@@ -60,6 +66,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
 
   function cancel() {
     setDraft(baseline)
+    setProfile(profileBaseline)
     setSaved(false)
     setError(null)
   }
@@ -85,6 +92,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
         replyMode,
         fixedBody: fixedBody.trim() || null,
         delaySeconds: Number(delaySeconds) || 0,
+        ...(showProfile ? { agentProfile: fromAgentProfileDraft(profile) } : {}),
       })
       if (result.ok === false) {
         // `profile_derivation_failed` is the recoverable one: everything the
@@ -98,6 +106,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
         return
       }
       setBaseline(draft)
+      setProfileBaseline(profile)
       setSavedDescription(guidance)
       setSaved(true)
       setUnsupported(result.unsupportedRequests)
@@ -178,6 +187,17 @@ export default function AutoResponseSettingsForm(initial: Props) {
             nameId={nameId}
             maxLength={BODY_MAX}
           />
+
+          {replyMode === 'ai' && showProfile && (
+            <AutoResponseAgentProfile
+              value={profile}
+              onChange={(next) => {
+                setProfile(next)
+                setSaved(false)
+                setError(null)
+              }}
+            />
+          )}
 
           {replyMode === 'ai' && (
             <AgentPreview

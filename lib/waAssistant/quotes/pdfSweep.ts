@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/config/db'
 import { QUOTE_RENDER_MAX_ATTEMPTS, closeStaleQuoteRenders, currentQuoteDocumentHandle, failedQuoteRenderCount, hasLiveQuoteRender } from '@/db/quotes/documents'
-import { waAssistantQuotesAgencyIds } from '@/lib/flags/waAssistantFlags'
+import { isWaAssistantQuotesAgency, waAssistantQuotesAgencyIds, waAssistantQuotesForAll } from '@/lib/flags/waAssistantFlags'
 import { startQuotePdf, type QuotePdfJobDeps } from './pdfJob'
 import { notifyOwnerOfQuotePdf } from './pdfNotice'
 
@@ -10,7 +10,8 @@ import { notifyOwnerOfQuotePdf } from './pdfNotice'
  * WhatsApp quotes whose owner has not heard about the PDF yet, and finishes
  * whichever step was lost: the notice, a retry, or the final "it failed".
  *
- * Inert with no agency on WA_ASSISTANT_QUOTES_AGENCY_IDS (no query at all).
+ * Inert with no agency on WA_ASSISTANT_QUOTES_AGENCY_IDS and no `all` audience
+ * (no query at all). With `all`, each row is still checked against the switch.
  * Bounded: quotes from the last hour, and at most ONE render a tick, because a
  * render can take most of the function's 60 seconds.
  */
@@ -20,12 +21,14 @@ const SWEEP_BATCH = 10
 
 export async function sweepQuotePdfs(opts: { nowMs?: number; deps?: QuotePdfJobDeps } = {}): Promise<{ rendered: number; notified: number }> {
   const summary = { rendered: 0, notified: 0 }
+  const forAll = waAssistantQuotesForAll()
   const agencies = waAssistantQuotesAgencyIds()
-  if (!agencies.length) return summary
+  if (!forAll && !agencies.length) return summary
   const nowMs = opts.nowMs ?? Date.now()
 
-  const due = (await db('sales_quotes')
-    .whereIn('agencyId', agencies)
+  const query = db('sales_quotes')
+  if (!forAll) query.whereIn('agencyId', agencies)
+  const rows = (await query
     .where('status', 'ready')
     .where((q) => q.where('readyAt', '>', new Date(nowMs - SWEEP_WINDOW_MS)).orWhere((e) => e.where('version', '>', 1).where('updatedAt', '>', new Date(nowMs - SWEEP_WINDOW_MS))))
     .whereRaw(`metadata->>'source' = 'wa_assistant'`)
@@ -33,6 +36,7 @@ export async function sweepQuotePdfs(opts: { nowMs?: number; deps?: QuotePdfJobD
     .orderBy('readyAt', 'asc')
     .limit(SWEEP_BATCH)
     .select('id', 'agencyId')) as { id: number | string; agencyId: number }[]
+  const due = rows.filter((r) => isWaAssistantQuotesAgency(Number(r.agencyId)))
 
   for (const row of due) {
     const quoteId = Number(row.id)

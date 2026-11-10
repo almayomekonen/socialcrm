@@ -15,6 +15,8 @@ import {
   type AutoResponseReplyMode,
 } from '@/db/autoResponseSettings'
 import { deriveBusinessProfile, hashDescription, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfile'
+import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
+import { normalizeAgentProfile, type AgentProfile } from '@/lib/inbox/autoresponse/conversational/agentProfile'
 
 export type UpdateAutoResponseInput = {
   masterEnabled: boolean
@@ -30,6 +32,12 @@ export type UpdateAutoResponseInput = {
   delaySeconds: number
   /** Supplied inline when the account has no business name yet. */
   businessName?: string | null
+  /**
+   * Greeting, persona, tone, FAQ, escalation topics. Accepted only for an agency
+   * on the conversational agent; ignored (the column is not touched) otherwise.
+   * Omitted = left as stored.
+   */
+  agentProfile?: AgentProfile | null
 }
 
 export type UpdateAutoResponseResult =
@@ -135,6 +143,10 @@ export async function updateAutoResponseSettings(input: UpdateAutoResponseInput)
     agentInstructions,
     businessProfile,
     mode: modeForReplyMode(replyMode, user.agencyId),
+    // Validated and length-capped here and again in the data layer; owner text only.
+    ...(input.agentProfile !== undefined && canUseConversationalAgent(user.agencyId)
+      ? { agentProfile: input.agentProfile ? normalizeAgentProfile(input.agentProfile) : null }
+      : {}),
     replyMode,
     fixedBody,
     delaySeconds,

@@ -1,186 +1,44 @@
+/**
+ * The qualify turn's ORCHESTRATOR: the gates and the order of decisions.
+ *
+ *   qualifyTurn/turnFacts.ts     what the turn is decided on (transcript, ownership, classification)
+ *   qualifyTurn/responders.ts    the greeting and the courtesy reply
+ *   (this file)                  kill switch, pre-generation gate, deterministic turns,
+ *                                conversation control, GPT eligibility
+ *   qualifyTurn/generateTurn.ts  the model call, validation, repair, truthfulness check
+ *   qualifyTurn/completeTurn.ts  the post-generation decision; draft / escalate / continue
+ *   qualifyTurn/effects.ts       send + persist, shadow qualification, escalation record
+ *
+ * Every send still goes through sendIreOutbound (send-time gates) after
+ * outboundGate(); nothing here or in the modules calls WhatsApp directly.
+ */
 import { db } from '@/config/db'
 import { track } from '@/lib/analytics/track'
-import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
-import {
-  skipAutoResponseJob,
-  completeAutoResponseJob,
-  failAutoResponseJob,
-  countSentToday,
-  skipPendingNoResponseJobs,
-  type AutoResponseJob,
-} from '@/db/autoResponseJobs'
-import type { AutoResponseSettings } from '@/db/autoResponseSettings'
-import {
-  getOrCreateAiState,
-  recordTurn,
-  mergeOnly,
-  markEscalated,
-  markHumanActive,
-  markStopped,
-  markClosed,
-  reopenClosedConversation,
-} from '@/db/conversationAiState'
-import { upsertManyConversationIntelligence, getMaxMessageSequence, INTEL_KIND_TEMPERATURE } from '@/db/conversationIntelligence'
-import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
-import { recordTurnClassification } from '@/db/conversationTurnClassification'
-import { isPositiveLeadId } from './contactJob'
-import { mergeQualification, requiredComplete, isSalesStrategy, type Qualification } from './qualification'
-import { decidePreGeneration, decidePostGeneration, isDiscoveryQuestionBudgetExhausted } from './stateMachine'
-import {
-  generateQualifyTurn,
-  handoffMessage,
-  detectLang,
-  detectOptOut,
-  deterministicQualifyFallback,
-  cognitionFromUnderstanding,
-  inboundMemoryText,
-  type QualifyGenResult,
-  type RegenerationReason,
-} from './qualify'
-import { buildSummary, type EscalationSummary } from './summary'
+import { skipAutoResponseJob, completeAutoResponseJob, skipPendingNoResponseJobs, type AutoResponseJob } from '@/db/autoResponseJobs'
+import { markHumanActive, markStopped, markClosed } from '@/db/conversationAiState'
+import { decidePreGeneration, decidePostGeneration } from './stateMachine'
 import { isQualifierEnabled } from './killSwitch'
-import { isRetryableIreGenerationFailure } from './retryableGeneration'
-import { validateAutoResponse, classifyViolation, questionPolicyForSalesMove } from './validate'
 import { withinQuietHours } from './worker'
-import { shadowIngestQualification } from '@/lib/ai/integration/shadowIngest'
-import { shadowReasonAndDecide } from '@/lib/ai/integration/shadowCognition'
-import { isWarmHandoffEnabled, buildWarmHandoff } from './warmHandoff'
 import { waTrace } from './waTrace'
 import { shouldInvokeSalesAi } from './gptEligibility'
-import { classifyResponseProfile } from './responseProfile'
-import { classifySalesTurnFromTranscript, detectHumanRequest, salesMoveUsesProductContract } from './salesIntent'
-import {
-  allowsOutbound,
-  conversationCloser,
-  countConsecutiveAiOutbounds,
-  decideConversationControl,
-  inboundContainsRealQuestion,
-  isConfirmedHandoffOffer,
-  isExplicitReopen,
-  outboundOffersHandoff,
-} from './conversationControl'
-import { formatProductKnowledgeBlock, retrieveProductKnowledge } from './productRetrieve'
-import { formatBusinessIdentityBlock, groundedFactsFor, loadBusinessIdentity } from './businessIdentity'
-import {
-  formatSummaryBlock,
-  planSummary,
-  recentWindow,
-  summariseConversation,
-  type Turn as SummaryTurn,
-} from './conversationSummary'
-import { saveConversationSummary } from '@/db/conversationAiState'
-import { decideGreeting, withGreeting } from './greeting'
-import { safeFallbackReply } from './safeFallback'
-import { hasPriorOutbound } from '@/db/inboxMessages'
-import { sendIreOutbound } from './ireSend'
-import { watchHumanPresence } from './humanPresenceWatch'
-import { readHumanPresence } from '@/db/conversationHumanPresence'
+import { detectHumanRequest } from './salesIntent'
+import { conversationCloser, decideConversationControl, isConfirmedHandoffOffer } from './conversationControl'
 import { humanTypingBlocksTurn } from './humanPresence'
 import { runImmediateHumanHandoff } from './immediateHandoff'
-import { scheduleNoResponseWarning } from './processNoResponseJob'
-import { isNoResponseWarningMessage, metadataKind } from './noResponseClose'
 import { canUseAgentReliability } from '@/lib/flags/agentReliabilityFlags'
-import { humanTookOverSinceEpoch, legacyHumanTookOver, ownershipEpochSequence } from './reliability/ownership'
-import { decideDeterministicTurn, readableInboundText } from './reliability/silence'
+import { decideDeterministicTurn } from './reliability/silence'
 import { sendDeterministicTurn } from './reliability/deterministicTurn'
-import {
-  COURTESY_KIND,
-  courtesyLine,
-  decideCourtesyClose,
-  isCourtesyMessage,
-} from './courtesyClose'
+import { meetingOnlyHandoff, socialTurn } from './conversational/turnRules'
+import type { Outcome, QualifyCtx, QualifyDeps } from './qualifyTurn/types'
+import { readTurnFacts } from './qualifyTurn/turnFacts'
+import { turnResponders } from './qualifyTurn/responders'
+import { generateValidatedTurn, prepareGeneration } from './qualifyTurn/generateTurn'
+import { completeQualifyTurn } from './qualifyTurn/completeTurn'
+import { sendAndPersist } from './qualifyTurn/effects'
 
-type Outcome = 'sent' | 'skipped' | 'failed'
-
-export interface QualifyCtx {
-  master: boolean
-  settings: AutoResponseSettings
-  conv: { id: number; businessPhoneNumberId: string; customerWaId: string | null; customerName: string | null }
-  lead: { id: number | null; userId: number | null; handlerId: number | null; status: string | null }
-}
-export interface QualifyDeps {
-  send: typeof sendWhatsappText
-  generateQualify: typeof generateQualifyTurn
-}
+export type { QualifyCtx, QualifyDeps } from './qualifyTurn/types'
 
 const WINDOW_MS = 24 * 60 * 60 * 1000
-const MAX_TRANSCRIPT = 80
-
-function metaSource(metadata: unknown): string {
-  try {
-    const m = typeof metadata === 'string' ? JSON.parse(metadata) : metadata
-    return (m as { source?: string } | null)?.source ?? ''
-  } catch {
-    return ''
-  }
-}
-
-/** Send + persist an outbound AI message (tagged source=auto_response). */
-async function sendAndPersist(
-  job: AutoResponseJob,
-  ctx: QualifyCtx,
-  send: typeof sendWhatsappText,
-  text: string,
-): Promise<{ ok: true; messageId: number; sequence: number } | { ok: false; reason: string; settled?: true }> {
-  return sendIreOutbound(job, ctx, send, text)
-}
-
-async function shadowQualificationIfLead(
-  job: AutoResponseJob,
-  convId: number,
-  extracted: Qualification,
-  turnCount: number,
-): Promise<void> {
-  if (!isPositiveLeadId(job.leadId)) return
-  await shadowIngestQualification({
-    agencyId: job.agencyId,
-    leadId: job.leadId,
-    conversationId: convId,
-    extracted,
-  })
-  await shadowReasonAndDecide({
-    agencyId: job.agencyId,
-    leadId: job.leadId,
-    conversationId: convId,
-    turnCount,
-  })
-}
-
-async function persistEscalation(
-  conversationId: number,
-  agencyId: number,
-  summary: EscalationSummary,
-  q: Qualification,
-): Promise<void> {
-  const coveredSequence = await getMaxMessageSequence(conversationId)
-  const base = {
-    conversationId,
-    agencyId,
-    channel: 'whatsapp',
-    status: 'fresh' as const,
-    schemaVersion: 1,
-    analyzerVersion: 'qualifier-v1',
-    coveredSequence,
-  }
-  await upsertManyConversationIntelligence([
-    { ...base, kind: INTEL_KIND_TEMPERATURE, data: { temperature: summary.temperature } },
-    {
-      ...base,
-      kind: 'qualification_summary',
-      data: {
-        text: summary.text,
-        suggestedAction: summary.suggestedAction,
-        // Structured alongside the rendered note, so the staff surface can show
-        // the fields without parsing a formatted blob.
-        name: q.name ?? null,
-        businessType: q.businessType ?? null,
-        need: q.need ?? null,
-        urgency: q.urgency ?? null,
-        temperature: summary.temperature,
-      },
-    },
-  ])
-}
 
 export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, deps: QualifyDeps): Promise<Outcome> {
   const { settings, conv, lead, master } = ctx
@@ -199,200 +57,10 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // Ownership + silence correctness (reliability/*), per agency.
   const reliability = canUseAgentReliability(job.agencyId)
 
-  // ── Gather facts (recent transcript drives batch + turn-taking + takeover) ──
-  const rows = await db('inbox_messages')
-    .where({ conversationId: conv.id })
-    .orderBy('sequence', 'desc')
-    .limit(MAX_TRANSCRIPT)
-    .select('direction', 'text', 'sentByUserId', 'channelTimestamp', 'createdAt', 'metadata', 'sequence', 'type', 'payload', 'status')
-  // Under reliability an image/document/video caption is the customer's text.
-  const recent = reliability
-    ? rows
-        .slice()
-        .reverse()
-        .map((m) => (m.direction === 'inbound' ? { ...m, text: readableInboundText(m) } : m))
-    : rows.slice().reverse()
-  const lastMsg = recent[recent.length - 1]
-  /**
-   * The newest inbound the agent can actually READ.
-   *
-   * An image, voice note or sticker persists with empty `text`, and the agent
-   * answers the newest inbound — so in production conversation 7224 the customer
-   * wrote "תודה רבה" and then sent two photos, which made `lastInboundText` an
-   * empty string. The thank-you was never seen, the courtesy reply never fired,
-   * and every later job skipped. Any text message followed by an attachment had
-   * the same fate.
-   *
-   * Among the messages still awaiting a reply (everything after our last
-   * outbound), take the newest one that HAS text. If none of them do — the
-   * customer sent only an attachment — fall back to the newest, which keeps the
-   * existing low-information handling rather than answering something older.
-   */
-  const lastOutboundSeq = Number(
-    [...recent].reverse().find((m) => m.direction === 'outbound')?.sequence ?? 0,
-  )
-  const unanswered = recent.filter((m) => m.direction === 'inbound' && Number(m.sequence ?? 0) > lastOutboundSeq)
-  const lastInbound =
-    [...unanswered].reverse().find((m) => String(m.text ?? '').trim()) ??
-    [...recent].reverse().find((m) => m.direction === 'inbound')
-  const lastOutbound = [...recent].reverse().find((m) => m.direction === 'outbound')
-  const agentSpokeInWindow = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) === 'auto_response')
-
-  const aiState = await getOrCreateAiState(conv.id, job.agencyId)
-  // Human takeover. Under reliability: only a PERSON's outbound (isHumanOutbound)
-  // written after the last return-to-agent. Legacy: any outbound not written by
-  // the agent — which also caught automation templates and pre-return replies.
-  const humanTookOver = reliability
-    ? humanTookOverSinceEpoch(recent, ownershipEpochSequence(aiState.qualification))
-    : legacyHumanTookOver(recent)
-  // Human Presence, read once for the cheap pre-generation stop. Covers both a
-  // live signal AND a keystroke already inside this turn, so a job the cron picks
-  // up minutes later does not spend an AI call on a reply the boundary will then
-  // refuse. This is an early exit, not the guarantee: agentSendGuard re-reads
-  // presence at the boundary, after generation, and is what actually decides.
-  const presenceAtTurnStart = await readHumanPresence(conv.id)
-  const sentToday = await countSentToday(job.agencyId)
-  const lastInboundAt = lastInbound ? new Date((lastInbound.channelTimestamp ?? lastInbound.createdAt) as string | Date) : null
-  const maxTurns = settings.maxTurns
-  const lastInboundText = (lastInbound?.text as string) ?? ''
-  const previousOutbound = (lastOutbound?.text as string | undefined) ?? ''
-  const previousOutboundKind = metadataKind(lastOutbound?.metadata)
-  const closeOfferPending = isNoResponseWarningMessage(previousOutbound, previousOutboundKind)
-  const hasUnansweredInbound = lastMsg?.direction === 'inbound'
-  const consecutiveAiWithoutInbound = countConsecutiveAiOutbounds(recent)
-  const optOut = detectOptOut(lastInboundText)
-  /**
-   * Does the agent own this conversation? Two independent signals, for the same
-   * reason the greeting uses two: `aiTurnCount` is durable and survives a
-   * transcript window that has scrolled past the opening, while the window scan
-   * catches a turn that was sent before the count existed. Either alone would
-   * mis-read a long conversation as a first contact and re-apply the opening
-   * whitelist to someone mid-sentence.
-   */
-  const agentHasSpoken = aiState.aiTurnCount > 0 || agentSpokeInWindow
-  // Sequenced turns feed the summary planner; qTranscript stays the shape the
-  // classifier and prompt builder already take.
-  const sequencedTurns: SummaryTurn[] = recent
-    .map((m) => ({
-      direction: m.direction as 'inbound' | 'outbound',
-      text: (m.text as string) ?? '',
-      sequence: Number(m.sequence ?? 0),
-    }))
-    .filter((m) => m.text)
-  const qTranscript = recentWindow(sequencedTurns).map((m) => ({ direction: m.direction, text: m.text }))
-  const persistedStrategy = isSalesStrategy(aiState.qualification.cognition?.salesStrategy)
-    ? aiState.qualification.cognition?.salesStrategy
-    : undefined
-  const classified = classifySalesTurnFromTranscript(qTranscript, { salesStrategy: persistedStrategy })
-  const salesMove = classified.salesMove
-  const salesStrategy = classified.salesStrategy
-  const reopenEligible = aiState.aiState === 'closed' && isExplicitReopen({ salesMove, inboundText: lastInboundText })
-  const outboundGate = () =>
-    allowsOutbound({
-      aiState: aiState.aiState,
-      hasUnansweredInbound,
-      consecutiveAiWithoutInbound,
-      humanTookOver,
-      optOut,
-      reopenEligible,
-    })
-
-  // A turn with no readable text (media only) is not English: it is unknown, and
-  // this product speaks Hebrew by default. Legacy kept the old default.
-  const lang = reliability && !lastInboundText.trim() ? 'he' : detectLang(lastInboundText)
-
-  // ── First greeting ────────────────────────────────────────────────────────
-  // Decided deterministically here and handed to the model as a verbatim line.
-  // The model is never asked to judge "is this the start of the conversation?"
-  // from a transcript — that is how a greeting lands on turn five and goes
-  // missing on turn one.
-  //
-  // Resolved lazily and memoized, because most claimed jobs end in a skip
-  // (no_pending_inbound, quiet_hours, human_active…) and must not pay for two
-  // extra queries to answer a question no send will ask.
-  //
-  // `countPriorOutbound` is a durable COUNT, not a scan of `recent`: that array
-  // is capped at MAX_TRANSCRIPT, so past the cap an early greeting would fall
-  // out of the window and the same customer would be greeted twice.
-  let greetingResolved: { identity: Awaited<ReturnType<typeof loadBusinessIdentity>>; line: string | null } | null = null
-  const resolveGreeting = async () => {
-    if (greetingResolved) return greetingResolved
-    const identity = await loadBusinessIdentity(job.agencyId, job.channel)
-    const priorOutbound = await hasPriorOutbound(conv.id)
-    const decision = decideGreeting({
-      hasPriorOutbound: priorOutbound,
-      aiTurnCount: aiState.aiTurnCount,
-      businessName: identity.name,
-      lang,
-      aiState: aiState.aiState,
-    })
-    waTrace(
-      'GREETING_DECISION',
-      { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
-      {
-        greet: decision.greet,
-        reason: 'reason' in decision ? decision.reason : null,
-        hasBusinessName: Boolean(identity.name),
-        priorOutbound,
-        lang,
-      },
-    )
-    greetingResolved = { identity, line: decision.greet ? decision.line : null }
-    return greetingResolved
-  }
-
-  /**
-   * One warm line for "thank you", and nothing else.
-   *
-   * Called from TWO places, which is the whole point: the silent-close path, and
-   * — before the pre-generation gate — a conversation already handed to a human.
-   * `escalated` is a hard skip in decidePreGeneration, so a customer who thanks
-   * the business after a real handoff would otherwise never reach the courtesy
-   * branch at all. That is exactly the case the original transcript could not
-   * exercise, because it never entered handoff state.
-   *
-   * Never changes ownership and never records a turn. On an escalated
-   * conversation the state is left escalated: the request is still waiting for a
-   * person, and a pleasantry does not change that.
-   */
-  const attemptCourtesy = async (opts: { closeAfter: string | null }): Promise<Outcome | null> => {
-    const decision = decideCourtesyClose({
-      inboundText: lastInboundText,
-      agentHasSpoken,
-      humanTookOver,
-      optOut,
-      alreadySentCourtesy: recent.some((m) => m.direction === 'outbound' && isCourtesyMessage(m.metadata)),
-    })
-    waTrace(
-      'COURTESY_CLOSE',
-      { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
-      { send: decision.send, reason: 'reason' in decision ? decision.reason : null, aiState: aiState.aiState },
-    )
-    if (!decision.send) return null
-    const gate = outboundGate()
-    if (gate.allowed === false) return doSkip(gate.reason)
-    const r = await sendIreOutbound(job, ctx, deps.send, courtesyLine(lang, conv.id), {
-      source: 'auto_response',
-      reason: job.reason,
-      phase: 2,
-      kind: COURTESY_KIND,
-    })
-    if (r.ok === false) {
-      if (r.settled) return 'failed'
-      return doSkip(r.reason)
-    }
-    await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
-    // Only the ordinary close path closes. An escalated conversation stays
-    // escalated — a person still owns it.
-    if (opts.closeAfter) await markClosed(conv.id, opts.closeAfter)
-    await completeAutoResponseJob(job.id, r.messageId)
-    await track({
-      agencyId: job.agencyId,
-      event: 'auto_response_sent',
-      props: { conversationId: conv.id, reason: `courtesy_${opts.closeAfter ?? aiState.aiState}` },
-    })
-    return 'sent'
-  }
+  const facts = await readTurnFacts({ job, ctx, reliability })
+  const { unanswered, lastOutbound, aiState, convo, humanTookOver, presenceAtTurnStart, sentToday, lastInboundAt, maxTurns, lastInboundText, previousOutbound, previousOutboundKind, closeOfferPending, hasUnansweredInbound, optOut, agentHasSpoken, qTranscript, salesMove, reopenEligible, outboundGate, lang } = facts
+  const base = { job, ctx, deps, doSkip, reliability }
+  const { resolveGreeting, attemptCourtesy } = turnResponders({ ...base, ...facts })
 
   // A conversation waiting on a person may still say thank you. Checked BEFORE
   // the pre-generation gate, which treats `escalated` as a hard stop.
@@ -401,6 +69,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     if (courtesyOutcome) return courtesyOutcome
   }
 
+  // Conversational: a meeting mention is read by the model, not treated as a request for a person.
+  const deferredMeeting = !!convo && meetingOnlyHandoff(lastInboundText, previousOutbound)
   const pre = decidePreGeneration({
     aiState: aiState.aiState,
     masterEnabled: master,
@@ -408,7 +78,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     humanTookOver,
     humanTyping: humanTypingBlocksTurn(presenceAtTurnStart, job.createdAt),
     optOut,
-    humanRequest: detectHumanRequest(lastInboundText, { previousOutbound }),
+    humanRequest: deferredMeeting ? false : detectHumanRequest(lastInboundText, { previousOutbound }),
     hasUnansweredInbound,
     withinQuietHours: withinQuietHours(settings.quietHours, new Date()),
     withinWindow: lastInboundAt ? Date.now() - lastInboundAt.getTime() < WINDOW_MS : false,
@@ -450,7 +120,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     const firstContact = !agentHasSpoken && aiState.aiState === 'new'
     const deterministic = decideDeterministicTurn({
       pending: unanswered,
-      firstContact,
+      // The conversational agent reads a text opener itself ("אחי מה קורה?" is not "היי"); media is still acknowledged here.
+      firstContact: firstContact && !convo,
       greetingLine: firstContact ? (await resolveGreeting()).line : null,
       lang,
       lastOutbound,
@@ -491,7 +162,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // thing had happened that had not. Running the real handoff here makes the
   // sentence true, and writes the summary that carries the urgency.
   const handoffAccepted = isConfirmedHandoffOffer({ previousOutbound, inboundText: lastInboundText })
-  if (control.action === 'HANDOFF_TO_HUMAN' || handoffAccepted) {
+  // A friend's "חחחח" or goodbye is the conversation, not a close. Handoffs are unaffected.
+  const socialControl = convo
+    ? socialTurn({ socialHint: convo.socialHint, inboundText: lastInboundText, salesRuleSilences: control.action === 'CLOSE_CONVERSATION' })
+    : 'default'
+  if (socialControl === 'skip_quietly') return doSkip('social_ack')
+  const controlHandoff = control.action === 'HANDOFF_TO_HUMAN' && !deferredMeeting
+  if (controlHandoff || handoffAccepted) {
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
     return runImmediateHumanHandoff({
@@ -503,14 +180,14 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       greetingLine: (await resolveGreeting()).line,
     })
   }
-  if (control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
+  if (socialControl === 'default' && control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
     const courtesyOutcome = await attemptCourtesy({ closeAfter: control.reason })
     if (courtesyOutcome) return courtesyOutcome
     await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
     await markClosed(conv.id, control.reason)
     return doSkip(`closed_${control.reason}`)
   }
-  if (control.action === 'CLOSE_CONVERSATION' && control.send === 'closer') {
+  if (socialControl === 'default' && control.action === 'CLOSE_CONVERSATION' && control.send === 'closer') {
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
     // Deliberately NOT greeted. A closer is sent when the customer declined,
@@ -534,7 +211,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return 'sent'
   }
 
-  if (control.action !== 'CONTINUE' && control.action !== 'ASK_QUESTION') {
+  if (socialControl === 'default' && !deferredMeeting && control.action !== 'CONTINUE' && control.action !== 'ASK_QUESTION') {
     return doSkip('control_no_generate')
   }
 
@@ -544,7 +221,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     previousOutbound,
     previousOutboundKind,
     salesMove,
-    controlAction: control.action,
+    // Reached with CLOSE only when a social conversation's message deserves a reply (socialControl 'generate').
+    controlAction: control.action === 'CLOSE_CONVERSATION' || control.action === 'HANDOFF_TO_HUMAN' ? 'CONTINUE' : control.action,
     customerInboundCount: inboundTexts.length,
     previousCustomerText: inboundTexts.length >= 2 ? inboundTexts[inboundTexts.length - 2] : undefined,
     agentHasSpoken,
@@ -555,392 +233,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     { decision: gptEligibility.decision, reason: gptEligibility.reason, salesMove, controlAction: control.action },
   )
   if (gptEligibility.decision === 'WAIT') {
-    return doSkip(`gpt_wait_${gptEligibility.reason}`)
+    const socialWait = convo ? socialTurn({ socialHint: convo.socialHint, inboundText: lastInboundText, salesRuleSilences: true }) : 'default'
+    if (socialWait === 'skip_quietly') return doSkip('social_ack')
+    if (socialWait === 'default') return doSkip(`gpt_wait_${gptEligibility.reason}`)
   }
 
-  const responseProfile = classifyResponseProfile({
-    lastInbound: lastInboundText,
-    recentCustomerTexts: inboundTexts.slice(-3),
-  })
-
-  // ── Generate one structured turn ──
-  // CRM fields stay extracted as memory only. They must not pick the WhatsApp question.
-  const discoveryBudgetExhausted = isDiscoveryQuestionBudgetExhausted({
-    salesMove,
-    turnCount: aiState.aiTurnCount,
-    maxTurns,
-  })
-  const productKnowledge = retrieveProductKnowledge({
-    agencyId: job.agencyId,
-    inboundText: lastInboundText,
-    salesMove,
-  })
-  const productKnowledgeBlock =
-    salesMoveUsesProductContract(salesMove) || salesMove === 'OBJECTION'
-      ? formatProductKnowledgeBlock(productKnowledge)
-      : null
-  const genTraceCtx = () => ({
-    conversationId: conv.id,
-    jobId: job.id,
-    agencyId: job.agencyId,
-    triggerSequence: job.triggerSequence,
-  })
-  const { identity, line: greetingLine } = await resolveGreeting()
-  const businessIdentityBlock = formatBusinessIdentityBlock(identity)
-
-  // ── Rolling summary ────────────────────────────────────────────────────────
-  // Only moves when the recent-message window actually rolled past unsummarised
-  // messages, so an ordinary turn costs nothing extra. A failure here is logged
-  // and dropped: memory is worth a model call, never worth losing the reply.
-  let conversationSummary = aiState.summary
-  const summaryPlan = planSummary(sequencedTurns, {
-    summary: aiState.summary,
-    summaryThroughSequence: aiState.summaryThroughSequence,
-  })
-  if (summaryPlan.action === 'summarise') {
-    try {
-      const summarised = await summariseConversation({
-        agencyId: job.agencyId,
-        previousSummary: aiState.summary,
-        olderTurns: summaryPlan.olderTurns,
-        upToSequence: summaryPlan.upToSequence,
-      })
-      if (summarised.ok) {
-        conversationSummary = summarised.summary
-        await saveConversationSummary(conv.id, summarised.summary, summarised.throughSequence)
-        waTrace('CONVERSATION_SUMMARISED', genTraceCtx(), {
-          throughSequence: summarised.throughSequence,
-          summarisedTurns: summaryPlan.olderTurns.length,
-          length: summarised.summary.length,
-        })
-      } else {
-        waTrace('CONVERSATION_SUMMARISED', genTraceCtx(), { ok: false, reason: 'reason' in summarised ? summarised.reason : null })
-      }
-    } catch (summaryErr) {
-      console.error('[IRE] summary failed', { conversationId: conv.id, reason: (summaryErr as Error)?.message })
-    }
-  }
-  const summaryBlock = formatSummaryBlock(conversationSummary)
-
-  const questionPolicy = questionPolicyForSalesMove(salesMove, {
-    discoveryBudgetExhausted,
-    inboundWasQuestion: inboundContainsRealQuestion(lastInboundText),
-  })
-  const genTrace = { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence }
-  waTrace('GENERATE_QUALIFY_START', genTrace, {
-    transcriptLength: qTranscript.length,
-    currentQualification: aiState.qualification,
-    aiTurnCount: aiState.aiTurnCount,
-    salesMove,
-    salesStrategy,
-  })
-  const genArgs = {
-    agencyId: job.agencyId,
-    transcript: qTranscript,
-    qualification: aiState.qualification,
-    collectFields: settings.collectFields,
-    guidance: settings.guidance,
-    salesMove,
-    salesStrategy,
-    productKnowledgeBlock,
-    businessIdentityBlock,
-    discoveryBudgetExhausted,
-    trace: genTrace,
-    responseProfile,
-    greetingLine,
-    summaryBlock,
-    /**
-     * The customer supplied content in a conversation we are already in.
-     *
-     * Covers ENGAGED_CONTENT as well as ANSWERS_OPEN_QUESTION, because the agent
-     * does not reliably end its request with a question mark: in a real-model
-     * replay it wrote "כדי להתקדם, כתבו לי מספר טלפון…", so the reply came back
-     * as ENGAGED_CONTENT, the narrower flag never fired, and the model
-     * re-explained the product to someone who had just answered it. Re-pitching
-     * is wrong on either turn, so the directive applies to both.
-     */
-    answeringOurRequest:
-      gptEligibility.reason === 'ANSWERS_OPEN_QUESTION' || gptEligibility.reason === 'ENGAGED_CONTENT',
-    handoffAlreadyOffered: outboundOffersHandoff(previousOutbound),
-  }
-  // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
-  // Best effort only. Whatever happens here, the outbound guard re-checks.
-  const presenceWatch = watchHumanPresence({
-    conversationId: conv.id,
-    turnStartedAt: job.createdAt,
-    trace: genTrace,
-  })
-  const gen: QualifyGenResult = await deps.generateQualify({ ...genArgs, abortSignal: presenceWatch.signal })
-  if (gen.ok === false) {
-    presenceWatch.stop()
-    // An abort is not a provider outage: retrying it would burn the job's
-    // attempts and eventually deliver the reply the human displaced.
-    if (presenceWatch.cancelled()) return doSkip('human_typing')
-    if (isRetryableIreGenerationFailure(gen.skipReason)) {
-      await failAutoResponseJob(job.id, gen.skipReason, job.ownerWorkerId)
-      return 'failed'
-    }
-    return doSkip(gen.skipReason)
-  }
-  if (presenceWatch.cancelled()) {
-    // The model won the race with the abort. The reply is discarded, not sent.
-    presenceWatch.stop()
-    return doSkip('human_typing')
-  }
-
-  // ── Validate the reply; resolve shape/safety violations BEFORE the policy ──
-  // A validation failure is NOT model uncertainty. Shape → one stricter
-  // regeneration, else a strategy-aware fallback question (never a handoff).
-  // Safety → regenerate once, then escalate ('guardrail'). `uncertain` fed to
-  // the policy below is model-only.
-  // `groundedFacts` is what makes a price figure or a process claim checkable:
-  // the validator allows one only when it appears in this business's own saved
-  // information. Agent instructions are included because an owner may state a
-  // real figure there ("consultation is 200").
-  const validateOpts = {
-    questionPolicy,
-    greetingTurn: Boolean(greetingLine),
-    groundedFacts: groundedFactsFor(identity),
-  }
-  let validation = validateAutoResponse(gen.reply, validateOpts)
-  let forcedGuardrail = false
-  if (!validation.ok) {
-    const originalViolation = 'violation' in validation ? validation.violation : 'invalid'
-    const regenerationReason: RegenerationReason =
-      classifyViolation(originalViolation) === 'safety' ? 'safety_validation' : 'shape_validation'
-    const gen2 = await deps.generateQualify({ ...genArgs, regenerationReason, abortSignal: presenceWatch.signal })
-    const gen2Valid = gen2.ok === false ? null : validateAutoResponse(gen2.reply, validateOpts)
-    let finalResolution: 'regenerated' | 'deterministic' | 'guardrail_handoff'
-    let validationResult: string
-    if (gen2.ok !== false && gen2Valid && gen2Valid.ok) {
-      // Repair may rewrite the reply and refresh extracted facts. It must not
-      // mutate escalation policy: classifier salesMove stays the authority,
-      // and gen2 hotSignal/salesMove are ignored.
-      gen.reply = gen2.reply
-      gen.extracted = gen2.extracted
-      gen.corrected = gen2.corrected
-      gen.uncertain = gen2.uncertain
-      gen.objective = gen2.objective
-      gen.understanding = gen2.understanding
-      validation = gen2Valid
-      finalResolution = 'regenerated'
-      validationResult = 'ok'
-    } else {
-      const finalViolation = gen2Valid && 'violation' in gen2Valid ? gen2Valid.violation : originalViolation
-      validationResult = gen2.ok === false ? 'regeneration_unavailable' : finalViolation
-      if (classifyViolation(finalViolation) === 'safety') {
-        // Safety breach survived one regeneration → hand off (never send it).
-        forcedGuardrail = true
-        finalResolution = 'guardrail_handoff'
-      } else {
-        // Shape breach survived → objective-aware fallback; stay in qualify.
-        // Never rewrite a valid AI reply; this path is only for unsendable text.
-        const incomingCog = cognitionFromUnderstanding(
-          gen.understanding,
-          gen.objective,
-          inboundMemoryText({
-            qualification: aiState.qualification,
-            lastInboundText,
-            transcript: qTranscript,
-          }),
-          salesStrategy,
-        )
-        const mergedNow = mergeQualification(
-          aiState.qualification,
-          { ...gen.extracted, cognition: incomingCog },
-          { corrected: gen.corrected },
-        )
-        gen.reply = deterministicQualifyFallback({
-          qualification: mergedNow,
-          lastInboundText,
-          transcript: qTranscript,
-          cognition: mergedNow.cognition,
-          objective: gen.objective,
-          salesMove,
-          salesStrategy,
-          discoveryBudgetExhausted,
-          lang,
-        })
-        gen.reply = withGreeting(greetingLine, gen.reply)
-        validation = validateAutoResponse(gen.reply, validateOpts)
-        finalResolution = 'deterministic'
-      }
-    }
-    waTrace('POST_GENERATION_REPAIR', genTrace, {
-      regenerationReason,
-      originalViolation,
-      regenerationAttempt: 1,
-      validationResult,
-      finalResolution,
-    })
-  }
-
-  // Generation (and any repair regeneration) is done — release the watcher.
-  presenceWatch.stop()
-  if (presenceWatch.cancelled()) return doSkip('human_typing')
-
-  const incomingCog = cognitionFromUnderstanding(
-    gen.understanding,
-    gen.objective,
-    inboundMemoryText({
-      qualification: aiState.qualification,
-      lastInboundText,
-      transcript: qTranscript,
-    }),
-    salesStrategy,
-  )
-  const persistExtracted = { ...gen.extracted, cognition: incomingCog }
-  const merged = mergeQualification(aiState.qualification, persistExtracted, { corrected: gen.corrected })
-  let post = decidePostGeneration({
-    hotSignal: gen.hotSignal, // observability only — policy ignores LLM hotness
-    uncertain: gen.uncertain, // model-only; validation failures are resolved above
-    requiredComplete: requiredComplete(merged, settings.collectFields.required),
-    turnCount: aiState.aiTurnCount,
-    maxTurns,
-    salesMove, // classifier only; LLM salesMove is never policy
-  })
-  // Safety-guardrail handoff wins over any send/continue decision.
-  if (forcedGuardrail) post = { action: 'escalate', reason: 'guardrail' }
-
-  // Permanent validator telemetry (observability only — no logic change). Records
-  // the exact generated reply, its normalized form, the validator's rule/violation/
-  // diagnostics, and the final send-vs-escalate decision.
-  waTrace('POST_GENERATION_VALIDATION', genTrace, {
-    reply: gen.reply,
-    normalizedReply: (gen.reply ?? '').trim(),
-    validation: {
-      ok: validation.ok,
-      violation: 'violation' in validation ? validation.violation : null,
-      rule: 'violation' in validation ? validation.violation : null,
-      details: validation.details,
-    },
-    decision: post.action,
-  })
-
-  const draft = settings.draft
-  const summary =
-    post.action === 'escalate'
-      ? buildSummary({ qualification: merged, reason: post.reason, turnCount: aiState.aiTurnCount + 1, lang })
-      : null
-
-  // ── Classification log: exactly one row per customer turn, covering all three
-  //    outcomes below. It sits here because every classification field is final at
-  //    this point and none of the branches change them, while the early exits above
-  //    have no responseProfile or hotSignal to record. Guarded like the draft-review
-  //    write: observability must never break a customer message.
-  try {
-    await recordTurnClassification({
-      job,
-      salesMove,
-      salesStrategy,
-      responseProfile,
-      hotSignal: gen.hotSignal,
-      uncertain: gen.uncertain,
-      decision: post,
-      draft,
-      turnCount: aiState.aiTurnCount + 1,
-      model: gen.model,
-    })
-  } catch (e) {
-    console.error(`[IRE-CLASSIFY] persist failed conv=${conv.id}:`, (e as Error).message)
-  }
-
-  // ── Draft/canary: never send; persist + log the would-be output for review ──
-  if (draft) {
-    const drafted = post.action === 'escalate' ? handoffMessage(post.reason, lang) : gen.reply
-    const escalationReason = post.action === 'escalate' ? post.reason : null
-    console.log(
-      `[IRE-DRAFT] conv=${conv.id} decision=${post.action}:${escalationReason ?? ''} reply=${JSON.stringify(drafted)} extracted=${JSON.stringify(gen.extracted)} qualification=${JSON.stringify(merged)}${summary ? ` summary=${JSON.stringify(summary.text)}` : ''}`,
-    )
-    // TEMPORARY (P2.5 canary): persist the draft so it is reviewable, not just logged.
-    // Write-only observability — wrapped so a failure can never break send-suppression.
-    try {
-      await insertQualifyDraftReview({
-        conversationId: conv.id,
-        agencyId: job.agencyId,
-        decision: post.action,
-        escalationReason,
-        replyText: drafted,
-        extracted: gen.extracted,
-        qualification: merged,
-        summary,
-        lang,
-        turnCount: aiState.aiTurnCount + 1,
-      })
-    } catch (e) {
-      console.error(`[IRE-DRAFT] persist failed conv=${conv.id}:`, (e as Error).message)
-    }
-    await mergeOnly(conv.id, persistExtracted, gen.corrected)
-    await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount)
-    await track({
-      agencyId: job.agencyId,
-      event: 'auto_response_draft',
-      props: { conversationId: conv.id, decision: post.action },
-    })
-    return doSkip('draft')
-  }
-
-  // ── Escalate: send handoff + mark escalated + persist summary/temperature.
-  //    On a QUALIFIED handoff only, an enabled agency gets a deterministic warm
-  //    message assembled from known fields; any fallback → the fixed template. ──
-  if (post.action === 'escalate' && summary) {
-    let handoffText = handoffMessage(post.reason, lang)
-    if (post.reason === 'qualified' && isWarmHandoffEnabled(job.agencyId)) {
-      const warm = buildWarmHandoff({
-        name: merged.name,
-        need: merged.need,
-        urgency: merged.urgency,
-        context: qTranscript.find((m) => m.direction === 'inbound')?.text,
-        lang,
-      })
-      waTrace('WARM_HANDOFF', genTrace, { ...warm.telemetry })
-      if (warm.text) handoffText = warm.text
-    }
-    const gate = outboundGate()
-    if (gate.allowed === false) return doSkip(gate.reason)
-    const r = await sendAndPersist(job, ctx, deps.send, withGreeting(greetingLine, handoffText))
-    if (r.ok === false) {
-      if (r.settled) return 'failed'
-      return doSkip(r.reason)
-    }
-    await mergeOnly(conv.id, persistExtracted, gen.corrected)
-    await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount)
-    await markEscalated(conv.id, post.reason)
-    await persistEscalation(conv.id, job.agencyId, summary, merged)
-    await completeAutoResponseJob(job.id, r.messageId)
-    console.log(`[IRE] qualify escalate conv=${conv.id} reason=${post.reason} temp=${summary.temperature} msg=${r.messageId}`)
-    await track({
-      agencyId: job.agencyId,
-      event: 'auto_response_escalated',
-      props: { conversationId: conv.id, reason: post.reason },
-    })
-    return 'sent'
-  }
-
-  // ── Continue: send one qualifying reply + advance the turn ──
-  const continueGate = outboundGate()
-  if (continueGate.allowed === false) return doSkip(continueGate.reason)
-  const r = await sendAndPersist(job, ctx, deps.send, gen.reply)
-  if (r.ok === false) {
-    if (r.settled) return 'failed'
-    return doSkip(r.reason)
-  }
-  await recordTurn(conv.id, persistExtracted, gen.corrected)
-  // A legitimately reopened conversation is the agent's again, instead of
-  // staying `closed` and needing every later message to re-qualify as a reopen.
-  if (reliability && aiState.aiState === 'closed' && reopenEligible) await reopenClosedConversation(conv.id)
-  await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount + 1)
-  await completeAutoResponseJob(job.id, r.messageId)
-  if (isPositiveLeadId(job.leadId)) {
-    await scheduleNoResponseWarning({
-      agencyId: job.agencyId,
-      conversationId: conv.id,
-      leadId: job.leadId,
-      channel: job.channel,
-      triggerSequence: r.sequence,
-    })
-  }
-  console.log(`[IRE] qualify turn conv=${conv.id} turn=${aiState.aiTurnCount + 1} msg=${r.messageId}`)
-  await track({ agencyId: job.agencyId, event: 'auto_response_sent', props: { conversationId: conv.id, reason: 'qualify_turn' } })
-  return 'sent'
+  const prepared = await prepareGeneration({ ...base, ...facts, resolveGreeting, attemptCourtesy, gptEligibility, inboundTexts })
+  const generated = await generateValidatedTurn({ ...base, ...facts, ...prepared })
+  if ('done' in generated) return generated.done
+  return completeQualifyTurn({ ...base, ...facts, ...prepared, ...generated, deferredMeeting })
 }

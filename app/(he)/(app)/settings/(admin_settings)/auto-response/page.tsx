@@ -4,7 +4,8 @@ import { db } from '@/config/db'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { isMobileWorkspaceRequest } from '@/lib/device'
-import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
+import { getMasterEnabled, getChannelSettings, getAgentProfile } from '@/db/autoResponseSettings'
+import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 import AutoResponseSettingsForm from '@/components/settings/autoResponse/AutoResponseSettingsForm'
 import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
@@ -48,10 +49,13 @@ export default async function AutoResponseSettingsPage() {
   const proLocked = !(await getAgencyProductAccess(user.agencyId)).hasAccess
   const { locale } = await getUiLocaleState(user)
 
-  const [master, channel, agency] = await Promise.all([
+  // The agent-profile section exists only for an agency on the conversational agent.
+  const conversational = canUseConversationalAgent(user.agencyId)
+  const [master, channel, agency, agentProfile] = await Promise.all([
     getMasterEnabled(user.agencyId),
     getChannelSettings(user.agencyId, 'whatsapp'),
     db('agencies').where({ id: user.agencyId }).first('name'),
+    conversational ? getAgentProfile(user.agencyId, 'whatsapp') : Promise.resolve(undefined),
   ])
 
   return (
@@ -80,6 +84,7 @@ export default async function AutoResponseSettingsPage() {
         replyMode={channel?.replyMode ?? 'ai'}
         fixedBody={channel?.fixedBody ?? null}
         delaySeconds={channel?.delaySeconds ?? 0}
+        {...(conversational ? { agentProfile: agentProfile ?? null } : {})}
       />
     </>
   )

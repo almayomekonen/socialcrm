@@ -3,6 +3,7 @@
  * The collected fields and the fill-empty merge rule live here so the worker and
  * the state machine share one definition and never overwrite human-entered data.
  */
+import type { ConversationMemory } from './conversational/mode'
 export type AiState =
   | 'new'
   | 'ai_qualifying'
@@ -80,6 +81,8 @@ export type OwnershipEpoch = { sinceSequence: number; returnedAt?: string }
 export type Qualification = Partial<Record<QualificationField, string>> & {
   cognition?: ConversationCognition
   ownership?: OwnershipEpoch
+  /** Conversational agent only: the last turn's mode, a hint (conversational/mode.ts). */
+  conversation?: ConversationMemory
 }
 
 const isEmpty = (v: unknown): boolean => v == null || String(v).trim() === ''
@@ -164,6 +167,9 @@ export function mergeQualification(
   // Not the agent's to change: carried through every merge untouched, so a
   // recorded turn can never erase (or forge) the last return-to-agent.
   if (current.ownership) out.ownership = current.ownership
+  // The agent's own mode memory: the newest turn's reading replaces the old one.
+  const conversation = extracted.conversation ?? current.conversation
+  if (conversation) out.conversation = conversation
   return out
 }
 

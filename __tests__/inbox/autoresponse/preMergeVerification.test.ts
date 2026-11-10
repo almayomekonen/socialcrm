@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { readQualifyTurnSource } from './qualifyTurnSource'
 import { shouldInvokeSalesAi } from '@/lib/inbox/autoresponse/gptEligibility'
 import { classifySalesMove } from '@/lib/inbox/autoresponse/salesIntent'
 import { decideConversationControl, isExplicitReopen } from '@/lib/inbox/autoresponse/conversationControl'
@@ -172,7 +173,7 @@ describe('a customer cannot reopen past a human takeover', () => {
     // reordered, the worker never offers reopenEligible=true for human_active.
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const src = readFileSync(join(process.cwd(), 'lib/inbox/autoresponse/qualifyWorker.ts'), 'utf8')
+    const src = readQualifyTurnSource()
     expect(src).toContain("const reopenEligible = aiState.aiState === 'closed' && isExplicitReopen(")
   })
 })

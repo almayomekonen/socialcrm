@@ -406,6 +406,11 @@ describe('P1 — out-of-scope callers stay unchanged', () => {
     for (const rel of [
       'lib/inbox/autoresponse/worker.ts',
       'lib/inbox/autoresponse/qualifyWorker.ts',
+      'lib/inbox/autoresponse/qualifyTurn/turnFacts.ts',
+      'lib/inbox/autoresponse/qualifyTurn/responders.ts',
+      'lib/inbox/autoresponse/qualifyTurn/generateTurn.ts',
+      'lib/inbox/autoresponse/qualifyTurn/completeTurn.ts',
+      'lib/inbox/autoresponse/qualifyTurn/effects.ts',
       'lib/inbox/autoresponse/postHandoff.ts',
     ]) {
       const src = readFileSync(join(process.cwd(), rel), 'utf8')

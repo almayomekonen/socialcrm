@@ -196,6 +196,20 @@ describe('failure keeps the quote and retries safely', () => {
     expect(await countQuotes()).toBe(1)
   })
 
+  it('with QUOTES_AUDIENCE=all and no list, the sweep still recovers a lost PDF', async () => {
+    const f = await approvedQuote()
+    delete process.env.WA_ASSISTANT_QUOTES_AGENCY_IDS
+    process.env.WA_ASSISTANT_QUOTES_AUDIENCE = 'all'
+    try {
+      const good = pdfDeps()
+      await sweepQuotePdfs({ deps: good.deps })
+      expect((await docs(f.quoteId)).map((d) => d.status)).toEqual(['ready'])
+      expect(good.send).toHaveBeenCalledTimes(1)
+    } finally {
+      delete process.env.WA_ASSISTANT_QUOTES_AUDIENCE
+    }
+  })
+
   it('a render failure names its reason', async () => {
     const f = await approvedQuote()
     await start(f, pdfDeps({ render: async () => { throw new PdfRenderError('timeout') } }).deps)
