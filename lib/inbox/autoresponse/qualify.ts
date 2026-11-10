@@ -22,6 +22,8 @@ import {
   type RegenerationReason,
 } from './qualifyPrompt'
 import type { ResponseProfile } from './responseProfile'
+import { CONVERSATIONAL_FIELDS, CONVERSATIONAL_SYSTEM_PROMPT, buildConversationalUser, type ConversationalPromptContext } from './conversational/prompt'
+import { isConversationMode, isModeConfidence, type ConversationMode, type ModeConfidence } from './conversational/mode'
 import {
   detectHotSignal,
   detectHumanRequest,
@@ -264,6 +266,8 @@ const QualifySchema = z.object({
   hotSignal: z.boolean().describe('כוונת קנייה חזקה (מחיר/פגישה/להתחיל/בקשה לדבר עם נציג)'),
   uncertain: z.boolean().describe('לא ניתן לענות באמת בלי להמציא, או שצריך אדם'),
 })
+/** The conversational agent's schema: the same turn plus its mode (one call). */
+const ConversationalSchema = QualifySchema.extend(CONVERSATIONAL_FIELDS)
 
 export type QualifyGenResult =
   | {
@@ -282,6 +286,11 @@ export type QualifyGenResult =
       costUsd?: number
       latencyMs?: number
       model?: string
+      /** Conversational agent only (see conversational/). Absent on a plain qualify turn. */
+      conversationMode?: ConversationMode
+      modeConfidence?: ModeConfidence
+      personalClaims?: boolean
+      escalationTopic?: boolean
     }
   | { ok: false; skipReason: 'ai_unavailable' | 'budget_exhausted' }
 
@@ -308,13 +317,16 @@ export async function generateQualifyTurn(args: {
   bypassAllowlist?: boolean
   /** Aborts the provider call when a human rep starts typing mid-generation. */
   abortSignal?: AbortSignal
+  /** Present only for an agency on the conversational agent; changes prompt and schema, nothing else. */
+  conversational?: ConversationalPromptContext
 }): Promise<QualifyGenResult> {
+  const conv = args.conversational
   const out = await runStructured({
     kind: 'inbox.autoResponse',
-    schema: QualifySchema,
-    schemaName: 'QualifyTurn',
-    system: QUALIFY_SYSTEM_PROMPT,
-    user: buildQualifyUser(args),
+    schema: conv ? ConversationalSchema : QualifySchema,
+    schemaName: conv ? 'ConversationalTurn' : 'QualifyTurn',
+    system: conv ? CONVERSATIONAL_SYSTEM_PROMPT : QUALIFY_SYSTEM_PROMPT,
+    user: conv ? buildConversationalUser(args, conv) : buildQualifyUser(args),
     agencyId: args.agencyId,
     bypassAllowlist: args.bypassAllowlist,
     abortSignal: args.abortSignal,
@@ -323,7 +335,7 @@ export async function generateQualifyTurn(args: {
     waTrace('RUN_STRUCTURED_RESULT', args.trace ?? {}, { ok: false, reason: out.reason })
     return { ok: false, skipReason: out.reason === 'over-quota' ? 'budget_exhausted' : 'ai_unavailable' }
   }
-  const d = out.data as z.infer<typeof QualifySchema>
+  const d = out.data as z.infer<typeof QualifySchema> & Partial<z.infer<typeof ConversationalSchema>>
   const extracted: Qualification = {}
   for (const f of QUALIFICATION_FIELDS) {
     const v = d.extracted?.[f]
@@ -353,6 +365,14 @@ export async function generateQualifyTurn(args: {
     costUsd: out.costUsd,
     latencyMs: out.latencyMs,
     model: out.model,
+    ...(conv
+      ? {
+          conversationMode: isConversationMode(d.conversationMode) ? d.conversationMode : ('unclear' as const),
+          modeConfidence: isModeConfidence(d.modeConfidence) ? d.modeConfidence : ('low' as const),
+          personalClaims: Boolean(d.personalClaims),
+          escalationTopic: Boolean(d.escalationTopic),
+        }
+      : {}),
   }
   waTrace('RUN_STRUCTURED_RESULT', args.trace ?? {}, {
     ok: true,

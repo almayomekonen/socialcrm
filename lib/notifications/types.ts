@@ -76,6 +76,13 @@ export const NOTIFICATION_TYPES = [
    * Meta, and SocialCRM never resends it automatically. Never worded as a failure.
    */
   'followup.reminder_unconfirmed',
+  /**
+   * The conversational auto-response read a WhatsApp conversation as PERSONAL
+   * and is answering it. Once per conversation, in-app only, low priority: the
+   * owner can see it and take over. Never emitted for a conversation the owner
+   * marked personal (that one is never answered at all).
+   */
+  'conversation.personal_detected',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]

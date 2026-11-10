@@ -701,9 +701,10 @@ describe('no-response integration with Stop Policy / jobs', () => {
     const src = read('lib/inbox/autoresponse/qualifyWorker.ts')
     expect(src).toContain('await scheduleNoResponseWarning({')
     // Lead ordering is unchanged: complete, then schedule. Task 13 only adds the
-    // Contact guard around the schedule, so leadId=NULL jobs get no Lead warning.
+    // Contact guard around the schedule, so leadId=NULL jobs get no Lead warning;
+    // the conversational agent adds the same kind of guard for a personal conversation.
     expect(src).toContain(
-      'await completeAutoResponseJob(job.id, r.messageId)\n  if (isPositiveLeadId(job.leadId)) {\n    await scheduleNoResponseWarning({',
+      'await completeAutoResponseJob(job.id, r.messageId)\n  // A friend is never asked "are you still there?".\n  if (isPositiveLeadId(job.leadId) && !(convo && isSocialMode(modeOf(gen)))) {\n    await scheduleNoResponseWarning({',
     )
     const closerBlock = src.slice(
       src.indexOf("control.action === 'CLOSE_CONVERSATION' && control.send === 'closer'"),

@@ -187,4 +187,5 @@ export const subscriptionCancellationBody = (ctx: EventContext): string => {
 }
 
 /** No body for the common case — a title plus a deep link is the whole message. */
+export const conversationPersonalTitle = (ctx: EventContext): string => withName('המענה האוטומטי עונה בשיחה אישית', ctx)
 export const noBody = (): null => null

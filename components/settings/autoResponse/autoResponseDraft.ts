@@ -1,5 +1,6 @@
 import type { AutoResponseReplyMode } from '@/db/autoResponseSettings'
 import type { MessageKey } from '@/lib/i18n/translate'
+import type { AgentProfile } from '@/lib/inbox/autoresponse/conversational/agentProfile'
 
 /**
  * The auto-response form's props and its editable draft. Moved out of
@@ -16,6 +17,8 @@ export type AutoResponseFormProps = {
   delaySeconds: number
   /** From the account. Empty ⇒ the form asks for it inline. */
   businessName: string
+  /** Conversational agent only: the owner's structured agent profile. Undefined ⇒ the section is not shown. */
+  agentProfile?: AgentProfile | null
 }
 
 export type Draft = {

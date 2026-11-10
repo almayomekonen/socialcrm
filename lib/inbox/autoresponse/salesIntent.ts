@@ -92,6 +92,12 @@ export function isExplicitPersonRequest(text: string): boolean {
   return EXPLICIT_PERSON_PATTERNS.some((re) => re.test(t))
 }
 
+/** Only an explicit request for a person ("נציג", "בן אדם", "תעביר אותי"), never a mention of a meeting. */
+export function detectExplicitPersonRequest(text: string): boolean {
+  const t = (text ?? '').trim()
+  return !!t && EXPLICIT_PERSON_PATTERNS.some((re) => re.test(t))
+}
+
 export function detectHumanRequest(text: string, opts?: HumanRequestOpts): boolean {
   const t = (text ?? '').trim()
   if (!t) return false

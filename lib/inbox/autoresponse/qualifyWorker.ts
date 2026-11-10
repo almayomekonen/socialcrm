@@ -89,6 +89,17 @@ import {
   decideCourtesyClose,
   isCourtesyMessage,
 } from './courtesyClose'
+import {
+  checkConversationalReply,
+  discoveryTurnCount,
+  memoryAfterTurn,
+  modeOf,
+  notifyPersonalConversation,
+  promptContextFor,
+  startConversationalTurn,
+} from './conversational/hooks'
+import { isSocialMode } from './conversational/mode'
+import { meetingNeedsTeam, meetingOnlyHandoff, socialReopen, socialTurn } from './conversational/turnRules'
 
 type Outcome = 'sent' | 'skipped' | 'failed'
 
@@ -239,6 +250,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const agentSpokeInWindow = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) === 'auto_response')
 
   const aiState = await getOrCreateAiState(conv.id, job.agencyId)
+  // Conversational agent (IRE_CONVERSATIONAL_AGENCY_IDS only; null = exactly the old path).
+  const convo = await startConversationalTurn({
+    agencyId: job.agencyId,
+    leadId: isPositiveLeadId(job.leadId) ? job.leadId : null,
+    qualification: aiState.qualification,
+    nowMs: Date.now(),
+  })
   // Human takeover. Under reliability: only a PERSON's outbound (isHumanOutbound)
   // written after the last return-to-agent. Legacy: any outbound not written by
   // the agent — which also caught automation templates and pre-return replies.
@@ -286,7 +304,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   const classified = classifySalesTurnFromTranscript(qTranscript, { salesStrategy: persistedStrategy })
   const salesMove = classified.salesMove
   const salesStrategy = classified.salesStrategy
-  const reopenEligible = aiState.aiState === 'closed' && isExplicitReopen({ salesMove, inboundText: lastInboundText })
+  const social = !!convo && socialReopen({ socialHint: convo.socialHint, inboundText: lastInboundText })
+  const reopenEligible = aiState.aiState === 'closed' && isExplicitReopen({ salesMove, inboundText: lastInboundText, social })
   const outboundGate = () =>
     allowsOutbound({
       aiState: aiState.aiState,
@@ -401,6 +420,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     if (courtesyOutcome) return courtesyOutcome
   }
 
+  // Conversational: a meeting mention is read by the model, not treated as a request for a person.
+  const deferredMeeting = !!convo && meetingOnlyHandoff(lastInboundText, previousOutbound)
   const pre = decidePreGeneration({
     aiState: aiState.aiState,
     masterEnabled: master,
@@ -408,7 +429,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     humanTookOver,
     humanTyping: humanTypingBlocksTurn(presenceAtTurnStart, job.createdAt),
     optOut,
-    humanRequest: detectHumanRequest(lastInboundText, { previousOutbound }),
+    humanRequest: deferredMeeting ? false : detectHumanRequest(lastInboundText, { previousOutbound }),
     hasUnansweredInbound,
     withinQuietHours: withinQuietHours(settings.quietHours, new Date()),
     withinWindow: lastInboundAt ? Date.now() - lastInboundAt.getTime() < WINDOW_MS : false,
@@ -450,7 +471,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     const firstContact = !agentHasSpoken && aiState.aiState === 'new'
     const deterministic = decideDeterministicTurn({
       pending: unanswered,
-      firstContact,
+      // The conversational agent reads a text opener itself ("אחי מה קורה?" is not "היי"); media is still acknowledged here.
+      firstContact: firstContact && !convo,
       greetingLine: firstContact ? (await resolveGreeting()).line : null,
       lang,
       lastOutbound,
@@ -491,7 +513,13 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // thing had happened that had not. Running the real handoff here makes the
   // sentence true, and writes the summary that carries the urgency.
   const handoffAccepted = isConfirmedHandoffOffer({ previousOutbound, inboundText: lastInboundText })
-  if (control.action === 'HANDOFF_TO_HUMAN' || handoffAccepted) {
+  // A friend's "חחחח" or goodbye is the conversation, not a close. Handoffs are unaffected.
+  const socialControl = convo
+    ? socialTurn({ socialHint: convo.socialHint, inboundText: lastInboundText, salesRuleSilences: control.action === 'CLOSE_CONVERSATION' })
+    : 'default'
+  if (socialControl === 'skip_quietly') return doSkip('social_ack')
+  const controlHandoff = control.action === 'HANDOFF_TO_HUMAN' && !deferredMeeting
+  if (controlHandoff || handoffAccepted) {
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
     return runImmediateHumanHandoff({
@@ -503,14 +531,14 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       greetingLine: (await resolveGreeting()).line,
     })
   }
-  if (control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
+  if (socialControl === 'default' && control.action === 'CLOSE_CONVERSATION' && control.send === 'silence') {
     const courtesyOutcome = await attemptCourtesy({ closeAfter: control.reason })
     if (courtesyOutcome) return courtesyOutcome
     await db.transaction((trx) => skipPendingNoResponseJobs(trx, conv.id))
     await markClosed(conv.id, control.reason)
     return doSkip(`closed_${control.reason}`)
   }
-  if (control.action === 'CLOSE_CONVERSATION' && control.send === 'closer') {
+  if (socialControl === 'default' && control.action === 'CLOSE_CONVERSATION' && control.send === 'closer') {
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
     // Deliberately NOT greeted. A closer is sent when the customer declined,
@@ -534,7 +562,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     return 'sent'
   }
 
-  if (control.action !== 'CONTINUE' && control.action !== 'ASK_QUESTION') {
+  if (socialControl === 'default' && !deferredMeeting && control.action !== 'CONTINUE' && control.action !== 'ASK_QUESTION') {
     return doSkip('control_no_generate')
   }
 
@@ -544,7 +572,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     previousOutbound,
     previousOutboundKind,
     salesMove,
-    controlAction: control.action,
+    // Reached with CLOSE only when a social conversation's message deserves a reply (socialControl 'generate').
+    controlAction: control.action === 'CLOSE_CONVERSATION' || control.action === 'HANDOFF_TO_HUMAN' ? 'CONTINUE' : control.action,
     customerInboundCount: inboundTexts.length,
     previousCustomerText: inboundTexts.length >= 2 ? inboundTexts[inboundTexts.length - 2] : undefined,
     agentHasSpoken,
@@ -555,7 +584,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     { decision: gptEligibility.decision, reason: gptEligibility.reason, salesMove, controlAction: control.action },
   )
   if (gptEligibility.decision === 'WAIT') {
-    return doSkip(`gpt_wait_${gptEligibility.reason}`)
+    const socialWait = convo ? socialTurn({ socialHint: convo.socialHint, inboundText: lastInboundText, salesRuleSilences: true }) : 'default'
+    if (socialWait === 'skip_quietly') return doSkip('social_ack')
+    if (socialWait === 'default') return doSkip(`gpt_wait_${gptEligibility.reason}`)
   }
 
   const responseProfile = classifyResponseProfile({
@@ -567,7 +598,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // CRM fields stay extracted as memory only. They must not pick the WhatsApp question.
   const discoveryBudgetExhausted = isDiscoveryQuestionBudgetExhausted({
     salesMove,
-    turnCount: aiState.aiTurnCount,
+    turnCount: discoveryTurnCount(convo, aiState.aiTurnCount),
     maxTurns,
   })
   const productKnowledge = retrieveProductKnowledge({
@@ -585,7 +616,14 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     agencyId: job.agencyId,
     triggerSequence: job.triggerSequence,
   })
-  const { identity, line: greetingLine } = await resolveGreeting()
+  const { identity, line: templateGreetingLine } = await resolveGreeting()
+  // Conversational: the owner's own greeting when set, and no welcome for an existing customer.
+  const greetingLine =
+    convo && templateGreetingLine
+      ? convo.crm.relationship === 'existing_customer'
+        ? null
+        : (identity.agentProfile?.greeting ?? templateGreetingLine)
+      : templateGreetingLine
   const businessIdentityBlock = formatBusinessIdentityBlock(identity)
 
   // ── Rolling summary ────────────────────────────────────────────────────────
@@ -662,6 +700,7 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     answeringOurRequest:
       gptEligibility.reason === 'ANSWERS_OPEN_QUESTION' || gptEligibility.reason === 'ENGAGED_CONTENT',
     handoffAlreadyOffered: outboundOffersHandoff(previousOutbound),
+    ...(convo ? { conversational: promptContextFor(convo) } : {}),
   }
   // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
   // Best effort only. Whatever happens here, the outbound guard re-checks.
@@ -698,7 +737,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   // information. Agent instructions are included because an owner may state a
   // real figure there ("consultation is 200").
   const validateOpts = {
-    questionPolicy,
+    // A friend's reply needs no question; the conversational prompt decides when one helps.
+    questionPolicy: convo ? ('zero_or_one' as const) : questionPolicy,
     greetingTurn: Boolean(greetingLine),
     groundedFacts: groundedFactsFor(identity),
   }
@@ -728,6 +768,12 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     } else {
       const finalViolation = gen2Valid && 'violation' in gen2Valid ? gen2Valid.violation : originalViolation
       validationResult = gen2.ok === false ? 'regeneration_unavailable' : finalViolation
+      if (convo && isSocialMode(modeOf(gen))) {
+        // No canned business question and no "your request is waiting for the team" to a friend: say nothing.
+        presenceWatch.stop()
+        waTrace('CONVERSATIONAL_REPLY_REFUSED', genTrace, { stage: 'validator', violation: finalViolation, mode: modeOf(gen) })
+        return doSkip('social_reply_unavailable')
+      }
       if (classifyViolation(finalViolation) === 'safety') {
         // Safety breach survived one regeneration → hand off (never send it).
         forcedGuardrail = true
@@ -775,6 +821,33 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     })
   }
 
+  // ── Conversational truthfulness: no invented owner facts, no commitments, no
+  //    selling to a friend. One repair, then silence (never a business fallback).
+  if (convo) {
+    const check = checkConversationalReply(gen, identity.name)
+    if (check.ok === false) {
+      const repair = await deps.generateQualify({ ...genArgs, conversational: promptContextFor(convo, { personalRepair: true }), abortSignal: presenceWatch.signal })
+      const repairValid = repair.ok ? validateAutoResponse(repair.reply, validateOpts) : null
+      const repairCheck = repair.ok && repairValid?.ok ? checkConversationalReply(repair, identity.name) : null
+      waTrace('CONVERSATIONAL_REPLY_CHECK', genTrace, {
+        violation: check.violation,
+        matched: check.matched,
+        repaired: Boolean(repairCheck?.ok),
+        mode: modeOf(gen),
+      })
+      if (repair.ok && repairValid?.ok && repairCheck?.ok) {
+        gen.reply = repair.reply
+        gen.conversationMode = repair.conversationMode
+        gen.modeConfidence = repair.modeConfidence
+        gen.personalClaims = repair.personalClaims
+        validation = repairValid
+      } else {
+        presenceWatch.stop()
+        return doSkip('conversational_reply_refused')
+      }
+    }
+  }
+
   // Generation (and any repair regeneration) is done — release the watcher.
   presenceWatch.stop()
   if (presenceWatch.cancelled()) return doSkip('human_typing')
@@ -789,7 +862,9 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
     }),
     salesStrategy,
   )
-  const persistExtracted = { ...gen.extracted, cognition: incomingCog }
+  const draftOnly = settings.draft
+  const turnMemory = convo ? memoryAfterTurn(convo, gen, { willSend: !draftOnly }) : null
+  const persistExtracted = { ...gen.extracted, cognition: incomingCog, ...(turnMemory ? { conversation: turnMemory.memory } : {}) }
   const merged = mergeQualification(aiState.qualification, persistExtracted, { corrected: gen.corrected })
   let post = decidePostGeneration({
     hotSignal: gen.hotSignal, // observability only — policy ignores LLM hotness
@@ -801,6 +876,25 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   })
   // Safety-guardrail handoff wins over any send/continue decision.
   if (forcedGuardrail) post = { action: 'escalate', reason: 'guardrail' }
+  else if (convo) {
+    // A deferred meeting mention: the team gets a new booking need; everyone else gets the reply.
+    if (deferredMeeting && post.action === 'escalate' && post.reason === 'human_request' && !meetingNeedsTeam(modeOf(gen))) {
+      post = { action: 'send' }
+    }
+    // A topic the owner asked a person to handle (owner-configured only).
+    if (gen.escalationTopic && (identity.agentProfile?.escalationTopics.length ?? 0) > 0) {
+      post = { action: 'escalate', reason: 'escalation_topic' }
+    }
+  }
+  if (convo) {
+    waTrace('CONVERSATIONAL_TURN', genTrace, {
+      mode: modeOf(gen),
+      confidence: gen.modeConfidence ?? null,
+      relationship: convo.crm.relationship,
+      socialHint: convo.socialHint,
+      decision: post.action,
+    })
+  }
 
   // Permanent validator telemetry (observability only — no logic change). Records
   // the exact generated reply, its normalized form, the validator's rule/violation/
@@ -931,7 +1025,8 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   if (reliability && aiState.aiState === 'closed' && reopenEligible) await reopenClosedConversation(conv.id)
   await shadowQualificationIfLead(job, conv.id, gen.extracted, aiState.aiTurnCount + 1)
   await completeAutoResponseJob(job.id, r.messageId)
-  if (isPositiveLeadId(job.leadId)) {
+  // A friend is never asked "are you still there?".
+  if (isPositiveLeadId(job.leadId) && !(convo && isSocialMode(modeOf(gen)))) {
     await scheduleNoResponseWarning({
       agencyId: job.agencyId,
       conversationId: conv.id,
@@ -940,7 +1035,14 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
       triggerSequence: r.sequence,
     })
   }
+  if (turnMemory?.notify) {
+    await notifyPersonalConversation({ agencyId: job.agencyId, conversationId: conv.id, leadId: isPositiveLeadId(job.leadId) ? job.leadId : null, customerName: conv.customerName })
+  }
   console.log(`[IRE] qualify turn conv=${conv.id} turn=${aiState.aiTurnCount + 1} msg=${r.messageId}`)
-  await track({ agencyId: job.agencyId, event: 'auto_response_sent', props: { conversationId: conv.id, reason: 'qualify_turn' } })
+  await track({
+    agencyId: job.agencyId,
+    event: 'auto_response_sent',
+    props: { conversationId: conv.id, reason: 'qualify_turn', ...(convo ? { conversationMode: modeOf(gen) } : {}) },
+  })
   return 'sent'
 }
