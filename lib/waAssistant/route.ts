@@ -3,6 +3,7 @@ import {
   isWaAssistantMeetingsAgency,
   isWaAssistantNotesAgency,
   isWaAssistantQuotesAgency,
+  isWaAssistantQuotesSendAgency,
   isWaAssistantRemindersAgency,
   isWaAssistantStatusAgency,
   isWaAssistantTasksAgency,
@@ -14,6 +15,7 @@ import { proposeMeeting, type ProposeDeps } from './meetings/propose'
 import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
 import { proposeLeadUpdate, type LeadUpdateProposeDeps } from './leadUpdates/propose'
 import { proposeQuote, type QuoteProposeDeps } from './quotes/propose'
+import { proposeQuoteEdit, type QuoteEditProposal } from './quotes/proposeEdit'
 import { proposeRecordChange, type ChangeProposal } from './recordChanges/propose'
 import { isRequestConversation } from './request'
 import { isClarifyingAnswer } from './tasks/draft'
@@ -38,6 +40,8 @@ export type AssistantCapabilities = {
   notesOn: boolean
   remindersOn: boolean
   quotesOn: boolean
+  /** Review, edit and send to the customer (only on top of `quotesOn`). */
+  quotesSendOn: boolean
   /** Any write at all: decides whether a tap or a bare "כן" means anything here. */
   writesOn: boolean
 }
@@ -51,7 +55,7 @@ export function assistantCapabilities(agencyId: number): AssistantCapabilities {
     remindersOn: isWaAssistantRemindersAgency(agencyId),
     quotesOn: isWaAssistantQuotesAgency(agencyId),
   }
-  return { ...caps, writesOn: Object.values(caps).some(Boolean) }
+  return { ...caps, quotesSendOn: isWaAssistantQuotesSendAgency(agencyId), writesOn: Object.values(caps).some(Boolean) }
 }
 
 export type ProposalRouteDeps = {
@@ -83,6 +87,7 @@ export async function routeProposal(input: {
   if ((caps.statusOn && proposed.actionType === 'update_lead_status') || (caps.notesOn && proposed.actionType === 'add_lead_note'))
     return proposeLeadUpdate({ ...common, proposal: proposed as Parameters<typeof proposeLeadUpdate>[0]['proposal'], deps: deps?.leadUpdates })
   if (caps.quotesOn && proposed.actionType === 'create_quote') return proposeQuote({ ...common, proposal: proposed, deps: deps?.quotes })
+  if (caps.quotesSendOn && proposed.actionType === 'edit_quote') return proposeQuoteEdit({ ...common, proposal: proposed as QuoteEditProposal })
   if ((caps.tasksOn && (proposed.actionType === 'update_task' || proposed.actionType === 'complete_task')) || (caps.meetingsOn && (proposed.actionType === 'reschedule_meeting' || proposed.actionType === 'cancel_meeting')))
     return proposeRecordChange({ ...common, proposal: proposed as ChangeProposal })
   return null

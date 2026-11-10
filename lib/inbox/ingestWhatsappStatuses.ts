@@ -2,6 +2,7 @@ import { db } from '@/config/db'
 import { isWhatsappStatusEvent, statusRank, type WhatsappStatusEvent } from '@/lib/inbox/messageStatus'
 import { isCloudApiWamid } from '@/lib/inbox/wamidFormat'
 import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
+import { onQuoteDeliveryReceipt } from '@/lib/waAssistant/quotes/deliveryStatus'
 
 /**
  * Process WhatsApp `statuses` webhook events onto existing outbound messages.
@@ -81,6 +82,8 @@ async function applyOne(agencyId: number, phoneNumberId: string, raw: RawStatus)
     recipientId: raw.recipient_id ?? null,
     errorCode,
   }
+
+  await onQuoteDeliveryReceipt({ agencyId, wamid, status, code: errorCode == null ? null : String(errorCode) })
 
   const patch: Record<string, unknown> = {
     [TIMESTAMP_KEY[status]]: iso,

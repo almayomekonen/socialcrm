@@ -144,13 +144,25 @@ export function isWaAssistantRemindersAgency(agencyId: number | null | undefined
 /**
  * WA_ASSISTANT_QUOTES_AGENCY_IDS: agencies whose assistant may CREATE A QUOTE
  * for a lead from the owner's stated prices (card → `create_quote`). Creation
- * only: nothing is ever sent to the customer from WhatsApp. Same rules:
+ * only; sending to the customer is WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS. Same rules:
  * absence blocks, explicit ids only, only on top of the assistant itself.
  * Intended pilot: 103 (not enabled in Production until approved).
  */
 export function isWaAssistantQuotesAgency(agencyId: number | null | undefined): boolean {
   if (!isWaAssistantAgency(agencyId)) return false
   return waAssistantQuotesAgencyIds().includes(agencyId as number)
+}
+
+/**
+ * WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS: agencies whose owner may review a quote's
+ * PDF on WhatsApp, edit it, and send it to the customer after approving it.
+ * Same rules: absence blocks, explicit ids only, and only on top of the quotes
+ * switch itself. Off, the quote flow is exactly the create-and-download one.
+ * Intended pilot: 103 only.
+ */
+export function isWaAssistantQuotesSendAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantQuotesAgency(agencyId)) return false
+  return parseIds(process.env.WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS).includes(agencyId as number)
 }
 
 /** The listed ids, for the background PDF sweep: empty means it does no work at all. */

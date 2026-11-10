@@ -32,6 +32,8 @@ type CreateInput = {
   actionId: string
   argsHash: string
   now: Date
+  /** Default WA_APPROVAL_TTL_MS. */
+  ttlMs?: number
 }
 
 /** A creation path found no recipient row to lock. A scoped job always has one. */
@@ -72,7 +74,7 @@ async function insertSuperseding(trx: Knex.Transaction, input: CreateInput, toke
 /** A new card. Any older pending card for this recipient is superseded first: one live card at a time. */
 export async function createWaApproval(input: CreateInput): Promise<{ token: string; expiresAt: Date }> {
   const token = randomBytes(16).toString('hex')
-  const expiresAt = new Date(input.now.getTime() + WA_APPROVAL_TTL_MS)
+  const expiresAt = new Date(input.now.getTime() + (input.ttlMs ?? WA_APPROVAL_TTL_MS))
   await db.transaction(async (trx) => {
     if (!(await lockRecipient(trx, input.recipientId))) throw new WaApprovalRecipientMissingError(input.recipientId)
     await insertSuperseding(trx, input, token, expiresAt)

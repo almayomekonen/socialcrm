@@ -99,6 +99,7 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | `WA_ASSISTANT_STATUS_AGENCY_IDS` | absent | Absent = no status changes. Lets the assistant change a lead's status (below). Can fire the business's status automations. Needs the assistant itself too |
 | `WA_ASSISTANT_NOTES_AGENCY_IDS` | absent | Absent = no notes. Lets the assistant add a note to a lead (below). Needs the assistant itself too |
 | `WA_ASSISTANT_QUOTES_AGENCY_IDS` | absent | Absent = no quotes. Lets the assistant create a quote for a lead from the owner's stated prices, after a card. Creation only, nothing goes to the customer. Explicit ids only: unlike the other switches it has no `_AUDIENCE=all`, and `WA_ASSISTANT_AUDIENCE=all` does not open it. Needs the assistant itself too, a configured VAT rate for the agency, migration `20261111120000`, and the existing PDF renderer and R2 settings. After approval the owner gets the PDF's login-protected link in the same chat; the minute cron retries a failed render up to 3 attempts |
+| `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS` | absent | Absent = create and download only. Lets the owner review the PDF on WhatsApp, edit it, and send it to the customer after approving it. Explicit ids only, and only on top of `WA_ASSISTANT_QUOTES_AGENCY_IDS`. Pilot: 103. See "Quotes V2" below. |
 | `AGENT_LIST_MEETINGS_AGENCY_IDS` | absent | Absent = no `list_meetings` tool. Lets the Agent list the user's own meetings by period ("מה יש לי מחר", "הפגישה הבאה שלי"), on the web Agent and on WhatsApp alike. Explicit ids only, no `all`. Not yet tried with a real model |
 | `AGENT_AGENCY_IDS`, `AI_ENABLED` | must include 103 | The Agent rollout the assistant reuses |
 | Platform number + token | existing | Same as owner reminders |
@@ -372,3 +373,40 @@ merged in.
   card offering the next action. Pre-authorized routine actions only within
   explicit, configurable limits, all through the same runtime and audit trail.
   No unrestricted autonomy.
+
+# Quotes V2: review, edit and send to the customer
+
+`WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS`: absence blocks, explicit ids only, and only
+on top of `WA_ASSISTANT_QUOTES_AGENCY_IDS`. Off, the flow stays create-and-download.
+Pilot: Agency 103 only. Do not use `all`; there is no such value.
+
+The flow: the owner approves creating the quote → the PDF is rendered → the owner
+receives the PDF with `לאשר ולשלוח` / `לערוך` / `ביטול` → a tap on the first sends
+the customer a private link through the business's own WhatsApp number → the owner
+hears when WhatsApp accepted it, and once more when it was delivered or failed.
+
+Rules the code enforces:
+
+- The send approval names one quote version, PDF, customer number and business
+  number (the `send_quote` action's arguments, inside the card's argsHash). If any
+  of them differs at the moment of the tap, nothing is sent.
+- An edit is its own card. Applying it creates a new version, retires the old PDF
+  and supersedes any open send card. A new PDF and a new approval follow.
+- A quote has at most one delivery that is not `failed`
+  (`sales_quote_deliveries_one_live_per_quote`). `unknown` is never resent.
+- Only `ADMIN` and `MNGR` can approve a send during the pilot (the action's risk level).
+
+Before enabling, in this order:
+
+1. Apply migration `20261112120000_quote_customer_delivery.cjs` before the deploy.
+2. Deploy the code with the flag absent.
+3. To reach a customer who has not written in the last 23 hours, create and get
+   Meta approval for a UTILITY template named `quote_delivery_he` with four body
+   variables: name, quote number, business, link. Without it those sends are refused
+   and the owner is told why. Inside the window no template is needed.
+4. Set `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS=103` and redeploy.
+5. Test on a lead whose number you own.
+
+Roll back by removing the flag and redeploying. Links already sent keep working until
+they expire (the quote's validity date, or 30 days without one) unless the delivery
+failed; to end one, set `linkRevokedAt` on its row.

@@ -15,7 +15,7 @@ import { runAgentInvestigation } from '@/lib/agent/run'
 import { track } from '@/lib/analytics/track'
 import { WA_ASSISTANT_LIMITS } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
-import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton } from '@/lib/whatsapp/platform/sendText'
+import { sendPlatformText, sendPlatformTypingIndicator, type ReplyButton, type ReplyDocument } from '@/lib/whatsapp/platform/sendText'
 import { hasLiveWaApproval } from '@/db/waAssistantApprovals'
 import { resolveAssistantScope } from './identity'
 import { COPY, NO_ACTIONS_NOTE, failureReply, refusalReply, replyForAnswer } from './render'
@@ -39,6 +39,7 @@ import { admitAgentRequest } from '@/db/credits/agentRequests'
 import { creditLimitReply } from './creditLimitReply'
 import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
+import { handleQuoteReviewMessage } from './quotes/review'
 
 /**
  * The WhatsApp assistant worker: one queued owner message -> at most one reply.
@@ -58,7 +59,8 @@ import type { ReminderDeps } from './reminders/reply'
  * `create_follow_up` (WA_ASSISTANT_TASKS_AGENCY_IDS, ./tasks/),
  * `update_lead_status` (WA_ASSISTANT_STATUS_AGENCY_IDS), `add_lead_note`
  * (WA_ASSISTANT_NOTES_AGENCY_IDS, both ./leadUpdates/) and `create_quote`
- * (WA_ASSISTANT_QUOTES_AGENCY_IDS, ./quotes/, never sent to the customer), each only for
+ * (WA_ASSISTANT_QUOTES_AGENCY_IDS, ./quotes/; to the customer only with
+ * WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS and a tap on the finished PDF's card), each only for
  * an agency on its own list, and never on the owner's words alone: the
  * proposal becomes a confirmation card (./meetings/propose.ts) and only a tap on
  * its button executes it through the existing Action Runtime
@@ -74,7 +76,7 @@ import type { ReminderDeps } from './reminders/reply'
  * (window, identity, limits, the per-request credit admission, Agent run, one
  * reply). A card tap returns before that admission: no model runs for it.
  *
- * NOTE (architecture-rules §6): ~275 lines, a little over the 250 soft limit,
+ * NOTE (architecture-rules §6): ~285 lines, a little over the 250 soft limit,
  * most of it this header. One concern, linear per job; the next write
  * capability adds its routing to ./route.ts, not here.
  */
@@ -176,6 +178,10 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   const reminder = remindersOn ? await handleReminderMessage({ job, scope: who.scope, nowMs: startedAt.getTime(), deps: deps.reminders }) : null
   if (reminder) return finishMeeting(job, platform, who.phoneE164, reminder, deps, { durationMs: elapsed() })
 
+  // "תראה לי שוב את ההצעה": the send card again, without a model and without a credit.
+  const review = caps.quotesSendOn ? await handleQuoteReviewMessage({ job, scope: who.scope, nowMs: startedAt.getTime() }) : null
+  if (review) return finishMeeting(job, platform, who.phoneE164, review, deps, { durationMs: elapsed() })
+
   // The free allowance / purchased credits: decided once per job, before any model runs (db/credits/agentRequests.ts).
   const access = await admitAgentRequest({ agencyId: job.agencyId, userId: job.userId, source: 'whatsapp', operation: { kind: 'wa_assistant_job', id: String(job.id) }, nowMs: startedAt.getTime() })
   if ('reason' in access) {
@@ -240,14 +246,14 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
 /** A meeting step's result: its one reply (if any) and the job's close. */
 async function finishMeeting(job: WaAssistantJob, platform: Platform, toE164: string, r: MeetingReply, deps: WaAssistantDeps, extra: { durationMs: number; costUsd?: number }): Promise<string> {
-  const reply = r.text ? await reply1(job, platform, toE164, r.text, deps, r.buttons) : { state: 'skipped' as const }
+  const reply = r.text ? await reply1(job, platform, toE164, r.text, deps, r.buttons, r.document) : { state: 'skipped' as const }
   return finish(job, { status: r.status, stopReason: r.stopReason, answerHeadline: r.headline, costUsd: extra.costUsd ?? 0, reply, durationMs: extra.durationMs })
 }
 
 /** The one reply for this job. `sending` is committed first; a second attempt is impossible. */
-async function reply1(job: WaAssistantJob, platform: Platform, toE164: string, body: string, deps: WaAssistantDeps, buttons?: ReplyButton[]): Promise<NonNullable<WaAssistantFinish['reply']>> {
+async function reply1(job: WaAssistantJob, platform: Platform, toE164: string, body: string, deps: WaAssistantDeps, buttons?: ReplyButton[], document?: ReplyDocument | null): Promise<NonNullable<WaAssistantFinish['reply']>> {
   if (!(await markWaAssistantReplySending(job.id))) return { state: 'skipped' }
-  const outcome = await (deps.sendText ?? sendPlatformText)({ ...platform, toE164, body, buttons, replyToWamid: job.wamid, jobId: job.id })
+  const outcome = await (deps.sendText ?? sendPlatformText)({ ...platform, toE164, body, buttons, document, replyToWamid: job.wamid, jobId: job.id })
   if (outcome.kind === 'sent') return { state: 'sent', wamid: outcome.wamid }
   if (outcome.kind === 'unknown') return { state: 'unknown', errorCode: outcome.reason }
   return { state: 'failed', errorCode: outcome.code ?? outcome.scope }

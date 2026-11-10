@@ -10,7 +10,7 @@ import type { PricedOwnerLine } from '@/lib/quotes/ownerPricing'
  * Every WhatsApp sentence about a quote. Pure. Every amount comes from the
  * caller's computed totals (the same `computeQuoteTotals` the write stores) or
  * from the re-read quote row; nothing here says "created" without a verified
- * outcome, and nothing ever says "sent": quotes are never sent from WhatsApp.
+ * outcome. Nothing here sends: reviewing and sending live in ./deliveryCopy.ts.
  */
 
 export const APPROVE_QUOTE_TITLE = 'לאשר וליצור'
@@ -60,9 +60,13 @@ export function quoteCard(input: {
   validityDays: number | null
   /** The owner said it is free: nothing about a VAT basis the owner never gave. */
   free?: boolean
+  /** An edit's card: its own heading, price note and closing lines. */
+  heading?: string
+  basisNote?: string
+  closing?: readonly string[]
 }): string {
   const { totals } = input
-  const out = ['*ליצור הצעת מחיר?*', `ליד: ${name(input.lead)}`, `נושא: ${name(input.title)}`, 'פריטים:']
+  const out = [input.heading ?? '*ליצור הצעת מחיר?*', `ליד: ${name(input.lead)}`, `נושא: ${name(input.title)}`, 'פריטים:']
   input.lines.forEach((l, i) => {
     const percent = input.discountPercents?.[i]
     const discount = l.discount > 0 ? `, הנחה ${percent != null ? `${formatQty(percent)}% (${ils(l.discount)})` : ils(l.discount)}` : ''
@@ -70,7 +74,7 @@ export function quoteCard(input: {
   })
   // An exempt business has no VAT to state: no "before VAT" amount and no VAT line.
   const exempt = input.basis === 'no_vat'
-  out.push(input.free ? '(הצעה בחינם, ללא חיוב.)' : input.basis === 'no_vat' ? '(העסק פטור ממע"מ.)' : `(מחירי הפריטים לפני מע"מ. ${BASIS_LABEL[input.basis]}.)`)
+  out.push(input.free ? '(הצעה בחינם, ללא חיוב.)' : input.basis === 'no_vat' ? '(העסק פטור ממע"מ.)' : (input.basisNote ?? `(מחירי הפריטים לפני מע"מ. ${BASIS_LABEL[input.basis]}.)`))
   if (!exempt) out.push(`סכום לפני מע"מ: ${ils(totals.subtotalAmount)}`)
   if (totals.discountAmount > 0) out.push(`הנחות: ${ils(totals.discountAmount)}`)
   if (!exempt) out.push(`מע"מ (${formatQty(input.ratePercent)}%): ${ils(totals.taxAmount)}`)
@@ -79,8 +83,7 @@ export function quoteCard(input: {
     out.push(`שימו לב: בגלל עיגול לאגורות הסכום שיישמר הוא ${ils(totals.totalAmount)}, ולא ${ils(input.requestedTotal)} שנמסר.`)
   }
   if (input.validityDays != null) out.push(`תוקף: ${input.validityDays} ימים`)
-  out.push('ההצעה תישמר ב-SocialCRM. היא לא תישלח ללקוח.')
-  out.push('האישור בתוקף ל-15 דקות.')
+  out.push(...(input.closing ?? ['ההצעה תישמר ב-SocialCRM. היא לא תישלח ללקוח.', 'האישור בתוקף ל-15 דקות.']))
   return out.join('\n')
 }
 
@@ -92,14 +95,14 @@ export function quoteButtons(token: string): ReplyButton[] {
 }
 
 /** Built ONLY from a verified outcome and the re-read quote. */
-export function quoteSuccessReply(input: { lead: string; quoteNumber: number | null; totalAmount: number; already: boolean; pdfPending: boolean }): string {
+export function quoteSuccessReply(input: { lead: string; quoteNumber: number | null; totalAmount: number; already: boolean; pdfPending: boolean; reviewNext?: boolean }): string {
   return [
     input.already ? '*הצעת המחיר הזו כבר נוצרה*' : '*הצעת המחיר נוצרה ב-SocialCRM*',
     `ליד: ${name(input.lead)}`,
     input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber}` : null,
     `סה"כ: ${ils(input.totalAmount)}`,
     'ההצעה לא נשלחה ללקוח.',
-    input.pdfPending ? 'קובץ PDF בהכנה, וקישור להורדה יגיע כאן בהודעה נפרדת.' : null,
+    input.pdfPending ? (input.reviewNext ? 'קובץ PDF בהכנה, ויגיע לכאן לבדיקה ולאישור לפני שליחה ללקוח.' : 'קובץ PDF בהכנה, וקישור להורדה יגיע כאן בהודעה נפרדת.') : null,
   ]
     .filter(Boolean)
     .join('\n')

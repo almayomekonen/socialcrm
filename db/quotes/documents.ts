@@ -39,8 +39,8 @@ export type QuoteDocumentRow = {
 export async function claimQuoteRender(input: { agencyId: number; quoteId: number; path: string; renderedByUserId: number | null }): Promise<number | null> {
   const r = await db.raw(
     `
-    INSERT INTO ${T} ("agencyId","quoteId",status,path,"renderedByUserId")
-    SELECT :agencyId,:quoteId,'rendering',:path,:renderedByUserId
+    INSERT INTO ${T} ("agencyId","quoteId",status,path,"renderedByUserId","quoteVersion")
+    SELECT :agencyId,:quoteId,'rendering',:path,:renderedByUserId,(SELECT version FROM sales_quotes WHERE id = :quoteId AND "agencyId" = :agencyId)
     WHERE NOT EXISTS (SELECT 1 FROM ${T} WHERE "quoteId" = :quoteId AND "isCurrent" = true)
     ON CONFLICT ("quoteId") WHERE status = 'rendering' DO NOTHING
     RETURNING id
@@ -87,12 +87,27 @@ export async function currentQuoteDocumentHandle(agencyId: number, quoteId: numb
   return row?.contentHash ?? null
 }
 
+export type CurrentQuoteDocument = { id: number; path: string; contentHash: string; quoteVersion: number }
+
+/** The one PDF an owner can review and approve. */
+export async function currentQuoteDocument(agencyId: number, quoteId: number): Promise<CurrentQuoteDocument | null> {
+  const row = (await db(T).where({ agencyId, quoteId, isCurrent: true, status: 'ready' }).first('id', 'path', 'contentHash', 'quoteVersion')) as
+    | { id: number | string; path: string; contentHash: string; quoteVersion: number }
+    | undefined
+  return row ? { id: Number(row.id), path: row.path, contentHash: row.contentHash, quoteVersion: Number(row.quoteVersion) } : null
+}
+
 export async function hasLiveQuoteRender(agencyId: number, quoteId: number): Promise<boolean> {
   return Boolean(await db(T).where({ agencyId, quoteId, status: 'rendering' }).first('id'))
 }
 
 export async function failedQuoteRenderCount(agencyId: number, quoteId: number): Promise<number> {
-  const row = await db(T).where({ agencyId, quoteId, status: 'failed' }).count<{ count: string }>('id as count').first()
+  // Per version: an edit gets its own attempts, whatever happened to the last one.
+  const row = await db(T)
+    .where({ agencyId, quoteId, status: 'failed' })
+    .whereRaw(`"quoteVersion" = (SELECT version FROM sales_quotes WHERE id = ? AND "agencyId" = ?)`, [quoteId, agencyId])
+    .count<{ count: string }>('id as count')
+    .first()
   return Number(row?.count ?? 0)
 }
 
