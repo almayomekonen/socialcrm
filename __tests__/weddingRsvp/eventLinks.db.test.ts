@@ -38,7 +38,7 @@ const { ingestWhatsappStatuses } = await import('@/lib/inbox/ingestWhatsappStatu
 const AGENCY = 103
 const PN = '__wedding_links_pn'
 const GUEST = '972545550021'
-const WAZE = 'https://waze.test.invalid/ul?ll=1,2&navigate=yes'
+const WAZE = 'https://waze.com/ul?q=SERA%20%D7%A1%D7%A8%D7%94%20%D7%A2%D7%9E%D7%A7%20%D7%94%D7%90%D7%9C%D7%94&navigate=yes'
 const BIT = 'https://bit.test.invalid/group/private-token'
 const [WAZE_MESSAGE, BIT_MESSAGE] = eventLinkMessages({ waze: WAZE, bit: BIT })
 const WAZE_STORED = eventLinkStoredText(WAZE_MESSAGE)
@@ -525,7 +525,7 @@ describe('the two CTA URL messages', () => {
         type: 'interactive',
         interactive: {
           type: 'cta_url',
-          body: { text: 'לנוחותכם, ניווט לאירוע 💍' },
+          body: { text: 'ניווט לאירוע:\nSERA – סרה, עמק האלה' },
           action: { name: 'cta_url', parameters: { display_text: 'פתיחת Waze', url: WAZE } },
         },
       },

@@ -48,7 +48,7 @@ export type EventLinkMessage = { link: 'waze' | 'bit'; body: string; label: stri
 /** In send order. Meta limits a button label to 20 characters. */
 export function eventLinkMessages({ waze, bit }: Pick<EventLinks, 'waze' | 'bit'>): EventLinkMessage[] {
   return [
-    { link: 'waze', body: 'לנוחותכם, ניווט לאירוע 💍', label: 'פתיחת Waze', url: waze },
+    { link: 'waze', body: 'ניווט לאירוע:\nSERA – סרה, עמק האלה', label: 'פתיחת Waze', url: waze },
     { link: 'bit', body: 'למי שרוצה לשלוח מתנה 💝', label: 'שליחת מתנה ב-Bit', url: bit },
   ]
 }
