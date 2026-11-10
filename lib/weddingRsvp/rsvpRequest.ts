@@ -15,15 +15,32 @@ import { countInvitesSent } from '@/lib/weddingRsvp/inviteData'
 import { ensureInviteRecipient, type CreateInviteLead } from '@/lib/weddingRsvp/inviteRecipient'
 import { countRsvpRequestsSent, withRsvpRequestLock } from '@/lib/weddingRsvp/rsvpRequestData'
 
-export type SendRsvpRequestResult = { ok: true; wamid: string; messageId: number; conversationId: number } | { ok: false; error: string; code?: string }
+export type SendRsvpRequestResult =
+  | { ok: true; wamid: string; messageId: number; conversationId: number }
+  | { ok: false; error: string; code?: string }
 
 const ISRAELI_MOBILE = /^9725\d{8}$/
+
+/**
+ * Guest-specific waiver of ONE prerequisite — "must already be invited". The guests
+ * listed in WEDDING_RSVP_WITHOUT_INVITE_PHONES (comma/space separated; same variable
+ * as the Wedding Manager's) may be asked to RSVP without the invitation. Every other
+ * check below still applies. Unset = nobody. The numbers are never logged.
+ */
+export function rsvpInviteWaived(waId: string): boolean {
+  return (process.env.WEDDING_RSVP_WITHOUT_INVITE_PHONES ?? '')
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((raw) => toIsraeliWhatsappRecipient(raw))
+    .some((listed) => ISRAELI_MOBILE.test(listed) && listed === waId)
+}
 
 /**
  * Send the approved `wedding_rsvp` TEMPLATE to ONE invited guest. A template, so it
  * needs no open 24-hour window. Under one advisory lock per guest:
  *
- *   wedding agency only → Israeli mobile → must already be invited (any path) →
+ *   wedding agency only → Israeli mobile → must already be invited (any path),
+ *   unless rsvpInviteWaived →
  *   must not already have been asked (template or the older free-form RSVP) →
  *   conversation/Lead → human takeover → SEND with our button payloads → persist
  *   only on a wamid, tagged kind=wedding_rsvp_request (+ the caller's request id).
@@ -45,7 +62,7 @@ export async function sendWeddingRsvpRequest(args: {
   if (!ISRAELI_MOBILE.test(waId)) return { ok: false, error: 'invalid-phone' }
 
   return withRsvpRequestLock(args.agencyId, waId, async (): Promise<SendRsvpRequestResult> => {
-    if ((await countInvitesSent(args.agencyId, waId)) === 0) return { ok: false, error: 'not-invited' }
+    if ((await countInvitesSent(args.agencyId, waId)) === 0 && !rsvpInviteWaived(waId)) return { ok: false, error: 'not-invited' }
     if ((await countRsvpRequestsSent(args.agencyId, waId)) > 0) return { ok: false, error: 'already-requested' }
 
     const ensured = await ensureInviteRecipient({

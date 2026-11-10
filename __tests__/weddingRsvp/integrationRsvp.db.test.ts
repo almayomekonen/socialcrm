@@ -100,6 +100,23 @@ describe('send-rsvp-request over the real schema (Meta mocked)', () => {
     expect(rsvpCalls()).toHaveLength(0)
   })
 
+  it('waiver: a listed, never-invited number is asked once — Lead + conversation created, no invite sent', async () => {
+    process.env.WEDDING_RSVP_WITHOUT_INVITE_PHONES = '054-555-0012, not-a-phone'
+    try {
+      expect(await sendRsvpRequestViaIntegration(req(R1, GUEST))).toEqual({ httpStatus: 422, body: { accepted: false, error: 'not-invited' } })
+      const r = await sendRsvpRequestViaIntegration(req(R1, NEW))
+      expect(r).toMatchObject({ httpStatus: 200, body: { accepted: true, replay: false } })
+      expect(await sendRsvpRequestViaIntegration(req(R2, NEW))).toEqual({ httpStatus: 422, body: { accepted: false, error: 'already-requested' } })
+      expect(rsvpCalls()).toHaveLength(1)
+      expect(h.sendTemplate.mock.calls.filter((c) => c[0].name === 'wedding_invite')).toHaveLength(0)
+      const conv = await convOf(NEW)
+      expect(conv.leadId).toBeTruthy()
+      expect(await followUpAllowed(NEW, Number(conv.id))).toBe(true)
+    } finally {
+      delete process.env.WEDDING_RSVP_WITHOUT_INVITE_PHONES
+    }
+  })
+
   it('an invited guest gets exactly the approved wedding_rsvp template with our payloads; stored with the request id', async () => {
     await invite(GUEST, 1)
     const r = await sendRsvpRequestViaIntegration(req(R1))
