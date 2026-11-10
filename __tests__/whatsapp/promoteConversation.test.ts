@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { readQualifyTurnSource } from '../inbox/autoresponse/qualifyTurnSource'
 import fs from 'fs'
 import path from 'path'
 
@@ -305,7 +306,7 @@ describe('Contact → Lead IRE contracts', () => {
 
   it('Phase B qualify path, safety gates, webhook, and cron are unchanged', () => {
     const worker = read('lib/inbox/autoresponse/worker.ts')
-    const qualify = read('lib/inbox/autoresponse/qualifyWorker.ts')
+    const qualify = readQualifyTurnSource()
     const webhook = read('app/api/webhooks/whatsapp/route.ts')
     const cron = read('app/api/cron/send-auto-responses/route.ts')
     const schema = read('lib/inbox/autoresponse/qualify.ts')

@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readQualifyTurnSource } from './qualifyTurnSource'
 import {
   decideNoResponseJob,
   isNoResponseSystemKind,
@@ -698,7 +699,7 @@ describe('no-response integration with Stop Policy / jobs', () => {
   })
 
   it('CONTINUE path in qualifyWorker schedules warning after complete', () => {
-    const src = read('lib/inbox/autoresponse/qualifyWorker.ts')
+    const src = readQualifyTurnSource()
     expect(src).toContain('await scheduleNoResponseWarning({')
     // Lead ordering is unchanged: complete, then schedule. Task 13 only adds the
     // Contact guard around the schedule, so leadId=NULL jobs get no Lead warning;
@@ -735,7 +736,7 @@ describe('no-response integration with Stop Policy / jobs', () => {
   })
 
   it('qualifyWorker gates close confirmation on the last outbound warning kind', () => {
-    const src = read('lib/inbox/autoresponse/qualifyWorker.ts')
+    const src = readQualifyTurnSource()
     expect(src).toContain('closeOfferPending')
     expect(src).toContain('isNoResponseWarningMessage(previousOutbound, previousOutboundKind)')
     expect(src).toContain('skipPendingNoResponseJobs(trx, conv.id)')

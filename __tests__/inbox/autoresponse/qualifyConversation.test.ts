@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { readQualifyTurnSource } from './qualifyTurnSource'
 import { decidePostGeneration, decidePreGeneration } from '@/lib/inbox/autoresponse/stateMachine'
 import {
   cognitionFromUnderstanding,
@@ -320,7 +321,7 @@ describe('strategy-aware fallback (not missing CRM fields)', () => {
 
 describe('RQ must not control the IRE question', () => {
   it('qualifyWorker no longer calls selectNextGap, decideConversationPolicy, or focusField', () => {
-    const src = readFileSync(resolve(__dirname, '../../../lib/inbox/autoresponse/qualifyWorker.ts'), 'utf8')
+    const src = readQualifyTurnSource()
     expect(src).not.toMatch(/\bselectNextGap\b/)
     expect(src).not.toMatch(/\bdecideConversationPolicy\b/)
     expect(src).not.toMatch(/\bfocusField\b/)
