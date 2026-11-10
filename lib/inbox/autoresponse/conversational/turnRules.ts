@@ -12,7 +12,7 @@
  * send-time checks run before and after this exactly as always.
  */
 
-import { detectExplicitPersonRequest, detectHumanRequest } from '../salesIntent'
+import { detectHumanRequest, isExplicitPersonRequest } from '../salesIntent'
 import type { ConversationMode } from './mode'
 
 /**
@@ -28,7 +28,7 @@ import type { ConversationMode } from './mode'
  *     get the reply. That reply still cannot book or commit (the validators).
  */
 export function meetingOnlyHandoff(text: string, previousOutbound?: string): boolean {
-  return detectHumanRequest(text, { previousOutbound }) && !detectExplicitPersonRequest(text)
+  return detectHumanRequest(text, { previousOutbound }) && !isExplicitPersonRequest(text)
 }
 
 const NEW_BOOKING_MODES: ReadonlySet<ConversationMode> = new Set(['prospect', 'scheduling', 'service_request', 'pricing'])
