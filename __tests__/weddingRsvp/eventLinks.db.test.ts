@@ -53,10 +53,12 @@ const SECOND_GUEST = '972545550022'
 const SECOND_GUEST_SOURCE = '__wedding_links_second_guest'
 const WAZE = 'https://waze.com/ul?q=SERA%20%D7%A1%D7%A8%D7%94%20%D7%A2%D7%9E%D7%A7%20%D7%94%D7%90%D7%9C%D7%94&navigate=yes'
 const BIT = 'https://bit.test.invalid/group/private-token'
-const [WAZE_MESSAGE, BIT_MESSAGE] = eventLinkMessages({ waze: WAZE, bit: BIT })
+const PAYBOX = 'https://links.payboxapp.com/EvZawEB4W7b'
+const [WAZE_MESSAGE, BIT_MESSAGE, PAYBOX_MESSAGE] = eventLinkMessages({ waze: WAZE, bit: BIT, paybox: PAYBOX })
 const WAZE_STORED = eventLinkStoredText(WAZE_MESSAGE)
 const BIT_STORED = eventLinkStoredText(BIT_MESSAGE)
-const LINKS = [`CTA:${WAZE}`, `CTA:${BIT}`]
+const PAYBOX_STORED = eventLinkStoredText(PAYBOX_MESSAGE)
+const LINKS = [`CTA:${WAZE}`, `CTA:${BIT}`, `CTA:${PAYBOX}`]
 
 let userId: number
 let agencyCreated = false
@@ -71,6 +73,7 @@ const ctaUrl = (p: Payload) => p.interactive?.action.parameters.url
 const texts = () => graph.filter((p) => p.type !== 'template').map((p) => (p.type === 'text' ? p.text!.body : `CTA:${ctaUrl(p)}`))
 const isWaze = (p: Payload) => ctaUrl(p) === WAZE
 const isBit = (p: Payload) => ctaUrl(p) === BIT
+const isPaybox = (p: Payload) => ctaUrl(p) === PAYBOX
 const isThanks = (p: Payload) => p.text?.body === REPLY_THANKS
 const linksRows = () =>
   db('inbox_messages')
@@ -160,6 +163,7 @@ beforeEach(async () => {
   h.beforePersist = null
   process.env.WEDDING_WAZE_URL = WAZE
   process.env.WEDDING_BIT_URL = BIT
+  process.env.WEDDING_PAYBOX_URL = PAYBOX
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_url: unknown, init: RequestInit) => {
@@ -195,6 +199,7 @@ afterEach(() => {
   vi.restoreAllMocks()
   delete process.env.WEDDING_WAZE_URL
   delete process.env.WEDDING_BIT_URL
+  delete process.env.WEDDING_PAYBOX_URL
   delete process.env.WEDDING_EVENT_LINKS_TEST_PHONE // only set by the stale-config test
 })
 
@@ -211,7 +216,7 @@ describe('the links follow a successful thank-you', () => {
     expect(await answer('4')).toEqual(THANKED)
 
     expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS, ...LINKS])
-    expect(await linksRows()).toHaveLength(2)
+    expect(await linksRows()).toHaveLength(3)
   })
 
   it('leaves the head count reported to the Wedding Manager intact', async () => {
@@ -517,10 +522,14 @@ describe('every guest who completes the RSVP receives the links', () => {
 
   it('needs no test-phone variable: only the two URLs are required configuration', () => {
     delete process.env.WEDDING_EVENT_LINKS_TEST_PHONE
-    expect(readEventLinks()).toEqual({ links: { waze: WAZE, bit: BIT }, invalid: [] })
+    expect(readEventLinks()).toEqual({ links: { waze: WAZE, bit: BIT, paybox: PAYBOX }, invalid: [] })
     delete process.env.WEDDING_WAZE_URL
     delete process.env.WEDDING_BIT_URL
-    expect(readEventLinks()).toEqual({ links: null, invalid: ['WEDDING_WAZE_URL', 'WEDDING_BIT_URL'] })
+    delete process.env.WEDDING_PAYBOX_URL
+    expect(readEventLinks()).toEqual({
+      links: null,
+      invalid: ['WEDDING_WAZE_URL', 'WEDDING_BIT_URL', 'WEDDING_PAYBOX_URL'],
+    })
   })
 
   it('a guest named in no configuration receives both links once', async () => {
@@ -590,7 +599,7 @@ describe('the two CTA URL messages', () => {
         ? { status: 200, body: {} }
         : new Error('timeout')
 
-  it('sends the exact Cloud API cta_url payloads, Waze first and then Bit', async () => {
+  it('sends the exact Cloud API cta_url payloads: Waze, then the Bit and PayBox gift options', async () => {
     await tap('wedding_rsvp_attending')
     await answer('4')
     const ctas = graph.filter((p) => p.type === 'interactive')
@@ -617,29 +626,45 @@ describe('the two CTA URL messages', () => {
           action: { name: 'cta_url', parameters: { display_text: 'שליחת מתנה ב-Bit', url: BIT } },
         },
       },
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: GUEST,
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          body: { text: 'השימוש ב-PayBox חינם!\nמחכים לך בקבוצת ״מתנה לחתונה A | F״,\nלחיצה להצטרפות לקבוצה:' },
+          action: {
+            name: 'cta_url',
+            parameters: { display_text: 'הצטרפות ב-PayBox', url: 'https://links.payboxapp.com/EvZawEB4W7b' },
+          },
+        },
+      },
     ])
   })
 
   it('stays within Meta limits: labels at most 20 characters, unique, bodies at most 1024', () => {
-    const messages = eventLinkMessages({ waze: WAZE, bit: BIT })
+    const messages = eventLinkMessages({ waze: WAZE, bit: BIT, paybox: PAYBOX })
     for (const m of messages) {
       expect([...m.label].length).toBeLessThanOrEqual(20)
       expect([...m.body].length).toBeLessThanOrEqual(1024)
     }
-    expect(new Set(messages.map((m) => m.label)).size).toBe(2)
+    expect(new Set(messages.map((m) => m.label)).size).toBe(3)
+    expect(messages.map((m) => m.link)).toEqual(['waze', 'bit', 'paybox'])
   })
 
-  it('persists both messages by the existing conventions, with one claim and no URL in the stored text', async () => {
+  it('persists all three messages by the existing conventions, with one claim and no URL in the stored text', async () => {
     await tap('wedding_rsvp_attending')
     await answer('4')
     const rows = await linksRows()
-    expect(rows.map((r) => r.text).sort()).toEqual([WAZE_STORED, BIT_STORED].sort())
+    expect(rows.map((r) => r.text).sort()).toEqual([WAZE_STORED, BIT_STORED, PAYBOX_STORED].sort())
     for (const row of rows) {
       expect(row).toMatchObject({ sentByUserId: null, status: 'sent' })
       expect(row.metadata).toMatchObject({ source: WEDDING_RSVP_SOURCE, step: EVENT_LINKS_STEP })
       expect(row.text).not.toContain('test.invalid')
+      expect(row.text).not.toContain(PAYBOX)
     }
-    expect(rows.map((r) => r.metadata.link).sort()).toEqual(['bit', 'waze'])
+    expect(rows.map((r) => r.metadata.link).sort()).toEqual(['bit', 'paybox', 'waze'])
     expect(await claimedRows()).toHaveLength(1)
   })
 
@@ -652,25 +677,27 @@ describe('the two CTA URL messages', () => {
   })
 
   it.each(['refused', 'timed out', 'no id'])(
-    'first message %s: the second is not sent and a re-confirmation sends nothing',
+    'first message %s: the gift messages are not sent and a re-confirmation sends nothing',
     async (kind) => {
       const spies = quietLogs()
       await tap('wedding_rsvp_attending')
       respond = (p) => (isWaze(p) ? failure(kind) : undefined)
       expect(await answer('4')).toEqual(THANKED)
       expect(graph.filter(isBit)).toHaveLength(0)
+      expect(graph.filter(isPaybox)).toHaveLength(0)
       expect(await linksRows()).toHaveLength(0)
       expect(await thanksRows()).toHaveLength(1)
       await reconfirm()
       expect(linksAttempts()).toBe(1)
       expect(graph.filter(isBit)).toHaveLength(0)
+      expect(graph.filter(isPaybox)).toHaveLength(0)
       expect(printed(spies)).toContain('"link":"waze"')
       expect(printed(spies)).not.toContain('test.invalid')
     },
   )
 
   it.each(['refused', 'timed out', 'no id'])(
-    'second message %s: the first stays recorded, nothing is retried, the failure names Bit',
+    'second message %s: Waze stays recorded, PayBox is not sent, nothing is retried, the failure names Bit',
     async (kind) => {
       const spies = quietLogs()
       await tap('wedding_rsvp_attending')
@@ -681,8 +708,25 @@ describe('the two CTA URL messages', () => {
       await reconfirm()
       expect(linksAttempts()).toBe(1)
       expect(graph.filter(isBit)).toHaveLength(1)
+      expect(graph.filter(isPaybox)).toHaveLength(0)
       expect(printed(spies)).toContain('"link":"bit"')
       expect(printed(spies)).not.toContain('test.invalid')
+    },
+  )
+
+  it.each(['refused', 'timed out', 'no id'])(
+    'third message %s: Waze and Bit stay recorded, nothing is retried, the failure names PayBox',
+    async (kind) => {
+      const spies = quietLogs()
+      await tap('wedding_rsvp_attending')
+      respond = (p) => (isPaybox(p) ? failure(kind) : undefined)
+      expect(await answer('4')).toEqual(THANKED)
+      expect((await linksRows()).map((r) => r.text).sort()).toEqual([WAZE_STORED, BIT_STORED].sort())
+      await reconfirm()
+      expect(linksAttempts()).toBe(1)
+      expect(graph.filter(isPaybox)).toHaveLength(1)
+      expect(printed(spies)).toContain('"link":"paybox"')
+      expect(printed(spies)).not.toContain(PAYBOX)
     },
   )
 
@@ -696,9 +740,10 @@ describe('the two CTA URL messages', () => {
     expect((await linksRows()).map((r) => r.text)).toEqual([WAZE_STORED])
     expect(printed(spies)).toContain('"link":"bit"')
     expect(printed(spies)).not.toContain('test.invalid')
+    expect(graph.filter(isPaybox)).toHaveLength(0)
   })
 
-  it('a guest who opts out between the two messages does not get the second', async () => {
+  it('a guest who opts out after the Waze message gets neither gift message', async () => {
     await tap('wedding_rsvp_attending')
     respond = async (p) => {
       if (!isWaze(p)) return
@@ -715,6 +760,27 @@ describe('the two CTA URL messages', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(await answer('4')).toEqual(THANKED)
     expect(graph.filter(isBit)).toHaveLength(0)
+    expect(graph.filter(isPaybox)).toHaveLength(0)
+  })
+
+  it('a guest who opts out after the Bit message does not get PayBox', async () => {
+    await tap('wedding_rsvp_attending')
+    respond = async (p) => {
+      if (!isBit(p)) return
+      const now = new Date()
+      await db('whatsapp_opt_outs').insert({
+        agencyId: AGENCY,
+        customerPhoneE164: `+${GUEST}`,
+        status: 'opted_out',
+        firstOptedOutAt: now,
+        optedOutAt: now,
+        lastEventAt: now,
+      })
+    }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(await answer('4')).toEqual(THANKED)
+    expect(graph.filter(isBit)).toHaveLength(1)
+    expect(graph.filter(isPaybox)).toHaveLength(0)
   })
 })
 
@@ -741,13 +807,14 @@ describe('privacy across the whole flow', () => {
     await ingestWhatsappStatuses(PN, [{ id: 'wamid.HBgLUNKNOWN', status: 'delivered', timestamp, recipient_id: GUEST }])
 
     expect(texts()).toEqual([REPLY_ATTENDING, REPLY_THANKS, ...LINKS])
-    const after = graph.slice(-4)
-    expect(after.map((p) => (p as unknown as { to: string }).to)).toEqual([GUEST, GUEST, GUEST, GUEST])
+    const after = graph.slice(-5)
+    expect(after.map((p) => (p as unknown as { to: string }).to)).toEqual([GUEST, GUEST, GUEST, GUEST, GUEST])
     const logged = JSON.stringify(spies.map((s) => s.mock.calls))
     expect(logged).not.toContain(GUEST)
     expect(logged).not.toContain('test-token')
     expect(logged).not.toContain('test.invalid')
     expect(logged).not.toContain(WAZE)
+    expect(logged).not.toContain(PAYBOX)
   })
 })
 
@@ -763,11 +830,16 @@ describe('configuration', () => {
     ['Waze has no slashes', 'https:waze.test.invalid', BIT],
     ['Bit contains a space', WAZE, 'https://bit.test.invalid/a b'],
     ['Waze has no host', 'https://', BIT],
-  ])('%s: the thank-you is unaffected and nothing partial is sent', async (_name, waze, bit) => {
+    ['PayBox missing', WAZE, BIT, null],
+    ['PayBox is http', WAZE, BIT, 'http://links.payboxapp.com/EvZawEB4W7b'],
+    ['PayBox has a space', WAZE, BIT, 'https://links.payboxapp.com/a b'],
+  ])('%s: the thank-you is unaffected and nothing partial is sent', async (_name, waze, bit, paybox?: string | null) => {
     if (waze === undefined) delete process.env.WEDDING_WAZE_URL
     else process.env.WEDDING_WAZE_URL = waze
     if (bit === undefined) delete process.env.WEDDING_BIT_URL
     else process.env.WEDDING_BIT_URL = bit
+    if (paybox === null) delete process.env.WEDDING_PAYBOX_URL
+    else if (paybox !== undefined) process.env.WEDDING_PAYBOX_URL = paybox
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await tap('wedding_rsvp_attending')
     expect(await answer('4')).toEqual(THANKED)
@@ -775,13 +847,14 @@ describe('configuration', () => {
     expect(await linksRows()).toHaveLength(0)
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('event links disabled'), expect.anything())
     expect(JSON.stringify(warn.mock.calls)).not.toContain('test.invalid')
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('payboxapp')
   })
 
   it('surrounding whitespace in a configured URL is ignored', async () => {
     process.env.WEDDING_WAZE_URL = ` ${WAZE}\n`
     await tap('wedding_rsvp_attending')
     await answer('4')
-    expect(texts().slice(-2)).toEqual(LINKS)
+    expect(texts().slice(-3)).toEqual(LINKS)
   })
 })
 

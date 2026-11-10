@@ -4,8 +4,10 @@ import { replyInConversation } from '@/lib/weddingRsvp/reply'
 
 /**
  * TEMPORARY, like the rest of lib/weddingRsvp. After a guest's head count has been
- * answered with the thank-you, two CTA messages carrying the Waze and Bit links.
- * WEDDING_WAZE_URL and WEDDING_BIT_URL must both be valid, or nothing is sent.
+ * answered with the thank-you, three CTA messages: Waze, then the two gift options
+ * (Bit, PayBox). A Cloud API `cta_url` message carries exactly one URL button, so
+ * each link is its own message. WEDDING_WAZE_URL, WEDDING_BIT_URL and
+ * WEDDING_PAYBOX_URL must all be valid HTTPS links, or nothing is sent.
  *
  * Every guest who completes the RSVP flow gets them: whoever reached the thank-you
  * already passed the RSVP follow-up gate (allowlist or a template RSVP request).
@@ -14,7 +16,7 @@ import { replyInConversation } from '@/lib/weddingRsvp/reply'
 export const EVENT_LINKS_STEP = 'event_links'
 export const EVENT_LINKS_CLAIM_KEY = 'eventLinksClaimedAt'
 
-type EventLinks = { waze: string; bit: string }
+type EventLinks = { waze: string; bit: string; paybox: string }
 
 /** The string exactly as configured, or null. It is sent verbatim, so it must already be a complete link. */
 function readHttpsUrl(value: string | undefined): string | null {
@@ -31,17 +33,28 @@ function readHttpsUrl(value: string | undefined): string | null {
 export function readEventLinks(): { links: EventLinks | null; invalid: string[] } {
   const waze = readHttpsUrl(process.env.WEDDING_WAZE_URL)
   const bit = readHttpsUrl(process.env.WEDDING_BIT_URL)
-  const invalid = [...(waze ? [] : ['WEDDING_WAZE_URL']), ...(bit ? [] : ['WEDDING_BIT_URL'])]
-  return { links: waze && bit ? { waze, bit } : null, invalid }
+  const paybox = readHttpsUrl(process.env.WEDDING_PAYBOX_URL)
+  const invalid = [
+    ...(waze ? [] : ['WEDDING_WAZE_URL']),
+    ...(bit ? [] : ['WEDDING_BIT_URL']),
+    ...(paybox ? [] : ['WEDDING_PAYBOX_URL']),
+  ]
+  return { links: waze && bit && paybox ? { waze, bit, paybox } : null, invalid }
 }
 
-export type EventLinkMessage = { link: 'waze' | 'bit'; body: string; label: string; url: string }
+export type EventLinkMessage = { link: 'waze' | 'bit' | 'paybox'; body: string; label: string; url: string }
 
-/** In send order. Meta limits a button label to 20 characters. */
-export function eventLinkMessages({ waze, bit }: Pick<EventLinks, 'waze' | 'bit'>): EventLinkMessage[] {
+/** In send order: navigation, then the two gift options. Meta limits a button label to 20 characters. */
+export function eventLinkMessages({ waze, bit, paybox }: EventLinks): EventLinkMessage[] {
   return [
     { link: 'waze', body: 'ניווט לאירוע:\nSERA – סרה, עמק האלה', label: 'פתיחת Waze', url: waze },
     { link: 'bit', body: 'למי שרוצה לשלוח מתנה 💝', label: 'שליחת מתנה ב-Bit', url: bit },
+    {
+      link: 'paybox',
+      body: 'השימוש ב-PayBox חינם!\nמחכים לך בקבוצת ״מתנה לחתונה A | F״,\nלחיצה להצטרפות לקבוצה:',
+      label: 'הצטרפות ב-PayBox',
+      url: paybox,
+    },
   ]
 }
 
@@ -94,7 +107,7 @@ async function claimEventLinks(agencyId: number, conversationId: number): Promis
  *
  * AT MOST ONCE PER CONVERSATION. A send can reach the guest with no record of it
  * here (a timeout, a response with no message id, a failed save), so the claim is
- * written first and never released. One claim covers both messages. The cost is
+ * written first and never released. One claim covers all three messages. The cost is
  * deliberate: a refused send or a crash after claiming leaves that guest without
  * some or all of the links, even if they confirm again. Configuration is checked
  * before claiming, so it never spends the claim.
