@@ -181,6 +181,9 @@ describe('the preview: the PDF itself, and nothing to the customer', () => {
     expect(buttons.map((b) => b.split(':')[1])).toEqual(['approve', 'edit', 'reject'])
     expect(card.to).toBe(o.digits)
     expect(card.interactive.body.text).toContain('שום דבר לא יישלח ללקוח לפני שתאשרו')
+    expect(card.interactive.body.text).toContain('*טיוטת הצעת המחיר מוכנה לבדיקה*')
+    expect(platform().some((c) => JSON.stringify(c.body).includes('זו טיוטה: ההצעה לא נשלחה ללקוח.'))).toBe(true)
+    expect(card.interactive.body.text).toContain('הליד יקבל בוואטסאפ קישור לקובץ המצורף')
     expect(card.interactive.body.text).toContain(`מספר שמסתיים ב-${o.waId.slice(-4)}`)
     expect(customer()).toHaveLength(0)
     expect(await deliveries(quoteId)).toHaveLength(0)
@@ -588,6 +591,8 @@ describe('editing before approval', () => {
     expect(await quoteRow(quoteId)).toMatchObject({ version: 2, status: 'ready' })
     expect(Number((await quoteRow(quoteId)).totalAmount)).toBe(20000)
     expect(ownerText()).toContain('לא נשלח דבר ללקוח')
+    expect(ownerText()).toContain('האישור הקודם לשליחה בוטל.')
+    expect(ownerText()).toContain('קובץ PDF חדש')
 
     await tap(o, first[0])
     expect(customer()).toHaveLength(0)

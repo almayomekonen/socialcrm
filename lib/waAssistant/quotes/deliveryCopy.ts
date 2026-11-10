@@ -52,12 +52,12 @@ export const DELIVERY_COPY = {
 
 export function quoteSendCard(input: { lead: string; quoteNumber: number | null; version: number; totalAmount: number; recipient: string; phoneE164: string; ttlHours: number }): string {
   return [
-    '*הצעת המחיר מוכנה לבדיקה*',
+    '*טיוטת הצעת המחיר מוכנה לבדיקה*',
     input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber}${input.version > 1 ? ` (גרסה ${input.version})` : ''}` : null,
     `ליד: ${name(input.lead)}`,
     `סה"כ: ${ils(input.totalAmount)}`,
     `תישלח אל: ${name(input.recipient)}, ${maskedPhone(input.phoneE164)}`,
-    'הקובץ המצורף הוא בדיוק מה שהליד יקבל.',
+    'אחרי האישור הליד יקבל בוואטסאפ קישור לקובץ המצורף, בדיוק כפי שהוא.',
     'שום דבר לא יישלח ללקוח לפני שתאשרו.',
     `האישור בתוקף ל-${input.ttlHours} שעות.`,
   ]
@@ -89,7 +89,9 @@ export const quoteEditedReply = (input: { quoteNumber: number | null; version: n
     '*ההצעה עודכנה*',
     input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber} (גרסה ${input.version})` : null,
     `סה"כ: ${ils(input.totalAmount)}`,
-    input.pdfPending ? 'קובץ PDF חדש בהכנה, ויגיע לכאן לבדיקה ולאישור.' : null,
+    'האישור הקודם לשליחה בוטל.',
+    // The sweep renders a lost or failed start too, so a new PDF (or a failure notice) always follows.
+    input.pdfPending ? 'קובץ PDF חדש בהכנה, ויגיע לכאן לבדיקה ולאישור.' : 'קובץ PDF חדש יגיע לכאן לבדיקה ולאישור.',
     'לא נשלח דבר ללקוח.',
   ]
     .filter(Boolean)

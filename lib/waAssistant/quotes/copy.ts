@@ -101,7 +101,7 @@ export function quoteSuccessReply(input: { lead: string; quoteNumber: number | n
     `ליד: ${name(input.lead)}`,
     input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber}` : null,
     `סה"כ: ${ils(input.totalAmount)}`,
-    'ההצעה לא נשלחה ללקוח.',
+    input.reviewNext ? 'זו טיוטה: ההצעה לא נשלחה ללקוח.' : 'ההצעה לא נשלחה ללקוח.',
     input.pdfPending ? (input.reviewNext ? 'קובץ PDF בהכנה, ויגיע לכאן לבדיקה ולאישור לפני שליחה ללקוח.' : 'קובץ PDF בהכנה, וקישור להורדה יגיע כאן בהודעה נפרדת.') : null,
   ]
     .filter(Boolean)
