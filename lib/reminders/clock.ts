@@ -4,7 +4,7 @@
  *
  *   digits  "10:30", "ב-9", "בשעה 16", "ב-9 וחצי", "ב-8 ורבע"
  *   words   "בתשע", "בשמונה וחצי", "בשעה עשר", "באחת עשרה", "בשתים עשרה"
- *   period  בבוקר / בצהריים, אחה"צ, אחר הצהריים / בערב / בלילה
+ *   period  בבוקר / בצהריים, אחה"צ, אחר הצהריים / בערב, הערב / בלילה, הלילה
  *
  * Never guessed. Each of these is `ambiguous_time`:
  *   - a bare hour 1–7, or 0, with no period ("מחר בשלוש");
@@ -35,9 +35,30 @@ type Period = 'morning' | 'noon' | 'evening' | 'night'
 const PERIODS: ReadonlyArray<[Period, RegExp]> = [
   ['morning', /בבוקר/u],
   ['noon', /בצהריים|אחה["״']?צ|אחר(?:י)? הצהריים/u],
-  ['evening', /בערב/u],
-  ['night', /בלילה/u],
+  ['evening', /בערב|(?<![\p{L}])הערב(?![\p{L}])/u],
+  ['night', /בלילה|(?<![\p{L}])הלילה(?![\p{L}])/u],
 ]
+
+/**
+ * A part of the day said WITHOUT an hour ("מחר בבוקר", "היום בערב"): the time
+ * the reminder is proposed for. Never scheduled as is: the confirmation card
+ * shows this exact time, and the owner approves it or rejects it.
+ * Null when no part of the day was said, or two different ones.
+ */
+export const PERIOD_DEFAULT_TIME: Readonly<Record<Period | 'afternoon', string>> = {
+  morning: '09:00',
+  noon: '12:00',
+  afternoon: '16:00',
+  evening: '19:00',
+  night: '21:00',
+}
+const AFTERNOON = /אחה["״']?צ|אחר(?:י)? הצהריים/u
+
+export function periodDefaultTime(text: string): string | null {
+  const found = PERIODS.filter(([, re]) => re.test(text)).map(([p]) => p)
+  if (found.length !== 1) return null
+  return found[0] === 'noon' && AFTERNOON.test(text) && !/בצהריים/u.test(text) ? PERIOD_DEFAULT_TIME.afternoon : PERIOD_DEFAULT_TIME[found[0]]
+}
 
 /** The hour 0–23 for an hour as said plus its period, or null when it does not fit. */
 export function hourFor(h: number, period: Period | null): number | null {

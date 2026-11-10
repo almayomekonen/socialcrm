@@ -17,9 +17,13 @@ import { REMINDER_COPY } from '@/lib/waAssistant/reminders/copy'
 import { enableDelivery, inboundFrom, insertReminder, resetControls } from '../reminders/deliveryFixtures'
 import { MIN, agencies, ask, card, harness, owner, press, reminders, reset, say, run, setEnv, teardown, type Owner } from './reminderHarness'
 
-/** 2026-11-09 in Asia/Jerusalem (UTC+2). Only Date is pinned; timers run normally. */
-const NOON_ISRAEL = Date.UTC(2026, 10, 9, 10, 0)
-const LATE_ISRAEL = Date.UTC(2026, 10, 9, 21, 47)
+/**
+ * 2030-11-12 in Asia/Jerusalem (UTC+2). Only Date is pinned; timers run normally.
+ * In the future on purpose: rows get "createdAt" from the database's real clock and
+ * the table requires "remindAt" > "createdAt", so a pinned date in the past fails.
+ */
+const NOON_ISRAEL = Date.UTC(2030, 10, 12, 10, 0)
+const LATE_ISRAEL = Date.UTC(2030, 10, 12, 21, 47)
 
 let A: number
 let B: number

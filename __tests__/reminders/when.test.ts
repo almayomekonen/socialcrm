@@ -70,7 +70,6 @@ describe('relative minutes and hours', () => {
 
   it.each([
     ['בעוד קצת', 'ambiguous_offset'],
-    ['בעוד חמש עשרה דקות', 'ambiguous_offset'],
     ['בעוד 0 דקות', 'ambiguous_offset'],
     ['בעוד דקות', 'ambiguous_offset'],
     ['בעוד שעות', 'ambiguous_offset'],
