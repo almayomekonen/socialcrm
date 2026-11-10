@@ -15,8 +15,8 @@
  * words and Meta's verified timestamp. This file only removes the time words
  * from the reminder TEXT, and merges an answer into a pending request.
  */
-import { readClock } from './clock'
-import { readOffsets } from './offset'
+import { periodDefaultTime, readClock } from './clock'
+import { readOffsets, stripOffsets } from './offset'
 import { readDates } from '@/lib/waAssistant/meetings/when'
 
 export type ReminderIntent = 'create' | 'list' | 'cancel' | 'reschedule' | 'capability'
@@ -102,13 +102,17 @@ const OFFSET = `[וש]?בעוד\\s+(?:(?:רבע|חצי|שלושת רבעי|של�
 const HHMM = `(?:ב[-־–]?\\s?|בשעה\\s+|ל[-־–]?\\s?|לשעה\\s+)?\\d{1,2}:\\d{2}`
 const DIGIT_HOUR = `(?:ב[-־–]?\\s?|בשעה\\s+|ל[-־–]\\s?|לשעה\\s+)\\d{1,2}(?![\\d:./])(?:\\s+(?:וחצי|ורבע))?`
 const WORD_HOUR = `(?:ב|בשעה\\s+|לשעה\\s+)(?:${HOUR_WORDS})${E}(?:\\s+(?:וחצי|ורבע|פחות רבע))?`
-const PERIOD = `(?:בבוקר|בצהריים|אחה["״']?צ|אחר(?:י)? הצהריים|בערב|בלילה)`
+const PERIOD = `(?:בבוקר|בצהריים|אחה["״']?צ|אחר(?:י)? הצהריים|בערב|הערב|בלילה|הלילה)`
 const DATE = `(?:היום|מחרתיים|מחר|ב?יום\\s+(?:ראשון|שני|שלישי|רביעי|חמישי|שישי)|בשבת|\\d{1,2}[./]\\d{1,2}(?:[./]\\d{2,4})?)`
 
 const strip = (text: string, parts: string[]) => parts.reduce((t, p) => t.replace(re(`${B}${p}${E}`, 'gu'), ' '), text)
 
-/** The text without its clock times and offsets (dates kept). */
-export const stripTimes = (text: string) => strip(text, [OFFSET, HHMM, DIGIT_HOUR, WORD_HOUR, PERIOD]).replace(/\s+/g, ' ').trim()
+/**
+ * The text without its clock times and offsets (dates kept). Offsets are cut by
+ * the offset reader itself, so the text loses exactly what the time was read from;
+ * OFFSET then removes any "בעוד …" the reader could not read (it was asked about).
+ */
+export const stripTimes = (text: string) => strip(stripOffsets(text), [OFFSET, HHMM, DIGIT_HOUR, WORD_HOUR, PERIOD]).replace(/\s+/g, ' ').trim()
 /** The text without its dates. */
 export const stripDates = (text: string) => strip(text, [DATE]).replace(/\s+/g, ' ').trim()
 
@@ -133,12 +137,15 @@ export function reminderText(text: string): string {
  * "היום בתשע" + "בתשע בערב" → "היום בתשע בערב"; "תזכיר לי מחר …" + "בתשע" keeps "מחר".
  */
 export function mergeWhen(request: string, answer: string, today: string): string {
-  const clock = readClock(answer)
   const offsets = readOffsets(answer)
+  const rest = stripOffsets(answer, { keepDays: true }) // as in when.ts: "1.5 שעות" is not a date
+  const clock = readClock(rest)
   const hasTime = clock.times.length > 0 || clock.problem !== null || offsets.minutes.length > 0 || offsets.problem !== null
-  const hasDate = readDates(answer, today).dates.length > 0
+  const hasDate = readDates(rest, today).dates.length > 0
   let base = request
   if (hasTime) base = stripTimes(base)
+  // "בערב" alone qualifies the hour already said ("בשש" + "בערב" = 18:00); it replaces only an earlier part of the day.
+  else if (periodDefaultTime(rest) !== null) base = strip(base, [PERIOD])
   if (hasDate || offsets.minutes.length > 0) base = stripDates(base)
   return `${base} ${answer}`.replace(/\s+/g, ' ').trim()
 }

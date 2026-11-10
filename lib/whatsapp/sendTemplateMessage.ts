@@ -1,5 +1,5 @@
 import { GRAPH_BASE, GRAPH_VERSION } from '@/lib/facebook/graph'
-import { waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
+import { redactLogText, waTrace, type WaTraceCtx } from '@/lib/inbox/autoresponse/waTrace'
 import { toIsraeliWhatsappRecipient } from '@/lib/whatsapp/israeliPhone'
 import type { SendWhatsappTextResult } from '@/lib/whatsapp/sendMessage'
 import { runGatedWhatsappSend, type WhatsappSendConsent } from '@/lib/whatsapp/optOut/sendGate'
@@ -137,7 +137,7 @@ async function postTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsap
         subcode: err?.error_subcode,
         type: err?.type,
         fbtrace_id: err?.fbtrace_id,
-        message: err?.message,
+        message: redactLogText(err?.message),
       })
       // No Graph error body: a gateway/edge answer, not Meta's. Outcome unknown.
       if (!hasGraphErrorBody(data)) return unknownHttpOutcome(res.status)
@@ -154,7 +154,7 @@ async function postTemplate(args: SendWhatsappTemplateArgs): Promise<SendWhatsap
 
     const wamid = data.messages?.[0]?.id
     if (!wamid) {
-      console.error('[WhatsappTemplateSend] Missing message id in response', data)
+      console.error('[WhatsappTemplateSend] Missing message id in response', { httpStatus: res.status })
       return missingMessageIdOutcome(res.status)
     }
 

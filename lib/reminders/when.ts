@@ -2,9 +2,14 @@
  * WHEN for a personal owner reminder, read deterministically from the owner's
  * Hebrew words. Pure: no clock, no database, no model.
  *
- * Reminder Engine, Phase 2 (architecture v1.0–v1.6.1). Nothing calls it yet.
- * The Agent may propose a time, but a reminder is scheduled only at the instant
- * this reader derives from the owner's own message.
+ * Reminder Engine, Phase 2 (architecture v1.0–v1.6.1); used by the WhatsApp
+ * reminder flow (create and reschedule). The Agent may propose a time, but a
+ * reminder is scheduled only at the instant this reader derives from the owner's
+ * own message.
+ *
+ * NO MODEL, NO DEVICE CLOCK. The anchor below and the server's `nowMs` are the
+ * only clocks; the business timezone (BUSINESS_TZ, Asia/Jerusalem) is the only
+ * timezone, whatever the server process's own timezone is.
  *
  * THE ANCHOR is Meta's timestamp of the owner's inbound message, and only when
  * its provenance is verified (`source: 'meta'`). A server-time fallback or an
@@ -14,6 +19,11 @@
  *
  * WALL-CLOCK TIMES ("מחר בתשע") go through `businessInstantMs`, so they follow
  * the Temporal-compatible clock-change rules (lib/today/time.ts).
+ *
+ * A PART OF THE DAY WITH NO HOUR ("מחר בבוקר", "היום בערב") is proposed at that
+ * part's usual time (clock.ts PERIOD_DEFAULT_TIME: 09:00, 12:00, 16:00, 19:00,
+ * 21:00). It is a proposal, not a guess that gets scheduled: the confirmation card
+ * shows the exact time, and nothing is scheduled until the owner approves it.
  *
  * NEVER GUESSED. Anything unclear comes back as a reason the caller asks about.
  * That includes:
@@ -32,8 +42,8 @@
 import { businessDateString, businessInstantMs } from '@/lib/today/time'
 import { BUSINESS_TZ } from '@/lib/today/constants'
 import { readDates } from '@/lib/waAssistant/meetings/when'
-import { readOffsets } from './offset'
-import { readClock } from './clock'
+import { readOffsets, stripOffsets } from './offset'
+import { periodDefaultTime, readClock } from './clock'
 
 export const REMINDER_HORIZON_MS = 23 * 60 * 60 * 1000
 /** A reminder must be more than this far ahead of "now" when it is accepted. */
@@ -92,8 +102,11 @@ export function readReminderWhen(text: string, anchor: ReminderAnchor, nowMs: nu
   const anchorMs = sec * 1000
 
   const offsets = readOffsets(text)
-  const dates = readDates(text, businessDateString(anchorMs))
-  const clock = readClock(text)
+  // Dates and clock times are read WITHOUT the minute/hour offsets, so "בעוד 1.5 שעות"
+  // is never also read as the date 1.5. Day offsets stay: they are dates.
+  const rest = stripOffsets(text, { keepDays: true })
+  const dates = readDates(rest, businessDateString(anchorMs))
+  const clock = readClock(rest)
   const hasDateOrTime = dates.dates.length > 0 || clock.times.length > 0 || clock.problem !== null
 
   let remindAtMs: number
@@ -110,9 +123,11 @@ export function readReminderWhen(text: string, anchor: ReminderAnchor, nowMs: nu
     if (dates.dates.length > 1 || dates.problem === 'ambiguous_date') return { ok: false, ask: 'ambiguous_date' }
     if (dates.problem === 'past_date') return { ok: false, ask: 'past' }
     if (clock.problem) return clock.hour === null ? { ok: false, ask: 'ambiguous_time' } : { ok: false, ask: 'ambiguous_time', hour: clock.hour }
-    if (clock.times.length === 0) return { ok: false, ask: dates.dates.length ? 'ask_time' : 'ask_when' }
+    // A part of the day with no hour ("מחר בבוקר") proposes that part's usual time; the card shows it.
+    const time = clock.times[0] ?? periodDefaultTime(rest)
+    if (!time) return { ok: false, ask: dates.dates.length ? 'ask_time' : 'ask_when' }
     const date = dates.dates[0] ?? businessDateString(anchorMs)
-    remindAtMs = businessInstantMs(date, clock.times[0])
+    remindAtMs = businessInstantMs(date, time)
     if (Number.isNaN(remindAtMs)) return { ok: false, ask: 'ambiguous_time' }
     basis = 'absolute'
   }

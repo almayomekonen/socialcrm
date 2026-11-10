@@ -1,4 +1,5 @@
 import { db } from '@/config/db'
+import { maskPhone } from '@/lib/inbox/autoresponse/waTrace'
 import { isWhatsappStatusEvent, statusRank, type WhatsappStatusEvent } from '@/lib/inbox/messageStatus'
 import { isCloudApiWamid } from '@/lib/inbox/wamidFormat'
 import { mapWhatsappError } from '@/lib/inbox/whatsappErrorCopy'
@@ -79,7 +80,7 @@ async function applyOne(agencyId: number, phoneNumberId: string, raw: RawStatus)
     agencyId,
     status,
     metaTimestamp: raw.timestamp ?? null,
-    recipientId: raw.recipient_id ?? null,
+    recipientId: maskPhone(raw.recipient_id),
     errorCode,
   }
 
