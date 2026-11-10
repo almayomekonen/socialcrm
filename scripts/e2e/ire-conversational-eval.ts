@@ -17,9 +17,13 @@
  * one model call per scenario. The business below is invented for the eval.
  */
 import { writeFileSync } from 'fs'
-import { generateQualifyTurn } from '@/lib/inbox/autoresponse/qualify'
+import { generateQualifyTurn, handoffMessage } from '@/lib/inbox/autoresponse/qualify'
+import { withGreeting } from '@/lib/inbox/autoresponse/greeting'
+import { isSocialMode } from '@/lib/inbox/autoresponse/conversational/mode'
 import { formatBusinessIdentityBlock, groundedFactsFor, type BusinessIdentity } from '@/lib/inbox/autoresponse/businessIdentity'
-import { validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
+import { questionPolicyForSalesMove, validateAutoResponse } from '@/lib/inbox/autoresponse/validate'
+import { greetingLine as templateGreeting } from '@/lib/inbox/autoresponse/greeting'
+import { inboundContainsRealQuestion } from '@/lib/inbox/autoresponse/conversationControl'
 import { classifySalesTurnFromTranscript } from '@/lib/inbox/autoresponse/salesIntent'
 import { classifyResponseProfile } from '@/lib/inbox/autoresponse/responseProfile'
 import { normalizeAgentProfile } from '@/lib/inbox/autoresponse/conversational/agentProfile'
@@ -203,8 +207,12 @@ async function main() {
   const outFile = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : null
   // --baseline: the same scenarios through the CLASSIC qualify prompt (no mode), for cost/latency comparison.
   const baseline = process.argv.includes('--baseline')
-  const block = formatBusinessIdentityBlock(BUSINESS)
-  const grounded = groundedFactsFor(BUSINESS)
+  // Baseline = main's behaviour: no agent profile (main has none), the template
+  // greeting, and the classic question policy. Conversational = this branch.
+  const identity: BusinessIdentity = baseline ? { ...BUSINESS, agentProfile: null } : BUSINESS
+  const block = formatBusinessIdentityBlock(identity)
+  const grounded = groundedFactsFor(identity)
+  const greeting = baseline ? templateGreeting(BUSINESS.name, 'he') : BUSINESS.agentProfile!.greeting
   const rows: Record<string, unknown>[] = []
   for (const sc of S.filter((x) => !only || x.id.startsWith(only))) {
     const { salesMove, salesStrategy } = classifySalesTurnFromTranscript(sc.transcript)
@@ -223,7 +231,7 @@ async function main() {
       salesStrategy,
       businessIdentityBlock: block,
       responseProfile: classifyResponseProfile({ lastInbound: inbound.at(-1) ?? '', recentCustomerTexts: inbound.slice(-3) }),
-      greetingLine: sc.greet ? BUSINESS.agentProfile!.greeting : null,
+      greetingLine: sc.greet ? greeting : null,
       bypassAllowlist: true,
       ...(baseline ? {} : { conversational: { crm: { ...CONTACT, ...(sc.crm ?? {}) }, memory, nowMs: NOW } }),
     })
@@ -234,11 +242,22 @@ async function main() {
       continue
     }
     const mode = gen.conversationMode ?? 'unclear'
-    const modeOk = sc.expectModes.includes(mode)
-    const v1 = validateAutoResponse(gen.reply, { questionPolicy: 'zero_or_one', greetingTurn: Boolean(sc.greet), groundedFacts: grounded })
-    const v2 = validateConversationalReply({ reply: gen.reply, mode, businessName: BUSINESS.name, personalClaims: gen.personalClaims === true })
-    const mustNotHit = (sc.mustNot ?? []).filter((re) => re.test(gen.reply)).map(String)
-    const mustMiss = (sc.must ?? []).filter((re) => !re.test(gen.reply)).map(String)
+    // Baseline has no mode at all: not scored (null), never counted as a pass or a failure.
+    const modeOk = baseline ? null : sc.expectModes.includes(mode)
+    const questionPolicy = baseline
+      ? questionPolicyForSalesMove(salesMove, { inboundWasQuestion: inboundContainsRealQuestion(inbound.at(-1) ?? '') })
+      : 'zero_or_one'
+    // What the worker would SEND: on a real handoff (needsTeam / escalation topic) the
+    // fixed handoff copy, not the model's text, exactly as completeTurn does.
+    const handoff = !baseline && !isSocialMode(mode) && (gen.needsTeam === true || gen.escalationTopic === true)
+    const sent = handoff ? withGreeting(sc.greet ? greeting : null, handoffMessage(gen.escalationTopic ? 'escalation_topic' : 'needs_team', 'he')) : gen.reply
+    const vOpts = { questionPolicy, greetingTurn: Boolean(sc.greet), groundedFacts: grounded, ...(baseline ? {} : { conversational: { greetingLine: sc.greet ? greeting : null } }) }
+    const v1 = validateAutoResponse(sent, vOpts)
+    // A claim that a person will act / that we passed it on, written by the model, whatever happens next.
+    const falseHandoffClaim = /אעביר|העברתי|אמסור|מעביר(?:ה)? (?:את )?(?:ה?פנייה|ה?בקשה|ה?פרטים)|(?:אדם|מישהו|נציג|הצוות)\s+(?:מהצוות\s+)?(?:יחזור|יחזרו|יאשר|יאשרו|יצור|ייצור|יתקשר)/.test(gen.reply)
+    const v2 = validateConversationalReply({ reply: sent, mode, businessName: BUSINESS.name, personalClaims: gen.personalClaims === true })
+    const mustNotHit = (sc.mustNot ?? []).filter((re) => re.test(sent)).map(String)
+    const mustMiss = handoff ? [] : (sc.must ?? []).filter((re) => !re.test(sent)).map(String)
     const contentOk = mustNotHit.length === 0 && mustMiss.length === 0
     const row = {
       id: sc.id,
@@ -255,7 +274,11 @@ async function main() {
       mustNotHit,
       mustMiss,
       escalationTopic: gen.escalationTopic,
+      needsTeam: gen.needsTeam ?? null,
+      handoff,
+      falseHandoffClaim,
       reply: gen.reply,
+      sent,
       latencyMs: gen.latencyMs ?? wallMs,
       inputTokens: gen.inputTokens ?? null,
       outputTokens: gen.outputTokens ?? null,
@@ -263,9 +286,9 @@ async function main() {
       model: gen.model,
     }
     rows.push(row)
-    const flag = modeOk && v1.ok && v2.ok && contentOk ? '✓' : '✗'
-    console.log(`${flag} ${sc.id} [${mode}/${gen.modeConfidence}] ${(row.latencyMs / 1000).toFixed(1)}s  ${gen.reply}`)
-    if (!(modeOk && v1.ok && v2.ok && contentOk)) console.log(`    expected ${sc.expectModes.join('|')}  v1=${row.validatorViolation} truth=${row.truthViolation} mustNot=${mustNotHit} must=${mustMiss}`)
+    const flag = modeOk !== false && v1.ok && v2.ok && contentOk ? '✓' : '✗'
+    console.log(`${flag} ${sc.id} [${mode}/${gen.modeConfidence}${handoff ? ' → HANDOFF' : ''}] ${(row.latencyMs / 1000).toFixed(1)}s  ${sent.replace(/\n/g, ' ⏎ ')}`)
+    if (!(modeOk !== false && v1.ok && v2.ok && contentOk)) console.log(`    expected ${sc.expectModes.join('|')}  v1=${row.validatorViolation} truth=${row.truthViolation} mustNot=${mustNotHit} must=${mustMiss}`)
   }
   const done = rows.filter((r) => r.ok) as Array<Record<string, any>>
   const rate = (k: string) => (done.length ? done.filter((r) => r[k]).length / done.length : 0)
@@ -274,11 +297,13 @@ async function main() {
   const summary = {
     scenarios: rows.length,
     answered: done.length,
-    modeAccuracy: rate('modeOk'),
+    modeAccuracy: baseline ? null : rate('modeOk'),
     validatorPass: rate('validatorOk'),
     truthPass: rate('truthOk'),
     contentPass: rate('contentOk'),
-    allPass: done.filter((r) => r.modeOk && r.validatorOk && r.truthOk && r.contentOk).length / Math.max(1, done.length),
+    handoffs: done.filter((r) => r.handoff).length,
+    falseHandoffClaimsInModelText: done.filter((r) => r.falseHandoffClaim).length,
+    allPass: done.filter((r) => r.modeOk !== false && r.validatorOk && r.truthOk && r.contentOk).length / Math.max(1, done.length),
     latencyP50Ms: p(lat, 0.5),
     latencyP95Ms: p(lat, 0.95),
     avgInputTokens: done.reduce((a, r) => a + Number(r.inputTokens ?? 0), 0) / Math.max(1, done.length),

@@ -201,10 +201,15 @@ export async function generateValidatedTurn(t: TurnBase & TurnFacts & Generation
     questionPolicy: convo ? ('zero_or_one' as const) : questionPolicy,
     greetingTurn: Boolean(greetingLine),
     groundedFacts: groundedFactsFor(identity),
+    ...(convo ? { conversational: { greetingLine } } : {}),
   }
+  // The model asked for a person (booking, moving, cancelling, availability): the real
+  // handoff runs in completeTurn and its fixed copy is sent, so this text is never sent
+  // and is not repaired.
+  const handoffRequested = !!convo && gen.needsTeam === true && !isSocialMode(modeOf(gen))
   let validation = validateAutoResponse(gen.reply, validateOpts)
   let forcedGuardrail = false
-  if (!validation.ok) {
+  if (!validation.ok && !handoffRequested) {
     const originalViolation = 'violation' in validation ? validation.violation : 'invalid'
     const regenerationReason: RegenerationReason =
       classifyViolation(originalViolation) === 'safety' ? 'safety_validation' : 'shape_validation'
@@ -283,7 +288,7 @@ export async function generateValidatedTurn(t: TurnBase & TurnFacts & Generation
 
   // ── Conversational truthfulness: no invented owner facts, no commitments, no
   //    selling to a friend. One repair, then silence (never a business fallback).
-  if (convo) {
+  if (convo && !handoffRequested) {
     const check = checkConversationalReply(gen, identity.name)
     if (check.ok === false) {
       const repair = await deps.generateQualify({ ...genArgs, conversational: promptContextFor(convo, { personalRepair: true }), abortSignal: presenceWatch.signal })
@@ -311,5 +316,5 @@ export async function generateValidatedTurn(t: TurnBase & TurnFacts & Generation
   // Generation (and any repair regeneration) is done — release the watcher.
   presenceWatch.stop()
   if (presenceWatch.cancelled()) return { done: await doSkip('human_typing') }
-  return { gen, validation, forcedGuardrail, schedulingOverride }
+  return { gen, validation, forcedGuardrail, schedulingOverride, handoffRequested }
 }

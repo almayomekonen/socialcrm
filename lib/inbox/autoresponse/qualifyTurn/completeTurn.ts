@@ -27,7 +27,7 @@ import { persistEscalation, sendAndPersist, shadowQualificationIfLead } from './
 
 /** Post-generation: the decision, the classification log, and the draft / escalate / continue paths. */
 export async function completeQualifyTurn(t: TurnBase & TurnFacts & GenerationInput & GeneratedTurn & { deferredMeeting: boolean }): Promise<Outcome> {
-  const { job, ctx, deps, doSkip, reliability, aiState, convo, maxTurns, lastInboundText, qTranscript, salesMove, salesStrategy, reopenEligible, outboundGate, lang, responseProfile, identity, greetingLine, genTrace, gen, validation, forcedGuardrail, schedulingOverride, deferredMeeting } = t
+  const { job, ctx, deps, doSkip, reliability, aiState, convo, maxTurns, lastInboundText, qTranscript, salesMove, salesStrategy, reopenEligible, outboundGate, lang, responseProfile, identity, greetingLine, genTrace, gen, validation, forcedGuardrail, schedulingOverride, deferredMeeting, handoffRequested } = t
   const { settings, conv } = ctx
   const incomingCog = cognitionFromUnderstanding(
     gen.understanding,
@@ -60,6 +60,8 @@ export async function completeQualifyTurn(t: TurnBase & TurnFacts & GenerationIn
     }
     // The model called a scheduling request personal: the team handles it, as a meeting request always was.
     if (schedulingOverride) post = { action: 'escalate', reason: 'scheduling_request' }
+    // The model asked for a person: the existing handoff, never a promise in text.
+    if (handoffRequested) post = { action: 'escalate', reason: 'needs_team' }
     // A topic the owner asked a person to handle (owner-configured only).
     if (gen.escalationTopic && (identity.agentProfile?.escalationTopics.length ?? 0) > 0) {
       post = { action: 'escalate', reason: 'escalation_topic' }

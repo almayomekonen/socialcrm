@@ -54,6 +54,7 @@ const generateQualify = (async (args: Call): Promise<QualifyGenResult> => {
     delete (out as Record<string, unknown>).modeConfidence
     delete (out as Record<string, unknown>).personalClaims
     delete (out as Record<string, unknown>).escalationTopic
+    delete (out as Record<string, unknown>).needsTeam
   }
   return out
 }) as never
@@ -112,8 +113,8 @@ const lastJob = async (t: Tenant) => (await db('auto_response_jobs').where({ con
 const personalNotices = (t: Tenant) => db('notification_jobs').where({ agencyId: t.agencyId, type: 'conversation.personal_detected' })
 const noResponseJobs = (t: Tenant) => db('auto_response_jobs').where({ conversationId: t.conversationId }).whereIn('reason', ['no_response_warning', 'no_response_close'])
 
-const personal = (reply: string, extra: Record<string, unknown> = {}): Scripted => ({ reply, salesMove: 'CASUAL_ACKNOWLEDGEMENT', conversationMode: 'personal', modeConfidence: 'high', personalClaims: false, escalationTopic: false, ...extra })
-const business = (reply: string, mode = 'prospect', extra: Record<string, unknown> = {}): Scripted => ({ reply, conversationMode: mode as never, modeConfidence: 'high', personalClaims: false, escalationTopic: false, ...extra })
+const personal = (reply: string, extra: Record<string, unknown> = {}): Scripted => ({ reply, salesMove: 'CASUAL_ACKNOWLEDGEMENT', conversationMode: 'personal', modeConfidence: 'high', personalClaims: false, escalationTopic: false, needsTeam: false, ...extra })
+const business = (reply: string, mode = 'prospect', extra: Record<string, unknown> = {}): Scripted => ({ reply, conversationMode: mode as never, modeConfidence: 'high', personalClaims: false, escalationTopic: false, needsTeam: false, ...extra })
 
 const ENV = ['IRE_CONVERSATIONAL_AGENCY_IDS', 'AGENT_RELIABILITY_AGENCY_IDS', 'NOTIFICATIONS_ENABLED', 'NOTIFICATIONS_AGENCY_ALLOWLIST'] as const
 const saved: Record<string, string | undefined> = {}
@@ -321,6 +322,31 @@ describe('scheduling requests stay business even when the model reads them as pe
     await says(t, 'מתגעגע אחי, חייבים להיפגש')
     await drain()
     expect(sent.map((x) => x.body)).toEqual(['חחח ברור אחי, עבר מלא זמן!'])
+  })
+})
+
+describe('a request that needs a person uses the real handoff, never a promise in text', () => {
+  it('needsTeam → the fixed handoff copy is sent, the conversation is escalated, no repair call, no "אעביר"', async () => {
+    const t = await makeTenant('nt1')
+    enable(t.agencyId)
+    script = [business('איזה תאריך תרצו? אעביר את הפרטים לצוות שיחזור לאשר זמינות.', 'scheduling', { needsTeam: true })]
+    await says(t, 'אני רוצה לסגור איתכם תאריך')
+    await drain()
+    expect(calls).toHaveLength(1)
+    expect(sent).toHaveLength(1)
+    expect(sent[0].body).toContain('ממתינה כעת לטיפול הצוות')
+    expect(sent[0].body).not.toMatch(/אעביר|יחזור לאשר/)
+    expect((await getAiState(t.conversationId))?.aiState).toBe('escalated')
+  })
+
+  it('needsTeam on a personal turn is ignored: a friend is never handed to the team', async () => {
+    const t = await makeTenant('nt2')
+    enable(t.agencyId)
+    script = [personal('חחח ברור אחי', { needsTeam: true })]
+    await says(t, 'אחי מה קורה?')
+    await drain()
+    expect(sent.map((x) => x.body)).toEqual(['חחח ברור אחי'])
+    expect((await getAiState(t.conversationId))?.aiState).not.toBe('escalated')
   })
 })
 

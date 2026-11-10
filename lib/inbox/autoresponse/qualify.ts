@@ -291,6 +291,7 @@ export type QualifyGenResult =
       modeConfidence?: ModeConfidence
       personalClaims?: boolean
       escalationTopic?: boolean
+      needsTeam?: boolean
     }
   | { ok: false; skipReason: 'ai_unavailable' | 'budget_exhausted' }
 
@@ -371,6 +372,7 @@ export async function generateQualifyTurn(args: {
           modeConfidence: isModeConfidence(d.modeConfidence) ? d.modeConfidence : ('low' as const),
           personalClaims: Boolean(d.personalClaims),
           escalationTopic: Boolean(d.escalationTopic),
+          needsTeam: Boolean(d.needsTeam),
         }
       : {}),
   }
