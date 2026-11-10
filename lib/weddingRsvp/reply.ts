@@ -1,6 +1,7 @@
 import { resolveWhatsappOutboundTargetForConversation } from '@/lib/inbox/whatsappOutboundTarget'
 import { persistOutboundWhatsapp } from '@/lib/inbox/persistOutboundWhatsapp'
 import { sendWhatsappInteractive, sendWhatsappText } from '@/lib/whatsapp/sendMessage'
+import { sendWhatsappTemplate } from '@/lib/whatsapp/sendTemplateMessage'
 import { WEDDING_RSVP_SOURCE } from '@/lib/weddingRsvp/config'
 import { followUpAllowed } from '@/lib/weddingRsvp/followUpAccess'
 
@@ -10,7 +11,8 @@ export type ReplyOutcome = { replied: true } | { replied: false; reason: string 
  * One automatic follow-up text in an existing conversation: resolve the target,
  * enforce followUpAllowed (allowlist, or a template RSVP request here), SEND, persist only on a wamid with metadata.source
  * 'wedding_rsvp' (so it never reads as a human reply). With `interactive` the same
- * path sends that object instead of plain text, and stores `storedText`.
+ * path sends that object instead of plain text; with `template`, an approved
+ * template with no variables. Either way it stores `storedText`.
  */
 export async function replyInConversation(args: {
   agencyId: number
@@ -19,6 +21,7 @@ export async function replyInConversation(args: {
   body: string
   metadata?: Record<string, unknown>
   interactive?: Record<string, unknown>
+  template?: { name: string; language: string }
   storedText?: string
 }): Promise<ReplyOutcome> {
   if (args.leadId == null || args.leadId <= 0) return { replied: false, reason: 'no-lead' }
@@ -29,22 +32,32 @@ export async function replyInConversation(args: {
   if (!(await followUpAllowed(target.customerWaId, args.conversationId)))
     return { replied: false, reason: 'recipient-not-allowed' }
 
-  const sent = args.interactive
-    ? await sendWhatsappInteractive({
+  const sent = args.template
+    ? await sendWhatsappTemplate({
         consent: { kind: 'automated', agencyId: args.agencyId },
         phoneNumberId: target.businessPhoneNumberId,
         accessToken: target.accessToken,
         to: target.customerWaId,
-        body: args.body,
-        interactive: args.interactive,
+        name: args.template.name,
+        language: args.template.language,
+        params: [],
       })
-    : await sendWhatsappText({
-        consent: { kind: 'automated', agencyId: args.agencyId },
-        phoneNumberId: target.businessPhoneNumberId,
-        accessToken: target.accessToken,
-        to: target.customerWaId,
-        body: args.body,
-      })
+    : args.interactive
+      ? await sendWhatsappInteractive({
+          consent: { kind: 'automated', agencyId: args.agencyId },
+          phoneNumberId: target.businessPhoneNumberId,
+          accessToken: target.accessToken,
+          to: target.customerWaId,
+          body: args.body,
+          interactive: args.interactive,
+        })
+      : await sendWhatsappText({
+          consent: { kind: 'automated', agencyId: args.agencyId },
+          phoneNumberId: target.businessPhoneNumberId,
+          accessToken: target.accessToken,
+          to: target.customerWaId,
+          body: args.body,
+        })
   if ('error' in sent) {
     console.error('[WeddingRsvp] follow-up send failed', { conversationId: args.conversationId, code: sent.code })
     return { replied: false, reason: 'send-failed' }
