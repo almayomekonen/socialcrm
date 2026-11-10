@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -7,8 +8,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * persistence, replay, status reads and follow-up access all run for real.
  */
 
-const h = vi.hoisted(() => ({ sendTemplate: vi.fn() }))
+const h = vi.hoisted(() => ({ sendTemplate: vi.fn(), directRsvp: new Set<string>() }))
 vi.mock('@/lib/whatsapp/sendTemplateMessage', () => ({ sendWhatsappTemplate: h.sendTemplate }))
+// The direct-RSVP list, swapped per test: the real list pins real guests' phones.
+vi.mock('@/lib/weddingRsvp/directRsvp', async (orig) => {
+  const real = await orig<typeof import('@/lib/weddingRsvp/directRsvp')>()
+  return { ...real, rsvpInviteWaived: (waId: string) => real.rsvpInviteWaived(waId, h.directRsvp) }
+})
+const sha = (wa: string) => createHash('sha256').update(wa).digest('hex')
 
 const { db } = await import('@/config/db')
 const { sendInvitationViaIntegration, invitationStatuses } = await import('@/lib/weddingRsvp/integration')
@@ -100,8 +107,15 @@ describe('send-rsvp-request over the real schema (Meta mocked)', () => {
     expect(rsvpCalls()).toHaveLength(0)
   })
 
-  it('waiver: a listed, never-invited number is asked once — Lead + conversation created, no invite sent', async () => {
-    process.env.WEDDING_RSVP_WITHOUT_INVITE_PHONES = '054-555-0012, not-a-phone'
+  it('the real direct-RSVP list is exactly seven phone fingerprints, and nothing else is waived', async () => {
+    const real = await vi.importActual<typeof import('@/lib/weddingRsvp/directRsvp')>('@/lib/weddingRsvp/directRsvp')
+    expect(real.DIRECT_RSVP_PHONE_SHA256.size).toBe(7)
+    for (const hash of real.DIRECT_RSVP_PHONE_SHA256) expect(hash).toMatch(/^[0-9a-f]{64}$/)
+    for (const wa of [GUEST, NEW, FREEFORM]) expect(real.rsvpInviteWaived(wa)).toBe(false)
+  })
+
+  it('direct RSVP: a listed, never-invited number is asked once — Lead + conversation created, no invite sent', async () => {
+    h.directRsvp = new Set([sha(NEW)])
     try {
       expect(await sendRsvpRequestViaIntegration(req(R1, GUEST))).toEqual({ httpStatus: 422, body: { accepted: false, error: 'not-invited' } })
       const r = await sendRsvpRequestViaIntegration(req(R1, NEW))
@@ -112,8 +126,13 @@ describe('send-rsvp-request over the real schema (Meta mocked)', () => {
       const conv = await convOf(NEW)
       expect(conv.leadId).toBeTruthy()
       expect(await followUpAllowed(NEW, Number(conv.id))).toBe(true)
+
+      // Their answer is reported to the Wedding Manager like anyone else's.
+      await addMessage(NEW, { direction: 'inbound', type: 'button', status: 'received', text: 'מגיע/ה', payload: JSON.stringify({ payload: 'wedding_rsvp_attending', text: 'מגיע/ה' }) })
+      const { rsvp } = await invitationStatuses({ invitations: [], phones: [NEW] })
+      expect(rsvp).toEqual([expect.objectContaining({ phone: NEW, rsvp: 'attending' })])
     } finally {
-      delete process.env.WEDDING_RSVP_WITHOUT_INVITE_PHONES
+      h.directRsvp = new Set()
     }
   })
 
