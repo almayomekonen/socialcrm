@@ -407,6 +407,11 @@ Before enabling, in this order:
 4. Set `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS=103` and redeploy.
 5. Test on a lead whose number you own.
 
-Roll back by removing the flag and redeploying. Links already sent keep working until
-they expire (the quote's validity date, or 30 days without one) unless the delivery
-failed; to end one, set `linkRevokedAt` on its row.
+Roll back by removing the flag and redeploying: that also disables every customer link
+of that agency at once (the link route checks the same switch). Otherwise a link lives
+until the quote's validity date, or 30 days without one, and dies when its delivery
+fails or the quote leaves `sent`/`accepted`. To end one link, set `linkRevokedAt` on
+its `sales_quote_deliveries` row.
+
+The link is `/api/q#<token>`: the token is in the fragment and is exchanged in a POST
+body, so Vercel's request logs never contain it.

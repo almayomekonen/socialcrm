@@ -43,7 +43,7 @@ import { editQuoteSystem } from '@/db/quotes/editQuote'
 import { ingestWhatsappStatuses } from '@/lib/inbox/ingestWhatsappStatuses'
 import { groundedProposal } from '@/lib/agent/proposalGate'
 import { hashQuoteLinkToken } from '@/lib/quotes/deliveryLink'
-import { GET as openLink } from '@/app/api/q/[token]/route'
+import { GET as linkPage, POST as exchangeLink } from '@/app/api/q/route'
 import { PLATFORM, TOKEN, agency, cleanup, recipient, resetBetweenTests, user } from '../ownerWhatsappReminders/reminderFixtures'
 
 let A: number
@@ -229,7 +229,7 @@ describe('approve and send', () => {
     expect(customer()).toHaveLength(1)
     const sent = customer()[0].body
     expect(sent.to).toBe(o.waId)
-    expect(sent.text.body).toMatch(/https:\/\/getsocialcrm\.com\/api\/q\/[A-Za-z0-9_-]{43}/)
+    expect(sent.text.body).toMatch(/https:\/\/getsocialcrm\.com\/api\/q#[A-Za-z0-9_-]{43}/)
     expect(sent.text.body).not.toContain('₪')
 
     const [d] = await deliveries(quoteId)
@@ -240,7 +240,7 @@ describe('approve and send', () => {
     expect(ownerText()).toContain(`מספר שמסתיים ב-${o.waId.slice(-4)}`)
     expect(await eventsOf(quoteId)).toEqual(expect.arrayContaining(['preview_offered', 'send_accepted']))
 
-    const token = /\/api\/q\/([A-Za-z0-9_-]{43})/.exec(sent.text.body)![1]
+    const token = /\/api\/q#([A-Za-z0-9_-]{43})/.exec(sent.text.body)![1]
     expect(d.linkTokenHash).toBe(hashQuoteLinkToken(token))
     expect(JSON.stringify(d)).not.toContain(token)
     const inbox = await db('inbox_messages').where({ agencyId: A, externalId: d.wamid }).first('text', 'metadata')
@@ -782,26 +782,37 @@ describe('the customer’s link', () => {
     const o = await owner()
     const { quoteId, buttons } = await reviewing(o)
     await tap(o, buttons[0])
-    const token = /\/api\/q\/([A-Za-z0-9_-]{43})/.exec(customer()[0].body.text.body)![1]
+    const token = /\/api\/q#([A-Za-z0-9_-]{43})/.exec(customer()[0].body.text.body)![1]
     return { o, quoteId, token }
   }
-  const open = (token: string, method = 'GET') => openLink(new NextRequest(`https://x.test/api/q/${token}`, { method }), { params: Promise.resolve({ token }) })
+  const open = (token: unknown) => exchangeLink(new NextRequest('https://x.test/api/q', { method: 'POST', body: JSON.stringify({ token }), headers: { 'Content-Type': 'application/json' } }))
 
-  it('opens exactly that quote’s PDF, briefly, uncached, and records the first open', async () => {
+  it('the token is in the fragment: the page request carries nothing, and serves only a static page', async () => {
+    const { token } = await linked()
+    expect(customer()[0].body.text.body).toContain(`/api/q#${token}`)
+    const res = linkPage()
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('/quote-open.mjs')
+    expect(html).not.toContain(token)
+    expect(res.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(res.headers.get('cache-control')).toContain('no-store')
+  })
+
+  it('exchanges the token for exactly that quote’s PDF, briefly, and records the first open once', async () => {
     const { quoteId, token } = await linked()
     const res = await open(token)
-    expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toContain(`/tenants/${A}/quotes/${quoteId}/`)
+    expect(res.status).toBe(200)
+    expect((await res.json()).url).toContain(`/tenants/${A}/quotes/${quoteId}/`)
     expect(res.headers.get('cache-control')).toContain('no-store')
     expect(res.headers.get('x-robots-tag')).toContain('noindex')
     await open(token)
     expect((await eventsOf(quoteId)).filter((e) => e === 'link_opened')).toHaveLength(1)
   })
 
-  it('a malformed, unknown, expired or revoked link is the same 404', async () => {
+  it('a malformed, missing, unknown, expired or revoked token is the same 404', async () => {
     const { quoteId, token } = await linked()
-    expect((await open('nope')).status).toBe(404)
-    expect((await open('a'.repeat(43))).status).toBe(404)
+    for (const bad of ['nope', 'a'.repeat(43), null, 42]) expect((await open(bad)).status).toBe(404)
     await db('sales_quote_deliveries').where({ quoteId }).update({ linkExpiresAt: new Date(Date.now() - 1000) })
     expect((await open(token)).status).toBe(404)
     await db('sales_quote_deliveries').where({ quoteId }).update({ linkExpiresAt: new Date(Date.now() + 1e7), linkRevokedAt: new Date() })
@@ -814,10 +825,22 @@ describe('the customer’s link', () => {
     expect((await open(token)).status).toBe(404)
   })
 
-  it('a preview-time HEAD does not count as the customer opening it', async () => {
+  it('turning the agency’s send switch off disables every link at once (the kill switch)', async () => {
+    const { token } = await linked()
+    delete process.env.WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS
+    expect((await open(token)).status).toBe(404)
+    process.env.WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS = `${A},${B}`
+    expect((await open(token)).status).toBe(200)
+  })
+
+  it('one tenant’s token opens only its own document', async () => {
     const { quoteId, token } = await linked()
-    await open(token, 'HEAD')
-    expect(await eventsOf(quoteId)).not.toContain('link_opened')
+    const foreign = await owner(B)
+    const other = await reviewing(foreign)
+    await tap(foreign, other.buttons[0])
+    const url = (await (await open(token)).json()).url as string
+    expect(url).toContain(`/tenants/${A}/quotes/${quoteId}/`)
+    expect(url).not.toContain(`/tenants/${B}/`)
   })
 })
 

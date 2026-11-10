@@ -3,7 +3,8 @@ import { createHash, randomBytes } from 'node:crypto'
 /**
  * The customer's link to one delivered quote. A bearer capability, so it is
  * unguessable (256 bits), stored only as a hash, and bound to one delivery of
- * one version of one PDF. It carries no CRM identifier.
+ * one version of one PDF. It carries no CRM identifier, and it travels in the URL
+ * fragment so no server log ever records it.
  */
 
 export const QUOTE_LINK_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
@@ -23,4 +24,13 @@ export function quoteLinkExpiry(expiresOn: string | null, nowMs: number): Date {
 
 export const newQuoteLinkToken = () => randomBytes(32).toString('base64url')
 export const hashQuoteLinkToken = (token: string) => createHash('sha256').update(token).digest('hex')
-export const quoteLinkPath = (token: string) => `/api/q/${token}`
+/** In the fragment, so the token is never sent with the page request (see app/api/q/route.ts). */
+export const quoteLinkPath = (token: string) => `/api/q#${token}`
+
+/** The customer-facing page around the link. */
+export const QUOTE_LINK_PAGE_COPY = {
+  title: 'הצעת מחיר',
+  opening: 'פותחים את הצעת המחיר...',
+  failed: 'הקישור לא תקין, פג תוקפו או בוטל. אפשר לבקש קישור חדש מהעסק.',
+  noScript: 'כדי לפתוח את הצעת המחיר צריך לאפשר JavaScript בדפדפן.',
+} as const
