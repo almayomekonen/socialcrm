@@ -24,9 +24,8 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
     fixedFieldHint: 'يمكن إدراج {{firstName}}',
     fixedPlaceholder: 'مرحبًا {{firstName}}، شكرًا لتواصلك معنا! استلمنا رسالتك وسنعود إليك قريبًا.',
     advancedShow: 'إعدادات متقدمة',
-    advancedHide: 'إخفاء الإعدادات المتقدمة',
   },
-  field: { sent: 'يُرسَل هذا النص إلى العميل كما هو', notSent: 'لا يُرسَل هذا النص إلى العميل' },
+  field: { sentBadge: 'يُرسَل إلى العميل كما هو' },
   timing: {
     title: 'التوقيت والحدود',
     intro: 'التحكم في الوتيرة كي يبقى الرد طبيعيًا.',
@@ -36,6 +35,7 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
     messages: 'رسائل',
     delayHint: 'الصفر يرسل فورًا.',
     capHint: 'سقف يومي للنشاط التجاري كله.',
+    capReached: 'عند الوصول إلى السقف، لا تتلقى الرسائل الجديدة ردًا تلقائيًا حتى اليوم التالي وتنتظر معالجتكم.',
   },
   save: {
     dirty: 'توجد تغييرات غير محفوظة',

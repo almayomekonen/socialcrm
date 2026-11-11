@@ -24,9 +24,8 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
     fixedFieldHint: 'You can include {{firstName}}',
     fixedPlaceholder: "Hi {{firstName}}, thanks for reaching out! We got your message and we'll get back to you soon.",
     advancedShow: 'Advanced settings',
-    advancedHide: 'Hide advanced settings',
   },
-  field: { sent: 'This text is sent to the customer as written', notSent: "This text isn't sent to the customer" },
+  field: { sentBadge: 'Sent to the customer as written' },
   timing: {
     title: 'Timing and limits',
     intro: 'Control the pace so the reply stays natural.',
@@ -36,6 +35,7 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
     messages: 'messages',
     delayHint: 'Zero sends immediately.',
     capHint: 'A daily ceiling for the whole business.',
+    capReached: 'When the limit is reached, new messages get no automatic reply until the next day and wait for you to handle them.',
   },
   save: {
     dirty: 'There are unsaved changes',

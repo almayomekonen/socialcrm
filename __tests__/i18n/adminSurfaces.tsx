@@ -32,10 +32,20 @@ export const AI_CONFIG: Allowance[] = [
   'ספרו לסוכן על העסק ומה תרצו שיעשה',
   'כתבו מה העסק מציע, מידע שחשוב ללקוחות לדעת ואיך תרצו שהסוכן יעזור. הסוכן ישתמש במידע כדי לענות ולנהל שיחה בשם העסק.',
   'אנחנו מוסך בחולון, פתוחים א׳–ה׳ 8:00–17:00. עושים טיפולים ותיקונים. ברר מה הבעיה ברכב, דגם ושנתון, ואסוף פרטים כדי שנחזור ללקוח לתיאום.',
-  'הטקסט הזה לא נשלח ללקוח',
   'בדקו את הסוכן שלכם',
   'שיחת בדיקה שלא נשלחת לאף אחד. אפשר לכתוב כמו לקוח ולראות מה הסוכן עונה.',
+  // The test chat is open beside the form on wide screens (side panel).
+  'בדיקת הסוכן',
+  'זו סימולציה. לא נשלחת הודעה בוואטסאפ, לא נוצר ליד, ואף אחד מהצוות לא מקבל התראה.',
+  'נבדק לפי ההגדרות השמורות.',
+  'כתבו הודעה כמו שלקוח היה כותב, ותראו איך סטודיו דנה עונה.',
+  'הודעה כלקוח',
+  'כתבו כאן כמו לקוח…',
+  'שליחה',
 ].map((text) => ({ text, reason: 'ai-config' as const }))
+
+/** The test chat's line once the description is edited — only seen in interactions, never in a static render. */
+export const AI_CONFIG_DRAFT: Allowance[] = [{ text: 'נבדק לפי הטקסט שכתבתם עכשיו ועדיין לא שמרתם.', reason: 'ai-config' }]
 
 const PEOPLE = ['דנה כהן', 'משה לוי', 'רונית אברהם']
 
@@ -63,7 +73,7 @@ export const ADMIN_SURFACES: Surface[] = [
     render: page('quoteTemplates', { hasAccess: false, quoteOverviews: QUOTE_OVERVIEWS.slice(0, 1) }, EXPIRED),
     allowed: data('בניית אתר תדמית'),
   },
-  { name: 'admin — auto-response, smart reply', route: '/settings/auto-response', render: page('autoResponse'), allowed: [...data('אנחנו מוסך בחולון, פתוחים א׳–ה׳.'), ...AI_CONFIG] },
+  { name: 'admin — auto-response, smart reply', route: '/settings/auto-response', render: page('autoResponse'), allowed: [...data('אנחנו מוסך בחולון, פתוחים א׳–ה׳.', 'סטודיו דנה'), ...AI_CONFIG] },
   {
     name: 'admin — auto-response, fixed message, questionnaire answering (Builder)',
     route: '/settings/auto-response',

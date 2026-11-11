@@ -123,6 +123,8 @@ export const ADMIN_CUSTOMER_DATA: string[] = [
   'בניית אתר תדמית',
   'ניהול קמפיין',
   'אנחנו מוסך בחולון, פתוחים א׳–ה׳.',
+  // The agency name: the auto-response test chat names the business it simulates.
+  'סטודיו דנה',
 ]
 
 export const ADMIN_DEFAULTS = {

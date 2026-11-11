@@ -5,51 +5,51 @@ import { Btn } from '@/lib/btns/Btn'
 import { useT } from '@/lib/i18n/I18nProvider'
 
 /**
- * The form's bottom bar: the inline save state (error / unsaved / saved) and
- * the cancel + save buttons, or the expired lock in their place.
+ * The form's save bar: pinned to the bottom of the viewport, and present only
+ * while there is something to save — unsaved changes, or a refused save whose
+ * error the owner still needs to read. Otherwise it is not rendered at all, so a
+ * settled page shows no idle buttons. A successful save is confirmed by toast
+ * (the form), since the bar leaves with the changes.
  *
- * Extracted from `AutoResponseSettingsForm.tsx` (328 lines, over the 250-line
- * soft limit — architecture-rules §1, §5) before its translation. The markup
- * moved intact; `showError` is the form's own condition (an error that is not
- * already shown under the fixed-message field).
+ * Same bar language as `MobileStickyActions` (sticky, top hairline, white),
+ * within the form's content column on desktop. `showError` is the form's own
+ * condition: an error that is not already shown under the fixed-message field.
  */
 type Props = {
   error: string | null
   showError: boolean
   dirty: boolean
-  saved: boolean
   pending: boolean
   proLocked: boolean
   onCancel: () => void
   onSave: () => void
 }
 
-export default function AutoResponseSaveBar({ error, showError, dirty, saved, pending, proLocked, onCancel, onSave }: Props) {
+export default function AutoResponseSaveBar({ error, showError, dirty, pending, proLocked, onCancel, onSave }: Props) {
   const t = useT()
+  if (!dirty && !error) return null
   return (
-    <div className='mt-5.5 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-5.5'>
-      <div className='flex items-center gap-2.5'>
-        {showError && (
+    <div
+      data-auto-response-save-bar
+      className='sticky bottom-0 z-30 mt-5.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-gray-200 bg-white py-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.875rem)]'
+    >
+      <div className='flex min-w-0 items-center gap-2.5'>
+        {showError ? (
           <p className='text-sm text-red-600' role='alert'>
             {error}
           </p>
+        ) : (
+          dirty && (
+            <>
+              <span className='size-1.25 shrink-0 rounded-full bg-warning' aria-hidden />
+              <p className='text-sm text-gray-700'>{t('admin.autoResponse.save.dirty')}</p>
+            </>
+          )
         )}
-        {!error && dirty && (
-          <>
-            <span className='size-1.25 rounded-full bg-warning' />
-            <p className='text-sm text-gray-500'>{t('admin.autoResponse.save.dirty')}</p>
-          </>
-        )}
-        {!error && !dirty && saved && <p className='text-sm text-gray-500'>{t('admin.autoResponse.save.saved')}</p>}
       </div>
 
       {proLocked ? (
-        <SubscriptionExpiredState
-          mode='inline'
-          source='auto_response_save'
-          feature={t('admin.autoResponse.expiredFeature')}
-          translated
-        />
+        <SubscriptionExpiredState mode='inline' source='auto_response_save' feature={t('admin.autoResponse.expiredFeature')} translated />
       ) : (
         <div className='flex items-center gap-2.5'>
           <Btn variant='outline' lbl={t('admin.autoResponse.save.cancel')} disabled={!dirty || pending} onClick={onCancel} />

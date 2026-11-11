@@ -1,251 +1,90 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Btn } from '@/lib/btns/Btn'
-import Icon from '@/lib/Icon'
-import { previewAgentTurn, type PreviewTurn } from '@/actions/autoResponse/previewAgent'
+import ModalPop from '@/lib/modals/ModalPop'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { untranslatedAttrs } from '@/lib/i18n/config'
+import AgentPreviewChat from './AgentPreviewChat'
+import { useAgentPreviewChat, type AgentPreviewChatState } from './useAgentPreviewChat'
 
 /**
  * "בדקו את הסוכן שלכם" — the owner talks to their own agent before a customer
  * does.
  *
- * ISOLATION. The whole conversation lives in this component's state and is
- * posted back on every turn. Nothing is persisted: no WhatsApp send, no
- * conversation row, no lead, no job, no notification, no live handoff. The
- * server action enforces that; this panel states it on screen so the owner is
- * never guessing whether a test message reached a real customer.
+ * PLACEMENT. On a wide screen the chat is a sticky panel beside the form
+ * (`AgentPreviewPanel`), so the owner edits on one side and sees the agent
+ * answer on the other. Below `xl` there is no room beside the form — the app
+ * rail, the settings nav and the page padding take ~350px of the viewport, so at
+ * `lg` (1024px) the form column measured 230px — and the panel is hidden and `AgentPreviewLauncher`, placed with the agent's fields, opens the
+ * same chat in the existing dialog (ModalPop). Both read one conversation state
+ * (`useAgentPreview`), so resizing the window never loses the test chat. This is
+ * responsive layout, not a mobile-only component — phones never reach this form
+ * (the page serves AutoResponseMobile to them; architecture-rules §9).
  *
- * DRAFT VS SAVED. The owner is usually mid-edit. The panel sends whatever is
- * currently in the textarea, and labels each reply with which it used — testing
- * saved settings and testing unsaved words are different questions and the
- * answer must say which one it answered.
- *
- * RTL. The conversation reads right-to-left like the real thing; bubbles use the
- * same in/out geometry the inbox uses so a reply looks here as it will there.
+ * DRAFT VS SAVED. The chat sends whatever is currently typed in the business
+ * description and the advanced instructions — the two draft fields the preview
+ * action accepts — and says whether the reply used saved or unsaved text.
  *
  * LANGUAGE. This is the AI agent's test chat: its replies, notes and chrome are
  * AI output / AI configuration, out of scope by owner order (no AI
  * localization). Outside Hebrew both roots re-declare Hebrew.
  */
-
-type Props = {
+type Input = {
   /** Current textarea contents, saved or not. */
   draftDescription: string
   draftAgentInstructions: string
-  /** What is actually stored, so the panel can tell the owner which it used. */
+  /** What is actually stored, so the chat can tell the owner which it used. */
   savedDescription: string
   businessName: string
 }
 
-type Bubble = {
-  id: number
-  direction: 'inbound' | 'outbound'
-  text: string
-  note?: string | null
-  usedDraft?: boolean
+export type AgentPreviewState = {
+  chat: AgentPreviewChatState
+  businessName: string
+  hasDescription: boolean
+  isDraft: boolean
 }
 
-const ERROR_COPY: Record<string, string> = {
-  no_description: 'כדי לבדוק את הסוכן צריך קודם לכתוב על העסק בשדה למעלה.',
-  forbidden: 'רק מנהל יכול לבדוק את הסוכן.',
-  ai_unavailable: 'השירות לא זמין כרגע. נסו שוב בעוד רגע.',
-  budget_exhausted: 'נגמרה מכסת השימוש היומית. נסו שוב מחר.',
-  empty_transcript: 'כתבו הודעה כדי להתחיל.',
-  no_pending_inbound: 'כתבו הודעה כדי להתחיל.',
-  conversational_unavailable: 'הסוכן החכם לא פעיל כרגע בוואטסאפ של העסק (למשל כשהשאלון פעיל או כשנבחרה הודעה קבועה), ולכן אי אפשר לבדוק אותו כאן.',
-  agent_paused: 'המענה החכם מושהה כרגע במערכת, ולכן אי אפשר לבדוק אותו. נסו שוב מאוחר יותר.',
+export function useAgentPreview({ draftDescription, draftAgentInstructions, savedDescription, businessName }: Input): AgentPreviewState {
+  const chat = useAgentPreviewChat({ draftDescription, draftAgentInstructions })
+  return {
+    chat,
+    businessName,
+    hasDescription: draftDescription.trim().length > 0,
+    isDraft: draftDescription.trim() !== savedDescription.trim(),
+  }
 }
 
-let nextId = 1
+/** Wide screens: the sticky chat panel beside the form. */
+export function AgentPreviewPanel({ preview }: { preview: AgentPreviewState }) {
+  const hebrew = untranslatedAttrs(useT().locale)
+  return (
+    <aside className='hidden xl:sticky xl:top-6 xl:block xl:self-start' aria-label='בדיקת הסוכן' data-agent-preview='panel' {...hebrew}>
+      <AgentPreviewChat {...preview} />
+    </aside>
+  )
+}
 
-export default function AgentPreview({
-  draftDescription,
-  draftAgentInstructions,
-  savedDescription,
-  businessName,
-}: Props) {
+/** Below `xl`: one button that opens the same chat in a dialog. */
+export function AgentPreviewLauncher({ preview }: { preview: AgentPreviewState }) {
   const hebrew = untranslatedAttrs(useT().locale)
   const [open, setOpen] = useState(false)
-  const [bubbles, setBubbles] = useState<Bubble[]>([])
-  const [input, setInput] = useState('')
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // Conversational agent: the AI state the real agent would have after the last turn, passed back each time.
-  const [agentState, setAgentState] = useState<unknown>(undefined)
-  const endRef = useRef<HTMLDivElement>(null)
-
-  const hasDescription = draftDescription.trim().length > 0
-  const isDraft = draftDescription.trim() !== savedDescription.trim()
-
-  function reset() {
-    setBubbles([])
-    setInput('')
-    setError(null)
-    setAgentState(undefined)
-  }
-
-  async function send() {
-    const text = input.trim()
-    if (!text || pending) return
-    setError(null)
-    setInput('')
-
-    const mine: Bubble = { id: nextId++, direction: 'inbound', text }
-    const history: PreviewTurn[] = [...bubbles, mine].map((b) => ({ direction: b.direction, text: b.text }))
-    setBubbles((prev) => [...prev, mine])
-    setPending(true)
-
-    try {
-      const result = await previewAgentTurn({
-        transcript: history,
-        draftDescription,
-        draftAgentInstructions,
-        ...(agentState !== undefined ? { state: agentState } : {}),
-      })
-      if (result.ok === false) {
-        setError(ERROR_COPY[result.reason] ?? 'משהו השתבש. נסו שוב.')
-        return
-      }
-      if (result.state) setAgentState(result.state)
-      // A silent turn is a real outcome (opt-out, a close). Show the reason
-      // rather than an empty bubble, so "nothing happened" is never ambiguous.
-      if (!result.reply.trim()) {
-        setBubbles((prev) => [
-          ...prev,
-          { id: nextId++, direction: 'outbound', text: '', note: result.trace.simulated ?? 'הסוכן לא היה שולח כלום כאן.' },
-        ])
-        return
-      }
-      setBubbles((prev) => [
-        ...prev,
-        {
-          id: nextId++,
-          direction: 'outbound',
-          text: result.reply,
-          note: result.trace.simulated,
-          usedDraft: result.usedDraft,
-        },
-      ])
-    } catch {
-      setError('משהו השתבש. נסו שוב.')
-    } finally {
-      setPending(false)
-      // Scrolling is a nicety. It must never be able to throw inside `finally`
-      // and leave the composer stuck in its pending state.
-      try {
-        endRef.current?.scrollIntoView?.({ block: 'nearest' })
-      } catch {
-        /* not scrollable here; the reply is already rendered */
-      }
-    }
-  }
-
-  if (!open) {
-    return (
-      <div className='mt-5.5 border-t border-gray-200 pt-5.5' {...hebrew}>
-        <div className='flex flex-wrap items-center gap-3'>
-          <Btn type='button' lbl='בדקו את הסוכן שלכם' onClick={() => setOpen(true)} disabled={!hasDescription} />
-          <p className='text-sm text-gray-600'>
-            {hasDescription
-              ? 'שיחת בדיקה שלא נשלחת לאף אחד. אפשר לכתוב כמו לקוח ולראות מה הסוכן עונה.'
-              : 'כתבו קודם על העסק כדי לבדוק את הסוכן.'}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <section className='mt-5.5 border-t border-gray-200 pt-5.5' {...hebrew}>
-      <div className='flex flex-wrap items-baseline justify-between gap-2.5'>
-        <h2 className='text-base font-semibold text-ink'>בדיקת הסוכן</h2>
-        <div className='flex items-center gap-3.5'>
-          <button type='button' onClick={reset} className='text-sm text-gray-600 underline underline-offset-2'>
-            שיחה חדשה
-          </button>
-          <button type='button' onClick={() => setOpen(false)} className='text-sm text-gray-600 underline underline-offset-2'>
-            סגירה
-          </button>
-        </div>
-      </div>
-
-      <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>
-        זו סימולציה. לא נשלחת הודעה בוואטסאפ, לא נוצר ליד, ואף אחד מהצוות לא מקבל התראה.
-      </p>
-
-      <p className='mt-1.5 text-sm text-gray-600'>
-        {isDraft ? (
-          <span className='font-medium text-ink'>נבדק לפי הטקסט שכתבתם עכשיו ועדיין לא שמרתם.</span>
-        ) : (
-          <span>נבדק לפי ההגדרות השמורות.</span>
-        )}
-      </p>
-
-      <div
-        dir='rtl'
-        className='mt-4 flex max-h-96 min-h-40 flex-col gap-2.5 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-4'
-      >
-        {bubbles.length === 0 && (
-          <p className='m-auto max-w-sm text-center text-sm text-gray-500'>
-            כתבו הודעה כמו שלקוח היה כותב, ותראו איך {businessName || 'העסק'} עונה.
-          </p>
-        )}
-        {bubbles.map((b) => (
-          <div key={b.id} className={b.direction === 'inbound' ? 'self-start' : 'self-end'}>
-            {b.text && (
-              <div
-                className={
-                  b.direction === 'inbound'
-                    ? 'max-w-[85%] rounded-lg rounded-bl-sm border border-gray-200 bg-white px-3.5 py-2 text-sm leading-relaxed'
-                    : 'max-w-[85%] rounded-lg rounded-br-sm border border-[#25D366]/35 bg-[#25D366]/12 px-3.5 py-2 text-sm leading-relaxed'
-                }
-              >
-                {b.text}
-              </div>
-            )}
-            {b.note && (
-              <p className='mt-1 max-w-[85%] text-xs leading-relaxed text-gray-500'>
-                <Icon type='reg' name='info' className='ml-1 inline-block size-3 bg-gray-400 align-[-1px]' />
-                {b.note}
-              </p>
-            )}
-          </div>
-        ))}
-        {pending && <p className='self-end text-xs text-gray-500'>הסוכן מקליד…</p>}
-        <div ref={endRef} />
-      </div>
-
-      {error && (
-        <p role='alert' className='mt-2 text-sm text-red-600'>
-          {error}
+    <div className='xl:hidden' data-agent-preview='launcher' {...hebrew}>
+      <div className='flex flex-wrap items-center gap-3'>
+        <Btn type='button' lbl='בדקו את הסוכן שלכם' onClick={() => setOpen(true)} disabled={!preview.hasDescription} />
+        <p className='text-sm text-gray-600'>
+          {preview.hasDescription
+            ? 'שיחת בדיקה שלא נשלחת לאף אחד. אפשר לכתוב כמו לקוח ולראות מה הסוכן עונה.'
+            : 'כתבו קודם על העסק כדי לבדוק את הסוכן.'}
         </p>
-      )}
-
-      <div dir='rtl' className='mt-3 flex flex-wrap items-center gap-2.5'>
-        <input
-          type='text'
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              void send()
-            }
-          }}
-          disabled={pending}
-          aria-label='הודעה כלקוח'
-          placeholder='כתבו כאן כמו לקוח…'
-          className='min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:outline-2 focus:outline-offset-0 focus:outline-primary'
-        />
-        <Btn
-          type='button'
-          lbl={pending ? 'שולח…' : 'שליחה'}
-          onClick={() => void send()}
-          disabled={pending || !input.trim()}
-        />
       </div>
-    </section>
+      <ModalPop open={open} onClose={() => setOpen(false)} label='בדיקת הסוכן' className='w-[min(calc(100vw-2rem),32rem)]'>
+        <div className='p-5' {...hebrew}>
+          <AgentPreviewChat {...preview} />
+        </div>
+      </ModalPop>
+    </div>
   )
 }

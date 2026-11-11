@@ -87,9 +87,9 @@ const EN: Record<string, string[]> = {
   'admin — quote templates (active + archive)': ['Quote templates', 'New quote', 'Archive', '2 lines', ' · 1 optional', 'before VAT', 'Valid for 14 days', 'Valid for one day', 'Active', 'Archived', 'Updated 2 h ago', 'Updated 3 days ago', 'Restore'],
   'admin — quote templates, none yet': ['No quote templates yet', 'A template gathers the prices you offer'],
   'admin — quote templates, subscription expired': ['Renewing the subscription brings back editing quote templates'],
-  'admin — auto-response, smart reply': ['Auto response', 'WhatsApp auto response', 'On', 'Reply style', 'Smart reply', 'Fixed message', 'Advanced settings', 'Timing and limits', 'Wait before sending', 'seconds', 'Maximum replies per day', 'Save changes', 'Cancel'],
-  'admin — auto-response, fixed message, questionnaire answering (Builder)': ['How WhatsApp inquiries are answered', 'Smart AI agent', 'Structured questionnaire', 'Active now: structured questionnaire', 'Edit the questionnaire', 'The agent settings are hidden because the questionnaire is active.'],
-  'admin — auto-response off, questionnaire set up by staff, expired': ['Off', 'No reply is being sent on any channel right now.', 'Structured questionnaire', 'Active now: structured questionnaire', 'Renewing the subscription brings back auto response'],
+  'admin — auto-response, smart reply': ['Auto response', 'WhatsApp auto response', 'On', 'Reply style', 'Smart reply', 'Fixed message', 'Advanced settings', 'Timing and limits', 'Wait before sending', 'seconds', 'Maximum replies per day', 'When the limit is reached, new messages get no automatic reply until the next day'],
+  'admin — auto-response, fixed message, questionnaire answering (Builder)': ['How WhatsApp inquiries are answered', 'Smart AI agent', 'Structured questionnaire', 'Edit the questionnaire', 'The agent settings are hidden because the questionnaire is active.'],
+  'admin — auto-response off, questionnaire set up by staff, expired': ['Off', 'No reply is being sent on any channel right now.', 'Structured questionnaire', 'Renewing the subscription brings back auto response'],
 }
 const AI_TEXTS = AI_CONFIG.map((a) => a.text)
 

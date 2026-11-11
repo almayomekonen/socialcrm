@@ -87,7 +87,15 @@ describe('the preview runs the same decisions as the live agent', () => {
 })
 
 describe('the preview UI states what it is', () => {
-  const ui = read('components/settings/autoResponse/AgentPreview.tsx')
+  // The chat's copy, its state and its wrapper live in three files since the
+  // side-panel layout; together they are the preview UI.
+  const ui = [
+    'components/settings/autoResponse/AgentPreview.tsx',
+    'components/settings/autoResponse/AgentPreviewChat.tsx',
+    'components/settings/autoResponse/useAgentPreviewChat.ts',
+  ]
+    .map(read)
+    .join('\n')
 
   it('says plainly that nothing is sent', () => {
     expect(ui).toContain('לא נשלחת הודעה בוואטסאפ, לא נוצר ליד, ואף אחד מהצוות לא מקבל התראה')
@@ -160,7 +168,9 @@ describe('the setup flow asks for one thing', () => {
   })
 
   it('asks for the business name only when the account has none', () => {
-    expect(style).toContain('replyMode === \'ai\' && needsBusinessName')
+    // Inside the Smart Agent's branch of the fields (the fixed message returns first).
+    expect(style).toContain("if (replyMode === 'fixed') {")
+    expect(style).toContain('{needsBusinessName && (')
     expect(style).toContain("t('admin.autoResponse.style.businessNameHint')")
     expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("businessNameHint: 'הסוכן פותח איתו כל שיחה. נשמר בחשבון.'")
   })

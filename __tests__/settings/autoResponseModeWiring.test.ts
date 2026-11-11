@@ -118,18 +118,22 @@ describe('the three kinds of text are told apart on screen', () => {
   const form = read('components/settings/autoResponse/AutoResponseReplyStyle.tsx')
   const field = read('components/settings/autoResponse/AutoResponseTextField.tsx')
 
-  it('every field says whether the customer receives it', () => {
-    // The two notes moved to the catalog (Phase E5a); the field still picks one by `sent`.
-    expect(field).toContain("sent ? t('admin.autoResponse.field.sent') : t('admin.autoResponse.field.notSent')")
-    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("field: { sent: 'הטקסט הזה נשלח ללקוח כלשונו', notSent: 'הטקסט הזה לא נשלח ללקוח' }")
+  it('a field whose words reach the customer verbatim carries one clear badge; internal fields carry none', () => {
+    // The per-field "sent / not sent" footer note was noise on every field; it
+    // became one badge, rendered only when `sent` is true.
+    expect(field).toContain('{sent && (')
+    expect(field).toContain("t('admin.autoResponse.field.sentBadge')")
+    expect(field).not.toContain('field.notSent')
+    expect(read('lib/i18n/messages/he/admin/autoResponse.ts')).toContain("field: { sentBadge: 'נשלח ללקוח כלשונו' }")
   })
 
   it('business information and agent instructions are separate fields, neither sent', () => {
     expect(form).toContain("label='ספרו לסוכן על העסק ומה תרצו שיעשה'")
     expect(form).toContain("label='הנחיות נוספות לסוכן'")
-    const aiBlock = form.slice(form.indexOf("replyMode === 'ai' ? ("), form.indexOf(') : ('))
+    // The Smart Agent's fields follow the fixed-message branch, which returns first.
+    const aiBlock = form.slice(form.indexOf("label='ספרו לסוכן על העסק ומה תרצו שיעשה'"))
     expect(aiBlock).toContain('sent={false}')
-    expect(aiBlock).not.toContain('sent\n')
+    expect(aiBlock).not.toMatch(/^\s+sent$/m)
   })
 
   it('the fixed message is the only one marked as sent', () => {
@@ -145,8 +149,10 @@ describe('the three kinds of text are told apart on screen', () => {
   })
 
   it('saved content is preserved — both values are held and submitted', () => {
-    expect(read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')).toContain('guidance: guidance.trim() || null')
-    expect(read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')).toContain('agentInstructions: agentInstructions.trim() || null')
-    expect(read('components/settings/autoResponse/AutoResponseSettingsForm.tsx')).toContain('fixedBody: fixedBody.trim() || null')
+    // The save moved into the form's hook with the sticky save bar.
+    const save = read('components/settings/autoResponse/useAutoResponseForm.ts')
+    expect(save).toContain('guidance: draft.guidance.trim() || null')
+    expect(save).toContain('agentInstructions: draft.agentInstructions.trim() || null')
+    expect(save).toContain('fixedBody: draft.fixedBody.trim() || null')
   })
 })

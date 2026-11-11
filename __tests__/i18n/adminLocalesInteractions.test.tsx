@@ -45,7 +45,7 @@ vi.mock('@/lib/flags/questionnaireBuilderFlags', async () => (await import('./ad
 vi.mock('@/actions/autoResponse/updateSettings', async () => (await import('./adminMocks')).updateAutoResponseModule())
 vi.mock('@/actions/autoResponse/previewAgent', async () => (await import('./adminMocks')).previewAgentModule())
 vi.mock('@/modules/settings/mobile/AutoResponseMobile', async () => (await import('./adminMocks')).autoResponseMobileModule())
-const { AI_CONFIG } = await import('./adminSurfaces')
+const { AI_CONFIG, AI_CONFIG_DRAFT } = await import('./adminSurfaces')
 const { adminPage, adminShell } = await import('./adminHarness')
 
 const DATA: Allowance[] = [...ADMIN_CUSTOMER_DATA, 'חבילת לוגו', 'עיצוב לוגו', 'עוד הודעה'].map((text) => ({ text, reason: 'customer-data' as const }))
@@ -69,7 +69,7 @@ const set = (overrides: Partial<typeof adminEnv>) => Object.assign(adminEnv, ove
 
 let scans: string[] = []
 const scan = (where: string) => {
-  for (const leak of findHebrewLeaks(document.body, [...DATA, ...AI_CONFIG])) scans.push(`${where}: ${leak.where} «${leak.text}»`)
+  for (const leak of findHebrewLeaks(document.body, [...DATA, ...AI_CONFIG, ...AI_CONFIG_DRAFT])) scans.push(`${where}: ${leak.where} «${leak.text}»`)
 }
 
 async function run(locale: UiLocale, flow: (scan: (w: string) => void) => Promise<void>) {

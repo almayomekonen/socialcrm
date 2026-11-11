@@ -136,7 +136,7 @@ export default function ResponderSelector({ choice, builderHref, readOnly = fals
             )}
           </p>
         )}
-        {isActive && kind === 'questionnaire' && editHref && (
+        {kind === 'questionnaire' && editHref && !(unavailable && option.available === false && option.reason === 'questionnaire_not_published') && (
           <Link href={editHref} className='w-fit text-sm font-medium text-ink underline underline-offset-2'>
             {t('admin.autoResponse.responder.editLink')}
           </Link>
@@ -163,7 +163,7 @@ export default function ResponderSelector({ choice, builderHref, readOnly = fals
 
   if (!choice) {
     return (
-      <section className={readOnly ? '' : 'mt-8 max-w-4xl'} aria-labelledby='responder-heading' {...region}>
+      <section className={readOnly ? '' : 'mt-8'} aria-labelledby='responder-heading' {...region}>
         <h2 id='responder-heading' className='text-base font-semibold text-ink'>
           {t('admin.autoResponse.responder.heading')}
         </h2>
@@ -179,7 +179,7 @@ export default function ResponderSelector({ choice, builderHref, readOnly = fals
   }
 
   return (
-    <section className={readOnly ? '' : 'mt-8 max-w-4xl'} aria-labelledby='responder-heading' {...region}>
+    <section className={readOnly ? '' : 'mt-8'} aria-labelledby='responder-heading' {...region}>
       <h2 id='responder-heading' className='text-base font-semibold text-ink'>
         {t('admin.autoResponse.responder.heading')}
       </h2>
@@ -192,9 +192,16 @@ export default function ResponderSelector({ choice, builderHref, readOnly = fals
         {card('questionnaire')}
       </div>
 
-      <p className='mt-4 text-sm font-medium text-gray-800' role='status' data-responder-current={choice.current}>
-        {t(CURRENT_KEY[choice.current])}
-      </p>
+      {/*
+        The selected card's "פעיל" badge already says what answers. The line
+        stays only when no card is active (one AI reply / one fixed reply),
+        where it is the only explanation of what customers receive.
+      */}
+      {choice.active === null && (
+        <p className='mt-4 text-sm font-medium text-gray-800' role='status' data-responder-current={choice.current}>
+          {t(CURRENT_KEY[choice.current])}
+        </p>
+      )}
       {choice.questionnaireStalled && (
         <p className='mt-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-gray-800'>
           {t('admin.autoResponse.responder.stalled')}{' '}

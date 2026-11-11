@@ -130,12 +130,12 @@ describe('Hebrew baseline — auto-response', () => {
     expect(out).toMatchSnapshot()
   })
 
-  test('the agent test chat: closed, open, reply, silent turn, refusal, failure, no description', async () => {
+  test('the agent test chat: open beside the form, reply, silent turn, refusal, failure, no description', async () => {
     const out: Record<string, unknown> = {}
     const { container } = await mount('autoResponse')
-    await click(btn('בדקו את הסוכן שלכם'))
+    // The side panel is open from the start (the narrow-screen launcher opens the same chat in a dialog).
     out.open = norm(container.innerHTML)
-    const input = container.querySelector('input[aria-label="הודעה כלקוח"]')
+    const input = container.querySelector('aside input[aria-label="הודעה כלקוח"]')
     const send = async (text: string) => {
       await type(input, text)
       await click(btn('שליחה'))
@@ -154,7 +154,6 @@ describe('Hebrew baseline — auto-response', () => {
     out.thrown = norm(container.querySelector('[role="alert"]')?.outerHTML ?? '')
     out.chat = norm(container.innerHTML)
     await click(btn('שיחה חדשה'))
-    await click(btn('סגירה'))
     await type(container.querySelectorAll('textarea')[0], '')
     out.noDescription = norm(container.innerHTML)
     out.calls = calls()

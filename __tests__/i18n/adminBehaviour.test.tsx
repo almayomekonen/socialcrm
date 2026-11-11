@@ -151,9 +151,13 @@ describe('dialogs, names, regions', () => {
     H.prefs.userLocale = 'en'
     const { container } = render(await adminShell('en', await adminPage('autoResponse')))
     const islands = [...container.querySelectorAll('[lang="he"]')]
-    expect(islands.length).toBe(2)
+    // The business description, and the test chat twice: the narrow-screen
+    // launcher in the flow and the wide-screen side panel (CSS shows one).
+    expect(islands.length).toBe(3)
     expect(islands[0].textContent).toContain('ספרו לסוכן על העסק ומה תרצו שיעשה')
     expect(islands[1].textContent).toContain('בדקו את הסוכן שלכם')
+    expect(islands[2].tagName).toBe('ASIDE')
+    expect(islands[2].textContent).toContain('בדיקת הסוכן')
     expect(container.firstElementChild?.getAttribute('lang')).toBe('en')
     expect(translatorFor('en')('admin.autoResponse.style.fixedFieldHint')).toContain('{{firstName}}')
   })

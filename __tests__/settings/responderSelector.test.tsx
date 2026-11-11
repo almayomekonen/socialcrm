@@ -29,13 +29,20 @@ describe('which card is selected comes from the persisted responder', () => {
     render(<ResponderSelector choice={choice()} />)
     expect(card(AGENT).getAttribute('aria-pressed')).toBe('true')
     expect(card(QUESTIONNAIRE).getAttribute('aria-pressed')).toBe('false')
-    expect(screen.getByRole('status').textContent).toContain('פעיל כעת: סוכן AI חכם')
+    // The active card's "פעיל" badge says it; the "פעיל כעת" line would only repeat it.
+    expect(card(AGENT).textContent).toContain('פעיל')
+    expect(screen.queryByText(/פעיל כעת/)).toBeNull()
+  })
+
+  it('the questionnaire option links to its editor even while it is not the active method', () => {
+    render(<ResponderSelector choice={choice()} builderHref='/settings/questionnaire' />)
+    expect(screen.getByRole('link', { name: 'עריכת השאלון' }).getAttribute('href')).toBe('/settings/questionnaire')
   })
 
   it('questionnaire stored → questionnaire pressed, with an edit link to the Builder', () => {
     render(<ResponderSelector choice={choice({ responder: 'questionnaire' })} builderHref='/settings/questionnaire' />)
     expect(card(QUESTIONNAIRE).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('link', { name: 'לעריכת השאלון' }).getAttribute('href')).toBe('/settings/questionnaire')
+    expect(screen.getByRole('link', { name: 'עריכת השאלון' }).getAttribute('href')).toBe('/settings/questionnaire')
   })
 })
 
@@ -45,6 +52,7 @@ describe('unavailable options', () => {
     expect(screen.queryByRole('button', { name: AGENT })).toBeNull()
     expect(screen.getByText(/סוכן ה-AI עם שיחה מלאה עדיין לא זמין לעסק שלכם/)).toBeTruthy()
     expect(screen.queryByRole('button', { pressed: true })).toBeNull()
+    // No card is active here, so the line stays: it is the only explanation of what customers get.
     expect(screen.getByRole('status').textContent).toContain('הודעה קבועה אחת')
   })
 
