@@ -84,7 +84,7 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
     setupLink: 'Build the questionnaire',
     editLink: 'Edit the questionnaire',
     confirm: {
-      agent: 'Turn on the smart AI agent?\nFrom now on every new WhatsApp inquiry will be answered by a conversation with the agent instead of the questionnaire. A conversation in the middle of the questionnaire will be handed to your team. The questionnaire, its published versions and drafts are kept.',
+      agent: 'Turn on the smart AI agent?\nFrom now on every new WhatsApp inquiry will be answered by a conversation with the agent instead of the questionnaire. Someone in the middle of the questionnaire will get your handoff message with their next message, and the conversation will go to your team with the answers collected so far. The questionnaire, its published versions and drafts are kept.',
       questionnaire: 'Turn on the structured questionnaire?\nFrom now on every new WhatsApp inquiry will be answered by the questionnaire you published instead of the agent. Conversations that already started will not get an automatic reply. The agent settings are kept.',
       agentLbl: 'Turn on AI agent',
       questionnaireLbl: 'Turn on questionnaire',
@@ -100,5 +100,7 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
     },
     agentHidden: "The agent settings are hidden because the questionnaire is active. They're kept as they are.",
     mobileHint: 'The response method is changed from a computer.',
+    noSettings: "Auto response hasn't been set up for your business yet, so WhatsApp inquiries don't get an automatic reply right now. Turn on auto response above and click \"Save changes\", and then you can choose a response method.",
+    noSettingsMobile: "Auto response hasn't been set up for your business yet. The first setup is done from a computer.",
   },
 }

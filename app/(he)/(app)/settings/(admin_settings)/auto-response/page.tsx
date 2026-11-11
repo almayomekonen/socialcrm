@@ -63,13 +63,13 @@ export default async function AutoResponseSettingsPage() {
 
   // The persisted responder and what this agency can actually run (one rule,
   // shared with the switch action). Never inferred from replyMode alone.
-  const choice = resolveResponderChoice({
-    responder: channel?.responder,
-    mode: channel?.mode,
-    replyMode: channel?.replyMode,
+  const choice = channel ? resolveResponderChoice({
+    responder: channel.responder,
+    mode: channel.mode,
+    replyMode: channel.replyMode,
     questionnaireAllowed: canUseWhatsappQuestionnaire(user.agencyId),
-    questionnairePublished: parseQuestionnaireDefinition(channel?.questionnaire ?? null).ok,
-  })
+    questionnairePublished: parseQuestionnaireDefinition(channel.questionnaire ?? null).ok,
+  }) : null
   const builderHref = canUseQuestionnaireBuilder(user.agencyId) ? '/settings/questionnaire' : undefined
 
   return (
@@ -95,8 +95,8 @@ export default async function AutoResponseSettingsPage() {
         fixedBody={channel?.fixedBody ?? null}
         delaySeconds={channel?.delaySeconds ?? 0}
         {...(conversational ? { agentProfile: agentProfile ?? null } : {})}
-        agentSettingsVisible={choice.stored !== 'questionnaire'}
-        responderSlot={channel ? <ResponderSelector choice={choice} builderHref={builderHref} /> : undefined}
+        agentSettingsVisible={choice?.stored !== 'questionnaire'}
+        responderSlot={<ResponderSelector choice={choice} builderHref={builderHref} />}
       />
     </>
   )

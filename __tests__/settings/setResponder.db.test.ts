@@ -280,6 +280,18 @@ describe('the settings page renders the persisted choice', () => {
     expect(html).not.toContain('הגדרות הסוכן מוסתרות')
   })
 
+  it('no settings row: the page explains the state and creates nothing', async () => {
+    const [a] = await db('agencies').insert({ name: 'rs-page-norow', plan: 'pro' }).returning('id')
+    agencies.push(Number(a.id))
+    const [u] = await db('users').insert({ firstName: 'א', role: 'ADMIN', agencyId: a.id }).returning('id')
+    auth.user = { id: Number(u.id), agencyId: Number(a.id), role: 'ADMIN' }
+    const html = await page()
+    expect(html).toContain('data-responder-current="no_settings"')
+    expect(html).toContain('המענה האוטומטי עוד לא הוגדר לעסק')
+    expect(html).not.toContain('aria-pressed')
+    expect(await db('auto_response_settings').where({ agencyId: a.id }).first()).toBeUndefined()
+  })
+
   it('a one-reply agency: no card selected, the AI agent unavailable with its reason, current behaviour named', async () => {
     const t = await makeAgency('page-ack', { responder: 'agent', mode: 'acknowledge', replyMode: 'fixed', questionnaire: null })
     as(t)

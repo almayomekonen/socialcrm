@@ -78,18 +78,20 @@ export default async function AutoResponseMobile({
       )}
 
       {/* Which method answers, read-only: switching asks for a confirmation and is desk work. */}
-      {channel && (
-        <ResponderSelector
-          readOnly
-          choice={resolveResponderChoice({
+      <ResponderSelector
+        readOnly
+        choice={
+          channel
+            ? resolveResponderChoice({
             responder: channel.responder,
             mode: channel.mode,
             replyMode: channel.replyMode,
             questionnaireAllowed: canUseWhatsappQuestionnaire(agencyId),
             questionnairePublished: parseQuestionnaireDefinition(channel.questionnaire ?? null).ok,
-          })}
-        />
-      )}
+          })
+            : null
+        }
+      />
 
       <section aria-labelledby='auto-response-message' className='flex flex-col gap-2'>
         <h2 id='auto-response-message' className='px-1 text-sm font-semibold text-gray-500'>

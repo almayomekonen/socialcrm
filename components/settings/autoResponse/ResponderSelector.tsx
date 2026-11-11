@@ -11,7 +11,12 @@ import { setAutoResponseResponder } from '@/actions/autoResponse/setResponder'
 import type { ResponderChoice, ResponderKind } from '@/lib/inbox/autoresponse/responderChoice'
 
 type Props = {
-  choice: ResponderChoice
+  /**
+   * Null when the agency has no auto_response_settings row yet. Nothing then
+   * answers on WhatsApp, both cards are shown unavailable, and the page says how
+   * to start. No row is created and no responder is written from here.
+   */
+  choice: ResponderChoice | null
   /** The Questionnaire Builder, when this agency can use it. */
   builderHref?: string
   /** Phones show the state only; switching is desk work. */
@@ -90,6 +95,7 @@ export default function ResponderSelector({ choice, builderHref, readOnly = fals
   }
 
   function card(kind: ResponderKind) {
+    if (!choice) return setupPendingCard(kind)
     const option = choice[kind]
     const isActive = choice.active === kind
     const title = t(kind === 'agent' ? 'admin.autoResponse.responder.agentTitle' : 'admin.autoResponse.responder.questionnaireTitle')
@@ -136,6 +142,39 @@ export default function ResponderSelector({ choice, builderHref, readOnly = fals
           </Link>
         )}
       </div>
+    )
+  }
+
+  function setupPendingCard(kind: ResponderKind) {
+    return (
+      <div key={kind} className='flex flex-col gap-2' data-responder-option={kind}>
+        <OnboardingActionCard
+          icon={kind === 'agent' ? 'sparkles' : 'list-check'}
+          tileClass='bg-gray-400'
+          title={t(kind === 'agent' ? 'admin.autoResponse.responder.agentTitle' : 'admin.autoResponse.responder.questionnaireTitle')}
+          description={t(kind === 'agent' ? 'admin.autoResponse.responder.agentBody' : 'admin.autoResponse.responder.questionnaireBody')}
+          fullDescription
+          disabled
+          className='h-full'
+        />
+      </div>
+    )
+  }
+
+  if (!choice) {
+    return (
+      <section className={readOnly ? '' : 'mt-8 max-w-4xl'} aria-labelledby='responder-heading' {...region}>
+        <h2 id='responder-heading' className='text-base font-semibold text-ink'>
+          {t('admin.autoResponse.responder.heading')}
+        </h2>
+        <p className='mt-1.5 text-sm leading-relaxed text-gray-800' role='status' data-responder-current='no_settings'>
+          {readOnly ? t('admin.autoResponse.responder.noSettingsMobile') : t('admin.autoResponse.responder.noSettings')}
+        </p>
+        <div className='mt-4 grid gap-3 md:grid-cols-2'>
+          {card('agent')}
+          {card('questionnaire')}
+        </div>
+      </section>
     )
   }
 

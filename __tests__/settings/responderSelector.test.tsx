@@ -117,6 +117,22 @@ describe('confirmation before anything is saved', () => {
   })
 })
 
+describe('no settings row yet', () => {
+  it('both cards unavailable, the state and the first step are explained, nothing is clickable', () => {
+    render(<ResponderSelector choice={null} />)
+    expect(screen.queryByRole('button', { name: AGENT })).toBeNull()
+    expect(screen.queryByRole('button', { name: QUESTIONNAIRE })).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('המענה האוטומטי עוד לא הוגדר לעסק')
+    expect(screen.getByRole('status').textContent).toContain('שמור שינויים')
+    expect(h.action).not.toHaveBeenCalled()
+  })
+
+  it('on a phone, says the first setup is done from a computer', () => {
+    render(<ResponderSelector choice={null} readOnly />)
+    expect(screen.getByRole('status').textContent).toContain('ההגדרה הראשונה נעשית מהמחשב')
+  })
+})
+
 describe('read-only surfaces', () => {
   it('phone view and an expired plan: the other card cannot be clicked', () => {
     render(<ResponderSelector choice={choice()} readOnly />)
