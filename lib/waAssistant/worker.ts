@@ -31,6 +31,10 @@ import type { TaskDecideDeps } from './tasks/decide'
 import type { QuoteProposeDeps } from './quotes/propose'
 import type { QuoteDecideDeps } from './quotes/decide'
 import { agentClarifyStopReason, assistantCapabilities, routeProposal } from './route'
+import { answerSchemaFor } from '@/lib/agent/smartbeeAnswerSchema'
+import type { DocumentProposeDeps } from './smartbee/propose'
+import type { DocumentDecideDeps } from './smartbee/decide'
+import { handleSmartbeeResolutionMessage } from './smartbee/resolve'
 import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
@@ -88,6 +92,7 @@ export type WaAssistantDeps = {
   tasks?: { propose?: TaskProposeDeps; decide?: TaskDecideDeps }
   leadUpdates?: { propose?: LeadUpdateProposeDeps; decide?: LeadUpdateDecideDeps }
   quotes?: { propose?: QuoteProposeDeps; decide?: QuoteDecideDeps }
+  documents?: { propose?: DocumentProposeDeps; decide?: DocumentDecideDeps }
   reminders?: ReminderDeps
 }
 
@@ -159,7 +164,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   if (job.kind === 'decision') {
     const r =
       writesOn
-        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), ...caps, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide, reminders: deps.reminders, quotes: deps.quotes?.decide } })
+        ? await decideCard({ job, scope: who.scope, nowMs: startedAt.getTime(), ...caps, deps: { meetings: deps.meetings?.decide, tasks: deps.tasks?.decide, leadUpdates: deps.leadUpdates?.decide, reminders: deps.reminders, quotes: deps.quotes?.decide, documents: deps.documents?.decide } })
         : { status: 'refused' as const, stopReason: 'meetings_disabled', text: COPY.notAvailable, headline: null }
     return finishMeeting(job, platform, who.phoneE164, r, deps, { durationMs: elapsed() })
   }
@@ -175,6 +180,9 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   // Personal reminders (WA_ASSISTANT_REMINDERS_AGENCY_IDS only): deterministic, before the Agent, so with the switch on "תזכיר לי" never becomes a task.
   const reminder = remindersOn ? await handleReminderMessage({ job, scope: who.scope, nowMs: startedAt.getTime(), deps: deps.reminders }) : null
   if (reminder) return finishMeeting(job, platform, who.phoneE164, reminder, deps, { durationMs: elapsed() })
+  // A stalled SmartBee document settled by its owner's fixed words (SMARTBEE_AGENCY_IDS only): deterministic, no model.
+  const resolution = caps.documentsOn ? await handleSmartbeeResolutionMessage({ job, scope: who.scope, nowMs: startedAt.getTime() }) : null
+  if (resolution) return finishMeeting(job, platform, who.phoneE164, resolution, deps, { durationMs: elapsed() })
 
   // The free allowance / purchased credits: decided once per job, before any model runs (db/credits/agentRequests.ts).
   const access = await admitAgentRequest({ agencyId: job.agencyId, userId: job.userId, source: 'whatsapp', operation: { kind: 'wa_assistant_job', id: String(job.id) }, nowMs: startedAt.getTime() })
@@ -194,6 +202,8 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
     surfaceRules: waAgentRules(caps),
+    // SmartBee documents (one agency, SMARTBEE_AGENCY_IDS): only its turns are even offered the action.
+    answerSchema: answerSchemaFor(caps.documentsOn),
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {
@@ -221,7 +231,7 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     result,
     caps,
     nowMs: startedAt.getTime(),
-    deps: { meetings: deps.meetings?.propose, tasks: deps.tasks?.propose, leadUpdates: deps.leadUpdates?.propose, quotes: deps.quotes?.propose },
+    deps: { meetings: deps.meetings?.propose, tasks: deps.tasks?.propose, leadUpdates: deps.leadUpdates?.propose, quotes: deps.quotes?.propose, documents: deps.documents?.propose },
   })
   if (routed) return finishMeeting(job, platform, who.phoneE164, routed, deps, { durationMs: elapsed(), costUsd: result.costUsd })
 

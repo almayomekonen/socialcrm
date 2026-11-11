@@ -10,6 +10,7 @@ export type IssueOrSaveReason =
   | NonNullable<Exclude<SaveAndIssueResult, { success: true }>['reason']>
 
 const MESSAGES: Record<string, string> = {
+  external_issuer: 'המסמכים של העסק מופקים דרך SmartBee, ולכן לא ניתן להנפיק אותם כאן',
   payment_exceeds_total: 'הסכום שהתקבל לא יכול להיות גבוה מסכום המסמך',
   payment_incomplete: 'יש להשלים את פרטי התשלום',
   issuer_identity_incomplete: 'יש להשלים את פרטי העסק',
@@ -29,6 +30,7 @@ const MESSAGES: Record<string, string> = {
 
 /** Interface-language keys by reason (Phase E3). Hebrew stays `MESSAGES` itself. */
 const KEYS: Record<string, MessageKey> = {
+  external_issuer: 'billing.issueError.external_issuer',
   payment_exceeds_total: 'billing.issueError.payment_exceeds_total',
   payment_incomplete: 'billing.issueError.payment_incomplete',
   issuer_identity_incomplete: 'billing.issueError.issuer_identity_incomplete',

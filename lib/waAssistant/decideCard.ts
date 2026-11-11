@@ -17,6 +17,9 @@ import { decideQuoteCard, type QuoteDecideDeps } from './quotes/decide'
 import { QUOTE_COPY } from './quotes/copy'
 import { decideRecordChange, type ChangeDecideDeps } from './recordChanges/decide'
 import { CHANGE_COPY, type ChangeType } from './recordChanges/copy'
+import { decideSmartbeeDocumentCard, type DocumentDecideDeps } from './smartbee/decide'
+import { DOCUMENT_COPY } from './smartbee/copy'
+import { decideSmartbeeResolutionCard } from './smartbee/resolve'
 
 /**
  * A tap on any confirmation card's button, routed by the STORED action's type:
@@ -45,7 +48,8 @@ export async function decideCard(input: {
   notesOn?: boolean
   remindersOn?: boolean
   quotesOn?: boolean
-  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps; quotes?: QuoteDecideDeps; changes?: ChangeDecideDeps }
+  documentsOn?: boolean
+  deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps; quotes?: QuoteDecideDeps; changes?: ChangeDecideDeps; documents?: DocumentDecideDeps }
 }): Promise<MeetingReply> {
   const { job, scope, nowMs } = input
   const m = DECISION_ID_RE.exec(job.question ?? '')
@@ -111,6 +115,22 @@ export async function decideCard(input: {
       nowMs,
       deps: input.deps?.quotes,
     })
+  }
+  if (record?.actionType === 'create_smartbee_document') {
+    if (!input.documentsOn) return refused('documents_disabled', COPY.notAvailable)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', DOCUMENT_COPY.changed)
+    }
+    return decideSmartbeeDocumentCard({ job, scope, card, approve: m[1] === 'approve', nowMs, deps: input.deps?.documents })
+  }
+  if (record?.actionType === 'resolve_smartbee_document') {
+    if (!input.documentsOn) return refused('documents_disabled', COPY.notAvailable)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', DOCUMENT_COPY.changed)
+    }
+    return decideSmartbeeResolutionCard({ job, scope, card, args: record.args as { smartbeeDocumentId: number; resolution: 'exists' | 'absent' }, approve: m[1] === 'approve', nowMs })
   }
   if (record && isChangeType(record.actionType)) {
     const on = record.actionType === 'update_task' || record.actionType === 'complete_task' ? input.tasksOn : input.meetingsOn

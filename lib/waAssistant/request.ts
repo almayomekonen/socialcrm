@@ -21,6 +21,7 @@ export const REQUEST_WORDS: Record<RequestKind, RegExp> = {
   status: /סטטוס|תעביר|להעביר|תסמן|לסמן/u,
   note: /הערה|הערות|תרשום|לרשום|רשום/u,
   quote: /הצע(?:ת|ה|ות)\s*מחיר|הצעת\s*ה?מחיר/u,
+  document: /חשבוני(?:ת|ות)|(?<![\u0590-\u05FF])[הול]?קבל(?:ה|ות)(?![\u0590-\u05FF])/u,
 }
 /** "כן" / "יאללה" answering "…כבר עברה. למחר באותה שעה?" means tomorrow. */
 const BARE_YES = /^\s*(כן|כ|בטח|יאללה|אוקיי|אוקי|ok|okay|סבבה|נכון|למחר)[\s.!]*$/iu
@@ -87,7 +88,7 @@ export async function startsCleanRequest(job: WaAssistantJob): Promise<boolean> 
   const q = job.question?.trim() ?? ''
   if (pointsBack(q)) return false
   const rows = await recentRows(job)
-  const pendingKind = (['meeting', 'status', 'note', 'quote'] as const).find((k) => rows[1]?.stopReason?.startsWith(`${k}_clarify_`))
+  const pendingKind = (['meeting', 'status', 'note', 'quote', 'document'] as const).find((k) => rows[1]?.stopReason?.startsWith(`${k}_clarify_`))
   const kind: RequestKind = pendingKind ?? 'task'
   const { said, pending } = replay(kind, rows, q, Number.POSITIVE_INFINITY)
   return pending ? said.length === 1 : opensRequest(q)

@@ -2,11 +2,12 @@ import { timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { sweepQuotePdfs } from '@/lib/waAssistant/quotes/pdfSweep'
+import { sweepSmartbeeDocuments } from '@/lib/waAssistant/smartbee/follow'
 
 /**
  * WhatsApp assistant, every minute: the backstop drain for jobs the webhook's
  * `after()` kick did not finish, plus the lease reaper and the 24-hour text
- * purge, and the quote-PDF recovery sweep. Inert without the platform number and token, and nothing is queued
+ * purge, the quote-PDF recovery sweep and the SmartBee document sweep. Inert without the platform number and token, and nothing is queued
  * unless WA_ASSISTANT_AGENCY_IDS names an agency (lib/flags/waAssistantFlags.ts).
  */
 export const maxDuration = 60
@@ -31,6 +32,8 @@ async function handle(req: NextRequest) {
     if (summary.claimed || summary.reaped) console.log('[WaAssistant][cron]', summary)
     // Quote PDFs the after() job did not finish. Only on a tick with no job, so a render never shares this function's 60 seconds with an Agent run.
     if (!summary.disabled && !summary.claimed) await sweepQuotePdfs().catch((e) => console.error('[WaAssistant][cron] quote pdf sweep failed', { name: (e as Error)?.name ?? null }))
+    // SmartBee documents not yet confirmed or not yet reported to the owner. Inert unless SMARTBEE_AGENCY_IDS names an agency.
+    if (!summary.disabled && !summary.claimed) await sweepSmartbeeDocuments().catch((e) => console.error('[WaAssistant][cron] smartbee sweep failed', { name: (e as Error)?.name ?? null }))
     return NextResponse.json({ ok: true, ...summary })
   } catch (err) {
     console.error('[WaAssistant][cron] failed', { name: (err as Error)?.name ?? null })

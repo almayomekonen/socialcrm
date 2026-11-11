@@ -14,6 +14,7 @@ export const paymentMethod = {
 } as const
 
 export const issueError = {
+  external_issuer: 'המסמכים של העסק מופקים דרך SmartBee, ולכן לא ניתן להנפיק אותם כאן',
   payment_exceeds_total: 'הסכום שהתקבל לא יכול להיות גבוה מסכום המסמך',
   payment_incomplete: 'יש להשלים את פרטי התשלום',
   issuer_identity_incomplete: 'יש להשלים את פרטי העסק',

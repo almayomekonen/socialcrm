@@ -12,6 +12,7 @@ export const paymentMethod: B['paymentMethod'] = {
 }
 
 export const issueError: B['issueError'] = {
+  external_issuer: 'يصدر هذا النشاط التجاري مستنداته عبر SmartBee، لذلك لا يمكن إصدارها هنا',
   payment_exceeds_total: 'لا يمكن أن يكون المبلغ المستلم أعلى من إجمالي المستند',
   payment_incomplete: 'يجب استكمال بيانات الدفع',
   issuer_identity_incomplete: 'يجب استكمال بيانات النشاط التجاري',

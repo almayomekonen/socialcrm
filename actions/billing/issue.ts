@@ -9,6 +9,7 @@ import { canIssueBilling } from '@/lib/billing/permissions'
 import { issueInvoice } from '@/db/billing/issueInvoice'
 import { getIssuer } from '@/db/billing/issuer'
 import { checkIssuerCompleteness } from '@/lib/billing/issuer/completeness'
+import { externalDocumentIssuer } from '@/lib/integrations/core/registry'
 import { saveTransientDraftAction, type SaveTransientDraftInput, type DraftErrorReason } from './drafts'
 
 export type IssueActionResult =
@@ -27,11 +28,15 @@ export type IssueErrorReason =
   | 'issuer_identity_incomplete'
   | 'payment_incomplete'
   | 'payment_exceeds_total'
+  /** This agency issues through an external provider (SmartBee): one issuer, one numbering. */
+  | 'external_issuer'
   | 'failed'
 
 export async function issueInvoiceAction(input: { invoiceId: number; leadId: number }): Promise<IssueActionResult> {
   const user = await requireProductAccess()
   if (!canIssueBilling(user)) return { error: true, reason: 'no_permission' }
+  // An agency that issues through SmartBee never gets a second, native numbering sequence.
+  if (await externalDocumentIssuer(user.agencyId)) return { error: true, reason: 'external_issuer' }
 
   const { gotPermIds } = await getPerms(user)
 
@@ -80,6 +85,7 @@ export type SaveAndIssueResult =
 
 export async function saveAndIssueTransientAction(input: SaveTransientDraftInput): Promise<SaveAndIssueResult> {
   const user = await requireProductAccess()
+  if (await externalDocumentIssuer(user.agencyId)) return { error: true, reason: 'external_issuer' }
   const issuer = await getIssuer(user.agencyId)
   if (!issuer || !checkIssuerCompleteness(issuer).complete) {
     return { error: true, reason: 'issuer_identity_incomplete' }
