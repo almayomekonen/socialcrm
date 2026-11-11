@@ -88,8 +88,8 @@ const EN: Record<string, string[]> = {
   'admin — quote templates, none yet': ['No quote templates yet', 'A template gathers the prices you offer'],
   'admin — quote templates, subscription expired': ['Renewing the subscription brings back editing quote templates'],
   'admin — auto-response, smart reply': ['Auto response', 'WhatsApp auto response', 'On', 'Reply style', 'Smart reply', 'Fixed message', 'Advanced settings', 'Timing and limits', 'Wait before sending', 'seconds', 'Maximum replies per day', 'Save changes', 'Cancel'],
-  'admin — auto-response, fixed message, questionnaire answering (Builder)': ['An automatic questionnaire is active on WhatsApp', 'To change the questionnaire:', 'WhatsApp questionnaire', 'The message that will be sent', 'This text is sent to the customer as written'],
-  'admin — auto-response off, questionnaire set up by staff, expired': ['Off', 'No reply is being sent on any channel right now.', 'contact us', 'Renewing the subscription brings back auto response'],
+  'admin — auto-response, fixed message, questionnaire answering (Builder)': ['How WhatsApp inquiries are answered', 'Smart AI agent', 'Structured questionnaire', 'Active now: structured questionnaire', 'Edit the questionnaire', 'The agent settings are hidden because the questionnaire is active.'],
+  'admin — auto-response off, questionnaire set up by staff, expired': ['Off', 'No reply is being sent on any channel right now.', 'Structured questionnaire', 'Active now: structured questionnaire', 'Renewing the subscription brings back auto response'],
 }
 const AI_TEXTS = AI_CONFIG.map((a) => a.text)
 

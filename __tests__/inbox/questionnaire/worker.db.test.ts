@@ -352,6 +352,9 @@ describe('stopping', () => {
     const session = await sessionRow(t)
     expect(session?.status).toBe('handed_off')
     expect(session?.endedReason).toBe('engine_disabled')
+    // The customer is told, once, that a person will take over (the definition's handoff copy).
+    expect(sent).toHaveLength(1)
+    expect(sent[0].body.length).toBeGreaterThan(0)
     const summary = await getHandoffSummary(t.agencyId, t.conversationId)
     expect(summary?.fields).toEqual([{ label: 'שירותים', value: 'צילום סטילס' }])
   })

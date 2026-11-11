@@ -14,6 +14,14 @@ type BaseProps = {
   badgeClass?: string
   recommended?: boolean
   disabled?: boolean
+  /**
+   * A choice card in a single-select group (מענה אוטומטי: AI agent / questionnaire).
+   * Draws the chosen state and exposes it as `aria-pressed` on the button.
+   * Undefined (every other caller) renders exactly as before.
+   */
+  selected?: boolean
+  /** Show the whole description instead of clamping it to two lines. */
+  fullDescription?: boolean
   className?: string
   'data-add-lead'?: string
 }
@@ -39,6 +47,8 @@ export default function OnboardingActionCard({
   badgeClass = 'bg-neutral-bg text-neutral-text',
   recommended = false,
   disabled = false,
+  selected,
+  fullDescription = false,
   className = '',
   href,
   onClick,
@@ -48,7 +58,9 @@ export default function OnboardingActionCard({
     'group flex items-center gap-5 rounded-2xl border bg-white p-6 text-start transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary'
   const tone = disabled
     ? 'border-gray-200 opacity-60'
-    : recommended
+    : selected
+      ? 'border-primary bg-primary-tint/50 ring-2 ring-primary/30'
+      : recommended
       ? 'border-primary/40 bg-primary-tint/50 ring-1 ring-primary/10 hover:ring-primary/25 hover:shadow-sm'
       : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
   const cls = `${base} ${tone} ${className}`
@@ -77,7 +89,7 @@ export default function OnboardingActionCard({
           `line-clamp-2` keeps the height bounded so cards in a grid stay even,
           while letting a real sentence render.
         */}
-        <p className='mt-1 line-clamp-2 text-sm font-medium text-primary-text'>{description}</p>
+        <p className={fullDescription ? 'mt-1 text-sm font-medium text-primary-text' : 'mt-1 line-clamp-2 text-sm font-medium text-primary-text'}>{description}</p>
       </div>
     </>
   )
@@ -92,7 +104,13 @@ export default function OnboardingActionCard({
       </Link>
     )
   return (
-    <button type='button' onClick={onClick} className={`${cls} w-full`} {...addLeadAttr}>
+    <button
+      type='button'
+      onClick={onClick}
+      className={`${cls} w-full`}
+      {...(selected !== undefined ? { 'aria-pressed': selected } : {})}
+      {...addLeadAttr}
+    >
       {inner}
     </button>
   )
