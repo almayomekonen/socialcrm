@@ -344,6 +344,17 @@ export type ProposedAction =
       evidenceRefs: string[]
     }
   | {
+      /** WhatsApp only. The application finds the quote from the owner's own open card. */
+      actionType: 'edit_quote'
+      args: {
+        title: string | null
+        validityDays: number | null
+        priceBasis: 'incl_vat' | 'excl_vat' | null
+        changes: { op: 'update' | 'add' | 'remove'; match: string | null; lineNumber: number | null; title: string | null; quantity: number | null; unitAmount: number | null; discountAmount: number | null; discountPercent: number | null }[]
+      }
+      evidenceRefs: string[]
+    }
+  | {
       /** WhatsApp only. The application finds the task from `match`; the model never gives its id. */
       actionType: 'update_task'
       args: { clientId: number; match: string | null; newTitle: string | null; newWhen: string | null }

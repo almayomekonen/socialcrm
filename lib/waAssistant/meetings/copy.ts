@@ -13,7 +13,7 @@ import type { ReplyButton } from '@/lib/whatsapp/platform/sendText'
 export const CALENDAR_LINK = 'https://getsocialcrm.com/calendar'
 export const APPROVE_TITLE = 'לאשר ולקבוע'
 export const REJECT_TITLE = 'ביטול'
-export const DECISION_ID_RE = /^wa:(approve|reject):([0-9a-f]{32})$/
+export const DECISION_ID_RE = /^wa:(approve|reject|edit):([0-9a-f]{32})$/
 
 export type GoogleState = 'not_connected' | 'synced' | 'failed' | 'reauth_required' | 'unconfirmed'
 

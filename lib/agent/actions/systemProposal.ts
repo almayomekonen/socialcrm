@@ -6,7 +6,7 @@
  * no model output can name these types.
  */
 export type SystemActionProposal = {
-  actionType: 'create_reminder' | 'cancel_reminder' | 'reschedule_reminder' | 'update_task' | 'complete_task' | 'reschedule_meeting' | 'cancel_meeting'
+  actionType: 'create_reminder' | 'cancel_reminder' | 'reschedule_reminder' | 'send_quote' | 'edit_quote' | 'update_task' | 'complete_task' | 'reschedule_meeting' | 'cancel_meeting'
   args: Record<string, unknown>
   evidenceRefs: string[]
 }
