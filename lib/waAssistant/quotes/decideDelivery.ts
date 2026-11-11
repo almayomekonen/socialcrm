@@ -4,6 +4,10 @@ import { decideOnAction } from '@/lib/agent/actions/bridge'
 import { decideWaApproval, type WaApproval } from '@/db/waAssistantApprovals'
 import { findQuoteDeliveryByAction } from '@/db/quotes/deliveries'
 import { recordQuoteEvent } from '@/db/quotes/events'
+import { cancelQuoteSystem } from '@/db/quotes/cancelQuote'
+import { canDraftQuote } from '@/lib/quotes/permissions'
+import type { UserDb } from '@/db/auth'
+import type { Roles } from '@/types/roles'
 import { COPY } from '../render'
 import type { AgentScope } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
@@ -95,4 +99,34 @@ export async function decideQuoteEditCard(input: Card & { args: { quoteId: numbe
   if (outcome.execution?.status === 'NOT_AUTHORIZED') return reply('refused', 'quote_edit_not_authorized', DELIVERY_COPY.notAllowed)
   if ((outcome.execution?.reason ?? '').startsWith('quote-edit-')) return reply('refused', 'quote_edit_stale', DELIVERY_COPY.editStale)
   return reply('failed', 'quote_edit_failed', DELIVERY_COPY.editFailed)
+}
+
+/**
+ * "לבטל הצעה" on a preview card: the send approval is closed (never executed) and
+ * the quote itself is withdrawn, under the lock a send takes (db/quotes/cancelQuote.ts).
+ * Nothing reaches the customer; a quote already out with them is not cancelled.
+ */
+export async function decideQuoteCancelCard(input: Card & { args: SendCardArgs }): Promise<MeetingReply> {
+  const { scope, card, nowMs, args } = input
+  if (!canDraftQuote({ role: scope.role } as UserDb)) return reply('refused', 'quote_cancel_not_authorized', DELIVERY_COPY.notAllowed)
+  const refused = await consume({ ...input, approve: false })
+  if (refused) return refused
+
+  const decided = await decideOnAction({ actionId: card.actionId, argsHash: card.argsHash, decision: 'REJECTED', scope, nowMs })
+  if (decided.ok === false) return decided.reason === 'agent-disabled' ? reply('refused', 'decision_agent_disabled', COPY.notAvailable) : reply('refused', `decision_${decided.reason}`, DELIVERY_COPY.cancelStale)
+
+  const r = await cancelQuoteSystem({
+    agencyId: scope.agencyId,
+    quoteId: args.quoteId,
+    expectedVersion: args.version,
+    actorUserId: scope.userId,
+    actionId: card.actionId,
+    visibility: { user: { role: scope.role as Roles }, gotPermIds: scope.gotPermIds ?? [] },
+  }).catch(() => null)
+  if (!r) return reply('failed', 'quote_cancel_failed', DELIVERY_COPY.cancelFailed)
+  if (r.ok === true) return r.already ? reply('answered', 'quote_cancel_already', DELIVERY_COPY.alreadyCancelled) : { status: 'answered', stopReason: 'quote_cancelled', headline: 'הצעת המחיר בוטלה', text: DELIVERY_COPY.cancelled }
+  const reason = (r as { reason: string }).reason
+  if (reason === 'already_sent') return reply('refused', 'quote_cancel_already_sent', DELIVERY_COPY.cancelRefusedSent)
+  if (reason === 'quote_not_found') return reply('refused', 'quote_cancel_not_allowed', DELIVERY_COPY.notAllowed)
+  return reply('refused', `quote_cancel_${reason}`, DELIVERY_COPY.cancelStale)
 }

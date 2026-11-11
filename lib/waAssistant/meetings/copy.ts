@@ -13,7 +13,8 @@ import type { ReplyButton } from '@/lib/whatsapp/platform/sendText'
 export const CALENDAR_LINK = 'https://getsocialcrm.com/calendar'
 export const APPROVE_TITLE = 'לאשר ולקבוע'
 export const REJECT_TITLE = 'ביטול'
-export const DECISION_ID_RE = /^wa:(approve|reject|edit):([0-9a-f]{32})$/
+/** `edit` and `cancel` exist only on a quote's preview card (lib/waAssistant/decideCard.ts refuses them elsewhere). */
+export const DECISION_ID_RE = /^wa:(approve|reject|edit|cancel):([0-9a-f]{32})$/
 
 export type GoogleState = 'not_connected' | 'synced' | 'failed' | 'reauth_required' | 'unconfirmed'
 

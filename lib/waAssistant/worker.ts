@@ -40,6 +40,7 @@ import { creditLimitReply } from './creditLimitReply'
 import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
 import { handleQuoteReviewMessage } from './quotes/review'
+import { chosenLeadRule, requestLead } from './leadChoice'
 
 /**
  * The WhatsApp assistant worker: one queued owner message -> at most one reply.
@@ -191,6 +192,8 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
 
   await (deps.typing ?? sendPlatformTypingIndicator)({ ...platform, inboundWamid: job.wamid, jobId: job.id })
 
+  // A lead the owner already chose in this request: decided here, never by the model.
+  const chosen = writesOn ? await requestLead(job, who.scope) : null
   const history = await recentWaAssistantTurns(job.recipientId, job.id, startedAt, { withoutClarifications: writesOn && (await startsCleanRequest(job)) })
   const result = await (deps.runAgent ?? runAgentInvestigation)({
     question: job.question.trim().slice(0, WA_ASSISTANT_LIMITS.maxQuestionChars),
@@ -199,7 +202,8 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
-    surfaceRules: waAgentRules(caps),
+    surfaceRules: chosen ? `${waAgentRules(caps)}\n${chosenLeadRule(chosen.leadId)}` : waAgentRules(caps),
+    verifiedLeadIds: chosen ? [chosen.leadId] : undefined,
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {

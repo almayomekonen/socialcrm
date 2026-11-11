@@ -70,7 +70,7 @@ export async function proposeMeeting(input: {
     ['פגישה', leadName ? `ליד: ${leadName}` : null, draft.date ? hebrewDateLabel(draft.date) : null, draft.when].filter((x): x is string => !!x)
 
   // 1. Which lead.
-  const choice = await chooseLead({ scope, proposedId: Number(input.proposal.args.clientId), evidence: input.evidence ?? [], said })
+  const choice = await chooseLead({ scope, proposedId: Number(input.proposal.args.clientId), evidence: input.evidence ?? [], said, request: { job, kind: 'meeting' } })
   if ('refused' in choice) return { status: 'refused', stopReason: 'meeting_lead_not_allowed', text: MEETING_COPY.leadNotAllowed, headline: null }
   if ('ask' in choice) return clarify(choice.ask, 'lead', memo())
   const leadName = choice.lead.name

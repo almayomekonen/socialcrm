@@ -384,9 +384,23 @@ decision, 2026-11-11). Absence blocks, and only on top of quote creation. Off, t
 flow stays create-and-download.
 
 The flow: the owner approves creating the quote → the PDF is rendered → the owner
-receives the PDF with `לאשר ולשלוח` / `לערוך` / `ביטול` → a tap on the first sends
+receives the PDF itself as a private preview ("the customer has not received it")
+with `לאשר ולשלוח ללקוח` / `לערוך הצעה` / `לבטל הצעה` → a tap on the first sends
 the customer a private link through the business's own WhatsApp number → the owner
 hears when WhatsApp accepted it, and once more when it was delivered or failed.
+
+The preview is ALWAYS the PDF. When the customer cannot be reached right now (the
+service window closed with no approved template, or the customer opted out), the
+card says why and has no send button, only `לערוך הצעה` / `לבטל הצעה`. With no
+recipient at all (no WhatsApp number or no connection), the PDF comes as a document
+with the reason and no buttons. `לבטל הצעה` withdraws the quote (`cancelled`,
+db/quotes/cancelQuote.ts) and retires every open card about it; it never sends.
+
+Choosing the lead: when several leads match, the list shown is stored by id on that
+message (`wa_assistant_jobs."leadChoice"`, migration `20261113120000`), "1" is read
+against that exact list, and the chosen lead is kept for the rest of the request.
+The application hands the chosen lead to the Agent as verified, so the Agent never
+searches or picks again; any other `clientId` it proposes is ignored.
 
 Rules the code enforces:
 

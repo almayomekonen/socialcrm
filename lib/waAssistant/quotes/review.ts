@@ -26,5 +26,5 @@ export async function handleQuoteReviewMessage(input: { job: WaAssistantJob; sco
 
   const card = await prepareQuoteSendCard({ agencyId: scope.agencyId, quoteId, scope, recipientId: job.recipientId, jobId: job.id, nowMs })
   if (card.kind !== 'card') return { status: 'answered', stopReason: card.stopReason, text: card.text, headline: null }
-  return { status: 'answered', stopReason: 'quote_preview_offered', text: card.body, buttons: card.buttons, document: card.document, headline: 'ממתין לאישור שליחת הצעת מחיר' }
+  return { status: 'answered', stopReason: card.stopReason, text: card.body, buttons: card.buttons, document: card.document, headline: card.sendable ? 'ממתין לאישור שליחת הצעת מחיר' : 'תצוגה מקדימה של הצעת מחיר' }
 }

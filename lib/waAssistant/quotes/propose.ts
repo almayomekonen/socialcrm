@@ -58,9 +58,9 @@ export async function proposeQuote(input: {
   if (!canDraftQuote({ role: scope.role } as UserDb)) return refuse('quote_role_not_allowed', QUOTE_COPY.notAllowed)
   const said = await requestMessages('quote', job, input.question)
 
-  const clientId = Number(p.args.clientId)
-  if (!Number.isSafeInteger(clientId) || clientId <= 0) return clarify(QUOTE_COPY.askLead, 'lead')
-  const choice = await chooseLead({ scope, proposedId: clientId, evidence: input.evidence, said })
+  // A lead already chosen in this request wins over the Agent's clientId, even an absent one.
+  const choice = await chooseLead({ scope, proposedId: Number(p.args.clientId), evidence: input.evidence, said, request: { job, kind: 'quote' }, requireProposed: true })
+  if ('missing' in choice) return clarify(QUOTE_COPY.askLead, 'lead')
   if ('refused' in choice) return refuse('quote_lead_not_allowed', QUOTE_COPY.leadNotAllowed)
   if ('ask' in choice) return clarify(choice.ask, 'lead')
   const lead = choice.lead

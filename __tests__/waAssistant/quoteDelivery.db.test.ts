@@ -83,7 +83,16 @@ const tapRaw = (digits: string, id: string, wamid = `wamid.__qd_${++seq}`) => pr
 
 type AgentResult = Record<string, unknown>
 const results: AgentResult[] = []
-const worker = () => runWaAssistantWorker({}, { runAgent: (async () => results.shift()) as never, typing: (async () => undefined) as never })
+/** What each Agent run was handed: the lead the application already chose, and its rule. */
+const agentInputs: { verifiedLeadIds?: number[]; surfaceRules?: string }[] = []
+const worker = () =>
+  runWaAssistantWorker({}, {
+    runAgent: (async (i: { verifiedLeadIds?: number[]; surfaceRules?: string }) => {
+      agentInputs.push(i)
+      return results.shift()
+    }) as never,
+    typing: (async () => undefined) as never,
+  })
 const tap = async (o: { digits: string }, id: string) => {
   await tapRaw(o.digits, id)
   await worker()
@@ -143,6 +152,7 @@ beforeEach(async () => {
   h.jobs.length = 0
   h.presignFails = false
   results.length = 0
+  agentInputs.length = 0
   calls = []
   customerReply = ok
   vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
@@ -178,7 +188,9 @@ describe('the preview: the PDF itself, and nothing to the customer', () => {
     const { quoteId, card, buttons } = await reviewing(o)
     expect(card.interactive.header.document.link).toContain('https://r2.test/tenants/')
     expect(card.interactive.header.document.filename).toMatch(/^Quote-\d+-.+\.pdf$/)
-    expect(buttons.map((b) => b.split(':')[1])).toEqual(['approve', 'edit', 'reject'])
+    expect(buttons.map((b) => b.split(':')[1])).toEqual(['approve', 'edit', 'cancel'])
+    expect(card.interactive.action.buttons.map((b: any) => b.reply.title)).toEqual(['לאשר ולשלוח ללקוח', 'לערוך הצעה', 'לבטל הצעה'])
+    expect(card.interactive.body.text).toContain('זו תצוגה מקדימה בשבילך בלבד. הלקוח עדיין לא קיבל את ההצעה.')
     expect(card.to).toBe(o.digits)
     expect(card.interactive.body.text).toContain('שום דבר לא יישלח ללקוח לפני שתאשרו')
     expect(card.interactive.body.text).toContain('*טיוטת הצעת המחיר מוכנה לבדיקה*')
@@ -264,14 +276,43 @@ describe('approve and send', () => {
     expect(ownerText()).toBe(DELIVERY_COPY.alreadyDecided)
   })
 
-  it('declining sends nothing, leaves the quote ready, and is on the record', async () => {
+  it('"לבטל הצעה" withdraws the quote, sends nothing, and the same card can no longer send', async () => {
     const o = await owner()
     const { quoteId, buttons } = await reviewing(o)
     await tap(o, buttons[2])
     expect(customer()).toHaveLength(0)
+    expect(ownerText()).toBe(DELIVERY_COPY.cancelled)
+    expect(await db('sales_quotes').where({ id: quoteId }).first('status', 'cancelledAt')).toMatchObject({ status: 'cancelled', cancelledAt: expect.any(Date) })
+    expect(await eventsOf(quoteId)).toContain('cancelled')
+    await tap(o, buttons[0])
+    await tap(o, buttons[2])
+    expect(customer()).toHaveLength(0)
+    expect(await deliveries(quoteId)).toHaveLength(0)
+    // A cancelled quote is not offered again.
+    await say(o, 'תראה לי שוב את ההצעה')
+    await worker()
+    expect(previews().filter((c) => buttonsOf(c.body).length)).toHaveLength(1)
+  })
+
+  it('a card issued before this release still declines with its old "ביטול" button: nothing is sent, the quote stays', async () => {
+    const o = await owner()
+    const { quoteId, buttons } = await reviewing(o)
+    await tap(o, buttons[0].replace('wa:approve:', 'wa:reject:'))
+    expect(customer()).toHaveLength(0)
     expect(ownerText()).toBe(DELIVERY_COPY.declined)
     expect((await quoteRow(quoteId)).status).toBe('ready')
     expect(await eventsOf(quoteId)).toContain('send_declined')
+  })
+
+  it('"לבטל הצעה" is refused on any other kind of card', async () => {
+    const o = await owner()
+    results.push(createQuote(o.lead))
+    await say(o, 'תכין הצעת מחיר לדוד כהן עבור שיפוץ מטבח, 18,500 שקל כולל מע"מ')
+    await worker()
+    const create = buttonsOf(lastOwner())[0]
+    await tap(o, create.replace('wa:approve:', 'wa:cancel:'))
+    expect(await db('sales_quotes').where({ leadId: o.lead }).first('id')).toBeUndefined()
+    expect(customer()).toHaveLength(0)
   })
 
   it('a typed "yes" or "send it" never sends: only the button does', async () => {
@@ -603,6 +644,9 @@ describe('editing before approval', () => {
     expect(Number(doc.quoteVersion)).toBe(2)
     const next = previews().at(-1)!.body
     expect(next.interactive.body.text).toContain('(גרסה 2)')
+    expect(next.interactive.header.document.filename).toMatch(/\.pdf$/)
+    expect(next.interactive.body.text).toContain('הלקוח עדיין לא קיבל את ההצעה')
+    expect(buttonsOf(next)[0]).not.toBe(first[0])
     await tap(o, buttonsOf(next)[0])
     expect(customer()).toHaveLength(1)
     expect((await deliveries(quoteId))[0]).toMatchObject({ quoteVersion: 2, documentId: doc.id })
@@ -704,12 +748,54 @@ describe('delivery failures', () => {
     expect((await quoteRow(quoteId)).version).toBe(1)
   })
 
-  it('the service window closed and no approved template: the owner is told before any approval', async () => {
+  it('the service window closed and no approved template: the owner still gets the PDF, told why it cannot go out, with no send button', async () => {
     const o = await owner(A, 'ADMIN', 2 * 24 * 3600_000)
-    const { card, quoteId } = await reviewing(o)
-    expect(card).toBeUndefined()
-    expect(ownerText()).toContain(DELIVERY_COPY.windowClosed)
-    expect(await eventsOf(quoteId)).toContain('preview_blocked')
+    const { card, quoteId, buttons } = await reviewing(o)
+    expect(card.interactive.header.document.filename).toMatch(/\.pdf$/)
+    expect(card.interactive.body.text).toContain(DELIVERY_COPY.windowClosed)
+    expect(card.interactive.body.text).toContain('הלקוח עדיין לא קיבל את ההצעה')
+    expect(buttons.map((b) => b.split(':')[1])).toEqual(['edit', 'cancel'])
+    expect(await db('sales_quote_events').where({ quoteId, type: 'preview_offered' }).first('detail')).toMatchObject({ detail: { sendable: false, reason: 'quote_preview_no_channel' } })
+    // A forged approve with the same token is refused by the send itself.
+    await tap(o, buttons[0].replace('wa:edit:', 'wa:approve:'))
+    expect(customer()).toHaveLength(0)
+    expect(ownerText()).toBe(DELIVERY_COPY.windowClosed)
+    expect((await quoteRow(quoteId)).status).toBe('ready')
+  })
+
+  it('a lead with no WhatsApp number: the owner gets the PDF itself as a document, with the reason, and nothing to approve', async () => {
+    const o = await owner()
+    await db('inbox_conversations').where({ leadId: o.lead }).del()
+    await db('clients').where({ id: o.lead }).update({ phone: null })
+    const { quoteId } = await reviewing(o)
+    const sent = platform().at(-1)!.body
+    expect(sent.type).toBe('document')
+    expect(sent.document.filename).toMatch(/\.pdf$/)
+    expect(sent.document.link).toContain('https://r2.test/tenants/')
+    expect(sent.document.caption).toContain('הלקוח עדיין לא קיבל את ההצעה')
+    expect(sent.document.caption).toContain(DELIVERY_COPY.noCustomerNumber)
+    expect(customer()).toHaveLength(0)
+    expect(await db('wa_assistant_approvals').where({ agencyId: A, status: 'pending' })).toHaveLength(0)
+    expect((await quoteRow(quoteId)).status).toBe('ready')
+  })
+
+  it('WhatsApp refuses the PDF message: the owner still gets the file by its login link, and no send is offered', async () => {
+    const o = await owner()
+    const original = customerReply
+    let refusedOnce = false
+    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+      const call = { url: String(url), body: JSON.parse(String(init?.body ?? 'null')) }
+      calls.push(call)
+      if (!refusedOnce && call.body?.interactive?.header?.type === 'document') {
+        refusedOnce = true
+        return new Response(JSON.stringify({ error: { code: 131053 } }), { status: 400 })
+      }
+      return call.url.includes('/__qd_pn_') ? original() : ok()
+    })
+    await reviewing(o)
+    expect(ownerText()).toContain('/api/quotes/')
+    expect(ownerText()).toContain(DELIVERY_COPY.previewFileFailed)
+    expect(customer()).toHaveLength(0)
   })
 
   it('the service window closed with an approved UTILITY template: the template goes out', async () => {
@@ -726,8 +812,9 @@ describe('delivery failures', () => {
   it('a marketing template is not used', async () => {
     const o = await owner(A, 'ADMIN', 2 * 24 * 3600_000)
     await db('whatsapp_templates').insert({ agencyId: A, wabaId: 'w', name: QUOTE_DELIVERY_TEMPLATE, displayTitle: 'q', language: 'he', category: 'MARKETING', status: 'approved', bodyText: '{{1}} {{2}} {{3}} {{4}}' })
-    const { card } = await reviewing(o)
-    expect(card).toBeUndefined()
+    const { card, buttons } = await reviewing(o)
+    expect(card.interactive.body.text).toContain(DELIVERY_COPY.windowClosed)
+    expect(buttons.some((b) => b.startsWith('wa:approve:'))).toBe(false)
   })
 })
 
@@ -859,3 +946,144 @@ describe('what counts as asking to review', () => {
     ['תשלח לדוד הודעה', false],
   ])('%s', (text, expected) => expect(asksToReviewQuote(text)).toBe(expected))
 })
+
+describe('choosing the lead once', () => {
+  /** The production case: one "george" with a phone, two identical "George Gia Machaidze" without one. */
+  async function georges() {
+    const o = await owner()
+    const add = async (firstName: string, lastName: string, phone: string | null, createdAt: string) =>
+      Number((await db('clients').insert({ firstName, lastName, phone, agencyId: A, userId: o.u, createdById: o.u, lead: true, status: 'new', createdAt }).returning('id'))[0].id)
+    const local = `05${String(1000 + ++seq).slice(-4)}6300`
+    const g1 = await add('george', '', local, '2026-10-01T09:00:00Z')
+    const g2 = await add('George', 'Gia Machaidze', null, '2026-10-05T09:00:00Z')
+    const g3 = await add('George', 'Gia Machaidze', null, '2026-10-09T09:00:00Z')
+    await db('inbox_conversations').insert({ agencyId: A, leadId: g1, channel: 'whatsapp', businessPhoneNumberId: pn(A), customerWaId: `972${local.slice(1)}`, lastInboundAt: new Date(Date.now() - 60_000) })
+    return { o, g1, g2, g3, all: [g1, g2, g3] }
+  }
+  const quoteFor = (clientId: number | null, evidence: number[], priceBasis: 'incl_vat' | null = 'incl_vat') =>
+    answerWith({ actionType: 'create_quote', args: { clientId, title: 'שיפוץ מטבח', lines: [{ title: 'שיפוץ מטבח', quantity: null, unitAmount: 18500, discountAmount: null, discountPercent: null }], priceBasis, validityDays: null }, evidenceRefs: evidence.map((l) => `lead:${l}`) }, evidence)
+  const lastQuoteAction = async () => (await db('agent_actions').where({ actionType: 'create_quote' }).orderBy('id', 'desc').first('args')).args as { clientId: number }
+  const storedChoices = async () => (await db('wa_assistant_jobs').whereNotNull('leadChoice').orderBy('id').select('leadChoice')).map((r) => r.leadChoice)
+
+  /** `vat`: the owner states the VAT basis up front; without it the next answer is the VAT question. */
+  async function listShown(g: Awaited<ReturnType<typeof georges>>, vat = true) {
+    results.push(quoteFor(g.g2, g.all, null))
+    await say(g.o, `תכין הצעת מחיר ל-george עבור שיפוץ מטבח, 18,500 שקל${vat ? ' כולל מע"מ' : ''}`)
+    await worker()
+    return ownerText()
+  }
+
+  it('the list tells the look-alikes apart, and is stored exactly as shown', async () => {
+    const g = await georges()
+    const text = await listShown(g)
+    expect(text).toContain('1. george, טלפון שמסתיים ב-6300')
+    expect(text).toContain('2. George Gia Machaidze, בלי מספר טלפון, נוצר ב-05.10.2026')
+    expect(text).toContain('3. George Gia Machaidze, בלי מספר טלפון, נוצר ב-09.10.2026')
+    expect(await storedChoices()).toEqual([{ options: g.all }])
+  })
+
+  it('"1" is the first lead shown, even when the Agent then reads and proposes another one', async () => {
+    const g = await georges()
+    await listShown(g)
+    results.push(quoteFor(g.g3, [g.g3]))
+    await say(g.o, '1')
+    await worker()
+    // The application decided before the Agent ran, and told it which lead.
+    expect(agentInputs.at(-1)!.verifiedLeadIds).toEqual([g.g1])
+    expect(agentInputs.at(-1)!.surfaceRules).toContain(`clientId ${g.g1}`)
+    expect(ownerText()).toContain('*ליצור הצעת מחיר?*')
+    expect(ownerText()).toContain('ליד: george')
+    expect((await lastQuoteAction()).clientId).toBe(g.g1)
+  })
+
+  it('the choice holds over later answers in the same request, whatever the Agent proposes, and is never asked again', async () => {
+    const g = await georges()
+    await listShown(g, false)
+    results.push(quoteFor(g.g2, [g.g2], null))
+    await say(g.o, '1')
+    await worker()
+    expect(ownerText()).toContain('כולל מע"מ או לפני מע"מ')
+    expect(ownerText()).not.toContain('איזה מהם')
+    results.push(quoteFor(g.g3, [g.g3]))
+    await say(g.o, 'כולל מע"מ')
+    await worker()
+    expect(agentInputs.at(-1)!.verifiedLeadIds).toEqual([g.g1])
+    expect(ownerText()).toContain('ליד: george')
+    expect((await lastQuoteAction()).clientId).toBe(g.g1)
+  })
+
+  it('"1" still counts when the Agent answered it with a question of its own, and when it proposes no lead at all', async () => {
+    const g = await georges()
+    await listShown(g, false)
+    results.push({ ...answerWith(null), answer: { headline: 'מה עוד חשוב לכלול בהצעה?', claims: [], unknown: null, proposedAction: null } })
+    await say(g.o, '1')
+    await worker()
+    results.push(quoteFor(null, []))
+    await say(g.o, 'כולל מע"מ')
+    await worker()
+    expect(agentInputs.at(-1)!.verifiedLeadIds).toEqual([g.g1])
+    expect(ownerText()).toContain('ליד: george')
+    expect((await lastQuoteAction()).clientId).toBe(g.g1)
+  })
+
+  it('a retried job resolves "1" the same way: the stored list, not a new one', async () => {
+    const g = await georges()
+    await listShown(g)
+    results.push({ ok: false, reason: 'timeout', costUsd: 0 } as never)
+    await say(g.o, '1')
+    await worker()
+    results.push(quoteFor(g.g2, g.all))
+    await say(g.o, '1')
+    await worker()
+    expect(ownerText()).toContain('ליד: george')
+    expect((await lastQuoteAction()).clientId).toBe(g.g1)
+  })
+
+  it('duplicate-looking leads: "3" is exactly the third one shown, not its twin', async () => {
+    const g = await georges()
+    await listShown(g)
+    results.push(quoteFor(g.g2, g.all))
+    await say(g.o, '3')
+    await worker()
+    expect((await lastQuoteAction()).clientId).toBe(g.g3)
+  })
+
+  it('a reply that picks nothing gets the same list again, never a new one', async () => {
+    const g = await georges()
+    const first = await listShown(g)
+    results.push(quoteFor(g.g2, [g.g2, g.g3], null))
+    await say(g.o, '7')
+    await worker()
+    expect(ownerText()).toBe(first)
+    expect(await storedChoices()).toEqual([{ options: g.all }, { options: g.all }])
+  })
+
+  it('a new request starts clean: an earlier choice is not carried into it', async () => {
+    const g = await georges()
+    await listShown(g)
+    results.push(quoteFor(g.g2, [g.g2], null))
+    await say(g.o, '1')
+    await worker()
+    results.push(answerWith(null))
+    await say(g.o, 'כמה לידים חדשים יש לי השבוע?')
+    await worker()
+    expect(agentInputs.at(-1)!.verifiedLeadIds).toBeUndefined()
+  })
+
+  it('a lead this user can no longer see is never used, even if it was chosen', async () => {
+    const g = await georges()
+    await listShown(g, false)
+    results.push(quoteFor(g.g2, [g.g2], null))
+    await say(g.o, '1')
+    await worker()
+    const other = await user(A, 'AGNT')
+    await db('clients').where({ id: g.g1 }).update({ userId: other })
+    await db('users').where({ id: g.o.u }).update({ role: 'AGNT' })
+    results.push(quoteFor(g.g3, [g.g3]))
+    await say(g.o, 'כולל מע"מ')
+    await worker()
+    expect(await db('agent_actions').where({ actionType: 'create_quote' }).first('id')).toBeUndefined()
+    expect(customer()).toHaveLength(0)
+  })
+})
+

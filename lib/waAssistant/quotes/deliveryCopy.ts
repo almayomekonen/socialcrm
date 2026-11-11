@@ -9,8 +9,10 @@ import type { ReplyButton } from '@/lib/whatsapp/platform/sendText'
  * the customer's number.
  */
 
-export const APPROVE_SEND_TITLE = 'לאשר ולשלוח'
-export const EDIT_QUOTE_TITLE = 'לערוך'
+/** WhatsApp reply buttons: 20 characters at most. */
+export const APPROVE_SEND_TITLE = 'לאשר ולשלוח ללקוח'
+export const EDIT_QUOTE_TITLE = 'לערוך הצעה'
+export const CANCEL_QUOTE_TITLE = 'לבטל הצעה'
 export const APPROVE_EDIT_TITLE = 'לאשר שינוי'
 
 const name = (s: string | null | undefined) => redactContactDetails(s ?? '').trim() || 'ליד'
@@ -48,28 +50,41 @@ export const DELIVERY_COPY = {
   noChange: 'לא מצאתי מה לשנות בהצעה. אפשר לכתוב במדויק מה לעדכן.',
   noLinesLeft: 'אי אפשר להסיר את כל הפריטים מההצעה.',
   discountTooHigh: 'ההנחה גדולה מהמחיר של הפריט, ולכן לא שיניתי דבר.',
+  previewFileFailed: 'וואטסאפ לא הציג כאן את קובץ ה-PDF, ולכן לא ביקשתי אישור לשלוח. אפשר לכתוב "תראה לי שוב את ההצעה".',
+  cancelled: 'ההצעה בוטלה. היא לא נשלחה ללקוח, ואי אפשר יותר לשלוח אותה.',
+  alreadyCancelled: 'ההצעה הזו כבר בוטלה. היא לא נשלחה ללקוח.',
+  cancelRefusedSent: 'ההצעה הזו כבר נשלחה ללקוח, ולכן לא ביטלתי אותה.',
+  cancelStale: 'ההצעה השתנתה מאז התצוגה הזו, ולכן לא ביטלתי אותה. אפשר לכתוב "תראה לי שוב את ההצעה".',
+  cancelFailed: 'לא הצלחתי לבטל את ההצעה, והיא נשארה כפי שהייתה. אפשר לנסות שוב.',
 } as const
 
-export function quoteSendCard(input: { lead: string; quoteNumber: number | null; version: number; totalAmount: number; recipient: string; phoneE164: string; ttlHours: number }): string {
+export function quoteSendCard(input: { lead: string; quoteNumber: number | null; version: number; totalAmount: number; recipient: string | null; phoneE164: string | null; ttlHours: number; blockedBy: string | null }): string {
+  const sendable = input.blockedBy == null && input.phoneE164 != null
   return [
     '*טיוטת הצעת המחיר מוכנה לבדיקה*',
+    'זו תצוגה מקדימה בשבילך בלבד. הלקוח עדיין לא קיבל את ההצעה.',
     input.quoteNumber != null ? `מספר הצעה: ${input.quoteNumber}${input.version > 1 ? ` (גרסה ${input.version})` : ''}` : null,
     `ליד: ${name(input.lead)}`,
     `סה"כ: ${ils(input.totalAmount)}`,
-    `תישלח אל: ${name(input.recipient)}, ${maskedPhone(input.phoneE164)}`,
-    'אחרי האישור הליד יקבל בוואטסאפ קישור לקובץ המצורף, בדיוק כפי שהוא.',
-    'שום דבר לא יישלח ללקוח לפני שתאשרו.',
-    `האישור בתוקף ל-${input.ttlHours} שעות.`,
+    input.phoneE164 ? `תישלח אל: ${name(input.recipient)}, ${maskedPhone(input.phoneE164)}` : null,
+    ...(sendable
+      ? [
+          `אחרי "${APPROVE_SEND_TITLE}" הליד יקבל בוואטסאפ קישור לקובץ המצורף, בדיוק כפי שהוא.`,
+          'שום דבר לא יישלח ללקוח לפני שתאשרו.',
+          `האישור בתוקף ל-${input.ttlHours} שעות.`,
+        ]
+      : [input.blockedBy, 'כדי לשנות משהו בהצעה, כתבו מה לשנות.']),
   ]
     .filter(Boolean)
     .join('\n')
 }
 
-export function quoteSendButtons(token: string): ReplyButton[] {
+/** Without a way to reach the customer now there is no send button: edit and cancel only. */
+export function quoteSendButtons(token: string, opts: { sendable: boolean } = { sendable: true }): ReplyButton[] {
   return [
-    { id: `wa:approve:${token}`, title: APPROVE_SEND_TITLE },
+    ...(opts.sendable ? [{ id: `wa:approve:${token}`, title: APPROVE_SEND_TITLE }] : []),
     { id: `wa:edit:${token}`, title: EDIT_QUOTE_TITLE },
-    { id: `wa:reject:${token}`, title: REJECT_TITLE },
+    { id: `wa:cancel:${token}`, title: CANCEL_QUOTE_TITLE },
   ]
 }
 

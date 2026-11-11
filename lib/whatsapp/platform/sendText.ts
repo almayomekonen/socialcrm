@@ -55,6 +55,18 @@ export function buildPlatformButtonsPayload(input: { toDigits: string; body: str
   }
 }
 
+/** The PDF itself with the text as its caption: a preview that has no buttons is still the document. */
+export function buildPlatformDocumentPayload(input: { toDigits: string; body: string; document: ReplyDocument; replyToWamid?: string | null }) {
+  return {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: input.toDigits,
+    type: 'document',
+    document: { link: input.document.link, filename: input.document.filename, caption: input.body.slice(0, MAX_BUTTON_BODY_CHARS) },
+    ...(input.replyToWamid ? { context: { message_id: input.replyToWamid } } : {}),
+  }
+}
+
 async function post(phoneNumberId: string, accessToken: string, payload: unknown, timeoutMs: number) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -80,7 +92,7 @@ export async function sendPlatformText(input: {
   replyToWamid?: string | null
   /** Reply buttons (an interactive message) instead of plain text. Same outcomes, same never-resend rule. */
   buttons?: readonly ReplyButton[]
-  /** Only with `buttons`: the PDF the owner is being asked about. */
+  /** The PDF the owner is being asked about: above the buttons, or on its own with the body as its caption. */
   document?: ReplyDocument | null
   jobId: number
   timeoutMs?: number
@@ -88,7 +100,9 @@ export async function sendPlatformText(input: {
   const toDigits = input.toE164.replace(/\D/g, '')
   const payload = input.buttons?.length
     ? buildPlatformButtonsPayload({ toDigits, body: input.body, buttons: input.buttons, document: input.document, replyToWamid: input.replyToWamid })
-    : buildPlatformTextPayload({ toDigits, body: input.body, replyToWamid: input.replyToWamid })
+    : input.document
+      ? buildPlatformDocumentPayload({ toDigits, body: input.body, document: input.document, replyToWamid: input.replyToWamid })
+      : buildPlatformTextPayload({ toDigits, body: input.body, replyToWamid: input.replyToWamid })
   let outcome: PlatformTextOutcome
   try {
     const { res, data } = await post(input.phoneNumberId, input.accessToken, payload, input.timeoutMs ?? SEND_TIMEOUT_MS)
