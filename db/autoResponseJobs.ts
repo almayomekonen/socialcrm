@@ -1,5 +1,6 @@
 import type { Knex } from 'knex'
 import { db } from '@/config/db'
+import { startOfBusinessDayMs } from '@/lib/today/time'
 import { QUESTIONNAIRE_ROUTED_SQL } from './questionnaireJobs'
 import { parkedRow, type ParkedAutoResponseJob } from './autoResponseSendMarker'
 
@@ -320,12 +321,28 @@ export async function failAutoResponseJob(id: number, error: string, ownerWorker
   return row && row.status === 'skipped' && row.skipReason === SEND_OUTCOME_UNKNOWN ? parkedRow(row) : null
 }
 
-export async function countSentToday(agencyId: number): Promise<number> {
-  const res = await db.raw(
+/**
+ * Auto-replies the agency has sent since the start of TODAY's business day —
+ * the count the daily cap (`dailyCap`) is checked against.
+ *
+ * The day is the Israel business day (`startOfBusinessDayMs`, BUSINESS_TZ,
+ * DST-aware), not the database's: it used to be `date_trunc('day', now())`,
+ * which follows the DB session's TimeZone (UTC on Neon), so the cap reset at
+ * 02:00 / 03:00 Israel time. The boundary is computed once, here, and bound as
+ * an absolute instant (`?::timestamptz` from a UTC ISO string) against the
+ * timestamptz column, so the answer is the same whatever timezone the database
+ * session, the server or the Node process runs in (architecture-rules §11).
+ *
+ * `nowMs` and `conn` exist for tests (a fixed clock; a transaction with its own
+ * TimeZone); production calls pass neither.
+ */
+export async function countSentToday(agencyId: number, nowMs: number = Date.now(), conn: Knex | Knex.Transaction = db): Promise<number> {
+  const dayStart = new Date(startOfBusinessDayMs(nowMs)).toISOString()
+  const res = await conn.raw(
     `SELECT count(*)::int AS c FROM auto_response_jobs
-      WHERE "agencyId" = ? AND status = 'sent' AND "updatedAt" >= date_trunc('day', now())
+      WHERE "agencyId" = ? AND status = 'sent' AND "updatedAt" >= ?::timestamptz
         AND reason NOT IN ('no_response_warning','no_response_close')`,
-    [agencyId],
+    [agencyId, dayStart],
   )
   return Number(res.rows?.[0]?.c ?? 0)
 }
