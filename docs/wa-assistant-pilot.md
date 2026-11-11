@@ -100,7 +100,8 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | `WA_ASSISTANT_NOTES_AGENCY_IDS` | absent | Absent = no notes. Lets the assistant add a note to a lead (below). Needs the assistant itself too |
 | `WA_ASSISTANT_QUOTES_AGENCY_IDS` | absent | Absent = no quotes. Lets the assistant create a quote for a lead from the owner's stated prices, after a card. Creation only; sending to the customer is `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS`. `WA_ASSISTANT_AUDIENCE=all` does not open it; `WA_ASSISTANT_QUOTES_AUDIENCE=all` (next row) does. Needs the assistant itself too, a configured VAT rate for the agency, migration `20261111120000`, and the existing PDF renderer and R2 settings. After approval the owner gets the PDF's login-protected link in the same chat; the minute cron retries a failed render up to 3 attempts |
 | `WA_ASSISTANT_QUOTES_AUDIENCE` | absent | Exactly `all`: every agency in the assistant's audience may create quotes (excluded agencies never), and `WA_ASSISTANT_QUOTES_AGENCY_IDS` is ignored. Creation only; each request still needs the owner's card, a role that may draft quotes, lead visibility, a configured VAT rate (or `exempt`) and the request allowance. |
-| `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS` | absent | Absent = create and download only. Lets the owner review the PDF on WhatsApp, edit it, and send it to the customer after approving it. Explicit ids only, no `all` (`WA_ASSISTANT_QUOTES_AUDIENCE=all` does not open it), and only on top of quote creation. Pilot: 103. See "Quotes V2" below. |
+| `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS` | absent | Absent = create and download only. Lets the owner review the PDF on WhatsApp, edit it, and send it to the customer after approving it. Explicit ids, or `WA_ASSISTANT_QUOTES_SEND_AUDIENCE=all` (next row); only on top of quote creation. See "Quotes V2" below. |
+| `WA_ASSISTANT_QUOTES_SEND_AUDIENCE` | absent | Exactly `all`: every agency that may create quotes may also review, edit and send quotes to customers (excluded agencies never), and `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS` is ignored. Each send still needs the owner's tap on the card for that exact version, PDF and recipient. `WA_ASSISTANT_QUOTES_AUDIENCE=all` alone does not open it. |
 | `AGENT_LIST_MEETINGS_AGENCY_IDS` | absent | Absent = no `list_meetings` tool. Lets the Agent list the user's own meetings by period ("מה יש לי מחר", "הפגישה הבאה שלי"), on the web Agent and on WhatsApp alike. Explicit ids only, no `all`. Not yet tried with a real model |
 | `AGENT_AGENCY_IDS`, `AI_ENABLED` | must include 103 | The Agent rollout the assistant reuses |
 | Platform number + token | existing | Same as owner reminders |
@@ -377,9 +378,10 @@ merged in.
 
 # Quotes V2: review, edit and send to the customer
 
-`WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS`: absence blocks, explicit ids only, and only
-on top of `WA_ASSISTANT_QUOTES_AGENCY_IDS`. Off, the flow stays create-and-download.
-Pilot: Agency 103 only. Do not use `all`; there is no such value.
+`WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS` (explicit ids) or
+`WA_ASSISTANT_QUOTES_SEND_AUDIENCE=all` (every agency that may create quotes; owner
+decision, 2026-11-11). Absence blocks, and only on top of quote creation. Off, the
+flow stays create-and-download.
 
 The flow: the owner approves creating the quote → the PDF is rendered → the owner
 receives the PDF with `לאשר ולשלוח` / `לערוך` / `ביטול` → a tap on the first sends
@@ -395,7 +397,7 @@ Rules the code enforces:
   and supersedes any open send card. A new PDF and a new approval follow.
 - A quote has at most one delivery that is not `failed`
   (`sales_quote_deliveries_one_live_per_quote`). `unknown` is never resent.
-- Only `ADMIN` and `MNGR` can approve a send during the pilot (the action's risk level).
+- Only `ADMIN` and `MNGR` can approve a send (the action's risk level).
 
 Before enabling, in this order:
 
@@ -405,7 +407,7 @@ Before enabling, in this order:
    Meta approval for a UTILITY template named `quote_delivery_he` with four body
    variables: name, quote number, business, link. Without it those sends are refused
    and the owner is told why. Inside the window no template is needed.
-4. Set `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS=103` and redeploy.
+4. Set `WA_ASSISTANT_QUOTES_SEND_AUDIENCE=all` (or explicit ids) and redeploy.
 5. Test on a lead whose number you own.
 
 Roll back by removing the flag and redeploying: that also disables every customer link

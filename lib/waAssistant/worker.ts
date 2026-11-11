@@ -60,7 +60,7 @@ import { handleQuoteReviewMessage } from './quotes/review'
  * `update_lead_status` (WA_ASSISTANT_STATUS_AGENCY_IDS), `add_lead_note`
  * (WA_ASSISTANT_NOTES_AGENCY_IDS, both ./leadUpdates/) and `create_quote`
  * (WA_ASSISTANT_QUOTES_AGENCY_IDS, ./quotes/; to the customer only with
- * WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS and a tap on the finished PDF's card), each only for
+ * WA_ASSISTANT_QUOTES_SEND_* and a tap on the finished PDF's card), each only for
  * an agency on its own list, and never on the owner's words alone: the
  * proposal becomes a confirmation card (./meetings/propose.ts) and only a tap on
  * its button executes it through the existing Action Runtime

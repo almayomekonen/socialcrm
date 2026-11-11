@@ -56,7 +56,7 @@ const QUOTE_RULES = `- בוואטסאפ אפשר גם לבקש יצירת הצע
 - validityDays רק אם בעל העסק אמר תוקף ("בתוקף ל-30 יום" → 30, "שבועיים" → 14), אחרת null.
 - אל תחשב מע"מ או סכומים ואל תכתוב אותם: המערכת תחשב ותציג כרטיס אישור. אל תכתוב שההצעה נוצרה או נשלחה. הצעת מחיר לא נשלחת ללקוח מכאן.`
 
-/** Only when WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS is on. The model describes the change; it never picks the quote and never sends. */
+/** Only when customer sending is on (WA_ASSISTANT_QUOTES_SEND_*). The model describes the change; it never picks the quote and never sends. */
 const QUOTE_EDIT_RULES = `- שינוי בהצעת המחיר שבעל העסק בודק כרגע ("תשנה את המחיר ל-20,000", "תוסיף התקנה ב-500", "תוריד את הפריט השני", "תן 10% הנחה"): edit_quote. אל תחפש ליד ואל תיתן מזהה הצעה: המערכת יודעת איזו הצעה נבדקת.
 - changes: רשומה לכל שינוי. op הוא update, add או remove. match הוא המילים של בעל העסק שמתארות את הפריט, או null. lineNumber הוא מספר הפריט רק אם נאמר, אחרת null. title, quantity, unitAmount, discountAmount ו-discountPercent רק מה שנאמר, אחרת null. title של ההצעה עצמה ו-validityDays ברמה העליונה, null אם לא השתנו.
 - לעולם אל תמציא מחיר. אל תכתוב שההצעה עודכנה או נשלחה: המערכת תציג כרטיס אישור. שליחה ללקוח נעשית רק בכפתור האישור.`

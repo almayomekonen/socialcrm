@@ -165,14 +165,18 @@ export function waAssistantQuotesForAll(): boolean {
 /**
  * WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS: agencies whose owner may review a quote's
  * PDF on WhatsApp, edit it, and send it to the customer after approving it.
- * Same rules: absence blocks, explicit ids only, and only on top of the quotes
- * switch itself. Off, the quote flow is exactly the create-and-download one.
- * It has NO `_AUDIENCE=all`: `WA_ASSISTANT_QUOTES_AUDIENCE=all` opens creation
- * for everyone, never customer sending. Intended pilot: 103 only.
+ * Absence blocks, and only on top of the quotes switch itself. Off, the quote
+ * flow is exactly the create-and-download one.
+ *
+ * WA_ASSISTANT_QUOTES_SEND_AUDIENCE: exactly `all` opens it to every agency that
+ * may create quotes (excluded ones never; owner decision, 2026-11-11). Its own
+ * switch on purpose: `WA_ASSISTANT_QUOTES_AUDIENCE=all` opens creation, never
+ * customer sending. Every send still needs the owner's tap on the card for that
+ * exact version, PDF and recipient, a role that may send, and lead visibility.
  */
 export function isWaAssistantQuotesSendAgency(agencyId: number | null | undefined): boolean {
   if (!isWaAssistantQuotesAgency(agencyId)) return false
-  return parseIds(process.env.WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS).includes(agencyId as number)
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_QUOTES_SEND_AUDIENCE', 'WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS')
 }
 
 /** The listed ids, for the background PDF sweep. Empty (and not `all`) means it does no work at all. */
