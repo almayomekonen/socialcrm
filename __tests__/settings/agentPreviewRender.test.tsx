@@ -75,6 +75,17 @@ describe('AgentPreview — the side panel', () => {
     expect(await within(panel()).findByText(/ברוך הבא למוסך אלון/)).toBeTruthy()
   })
 
+  it('a bubble is as wide as its text: the 80% cap is on the wrapper, never on the bubble itself', async () => {
+    render(<Harness {...props} />)
+    fireEvent.change(within(panel()).getByLabelText('הודעה כלקוח'), { target: { value: 'מה קורה?' } })
+    fireEvent.click(within(panel()).getByRole('button', { name: 'שליחה' }))
+    const bubble = await within(panel()).findByText('מה קורה?')
+    // A percentage max-width on the bubble resolves against its shrink-to-fit
+    // wrapper — its own text width — and wraps even two words.
+    expect(bubble.className).not.toMatch(/max-w-/)
+    expect(bubble.parentElement?.className).toContain('max-w-[80%]')
+  })
+
   it('clears the conversation on "שיחה חדשה"', async () => {
     render(<Harness {...props} />)
     fireEvent.change(within(panel()).getByLabelText('הודעה כלקוח'), { target: { value: 'שלום' } })

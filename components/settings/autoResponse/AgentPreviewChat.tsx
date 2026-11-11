@@ -70,20 +70,27 @@ export default function AgentPreviewChat({ chat, businessName, hasDescription, i
             </p>
           )}
           {bubbles.map((b) => (
-            <div key={b.id} className={b.direction === 'inbound' ? 'self-start' : 'self-end'}>
+            /*
+              The width cap sits on THIS wrapper — the flex item, whose 80% resolves
+              against the chat column — not on the bubble. On the bubble, a
+              percentage resolved against this shrink-to-fit wrapper, i.e. against
+              the bubble's own text width, so every message was capped below its
+              own length and even "מה קורה?" wrapped.
+            */
+            <div key={b.id} className={b.direction === 'inbound' ? 'max-w-[80%] self-start' : 'max-w-[80%] self-end'}>
               {b.text && (
                 <div
                   className={
                     b.direction === 'inbound'
-                      ? 'max-w-[85%] rounded-lg rounded-ee-sm border border-gray-200 bg-white px-3.5 py-2 text-sm leading-relaxed'
-                      : 'max-w-[85%] rounded-lg rounded-es-sm border border-[#25D366]/35 bg-[#25D366]/12 px-3.5 py-2 text-sm leading-relaxed'
+                      ? 'rounded-lg rounded-ee-sm border border-gray-200 bg-white px-3.5 py-2 text-sm leading-relaxed break-words'
+                      : 'rounded-lg rounded-es-sm border border-[#25D366]/35 bg-[#25D366]/12 px-3.5 py-2 text-sm leading-relaxed break-words'
                   }
                 >
                   {b.text}
                 </div>
               )}
               {b.note && (
-                <div className='mt-1 flex max-w-[85%] items-start gap-1 text-xs leading-relaxed text-gray-500'>
+                <div className='mt-1 flex items-start gap-1 text-xs leading-relaxed text-gray-500'>
                   <Icon type='reg' name='info' className='mt-[3px] size-3 shrink-0 bg-gray-400' />
                   <p>{b.note}</p>
                 </div>
