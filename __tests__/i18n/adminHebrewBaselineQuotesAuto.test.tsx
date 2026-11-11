@@ -118,7 +118,7 @@ describe('Hebrew baseline — auto-response', () => {
     out.savedUnsupported = norm(container.innerHTML)
     await click(btn('הגדרות מתקדמות'))
     out.advanced = norm(container.innerHTML)
-    await click(container.querySelectorAll('input[name="replyMode"]')[1])
+    await click(container.querySelector('[data-responder-option="fixed"] button')) // the fixed-message method
     set({ results: { updateAutoResponseSettings: { ok: false, reason: 'fixed_body_required' } } })
     await click(btn('שמור שינויים'))
     await flush()

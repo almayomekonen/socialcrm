@@ -5,7 +5,8 @@ import { updateAutoResponseSettings } from '@/actions/autoResponse/updateSetting
 import { toast } from '@/lib/toast'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard'
-import { SAVE_ERROR_KEY, saveErrorCode, toDraft, type AutoResponseFormProps, type Draft, type SaveErrorCode } from './autoResponseDraft'
+import { SAVE_ERROR_KEY, saveErrorCode, toDraft, withMethod, type AutoResponseFormProps, type Draft, type SaveErrorCode } from './autoResponseDraft'
+import type { ResponseMethod } from '@/lib/inbox/autoresponse/responseMethod'
 import { fromAgentProfileDraft, toAgentProfileDraft, type AgentProfileDraft } from './AutoResponseAgentProfile'
 
 /**
@@ -14,7 +15,8 @@ import { fromAgentProfileDraft, toAgentProfileDraft, type AgentProfileDraft } fr
  *
  * Moved out of `AutoResponseSettingsForm.tsx` when the sticky save bar and the
  * unload guard landed (architecture-rules §3: the component renders, the hook
- * decides). The save call and its error handling are unchanged.
+ * decides). The response method is part of the draft and goes out with the
+ * same save.
  */
 export function useAutoResponseForm(initial: AutoResponseFormProps) {
   const t = useT()
@@ -36,6 +38,11 @@ export function useAutoResponseForm(initial: AutoResponseFormProps) {
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
+    setError(null)
+  }
+
+  function setMethod(method: ResponseMethod) {
+    setDraft((d) => withMethod(d, method))
     setError(null)
   }
 
@@ -63,6 +70,10 @@ export function useAutoResponseForm(initial: AutoResponseFormProps) {
         replyMode: draft.replyMode,
         fixedBody: draft.fixedBody.trim() || null,
         delaySeconds: Number(draft.delaySeconds) || 0,
+        // One action, one transaction: the method's columns are written with
+        // everything else, and only if the stored method is still the one shown.
+        method: draft.method,
+        methodFrom: baseline.method,
         ...(showProfile ? { agentProfile: fromAgentProfileDraft(profile) } : {}),
       })
       if (result.ok === false) {
@@ -90,6 +101,7 @@ export function useAutoResponseForm(initial: AutoResponseFormProps) {
     draft,
     baseline,
     set,
+    setMethod,
     profile,
     setProfile,
     showProfile,

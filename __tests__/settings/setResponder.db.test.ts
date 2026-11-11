@@ -265,8 +265,9 @@ describe('the settings page renders the persisted choice', () => {
     as(t)
     const html = await page()
     expect(html).toMatch(/data-responder-option="questionnaire"[^]*?aria-pressed="true"/)
-    expect(html).toMatch(/data-responder-option="agent"[^]*?aria-pressed="false"/)
-    expect(html).toContain('data-responder-current="questionnaire"')
+    expect(html).toMatch(/data-responder-option="ai"[^]*?aria-pressed="false"/)
+    // The 3-way selector: the active card's badge names what answers; no "פעיל כעת" line.
+    expect(html).toMatch(/data-responder-option="questionnaire"[^]*?פעיל/)
     expect(html).toContain('הגדרות הסוכן מוסתרות כי השאלון פעיל')
     expect(html).toContain('href="/settings/questionnaire"')
   })
@@ -275,8 +276,8 @@ describe('the settings page renders the persisted choice', () => {
     const t = await makeAgency('page-a', { responder: 'agent', mode: 'qualify', questionnaire: PP })
     as(t)
     const html = await page()
-    expect(html).toMatch(/data-responder-option="agent"[^]*?aria-pressed="true"/)
-    expect(html).toContain('data-responder-current="agent"')
+    expect(html).toMatch(/data-responder-option="ai"[^]*?aria-pressed="true"/)
+    expect(html).toContain('סוכן AI חכם')
     expect(html).not.toContain('הגדרות הסוכן מוסתרות')
   })
 
@@ -292,12 +293,13 @@ describe('the settings page renders the persisted choice', () => {
     expect(await db('auto_response_settings').where({ agencyId: a.id }).first()).toBeUndefined()
   })
 
-  it('a one-reply agency: no card selected, the AI agent unavailable with its reason, current behaviour named', async () => {
+  it('a one-reply agency: the fixed message is the active method; the AI card says it is one AI reply, with its reason', async () => {
     const t = await makeAgency('page-ack', { responder: 'agent', mode: 'acknowledge', replyMode: 'fixed', questionnaire: null })
     as(t)
     const html = await page()
-    expect(html).not.toContain('aria-pressed="true"')
-    expect(html).toContain('data-responder-current="one_fixed_reply"')
+    expect(html).toMatch(/data-responder-option="fixed"[^]*?aria-pressed="true"/)
+    expect(html).toMatch(/data-responder-option="ai"[^]*?תשובת AI אחת/)
+    expect(html).not.toContain('סוכן AI חכם')
     expect(html).toContain('סוכן ה-AI עם שיחה מלאה עדיין לא זמין לעסק שלכם')
     expect(html).toContain('עדיין אין שאלון מפורסם')
   })

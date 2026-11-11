@@ -1,24 +1,22 @@
 'use client'
 
-import { useId } from 'react'
 import Icon from '@/lib/Icon'
 import AutoResponseTextField from './AutoResponseTextField'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { untranslatedAttrs } from '@/lib/i18n/config'
 
 /**
- * "סגנון התשובה" — the whole of how a reply is produced.
+ * The settings of the chosen response method: the AI's business name,
+ * description, advanced instructions and "not performed" notice, or the fixed
+ * message. The method itself is picked in ResponseMethodSelector (it replaced
+ * the old "סגנון התשובה" radios); this component renders and reports.
  *
- * Extracted because `AutoResponseSettingsForm.tsx` crossed the 350-line hard
- * limit (architecture-rules §1, §5). This component renders and reports; it
- * holds no state of its own beyond the advanced disclosure's id.
- *
- * The section owns one idea: given a chosen reply style, what does the owner
- * need to write. Everything about WHEN a reply goes out — the switches, the
+ * The section owns one idea: given the chosen method, what does the owner need
+ * to write. Everything about WHEN a reply goes out — the switches, the
  * delay, the cap — stays on the form. Every field spans the content column, so
  * the page reads down one edge.
  *
- * LANGUAGE. The reply-mode choice, the business name and the fixed message are
+ * LANGUAGE. The business name and the fixed message are
  * product chrome and follow the interface language. The Smart Agent's own
  * configuration — the description and advanced-instruction fields (their
  * labels, hints and example prompts) and the AI-derived "not performed" list —
@@ -26,8 +24,8 @@ import { untranslatedAttrs } from '@/lib/i18n/config'
  * declared Hebrew region (`untranslatedAttrs`).
  */
 type Props = {
+  /** 'ai' or 'fixed' — the method's fields (the questionnaire has none here). */
   replyMode: 'ai' | 'fixed'
-  onReplyMode: (mode: 'ai' | 'fixed') => void
 
   /** The one description a Smart Agent owner writes. */
   guidance: string
@@ -56,52 +54,11 @@ type Props = {
   bodyId: string
   instructionsId: string
   nameId: string
+  advancedId: string
   maxLength: number
 }
 
-const radioCard =
-  'flex cursor-pointer flex-col gap-1.5 rounded-lg border border-gray-200 bg-white px-4.5 py-3.5 transition-colors hover:border-gray-300 has-checked:border-solid has-checked:ring-1 has-checked:ring-solid'
-
-export default function AutoResponseReplyStyle(p: Props) {
-  const t = useT()
-  const hebrew = untranslatedAttrs(t.locale)
-  const advancedId = useId()
-  const { replyMode, onReplyMode } = p
-  return (
-    <section className='mt-5.5 border-t border-gray-200 pt-5.5'>
-      <h2 className='text-base font-semibold text-ink'>{t('admin.autoResponse.style.title')}</h2>
-      <p className='mt-1.5 text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.style.intro')}</p>
-
-      <div className='mt-4 grid gap-3 sm:grid-cols-2'>
-        <label className={radioCard}>
-          <span className='flex items-center justify-between gap-2.5'>
-            <span className='text-md font-semibold text-ink'>{t('admin.autoResponse.style.ai')}</span>
-            <input type='radio' name='replyMode' className='size-4 accent-solid' checked={replyMode === 'ai'} onChange={() => onReplyMode('ai')} />
-          </span>
-          <span className='text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.style.aiHint')}</span>
-        </label>
-
-        <label className={radioCard}>
-          <span className='flex items-center justify-between gap-2.5'>
-            <span className='text-md font-semibold text-ink'>{t('admin.autoResponse.style.fixed')}</span>
-            <input type='radio' name='replyMode' className='size-4 accent-solid' checked={replyMode === 'fixed'} onChange={() => onReplyMode('fixed')} />
-          </span>
-          <span className='text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.style.fixedHint')}</span>
-        </label>
-      </div>
-
-      <div className='mt-5'>
-        <ReplyFields {...p} advancedId={advancedId} hebrew={hebrew} />
-      </div>
-    </section>
-  )
-}
-
-/**
- * The fields of the selected reply style. Also rendered on its own by the
- * response-method selector's form, which no longer needs the style radios.
- */
-export function ReplyFields({
+export default function AutoResponseReplyFields({
   replyMode,
   guidance,
   onGuidance,
@@ -122,9 +79,9 @@ export function ReplyFields({
   nameId,
   maxLength,
   advancedId,
-  hebrew,
-}: Omit<Props, 'onReplyMode'> & { advancedId: string; hebrew: ReturnType<typeof untranslatedAttrs> }) {
+}: Props) {
   const t = useT()
+  const hebrew = untranslatedAttrs(t.locale)
 
   if (replyMode === 'fixed') {
     return (

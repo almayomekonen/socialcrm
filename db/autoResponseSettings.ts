@@ -3,6 +3,7 @@
  * agencies.autoResponseEnabled; per-channel config in auto_response_settings.
  * Additive, read/write only — no business logic.
  */
+import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import { parseBusinessProfile, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfileParse'
 import { normalizeAgentProfile, storableAgentProfile, type AgentProfile } from '@/lib/inbox/autoresponse/conversational/agentProfile'
@@ -92,8 +93,9 @@ export async function getMasterEnabled(agencyId: number): Promise<boolean> {
   return row?.autoResponseEnabled ?? false
 }
 
-export async function setMasterEnabled(agencyId: number, enabled: boolean): Promise<void> {
-  await db('agencies').where({ id: agencyId }).update({ autoResponseEnabled: enabled })
+/** `conn` lets a caller write this inside its own transaction; default is the pool. */
+export async function setMasterEnabled(agencyId: number, enabled: boolean, conn: Knex | Knex.Transaction = db): Promise<void> {
+  await conn('agencies').where({ id: agencyId }).update({ autoResponseEnabled: enabled })
 }
 
 export async function getChannelSettings(agencyId: number, channel: string): Promise<AutoResponseSettings | null> {
@@ -160,6 +162,8 @@ export type UpsertChannelSettingsInput = Pick<
   /** Optional: callers that do not manage these leave the stored value alone. */
   agentInstructions?: string | null
   mode?: AutoResponseSettings['mode']
+  /** Written only by the response-method save (lib/inbox/autoresponse/responseMethod). Undefined leaves it alone. */
+  responder?: 'agent' | 'questionnaire'
   /**
    * `undefined` leaves the stored profile alone; `null` clears it. Clearing
    * matters: a description saved while derivation was down must not keep serving
@@ -179,7 +183,7 @@ export type UpsertChannelSettingsInput = Pick<
  * a row that is already on `qualify`, so the merge only touches the column when a
  * value was supplied. Same for `agentInstructions`.
  */
-export async function upsertChannelSettings(input: UpsertChannelSettingsInput): Promise<void> {
+export async function upsertChannelSettings(input: UpsertChannelSettingsInput, conn: Knex | Knex.Transaction = db): Promise<void> {
   const replyMode = parseReplyMode(input.replyMode)
   const delaySeconds = clampDelaySeconds(input.delaySeconds)
   const fixedBody =
@@ -187,6 +191,7 @@ export async function upsertChannelSettings(input: UpsertChannelSettingsInput): 
 
   const optional: Record<string, unknown> = {}
   if (input.mode !== undefined) optional.mode = input.mode === 'qualify' ? 'qualify' : 'acknowledge'
+  if (input.responder !== undefined) optional.responder = input.responder === 'questionnaire' ? 'questionnaire' : 'agent'
   if (input.businessProfile !== undefined) {
     optional.businessProfile = input.businessProfile ? JSON.stringify(input.businessProfile) : null
   }
@@ -210,11 +215,11 @@ export async function upsertChannelSettings(input: UpsertChannelSettingsInput): 
     fixedBody,
     delaySeconds,
     updatedBy: input.updatedBy,
-    updatedAt: db.fn.now(),
+    updatedAt: conn.fn.now(),
     ...optional,
   }
 
-  await db('auto_response_settings')
+  await conn('auto_response_settings')
     .insert({
       agencyId: input.agencyId,
       channel: input.channel,

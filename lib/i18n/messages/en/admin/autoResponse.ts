@@ -11,13 +11,10 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
   channel: 'WhatsApp',
   channelHint: 'The channel the reply is sent on. More channels are coming.',
   style: {
-    title: 'Reply style',
-    intro: 'Choose how SocialCRM writes the reply.',
     businessName: 'Business name',
     businessNameHint: 'The agent opens every conversation with it. Saved to the account.',
     businessNamePlaceholder: "For example: Alon's Garage",
     ai: 'Smart reply',
-    aiHint: 'Replies to what was written and carries the conversation on',
     fixed: 'Fixed message',
     fixedHint: 'The same wording every time, once per conversation',
     fixedLabel: 'The message that will be sent',
@@ -62,11 +59,13 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
   },
   responder: {
     heading: 'How WhatsApp inquiries are answered',
-    hint: "Choose one response method. The other method's settings are kept, and you can switch back at any time.",
+    hint: "Choose one response method. The other methods' settings are kept, and you can switch back at any time.",
     agentTitle: 'Smart AI agent',
     agentBody: 'The agent holds a natural conversation, understands who is writing, answers questions, adapts to the context and hands over to a person when needed.',
     questionnaireTitle: 'Structured questionnaire',
     questionnaireBody: 'The lead moves through questions you defined in advance, step by step, to collect the information your business needs.',
+    oneAiTitle: 'One AI reply',
+    oneAiBody: 'Each new inquiry gets one reply, written from the message and what you wrote about the business, with no ongoing conversation. You continue the conversation from there.',
     active: 'Active',
     unavailable: 'Unavailable',
     current: {
@@ -83,6 +82,10 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
     },
     setupLink: 'Build the questionnaire',
     editLink: 'Edit the questionnaire',
+    switchNote: {
+      leaveQuestionnaire: 'Someone in the middle of the questionnaire will get your handoff message with their next message, and the conversation will go to your team with the answers collected so far. The questionnaire, its published versions and drafts are kept.',
+      toQuestionnaire: 'Conversations that already started will not get an automatic reply. The agent settings are kept.',
+    },
     confirm: {
       agent: 'Turn on the smart AI agent?\nFrom now on every new WhatsApp inquiry will be answered by a conversation with the agent instead of the questionnaire. Someone in the middle of the questionnaire will get your handoff message with their next message, and the conversation will go to your team with the answers collected so far. The questionnaire, its published versions and drafts are kept.',
       questionnaire: 'Turn on the structured questionnaire?\nFrom now on every new WhatsApp inquiry will be answered by the questionnaire you published instead of the agent. Conversations that already started will not get an automatic reply. The agent settings are kept.',

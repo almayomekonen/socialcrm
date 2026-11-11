@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
 import { canUseSmartReplyAgent } from '@/lib/flags/smartReplyAgentFlags'
+import { canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
+import { parseQuestionnaireDefinition } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import { db } from '@/config/db'
 import {
   setMasterEnabled,
@@ -17,6 +19,14 @@ import {
 import { deriveBusinessProfile, hashDescription, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfile'
 import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 import { normalizeAgentProfile, type AgentProfile } from '@/lib/inbox/autoresponse/conversational/agentProfile'
+import { checkMethodChange, isResponseMethod, methodWrite, type MethodWrite, type ResponseMethod } from '@/lib/inbox/autoresponse/responseMethod'
+
+/**
+ * NOTE (architecture-rules §6): ~250 lines, at the soft limit on purpose. It is
+ * one linear save — validate, derive the profile, then one transaction — and
+ * splitting the transaction body out would pass every validated value across a
+ * file boundary for no readability gain.
+ */
 
 export type UpdateAutoResponseInput = {
   masterEnabled: boolean
@@ -38,6 +48,15 @@ export type UpdateAutoResponseInput = {
    * Omitted = left as stored.
    */
   agentProfile?: AgentProfile | null
+  /**
+   * The response method (lib/inbox/autoresponse/responseMethod). When given, it
+   * decides `responder`, `replyMode` and `mode` — written with everything else
+   * in one transaction — and `replyMode` above is ignored. Omitted: the reply
+   * style alone decides, exactly as before, and `responder` is not touched.
+   */
+  method?: ResponseMethod
+  /** The method the page showed as stored. A different stored value is a conflict, never an overwrite. */
+  methodFrom?: ResponseMethod
 }
 
 export type UpdateAutoResponseResult =
@@ -67,19 +86,41 @@ function modeForReplyMode(
   return canUseSmartReplyAgent(agencyId) ? 'qualify' : undefined
 }
 
+class MethodRefused extends Error {
+  constructor(readonly reason: 'method_conflict' | 'method_unavailable') {
+    super(reason)
+  }
+}
+
 export async function updateAutoResponseSettings(input: UpdateAutoResponseInput): Promise<UpdateAutoResponseResult> {
   const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
 
+  const methodGiven = input.method !== undefined
+  if (methodGiven && (!isResponseMethod(input.method) || !isResponseMethod(input.methodFrom))) return { ok: false, reason: 'invalid' }
+  const method = methodGiven ? (input.method as ResponseMethod) : null
+
+  // ── What the existing row says (read again, locked, inside the transaction) ──
+  const existing = await getChannelSettings(user.agencyId, CHANNEL)
+
+  // The method's own columns. The questionnaire leaves the reply style alone, so
+  // the agent comes back exactly as the owner left it.
+  const write: MethodWrite | null = method ? methodWrite(method, canUseSmartReplyAgent(user.agencyId)) : null
+  const replyMode = write
+    ? (write.replyMode ?? existing?.replyMode ?? parseReplyMode(input.replyMode))
+    : parseReplyMode(input.replyMode)
+  const mode = write ? write.mode : modeForReplyMode(replyMode, user.agencyId)
+  // The agent's own requirements apply only when the agent is what will answer.
+  const agentAnswers = method !== 'questionnaire'
+
   const dailyCap = Number.isFinite(input.dailyCap) ? Math.min(Math.max(Math.floor(input.dailyCap), 0), 100_000) : 200
   const guidance = (input.guidance ?? '').trim().slice(0, MAX_GUIDANCE_LENGTH) || null
   const agentInstructions = (input.agentInstructions ?? '').trim().slice(0, MAX_GUIDANCE_LENGTH) || null
-  const replyMode = parseReplyMode(input.replyMode)
   const delaySeconds = clampDelaySeconds(input.delaySeconds)
   const fixedBody =
     replyMode === 'fixed' ? (input.fixedBody ?? '').trim().slice(0, MAX_FIXED_BODY_LENGTH) || null : (input.fixedBody ?? null)
 
-  if (replyMode === 'fixed' && !fixedBody) return { ok: false, reason: 'fixed_body_required' }
+  if (agentAnswers && replyMode === 'fixed' && !fixedBody) return { ok: false, reason: 'fixed_body_required' }
 
   // ── The business name ──────────────────────────────────────────────────────
   // The agent greets by name, so Smart Agent needs one. It is normally already
@@ -89,18 +130,20 @@ export async function updateAutoResponseSettings(input: UpdateAutoResponseInput)
   const storedName = typeof agency?.name === 'string' ? agency.name.trim() : ''
   const suppliedName = (input.businessName ?? '').trim().slice(0, 120)
   let businessName = storedName
-  if (replyMode === 'ai') {
+  let nameToStore: string | null = null
+  if (agentAnswers && replyMode === 'ai') {
     if (!storedName && !suppliedName) return { ok: false, reason: 'business_name_required' }
     if (!storedName && suppliedName) {
-      await db('agencies').where({ id: user.agencyId }).update({ name: suppliedName })
+      nameToStore = suppliedName
       businessName = suppliedName
     }
   }
 
   // ── Derive the profile ─────────────────────────────────────────────────────
-  // Once, here — never per customer message. Skipped when the description has
-  // not changed, so re-saving a daily cap costs no model call.
-  const existing = await getChannelSettings(user.agencyId, CHANNEL)
+  // Once, here — never per customer message, and never inside the transaction
+  // (a model call must not hold a row lock). Skipped when the description has
+  // not changed, so re-saving a daily cap costs no model call, and skipped while
+  // the questionnaire answers (the agent is not running).
   const descriptionChanged = (existing?.guidance ?? null) !== guidance
   const storedProfile = existing?.businessProfile ?? null
   const profileStillMatches =
@@ -111,7 +154,7 @@ export async function updateAutoResponseSettings(input: UpdateAutoResponseInput)
   let unsupportedRequests = storedProfile?.unsupportedRequests ?? []
   let derivationFailed = false
 
-  if (replyMode === 'ai' && guidance && (descriptionChanged || !profileStillMatches)) {
+  if (agentAnswers && replyMode === 'ai' && guidance && (descriptionChanged || !profileStillMatches)) {
     const derived = await deriveBusinessProfile({ agencyId: user.agencyId, description: guidance, businessName })
     if (derived.ok) {
       businessProfile = derived.profile
@@ -126,32 +169,68 @@ export async function updateAutoResponseSettings(input: UpdateAutoResponseInput)
       derivationFailed = true
       unsupportedRequests = []
     }
-  } else if (replyMode === 'ai' && !guidance) {
+  } else if (agentAnswers && replyMode === 'ai' && !guidance) {
     businessProfile = null
     profileDerived = false
     unsupportedRequests = []
   }
 
-  await setMasterEnabled(user.agencyId, !!input.masterEnabled)
-  await upsertChannelSettings({
-    agencyId: user.agencyId,
-    channel: CHANNEL,
-    enabled: !!input.channelEnabled,
-    quietHours: {},
-    dailyCap,
-    guidance,
-    agentInstructions,
-    businessProfile,
-    mode: modeForReplyMode(replyMode, user.agencyId),
-    // Validated and length-capped here and again in the data layer; owner text only.
-    ...(input.agentProfile !== undefined && canUseConversationalAgent(user.agencyId)
-      ? { agentProfile: input.agentProfile ? normalizeAgentProfile(input.agentProfile) : null }
-      : {}),
-    replyMode,
-    fixedBody,
-    delaySeconds,
-    updatedBy: user.id,
-  })
+  // ── One transaction ────────────────────────────────────────────────────────
+  // The method is checked against the row AS IT IS NOW (locked), so a stale page
+  // or a second tab can neither overwrite a newer choice nor switch the agency to
+  // a method it cannot run. A refusal writes nothing at all.
+  try {
+    await db.transaction(async (trx) => {
+      if (method && input.methodFrom) {
+        const row = await trx('auto_response_settings')
+          .where({ agencyId: user.agencyId, channel: CHANNEL })
+          .forUpdate()
+          .first('responder', 'mode', 'replyMode', 'questionnaire')
+        const check = checkMethodChange(
+          row
+            ? {
+                responder: row.responder,
+                mode: row.mode,
+                replyMode: row.replyMode,
+                questionnaireAllowed: canUseWhatsappQuestionnaire(user.agencyId),
+                questionnairePublished: parseQuestionnaireDefinition(row.questionnaire ?? null).ok,
+              }
+            : null,
+          { from: input.methodFrom, to: method },
+        )
+        if (check.ok === false) throw new MethodRefused(check.reason === 'conflict' ? 'method_conflict' : 'method_unavailable')
+      }
+
+      if (nameToStore) await trx('agencies').where({ id: user.agencyId }).update({ name: nameToStore })
+      await setMasterEnabled(user.agencyId, !!input.masterEnabled, trx)
+      await upsertChannelSettings(
+        {
+          agencyId: user.agencyId,
+          channel: CHANNEL,
+          enabled: !!input.channelEnabled,
+          quietHours: {},
+          dailyCap,
+          guidance,
+          agentInstructions,
+          businessProfile,
+          mode,
+          ...(write ? { responder: write.responder } : {}),
+          // Validated and length-capped here and again in the data layer; owner text only.
+          ...(input.agentProfile !== undefined && canUseConversationalAgent(user.agencyId)
+            ? { agentProfile: input.agentProfile ? normalizeAgentProfile(input.agentProfile) : null }
+            : {}),
+          replyMode,
+          fixedBody,
+          delaySeconds,
+          updatedBy: user.id,
+        },
+        trx,
+      )
+    })
+  } catch (err) {
+    if (err instanceof MethodRefused) return { ok: false, reason: err.reason }
+    throw err
+  }
 
   revalidatePath('/settings/auto-response')
 

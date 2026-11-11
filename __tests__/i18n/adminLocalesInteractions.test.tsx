@@ -266,7 +266,8 @@ describe('admin settings interactions in he / en / ar', () => {
     const r = await across('autoResponse', async (c, s) => {
       await type(c.querySelector('textarea'), 'עוד הודעה')
       s('dirty')
-      const save = () => [...c.querySelectorAll('button')].pop()
+      // The sticky save bar's primary button (the test chat's send button also sits in the page).
+      const save = () => [...c.querySelectorAll('[data-auto-response-save-bar] button')].pop()
       for (const reason of ['business_name_required', 'profile_derivation_failed', 'forbidden']) {
         set({ results: { updateAutoResponseSettings: { ok: false, reason } } })
         await click(save())
@@ -277,7 +278,7 @@ describe('admin settings interactions in he / en / ar', () => {
       await click(save())
       await flush()
       s('saved')
-      await click(c.querySelectorAll('input[name="replyMode"]')[1])
+      await click(c.querySelector('[data-responder-option="fixed"] button')) // the fixed-message method
       set({ results: { updateAutoResponseSettings: { ok: false, reason: 'fixed_body_required' } } })
       await click(save())
       await flush()

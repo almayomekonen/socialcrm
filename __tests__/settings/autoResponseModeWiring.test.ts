@@ -21,7 +21,12 @@ describe('mode is actually written now', () => {
     expect(src).toContain('function modeForReplyMode')
     expect(src).toContain("if (replyMode === 'fixed') return 'acknowledge'")
     expect(src).toContain("canUseSmartReplyAgent(agencyId) ? 'qualify' : undefined")
-    expect(src).toContain('mode: modeForReplyMode(replyMode, user.agencyId)')
+    // Without a response method the reply style alone decides, as before; with
+    // one, the method's table does (lib/inbox/autoresponse/responseMethod).
+    expect(src).toContain('const mode = write ? write.mode : modeForReplyMode(replyMode, user.agencyId)')
+    const method = read('lib/inbox/autoresponse/responseMethod.ts')
+    expect(method).toContain("if (method === 'fixed') return { responder: 'agent', replyMode: 'fixed', mode: 'acknowledge' }")
+    expect(method).toContain("...(smartReplyRollout ? { mode: 'qualify' as const } : {})")
   })
 
   it('the db layer persists mode and agentInstructions', () => {

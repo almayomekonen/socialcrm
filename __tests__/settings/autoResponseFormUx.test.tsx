@@ -42,6 +42,7 @@ const props = {
   fixedBody: 'שלום, נחזור אליך' as string | null,
   delaySeconds: 0,
   agentProfile: null,
+  method: { stored: 'ai' as const, questionnaire: { available: true as const }, aiConversational: true, stalled: false },
 }
 
 const DIRTY = 'יש שינויים שלא נשמרו'
@@ -158,7 +159,7 @@ describe('text fields', () => {
   })
 
   it('the fixed message carries the badge too', () => {
-    render(<AutoResponseSettingsForm {...props} replyMode='fixed' />)
+    render(<AutoResponseSettingsForm {...props} replyMode='fixed' method={{ ...props.method, stored: 'fixed' }} />)
     const badges = document.querySelectorAll('[data-sent-badge]')
     expect(badges).toHaveLength(1)
     expect(badges[0].parentElement?.textContent).toContain('ההודעה שתישלח')

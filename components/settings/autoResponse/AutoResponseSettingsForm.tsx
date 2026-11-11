@@ -6,7 +6,8 @@ import { Switch } from '@/lib/form'
 import Icon from '@/lib/Icon'
 import { BODY_MAX, type AutoResponseFormProps as Props } from './autoResponseDraft'
 import { useRegionAttrs, useT } from '@/lib/i18n/I18nProvider'
-import AutoResponseReplyStyle from './AutoResponseReplyStyle'
+import AutoResponseReplyFields from './AutoResponseReplyStyle'
+import ResponseMethodSelector from './ResponseMethodSelector'
 import { AgentPreviewLauncher, AgentPreviewPanel, useAgentPreview } from './AgentPreview'
 import AutoResponseTiming from './AutoResponseTiming'
 import AutoResponseSaveBar from './AutoResponseSaveBar'
@@ -15,26 +16,25 @@ import { useAutoResponseForm } from './useAutoResponseForm'
 
 /**
  * Workspace control for WhatsApp Auto Response. Master switch gates everything;
- * the owner chooses how the reply is produced and how fast it goes out.
+ * the owner picks ONE response method — the AI, the questionnaire, or a fixed
+ * message — and sees only that method's settings, then how fast it goes out.
  *
  * The page sits directly on the canvas: no card wraps a section, because the
  * cards were reading as four unrelated widgets when this is one form. Groups are
  * told apart by a hairline and 44px of air. Every section and field spans the
  * same content column.
  *
- * TWO COLUMNS on a wide screen while the Smart Agent is the reply style: the form
- * on the start side, the test chat sticky on the end side, so the owner sees the
- * agent answer while editing it. Narrower, the chat is one button in the flow.
+ * TWO COLUMNS on a wide screen while the AI is the method: the form on the start
+ * side, the test chat sticky on the end side, so the owner sees the agent answer
+ * while editing it. Narrower, the chat is one button in the flow.
  *
- * State and the save live in `useAutoResponseForm`; the save bar appears only
- * while there is something to save.
+ * Everything — the method included — is one draft, saved from the sticky bar.
  */
 export default function AutoResponseSettingsForm(initial: Props) {
   const t = useT()
   const region = useRegionAttrs()
   const form = useAutoResponseForm(initial)
-  const { draft, baseline, set, profile, setProfile, showProfile, dirty, errorCode, error, pending, unsupported, savedDescription } = form
-  const agentSettingsVisible = initial.agentSettingsVisible !== false
+  const { draft, baseline, set, setMethod, profile, setProfile, showProfile, dirty, errorCode, error, pending, unsupported, savedDescription } = form
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const bodyId = useId()
@@ -42,8 +42,9 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const nameId = useId()
   const delayId = useId()
   const capId = useId()
+  const advancedId = useId()
 
-  const { master, channel, dailyCap, guidance, agentInstructions, replyMode, fixedBody, delaySeconds, businessName } = draft
+  const { master, channel, dailyCap, guidance, agentInstructions, replyMode, method, fixedBody, delaySeconds, businessName } = draft
   const fixedBodyError = errorCode === 'fixed_body_required' ? (error ?? undefined) : undefined
   const businessNameError = errorCode === 'business_name_required' ? (error ?? undefined) : undefined
 
@@ -54,7 +55,8 @@ export default function AutoResponseSettingsForm(initial: Props) {
    */
   const proLocked = useAccessDenied()
 
-  const showPreview = master && agentSettingsVisible && replyMode === 'ai'
+  const agentAnswers = method !== 'questionnaire'
+  const showPreview = master && method === 'ai'
   const preview = useAgentPreview({
     draftDescription: guidance,
     draftAgentInstructions: agentInstructions,
@@ -105,36 +107,49 @@ export default function AutoResponseSettingsForm(initial: Props) {
             )}
           </section>
 
-          {initial.responderSlot}
+          <ResponseMethodSelector
+            value={method}
+            stored={baseline.method}
+            onChange={setMethod}
+            questionnaire={initial.method.questionnaire}
+            aiConversational={initial.method.aiConversational}
+            stalled={initial.method.stalled}
+            builderHref={initial.method.builderHref}
+            locked={proLocked}
+          />
 
           {master && (
             <>
-              {!agentSettingsVisible && (
-                <p className='mt-8 text-sm leading-relaxed text-gray-600'>{t('admin.autoResponse.responder.agentHidden')}</p>
+              {!agentAnswers && baseline.method === 'questionnaire' && (
+                <p className='mt-5.5 border-t border-gray-200 pt-5.5 text-sm leading-relaxed text-gray-600'>
+                  {t('admin.autoResponse.responder.agentHidden')}
+                </p>
               )}
-              {agentSettingsVisible && (
-                <AutoResponseReplyStyle
-                  replyMode={replyMode}
-                  onReplyMode={(m) => set('replyMode', m)}
-                  guidance={guidance}
-                  onGuidance={(v) => set('guidance', v)}
-                  agentInstructions={agentInstructions}
-                  onAgentInstructions={(v) => set('agentInstructions', v)}
-                  advancedOpen={advancedOpen}
-                  onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
-                  fixedBody={fixedBody}
-                  onFixedBody={(v) => set('fixedBody', v)}
-                  fixedBodyError={fixedBodyError}
-                  businessName={businessName}
-                  onBusinessName={(v) => set('businessName', v)}
-                  needsBusinessName={!initial.businessName}
-                  businessNameError={businessNameError}
-                  unsupported={unsupported}
-                  bodyId={bodyId}
-                  instructionsId={instructionsId}
-                  nameId={nameId}
-                  maxLength={BODY_MAX}
-                />
+              {agentAnswers && (
+                <section className='mt-5.5 border-t border-gray-200 pt-5.5' data-method-settings={method}>
+                  <AutoResponseReplyFields
+                    replyMode={replyMode}
+                    guidance={guidance}
+                    onGuidance={(v) => set('guidance', v)}
+                    agentInstructions={agentInstructions}
+                    onAgentInstructions={(v) => set('agentInstructions', v)}
+                    advancedOpen={advancedOpen}
+                    onToggleAdvanced={() => setAdvancedOpen((v) => !v)}
+                    fixedBody={fixedBody}
+                    onFixedBody={(v) => set('fixedBody', v)}
+                    fixedBodyError={fixedBodyError}
+                    businessName={businessName}
+                    onBusinessName={(v) => set('businessName', v)}
+                    needsBusinessName={!initial.businessName}
+                    businessNameError={businessNameError}
+                    unsupported={unsupported}
+                    bodyId={bodyId}
+                    instructionsId={instructionsId}
+                    nameId={nameId}
+                    advancedId={advancedId}
+                    maxLength={BODY_MAX}
+                  />
+                </section>
               )}
 
               {showPreview && (
@@ -143,7 +158,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
                 </div>
               )}
 
-              {agentSettingsVisible && replyMode === 'ai' && showProfile && <AutoResponseAgentProfile value={profile} onChange={setProfile} />}
+              {method === 'ai' && showProfile && <AutoResponseAgentProfile value={profile} onChange={setProfile} />}
 
               <AutoResponseTiming
                 delayId={delayId}

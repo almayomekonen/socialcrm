@@ -7,8 +7,9 @@ import { isMobileWorkspaceRequest } from '@/lib/device'
 import { getMasterEnabled, getChannelSettings, getAgentProfile } from '@/db/autoResponseSettings'
 import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 import AutoResponseSettingsForm from '@/components/settings/autoResponse/AutoResponseSettingsForm'
-import ResponderSelector from '@/components/settings/autoResponse/ResponderSelector'
 import { resolveResponderChoice } from '@/lib/inbox/autoresponse/responderChoice'
+import { aiConversational, storedMethod } from '@/lib/inbox/autoresponse/responseMethod'
+import { canUseSmartReplyAgent } from '@/lib/flags/smartReplyAgentFlags'
 import { canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
 import { parseQuestionnaireDefinition } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
@@ -61,8 +62,8 @@ export default async function AutoResponseSettingsPage() {
     conversational ? getAgentProfile(user.agencyId, 'whatsapp') : Promise.resolve(undefined),
   ])
 
-  // The persisted responder and what this agency can actually run (one rule,
-  // shared with the switch action). Never inferred from replyMode alone.
+  // The persisted method and what this agency can actually run (one rule,
+  // shared with the save action). Never inferred from replyMode alone.
   const choice = channel ? resolveResponderChoice({
     responder: channel.responder,
     mode: channel.mode,
@@ -95,8 +96,13 @@ export default async function AutoResponseSettingsPage() {
         fixedBody={channel?.fixedBody ?? null}
         delaySeconds={channel?.delaySeconds ?? 0}
         {...(conversational ? { agentProfile: agentProfile ?? null } : {})}
-        agentSettingsVisible={choice?.stored !== 'questionnaire'}
-        responderSlot={<ResponderSelector choice={choice} builderHref={builderHref} />}
+        method={{
+          stored: storedMethod(choice, channel?.replyMode),
+          questionnaire: choice ? choice.questionnaire : null,
+          aiConversational: aiConversational(channel?.mode, canUseSmartReplyAgent(user.agencyId)),
+          stalled: choice?.questionnaireStalled ?? false,
+          ...(builderHref ? { builderHref } : {}),
+        }}
       />
     </>
   )
