@@ -42,6 +42,7 @@ export function groundedProposal(
     'update_lead_status',
     'add_lead_note',
     'create_quote',
+    'edit_quote',
     'update_task',
     'complete_task',
     'reschedule_meeting',
@@ -49,6 +50,9 @@ export function groundedProposal(
     'create_smartbee_document',
   ]
   if (!KNOWN.includes(proposal.actionType)) return null
+
+  // Names no record: the application takes the quote from this owner's own open card.
+  if (proposal.actionType === 'edit_quote') return proposal
 
   const clientId = proposal.args?.clientId
   if (!Number.isInteger(clientId) || clientId <= 0) return null

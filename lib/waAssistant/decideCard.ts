@@ -15,6 +15,8 @@ import { REMINDER_COPY } from './reminders/copy'
 import type { ReminderDeps } from './reminders/reply'
 import { decideQuoteCard, type QuoteDecideDeps } from './quotes/decide'
 import { QUOTE_COPY } from './quotes/copy'
+import { DELIVERY_COPY } from './quotes/deliveryCopy'
+import { decideQuoteCancelCard, decideQuoteEditCard, decideQuoteSendCard, type SendCardArgs } from './quotes/decideDelivery'
 import { decideRecordChange, type ChangeDecideDeps } from './recordChanges/decide'
 import { CHANGE_COPY, type ChangeType } from './recordChanges/copy'
 import { decideSmartbeeDocumentCard, type DocumentDecideDeps } from './smartbee/decide'
@@ -48,6 +50,7 @@ export async function decideCard(input: {
   notesOn?: boolean
   remindersOn?: boolean
   quotesOn?: boolean
+  quotesSendOn?: boolean
   documentsOn?: boolean
   deps?: { meetings?: DecideDeps; tasks?: TaskDecideDeps; leadUpdates?: LeadUpdateDecideDeps; reminders?: ReminderDeps; quotes?: QuoteDecideDeps; changes?: ChangeDecideDeps; documents?: DocumentDecideDeps }
 }): Promise<MeetingReply> {
@@ -59,6 +62,33 @@ export async function decideCard(input: {
   if (!card || card.agencyId !== scope.agencyId || card.userId !== scope.userId)
     return refused('decision_not_found', MEETING_COPY.notFound)
   const record = await findActionByActionId(scope.agencyId, card.actionId)
+
+  // "לערוך" exists only on a send card, and it changes nothing: it asks what to change.
+  if (m[1] === 'edit') {
+    if (record?.actionType !== 'send_quote' || !input.quotesSendOn) return refused('decision_malformed', null)
+    if (card.status !== 'pending' || card.expiresAt <= new Date(nowMs)) return refused('quote_edit_prompt_stale', DELIVERY_COPY.expired)
+    return { status: 'answered', stopReason: 'quote_edit_prompt', text: DELIVERY_COPY.editPrompt, headline: null }
+  }
+  // "לבטל הצעה" exists only on a quote's preview card: it withdraws the quote, and never sends anything.
+  if (m[1] === 'cancel') {
+    if (record?.actionType !== 'send_quote' || !input.quotesSendOn) return refused('decision_malformed', null)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', DELIVERY_COPY.cancelStale)
+    }
+    return decideQuoteCancelCard({ job, scope, card, approve: false, nowMs, args: record.args as SendCardArgs })
+  }
+  if (record?.actionType === 'send_quote' || record?.actionType === 'edit_quote') {
+    if (!input.quotesSendOn) return refused('quotes_send_disabled', COPY.notAvailable)
+    if (record.argsHash !== card.argsHash) {
+      await decideWaApproval({ token: card.token, recipientId: job.recipientId, decision: 'rejected', now: new Date(nowMs) })
+      return refused('decision_args_changed', DELIVERY_COPY.stale)
+    }
+    const common = { job, scope, card, approve: m[1] === 'approve', nowMs }
+    return record.actionType === 'send_quote'
+      ? decideQuoteSendCard({ ...common, args: record.args as SendCardArgs })
+      : decideQuoteEditCard({ ...common, args: record.args as { quoteId: number } })
+  }
 
   if (record?.actionType === 'create_meeting') {
     return input.meetingsOn

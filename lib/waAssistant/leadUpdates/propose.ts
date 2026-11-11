@@ -51,9 +51,8 @@ export async function proposeLeadUpdate(input: {
   const kind = p.actionType === 'update_lead_status' ? 'status' : 'note'
   const said = await requestMessages(kind, job, input.question)
 
-  const clientId = Number(p.args.clientId)
-  if (!Number.isSafeInteger(clientId) || clientId <= 0) return clarify(kind, LEAD_UPDATE_COPY.askLead, 'lead')
-  const choice = await chooseLead({ scope, proposedId: clientId, evidence: input.evidence, said })
+  const choice = await chooseLead({ scope, proposedId: Number(p.args.clientId), evidence: input.evidence, said, request: { job, kind }, requireProposed: true })
+  if ('missing' in choice) return clarify(kind, LEAD_UPDATE_COPY.askLead, 'lead')
   if ('refused' in choice) return { status: 'refused', stopReason: `${kind}_lead_not_allowed`, text: LEAD_UPDATE_COPY.leadNotAllowed, headline: null }
   if ('ask' in choice) return clarify(kind, choice.ask, 'lead')
   const lead = choice.lead

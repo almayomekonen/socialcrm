@@ -36,8 +36,10 @@ export function buildPlatformTextPayload(input: { toDigits: string; body: string
 /** Meta's reply-button limits: body 1024 characters, up to 3 buttons, title 20, id 256. */
 export const MAX_BUTTON_BODY_CHARS = 1024
 export type ReplyButton = { id: string; title: string }
+/** A PDF shown above the buttons. Meta fetches `link` once, when the message is sent. */
+export type ReplyDocument = { link: string; filename: string }
 
-export function buildPlatformButtonsPayload(input: { toDigits: string; body: string; buttons: readonly ReplyButton[]; replyToWamid?: string | null }) {
+export function buildPlatformButtonsPayload(input: { toDigits: string; body: string; buttons: readonly ReplyButton[]; document?: ReplyDocument | null; replyToWamid?: string | null }) {
   return {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -45,9 +47,22 @@ export function buildPlatformButtonsPayload(input: { toDigits: string; body: str
     type: 'interactive',
     interactive: {
       type: 'button',
+      ...(input.document ? { header: { type: 'document', document: { link: input.document.link, filename: input.document.filename } } } : {}),
       body: { text: input.body.slice(0, MAX_BUTTON_BODY_CHARS) },
       action: { buttons: input.buttons.slice(0, 3).map((b) => ({ type: 'reply', reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) } })) },
     },
+    ...(input.replyToWamid ? { context: { message_id: input.replyToWamid } } : {}),
+  }
+}
+
+/** The PDF itself with the text as its caption: a preview that has no buttons is still the document. */
+export function buildPlatformDocumentPayload(input: { toDigits: string; body: string; document: ReplyDocument; replyToWamid?: string | null }) {
+  return {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: input.toDigits,
+    type: 'document',
+    document: { link: input.document.link, filename: input.document.filename, caption: input.body.slice(0, MAX_BUTTON_BODY_CHARS) },
     ...(input.replyToWamid ? { context: { message_id: input.replyToWamid } } : {}),
   }
 }
@@ -77,13 +92,17 @@ export async function sendPlatformText(input: {
   replyToWamid?: string | null
   /** Reply buttons (an interactive message) instead of plain text. Same outcomes, same never-resend rule. */
   buttons?: readonly ReplyButton[]
+  /** The PDF the owner is being asked about: above the buttons, or on its own with the body as its caption. */
+  document?: ReplyDocument | null
   jobId: number
   timeoutMs?: number
 }): Promise<PlatformTextOutcome> {
   const toDigits = input.toE164.replace(/\D/g, '')
   const payload = input.buttons?.length
-    ? buildPlatformButtonsPayload({ toDigits, body: input.body, buttons: input.buttons, replyToWamid: input.replyToWamid })
-    : buildPlatformTextPayload({ toDigits, body: input.body, replyToWamid: input.replyToWamid })
+    ? buildPlatformButtonsPayload({ toDigits, body: input.body, buttons: input.buttons, document: input.document, replyToWamid: input.replyToWamid })
+    : input.document
+      ? buildPlatformDocumentPayload({ toDigits, body: input.body, document: input.document, replyToWamid: input.replyToWamid })
+      : buildPlatformTextPayload({ toDigits, body: input.body, replyToWamid: input.replyToWamid })
   let outcome: PlatformTextOutcome
   try {
     const { res, data } = await post(input.phoneNumberId, input.accessToken, payload, input.timeoutMs ?? SEND_TIMEOUT_MS)

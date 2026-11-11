@@ -54,6 +54,8 @@ const ERROR_COPY: Record<string, string> = {
   budget_exhausted: 'נגמרה מכסת השימוש היומית. נסו שוב מחר.',
   empty_transcript: 'כתבו הודעה כדי להתחיל.',
   no_pending_inbound: 'כתבו הודעה כדי להתחיל.',
+  conversational_unavailable: 'הסוכן החכם לא פעיל כרגע בוואטסאפ של העסק (למשל כשהשאלון פעיל או כשנבחרה הודעה קבועה), ולכן אי אפשר לבדוק אותו כאן.',
+  agent_paused: 'המענה החכם מושהה כרגע במערכת, ולכן אי אפשר לבדוק אותו. נסו שוב מאוחר יותר.',
 }
 
 let nextId = 1
@@ -70,6 +72,8 @@ export default function AgentPreview({
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Conversational agent: the AI state the real agent would have after the last turn, passed back each time.
+  const [agentState, setAgentState] = useState<unknown>(undefined)
   const endRef = useRef<HTMLDivElement>(null)
 
   const hasDescription = draftDescription.trim().length > 0
@@ -79,6 +83,7 @@ export default function AgentPreview({
     setBubbles([])
     setInput('')
     setError(null)
+    setAgentState(undefined)
   }
 
   async function send() {
@@ -97,11 +102,13 @@ export default function AgentPreview({
         transcript: history,
         draftDescription,
         draftAgentInstructions,
+        ...(agentState !== undefined ? { state: agentState } : {}),
       })
       if (result.ok === false) {
         setError(ERROR_COPY[result.reason] ?? 'משהו השתבש. נסו שוב.')
         return
       }
+      if (result.state) setAgentState(result.state)
       // A silent turn is a real outcome (opt-out, a close). Show the reason
       // rather than an empty bubble, so "nothing happened" is never ambiguous.
       if (!result.reply.trim()) {

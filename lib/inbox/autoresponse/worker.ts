@@ -39,8 +39,20 @@ import { assertAgentSendAllowed } from './agentSendGuard'
 import { enqueueFollowUpTurnIfOwed } from './followUpTurn'
 import { aiRepliesPausedForPlan } from './reliability/entitlement'
 import { AI_NOT_ENTITLED } from './reliability/reasons'
+import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
+
+/**
+ * A 'closed' lead is a client, not a finished conversation. With the
+ * conversational agent on (IRE_CONVERSATIONAL_AGENCY_IDS, qualify mode) an
+ * existing customer is answered as one (conversational/crmContext.ts). 'lost'
+ * stays silent: a lost prospect is not a customer. Every other gate (personal
+ * mark, opt-out, takeover, window, caps) still runs.
+ */
+function answersExistingCustomer(status: string, agencyId: number, mode: string | undefined): boolean {
+  return status === 'closed' && mode === 'qualify' && canUseConversationalAgent(agencyId)
+}
 const DEFAULT_LEASE_MS = 60_000
 
 export type WorkerDeps = {
@@ -104,7 +116,9 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
     )
   }
   if (isPositiveLeadId(job.leadId) && !lead) return doSkip('lead_gone')
-  if (lead?.status && TERMINAL_STATUSES.includes(lead.status)) return doSkip('lead_terminal')
+  if (lead?.status && TERMINAL_STATUSES.includes(lead.status) && !answersExistingCustomer(lead.status, job.agencyId, settings?.mode)) {
+    return doSkip('lead_terminal')
+  }
   // No model may be called for an agency whose plan does not include the AI
   // reply (reliability rollout). Skipped, not failed: retrying cannot succeed,
   // and a dead job is exactly the silent loss this prevents.

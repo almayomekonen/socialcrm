@@ -226,8 +226,10 @@ describe('a figure is allowed only when the business actually stated it', () => 
   it('the workers pass the business facts in', async () => {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
+    // The qualify turn is the orchestrator plus its modules (lib/inbox/autoresponse/qualifyTurn/).
+    const { readQualifyTurnSource } = await import('./qualifyTurnSource')
     for (const file of ['lib/inbox/autoresponse/qualifyWorker.ts', 'lib/inbox/autoresponse/worker.ts']) {
-      const src = readFileSync(join(process.cwd(), file), 'utf8')
+      const src = file.endsWith('qualifyWorker.ts') ? readQualifyTurnSource() : readFileSync(join(process.cwd(), file), 'utf8')
       expect(src, `${file} does not pass groundedFacts`).toContain('groundedFacts')
       expect(src).toContain('groundedFactsFor(identity)')
     }

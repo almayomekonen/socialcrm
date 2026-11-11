@@ -134,7 +134,7 @@ export async function proposeRecordChange(input: Input): Promise<MeetingReply> {
     return { status: 'answered' as const, stopReason: `${kind}_clarify_${why}`, text, headline: `${text} (${memo})` }
   }
 
-  const choice = await chooseLead({ scope, proposedId: Number(proposal.args.clientId), evidence: input.evidence, said: heard })
+  const choice = await chooseLead({ scope, proposedId: Number(proposal.args.clientId), evidence: input.evidence, said: heard, request: { job, kind } })
   if ('refused' in choice) return { status: 'refused', stopReason: `${kind}_lead_not_allowed`, text: CHANGE_COPY.leadNotAllowed, headline: null }
   if ('ask' in choice) return ask(choice.ask, 'lead')
   const lead = choice.lead

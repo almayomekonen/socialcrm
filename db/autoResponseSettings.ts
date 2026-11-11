@@ -5,6 +5,7 @@
  */
 import { db } from '@/config/db'
 import { parseBusinessProfile, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfileParse'
+import { normalizeAgentProfile, storableAgentProfile, type AgentProfile } from '@/lib/inbox/autoresponse/conversational/agentProfile'
 import {
   parseReplyMode,
   clampDelaySeconds,
@@ -165,6 +166,8 @@ export type UpsertChannelSettingsInput = Pick<
    * the profile built from the previous text.
    */
   businessProfile?: BusinessProfile | null
+  /** Undefined leaves the stored profile untouched. */
+  agentProfile?: AgentProfile | null
 }
 
 /**
@@ -187,6 +190,11 @@ export async function upsertChannelSettings(input: UpsertChannelSettingsInput): 
   if (input.businessProfile !== undefined) {
     optional.businessProfile = input.businessProfile ? JSON.stringify(input.businessProfile) : null
   }
+  if (input.agentProfile !== undefined) {
+    const stored = input.agentProfile ? storableAgentProfile(normalizeAgentProfile(input.agentProfile)) : null
+    optional.agentProfile = stored ? JSON.stringify(stored) : null
+  }
+
   if (input.agentInstructions !== undefined) {
     optional.agentInstructions = (input.agentInstructions ?? '')?.trim()
       ? (input.agentInstructions as string).trim().slice(0, MAX_FIXED_BODY_LENGTH)
@@ -214,4 +222,18 @@ export async function upsertChannelSettings(input: UpsertChannelSettingsInput): 
     })
     .onConflict(['agencyId', 'channel'])
     .merge(shared)
+}
+
+/**
+ * The owner's structured agent profile. A query of its own, and only ever made
+ * for an agency on the conversational agent (IRE_CONVERSATIONAL_AGENCY_IDS):
+ * `getChannelSettings` deliberately does not select the column, so every other
+ * agency's reply path is unaffected even before the migration that adds it.
+ */
+export async function getAgentProfile(agencyId: number, channel: string): Promise<AgentProfile | null> {
+  const row = (await db('auto_response_settings').where({ agencyId, channel }).first('agencyId', 'agentProfile')) as
+    | { agencyId: number; agentProfile: unknown }
+    | undefined
+  if (!row || Number(row.agencyId) !== agencyId) return null
+  return normalizeAgentProfile(row.agentProfile)
 }

@@ -202,6 +202,25 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeDef
     channels: IN_APP_ONLY,
   },
 
+  /**
+   * The conversational auto-response is answering a conversation it read as
+   * personal. Quiet on purpose: in-app only, low priority, once per
+   * conversation (the worker emits it the first time and records that it did).
+   */
+  'conversation.personal_detected': {
+    type: 'conversation.personal_detected',
+    category: 'messages',
+    enabled: true,
+    basePriority: 'low',
+    collapseKey: keys.conversationPersonalKey,
+    title: copy.conversationPersonalTitle,
+    body: copy.noBody,
+    entity: conversationEntity,
+    deepLink: conversationLink,
+    recipients: 'handler_or_admin',
+    channels: IN_APP_ONLY,
+  },
+
   'message.inbound': {
     type: 'message.inbound',
     category: 'messages',

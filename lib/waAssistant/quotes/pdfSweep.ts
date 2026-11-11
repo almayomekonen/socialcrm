@@ -30,7 +30,7 @@ export async function sweepQuotePdfs(opts: { nowMs?: number; deps?: QuotePdfJobD
   if (!forAll) query.whereIn('agencyId', agencies)
   const rows = (await query
     .where('status', 'ready')
-    .where('readyAt', '>', new Date(nowMs - SWEEP_WINDOW_MS))
+    .where((q) => q.where('readyAt', '>', new Date(nowMs - SWEEP_WINDOW_MS)).orWhere((e) => e.where('version', '>', 1).where('updatedAt', '>', new Date(nowMs - SWEEP_WINDOW_MS))))
     .whereRaw(`metadata->>'source' = 'wa_assistant'`)
     .whereRaw(`metadata->'pdfNotice' IS NULL`)
     .orderBy('readyAt', 'asc')

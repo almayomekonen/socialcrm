@@ -4,9 +4,13 @@ import { db } from '@/config/db'
 import { getAgencyProductAccess } from '@/lib/access/productAccess'
 import SubscriptionExpiredState from '@/components/entitlement/SubscriptionExpiredState'
 import { isMobileWorkspaceRequest } from '@/lib/device'
-import { getMasterEnabled, getChannelSettings } from '@/db/autoResponseSettings'
+import { getMasterEnabled, getChannelSettings, getAgentProfile } from '@/db/autoResponseSettings'
+import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 import AutoResponseSettingsForm from '@/components/settings/autoResponse/AutoResponseSettingsForm'
-import QuestionnaireModeNotice from '@/components/settings/autoResponse/QuestionnaireModeNotice'
+import ResponderSelector from '@/components/settings/autoResponse/ResponderSelector'
+import { resolveResponderChoice } from '@/lib/inbox/autoresponse/responderChoice'
+import { canUseWhatsappQuestionnaire } from '@/lib/flags/whatsappQuestionnaireFlags'
+import { parseQuestionnaireDefinition } from '@/lib/inbox/autoresponse/questionnaire/definition'
 import AutoResponseMobile from '@/modules/settings/mobile/AutoResponseMobile'
 import { canUseQuestionnaireBuilder } from '@/lib/flags/questionnaireBuilderFlags'
 import { getServerT, getUiLocaleState } from '@/lib/i18n/server'
@@ -48,11 +52,25 @@ export default async function AutoResponseSettingsPage() {
   const proLocked = !(await getAgencyProductAccess(user.agencyId)).hasAccess
   const { locale } = await getUiLocaleState(user)
 
-  const [master, channel, agency] = await Promise.all([
+  // The agent-profile section exists only for an agency on the conversational agent.
+  const conversational = canUseConversationalAgent(user.agencyId)
+  const [master, channel, agency, agentProfile] = await Promise.all([
     getMasterEnabled(user.agencyId),
     getChannelSettings(user.agencyId, 'whatsapp'),
     db('agencies').where({ id: user.agencyId }).first('name'),
+    conversational ? getAgentProfile(user.agencyId, 'whatsapp') : Promise.resolve(undefined),
   ])
+
+  // The persisted responder and what this agency can actually run (one rule,
+  // shared with the switch action). Never inferred from replyMode alone.
+  const choice = channel ? resolveResponderChoice({
+    responder: channel.responder,
+    mode: channel.mode,
+    replyMode: channel.replyMode,
+    questionnaireAllowed: canUseWhatsappQuestionnaire(user.agencyId),
+    questionnairePublished: parseQuestionnaireDefinition(channel.questionnaire ?? null).ok,
+  }) : null
+  const builderHref = canUseQuestionnaireBuilder(user.agencyId) ? '/settings/questionnaire' : undefined
 
   return (
     <>
@@ -66,10 +84,6 @@ export default async function AutoResponseSettingsPage() {
           />
         </div>
       )}
-      <QuestionnaireModeNotice
-        active={channel?.responder === 'questionnaire'}
-        builderHref={canUseQuestionnaireBuilder(user.agencyId) ? '/settings/questionnaire' : undefined}
-      />
       <AutoResponseSettingsForm
         masterEnabled={master}
         channelEnabled={channel?.enabled ?? false}
@@ -80,6 +94,9 @@ export default async function AutoResponseSettingsPage() {
         replyMode={channel?.replyMode ?? 'ai'}
         fixedBody={channel?.fixedBody ?? null}
         delaySeconds={channel?.delaySeconds ?? 0}
+        {...(conversational ? { agentProfile: agentProfile ?? null } : {})}
+        agentSettingsVisible={choice?.stored !== 'questionnaire'}
+        responderSlot={<ResponderSelector choice={choice} builderHref={builderHref} />}
       />
     </>
   )

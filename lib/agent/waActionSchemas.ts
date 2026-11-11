@@ -47,6 +47,34 @@ export const createQuoteProposal = z.object({
   evidenceRefs: z.array(z.string()),
 })
 
+/**
+ * A change to the quote the owner is reviewing. No quote id: the application
+ * finds it from the owner's own open card. Every number nullable, as above.
+ */
+export const editQuoteProposal = z.object({
+  actionType: z.literal('edit_quote'),
+  args: z.object({
+    /** A new subject in the owner's words, or null. */
+    title: z.union([z.string(), z.null()]),
+    validityDays: z.union([z.number(), z.null()]),
+    priceBasis: z.union([z.literal('incl_vat'), z.literal('excl_vat'), z.null()]),
+    changes: z.array(
+      z.object({
+        op: z.union([z.literal('update'), z.literal('add'), z.literal('remove')]),
+        /** The owner's words for which item, or null. */
+        match: z.union([z.string(), z.null()]),
+        lineNumber: z.union([z.number(), z.null()]),
+        title: z.union([z.string(), z.null()]),
+        quantity: z.union([z.number(), z.null()]),
+        unitAmount: z.union([z.number(), z.null()]),
+        discountAmount: z.union([z.number(), z.null()]),
+        discountPercent: z.union([z.number(), z.null()]),
+      }),
+    ),
+  }),
+  evidenceRefs: z.array(z.string()),
+})
+
 export const addLeadNoteProposal = z.object({
   actionType: z.literal('add_lead_note'),
   args: z.object({

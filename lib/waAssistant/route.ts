@@ -3,6 +3,7 @@ import {
   isWaAssistantMeetingsAgency,
   isWaAssistantNotesAgency,
   isWaAssistantQuotesAgency,
+  isWaAssistantQuotesSendAgency,
   isWaAssistantRemindersAgency,
   isWaAssistantStatusAgency,
   isWaAssistantTasksAgency,
@@ -16,6 +17,7 @@ import { proposeMeeting, type ProposeDeps } from './meetings/propose'
 import { proposeTaskOrFollowUp, type TaskProposeDeps } from './tasks/propose'
 import { proposeLeadUpdate, type LeadUpdateProposeDeps } from './leadUpdates/propose'
 import { proposeQuote, type QuoteProposeDeps } from './quotes/propose'
+import { proposeQuoteEdit, type QuoteEditProposal } from './quotes/proposeEdit'
 import { proposeRecordChange, type ChangeProposal } from './recordChanges/propose'
 import { proposeSmartbeeDocument, type DocumentProposeDeps } from './smartbee/propose'
 import { isRequestConversation } from './request'
@@ -43,6 +45,8 @@ export type AssistantCapabilities = {
   quotesOn: boolean
   /** SmartBee documents: one named agency (SMARTBEE_AGENCY_IDS), never an audience. */
   documentsOn: boolean
+  /** Review, edit and send to the customer (only on top of `quotesOn`). */
+  quotesSendOn: boolean
   /** Any write at all: decides whether a tap or a bare "כן" means anything here. */
   writesOn: boolean
 }
@@ -57,7 +61,7 @@ export function assistantCapabilities(agencyId: number): AssistantCapabilities {
     quotesOn: isWaAssistantQuotesAgency(agencyId),
     documentsOn: isWaAssistantAgency(agencyId) && isSmartbeeAgency(agencyId),
   }
-  return { ...caps, writesOn: Object.values(caps).some(Boolean) }
+  return { ...caps, quotesSendOn: isWaAssistantQuotesSendAgency(agencyId), writesOn: Object.values(caps).some(Boolean) }
 }
 
 export type ProposalRouteDeps = {
@@ -91,6 +95,7 @@ export async function routeProposal(input: {
     return proposeLeadUpdate({ ...common, proposal: proposed as Parameters<typeof proposeLeadUpdate>[0]['proposal'], deps: deps?.leadUpdates })
   if (caps.quotesOn && proposed.actionType === 'create_quote') return proposeQuote({ ...common, proposal: proposed, deps: deps?.quotes })
   if (caps.documentsOn && proposed.actionType === 'create_smartbee_document') return proposeSmartbeeDocument({ ...common, proposal: proposed, deps: deps?.documents })
+  if (caps.quotesSendOn && proposed.actionType === 'edit_quote') return proposeQuoteEdit({ ...common, proposal: proposed as QuoteEditProposal })
   if ((caps.tasksOn && (proposed.actionType === 'update_task' || proposed.actionType === 'complete_task')) || (caps.meetingsOn && (proposed.actionType === 'reschedule_meeting' || proposed.actionType === 'cancel_meeting')))
     return proposeRecordChange({ ...common, proposal: proposed as ChangeProposal })
   return null

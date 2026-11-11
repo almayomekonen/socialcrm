@@ -1,11 +1,13 @@
 import 'server-only'
 import { db } from '@/config/db'
-import { isWaAssistantQuotesAgency } from '@/lib/flags/waAssistantFlags'
+import { isWaAssistantQuotesAgency, isWaAssistantQuotesSendAgency } from '@/lib/flags/waAssistantFlags'
 import { platformWhatsappAccessToken, platformWhatsappPhoneNumberId } from '@/lib/flags/ownerWhatsappReminderFlags'
 import { sendPlatformText } from '@/lib/whatsapp/platform/sendText'
 import { resolveAssistantScope } from '../identity'
 import { APP_ORIGIN } from '../render'
 import { quotePdfFailedNotice, quotePdfReadyNotice } from './copy'
+import { prepareQuoteSendCard } from './preview'
+import { DELIVERY_COPY } from './deliveryCopy'
 
 /**
  * The one follow-up about a quote's PDF, to the OWNER who approved it.
@@ -67,6 +69,30 @@ export async function notifyOwnerOfQuotePdf(input: { agencyId: number; quoteId: 
   }
 
   const quoteNumber = quote.quoteNumber == null ? null : Number(quote.quoteNumber)
+  // Quotes V2: the PDF itself as the owner's private preview, with the buttons that decide what happens to it.
+  if (notice.kind === 'ready' && isWaAssistantQuotesSendAgency(agencyId)) {
+    const card = await prepareQuoteSendCard({ agencyId, quoteId, scope: who.scope, recipientId: Number(approval.recipientId), jobId: Number(approval.jobId), nowMs: (input.now ?? new Date()).getTime() })
+    if (card.kind === 'card') {
+      const send = input.deps?.send ?? sendPlatformText
+      let sent = await send({ phoneNumberId, accessToken, toE164: who.phoneE164, body: card.body, buttons: card.buttons, document: card.document, jobId: Number(approval.jobId) })
+      // Meta refused the PDF message itself (not "unknown": that may have arrived): the owner still gets the file, by its login link.
+      if (sent.kind === 'rejected') {
+        sent = await send({ phoneNumberId, accessToken, toE164: who.phoneE164, body: `${quotePdfReadyNotice({ quoteNumber, totalAmount: Number(quote.totalAmount), link: quoteDownloadLink(notice.handle) })}\n\n${DELIVERY_COPY.previewFileFailed}`, jobId: Number(approval.jobId) })
+      }
+      const state = sent.kind === 'sent' ? 'sent' : sent.kind === 'unknown' ? 'unknown' : 'rejected'
+      await recordNotice(agencyId, quoteId, notice.kind, state)
+      return state
+    }
+    if (card.kind === 'pending_pdf') {
+      await recordNotice(agencyId, quoteId, notice.kind, 'not_eligible')
+      return 'not_eligible'
+    }
+    const told = await (input.deps?.send ?? sendPlatformText)({ phoneNumberId, accessToken, toE164: who.phoneE164, body: `${quotePdfReadyNotice({ quoteNumber, totalAmount: Number(quote.totalAmount), link: quoteDownloadLink(notice.handle) })}\n\n${card.text}`, jobId: Number(approval.jobId) })
+    const state = told.kind === 'sent' ? 'sent' : told.kind === 'unknown' ? 'unknown' : 'rejected'
+    await recordNotice(agencyId, quoteId, notice.kind, state)
+    return state
+  }
+
   const body =
     notice.kind === 'ready'
       ? quotePdfReadyNotice({ quoteNumber, totalAmount: Number(quote.totalAmount), link: quoteDownloadLink(notice.handle) })

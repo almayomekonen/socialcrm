@@ -4,10 +4,13 @@ import { replyInConversation } from '@/lib/weddingRsvp/reply'
 
 /**
  * TEMPORARY, like the rest of lib/weddingRsvp. After a guest's head count has been
- * answered with the thank-you, three CTA messages: Waze, then the two gift options
- * (Bit, PayBox). A Cloud API `cta_url` message carries exactly one URL button, so
- * each link is its own message. WEDDING_WAZE_URL, WEDDING_BIT_URL and
- * WEDDING_PAYBOX_URL must all be valid HTTPS links, or nothing is sent.
+ * answered with the thank-you, exactly TWO messages:
+ *   1. Waze — a free-form `cta_url` interactive (one URL button, WEDDING_WAZE_URL).
+ *   2. Gifts — the approved template GIFT_TEMPLATE, ONE message with TWO URL buttons
+ *      (Bit, PayBox). A `cta_url` interactive can carry only one URL button; a
+ *      template can carry two. Both URLs are static parts of the approved template
+ *      at Meta, so nothing about them is configured or sent from here.
+ * WEDDING_WAZE_URL must be a valid HTTPS link, or nothing is sent.
  *
  * Every guest who completes the RSVP flow gets them: whoever reached the thank-you
  * already passed the RSVP follow-up gate (allowlist or a template RSVP request).
@@ -16,7 +19,35 @@ import { replyInConversation } from '@/lib/weddingRsvp/reply'
 export const EVENT_LINKS_STEP = 'event_links'
 export const EVENT_LINKS_CLAIM_KEY = 'eventLinksClaimedAt'
 
-type EventLinks = { waze: string; bit: string; paybox: string }
+/**
+ * The gift template exactly as APPROVED on the wedding WABA (Meta id 1488651796568494,
+ * Hebrew, MARKETING): a static BODY and two static URL buttons, no variables — so a
+ * send names it and nothing else. The labels here only feed the stored text.
+ *   BODY      למי שרוצה לשלוח מתנה לחתונה 💝
+ *   BUTTON 1  URL  "שליחת מתנה ב-Bit"      → the Bit group link
+ *   BUTTON 2  URL  "שליחת מתנה ב-PayBox"   → https://links.payboxapp.com/EvZawEB4W7b
+ */
+export const GIFT_TEMPLATE = {
+  name: 'wedding_gift_links',
+  language: 'he',
+  body: 'למי שרוצה לשלוח מתנה לחתונה 💝',
+  buttons: ['שליחת מתנה ב-Bit', 'שליחת מתנה ב-PayBox'],
+} as const
+
+/**
+ * Is the gift template APPROVED right now, per the local projection (kept current by
+ * Meta's status webhooks and the template-sync cron)? Checked BEFORE the claim: a
+ * paused, disabled or missing template must not spend a guest's one claim.
+ */
+async function giftTemplateApproved(agencyId: number): Promise<boolean> {
+  const row = await db('whatsapp_templates')
+    .where({ agencyId, name: GIFT_TEMPLATE.name, language: GIFT_TEMPLATE.language, status: 'approved' })
+    .whereNull('archivedAt')
+    .first('id')
+  return Boolean(row)
+}
+
+type EventLinks = { waze: string }
 
 /** The string exactly as configured, or null. It is sent verbatim, so it must already be a complete link. */
 function readHttpsUrl(value: string | undefined): string | null {
@@ -32,40 +63,42 @@ function readHttpsUrl(value: string | undefined): string | null {
 /** `invalid` holds variable names only: the values must never reach a log. */
 export function readEventLinks(): { links: EventLinks | null; invalid: string[] } {
   const waze = readHttpsUrl(process.env.WEDDING_WAZE_URL)
-  const bit = readHttpsUrl(process.env.WEDDING_BIT_URL)
-  const paybox = readHttpsUrl(process.env.WEDDING_PAYBOX_URL)
-  const invalid = [
-    ...(waze ? [] : ['WEDDING_WAZE_URL']),
-    ...(bit ? [] : ['WEDDING_BIT_URL']),
-    ...(paybox ? [] : ['WEDDING_PAYBOX_URL']),
-  ]
-  return { links: waze && bit && paybox ? { waze, bit, paybox } : null, invalid }
+  return { links: waze ? { waze } : null, invalid: waze ? [] : ['WEDDING_WAZE_URL'] }
 }
 
-export type EventLinkMessage = { link: 'waze' | 'bit' | 'paybox'; body: string; label: string; url: string }
+export type WazeMessage = { kind: 'cta'; link: 'waze'; body: string; label: string; url: string }
+export type GiftMessage = {
+  kind: 'template'
+  link: 'gift'
+  body: string
+  labels: readonly string[]
+  template: { name: string; language: string }
+}
+export type EventLinkMessage = WazeMessage | GiftMessage
 
-/** In send order: navigation, then the two gift options. Meta limits a button label to 20 characters. */
-export function eventLinkMessages({ waze, bit, paybox }: EventLinks): EventLinkMessage[] {
+/** In send order: navigation, then ONE gift message with both options. */
+export function eventLinkMessages({ waze }: EventLinks): EventLinkMessage[] {
   return [
-    { link: 'waze', body: 'ניווט לאירוע:\nSERA – סרה, עמק האלה', label: 'פתיחת Waze', url: waze },
-    { link: 'bit', body: 'למי שרוצה לשלוח מתנה 💝', label: 'שליחת מתנה ב-Bit', url: bit },
+    { kind: 'cta', link: 'waze', body: 'ניווט לאירוע:\nSERA – סרה, עמק האלה', label: 'פתיחת Waze', url: waze },
     {
-      link: 'paybox',
-      body: 'השימוש ב-PayBox חינם!\nמחכים לך בקבוצת ״מתנה לחתונה A | F״,\nלחיצה להצטרפות לקבוצה:',
-      label: 'הצטרפות ב-PayBox',
-      url: paybox,
+      kind: 'template',
+      link: 'gift',
+      body: GIFT_TEMPLATE.body,
+      labels: GIFT_TEMPLATE.buttons,
+      template: { name: GIFT_TEMPLATE.name, language: GIFT_TEMPLATE.language },
     },
   ]
 }
 
-/** The Cloud API `interactive` object for one CTA URL button. */
-export function ctaUrlInteractive({ body, label, url }: EventLinkMessage): Record<string, unknown> {
+/** The Cloud API `interactive` object for one CTA URL button. Meta limits the label to 20 characters. */
+export function ctaUrlInteractive({ body, label, url }: WazeMessage): Record<string, unknown> {
   return { type: 'cta_url', body: { text: body }, action: { name: 'cta_url', parameters: { display_text: label, url } } }
 }
 
-/** What the conversation shows: the body plus the button, as the RSVP buttons are stored. */
-export function eventLinkStoredText({ body, label }: EventLinkMessage): string {
-  return `${body}\n\n[${label}]`
+/** What the conversation shows: the body plus its buttons, as the RSVP buttons are stored. Never a URL. */
+export function eventLinkStoredText(message: EventLinkMessage): string {
+  const labels = message.kind === 'cta' ? [message.label] : message.labels
+  return `${message.body}\n\n${labels.map((l) => `[${l}]`).join(' ')}`
 }
 
 /**
@@ -107,7 +140,7 @@ async function claimEventLinks(agencyId: number, conversationId: number): Promis
  *
  * AT MOST ONCE PER CONVERSATION. A send can reach the guest with no record of it
  * here (a timeout, a response with no message id, a failed save), so the claim is
- * written first and never released. One claim covers all three messages. The cost is
+ * written first and never released. One claim covers both messages. The cost is
  * deliberate: a refused send or a crash after claiming leaves that guest without
  * some or all of the links, even if they confirm again. Configuration is checked
  * before claiming, so it never spends the claim.
@@ -130,6 +163,10 @@ export async function sendEventLinksAfterThanks(args: {
       console.warn('[WeddingRsvp] event links disabled: missing or invalid configuration', { invalid })
       return
     }
+    if (!(await giftTemplateApproved(args.agencyId))) {
+      console.warn('[WeddingRsvp] event links disabled: gift template not approved', { template: GIFT_TEMPLATE.name })
+      return
+    }
     if (!(await claimEventLinks(args.agencyId, args.conversationId))) return
 
     for (const message of eventLinkMessages(links)) {
@@ -139,7 +176,7 @@ export async function sendEventLinksAfterThanks(args: {
         conversationId: args.conversationId,
         leadId: args.leadId,
         body: message.body,
-        interactive: ctaUrlInteractive(message),
+        ...(message.kind === 'cta' ? { interactive: ctaUrlInteractive(message) } : { template: message.template }),
         storedText: eventLinkStoredText(message),
         metadata: { step: EVENT_LINKS_STEP, link: message.link },
       })

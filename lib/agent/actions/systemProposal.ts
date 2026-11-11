@@ -6,7 +6,7 @@
  * no model output can name these types.
  */
 export type SystemActionProposal = {
-  actionType: 'create_reminder' | 'cancel_reminder' | 'reschedule_reminder' | 'update_task' | 'complete_task' | 'reschedule_meeting' | 'cancel_meeting'
+  actionType: 'create_reminder' | 'cancel_reminder' | 'reschedule_reminder' | 'send_quote' | 'edit_quote' | 'update_task' | 'complete_task' | 'reschedule_meeting' | 'cancel_meeting'
     /** The SmartBee connection owner settling a document SmartBee never confirmed (lib/waAssistant/smartbee/resolve.ts). */
     | 'resolve_smartbee_document'
   args: Record<string, unknown>

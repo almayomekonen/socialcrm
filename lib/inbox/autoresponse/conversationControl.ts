@@ -219,7 +219,9 @@ export function isClearCloseConfirmation(text: string): boolean {
 const REOPEN_INDEPENDENT_MOVES = new Set<SalesMove>(['HANDOFF_REQUEST', 'BUYING_SIGNAL', 'OBJECTION', 'DEEPEN'])
 
 /** Closed conversations reopen only on a real question, new need, or human request. Sticky PRODUCT_FIT is not enough. */
-export function isExplicitReopen(args: { salesMove: SalesMove; inboundText: string }): boolean {
+export function isExplicitReopen(args: { salesMove: SalesMove; inboundText: string; social?: boolean }): boolean {
+  // Conversational agent: a friend who keeps talking reopens it (conversational/turnRules.ts socialReopen).
+  if (args.social) return true
   const t = args.inboundText ?? ''
   if (isHoldOnUtterance(t) || isCasualAcknowledgement(t) || isDeadEndUtterance(t)) return false
   if (args.salesMove === 'HANDOFF_REQUEST' || detectHumanRequest(t)) return true

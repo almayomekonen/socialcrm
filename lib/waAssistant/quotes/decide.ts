@@ -11,6 +11,7 @@ import { QUOTE_COPY, quoteSuccessReply } from './copy'
 import { findQuoteByAutomationKeyQuery } from '@/db/quotes/quotes'
 import { quoteAutomationKey } from '@/lib/agent/actions/domain/createQuote'
 import { startQuotePdf } from './pdfJob'
+import { isWaAssistantQuotesSendAgency } from '@/lib/flags/waAssistantFlags'
 
 /**
  * A tap on a quote card. Same path as leadUpdates/decide.ts: the token is
@@ -18,7 +19,8 @@ import { startQuotePdf } from './pdfJob'
  * the EXISTING `decideOnAction` (rollout re-check, proposer, argsHash, claim and
  * lock), then the executor: role + lead visibility against the CURRENT rows and
  * the approved total and rate, then verification against the persisted quote.
- * Nothing here writes a quote, and nothing here sends anything to the customer.
+ * Nothing here writes a quote, and nothing here sends anything to the customer:
+ * that takes a separate card, on the finished PDF (./decideDelivery.ts).
  */
 
 export type QuoteDecideDeps = { decide?: typeof decideOnAction; startPdf?: typeof startQuotePdf }
@@ -91,6 +93,7 @@ async function reportOutcome(outcome: ActionOutcome, args: { clientId: number },
         totalAmount: Number(row.totalAmount),
         already,
         pdfPending: pdf === 'started',
+        reviewNext: isWaAssistantQuotesSendAgency(scope.agencyId),
       }),
       headline: 'הצעת המחיר נוצרה ב-SocialCRM',
     }

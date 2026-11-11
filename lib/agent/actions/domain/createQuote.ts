@@ -21,7 +21,7 @@ import type { ActionProposal, ExecutionResult, VerificationResult } from '../typ
  * storing a different number.
  *
  * CREATION ONLY. The quote is numbered and moved to `ready`; nothing is sent to
- * the customer, by this action or anything it calls.
+ * the customer, by this action or anything it calls (see ./quoteDelivery.ts).
  *
  * DUPLICATES: the runtime's idempotency claim, the single-use card token, and
  * underneath both the quote's own `automationKey` (`wa_quote:<actionId>`, unique
