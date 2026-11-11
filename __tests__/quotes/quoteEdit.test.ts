@@ -81,7 +81,7 @@ describe('the customer link token', () => {
 
 describe('what people read', () => {
   it('the owner sees only the last four digits, and that nothing goes out before approval', () => {
-    const card = quoteSendCard({ lead: 'דוד כהן', quoteNumber: 12, version: 2, totalAmount: 18500, recipient: 'דוד כהן', phoneE164: '+972501234567', ttlHours: 2 })
+    const card = quoteSendCard({ lead: 'דוד כהן', quoteNumber: 12, version: 2, totalAmount: 18500, recipient: 'דוד כהן', phoneE164: '+972501234567', ttlHours: 2, blockedBy: null })
     expect(card).toContain(maskedPhone('+972501234567'))
     expect(card).toContain('מספר שמסתיים ב-4567')
     expect(card).not.toContain('50123')
@@ -90,8 +90,24 @@ describe('what people read', () => {
   })
   it('three buttons within Meta’s limits, bound to one token', () => {
     const b = quoteSendButtons('a'.repeat(32))
-    expect(b.map((x) => x.id.split(':')[1])).toEqual(['approve', 'edit', 'reject'])
+    expect(b.map((x) => x.id.split(':')[1])).toEqual(['approve', 'edit', 'cancel'])
+    expect(b.map((x) => x.title)).toEqual(['לאשר ולשלוח ללקוח', 'לערוך הצעה', 'לבטל הצעה'])
     for (const x of b) expect(x.title.length).toBeLessThanOrEqual(20)
+  })
+  it('a preview that cannot go out now has no send button at all, only edit and cancel', () => {
+    const b = quoteSendButtons('a'.repeat(32), { sendable: false })
+    expect(b.map((x) => x.id.split(':')[1])).toEqual(['edit', 'cancel'])
+    expect(b.some((x) => x.id.startsWith('wa:approve:'))).toBe(false)
+  })
+  it('every preview says it is for the owner only and the customer has not received it', () => {
+    for (const blockedBy of [null, 'הליד לא כתב לעסק ב-24 השעות האחרונות.']) {
+      const card = quoteSendCard({ lead: 'דוד כהן', quoteNumber: 12, version: 1, totalAmount: 18500, recipient: 'דוד כהן', phoneE164: '+972501234567', ttlHours: 2, blockedBy })
+      expect(card).toContain('זו תצוגה מקדימה בשבילך בלבד. הלקוח עדיין לא קיבל את ההצעה.')
+    }
+    const held = quoteSendCard({ lead: 'דוד', quoteNumber: 12, version: 1, totalAmount: 1, recipient: null, phoneE164: null, ttlHours: 2, blockedBy: 'אין מספר.' })
+    expect(held).toContain('אין מספר.')
+    expect(held).not.toContain('שום דבר לא יישלח ללקוח לפני שתאשרו')
+    expect(held).not.toContain('לאשר ולשלוח')
   })
   it('the customer gets the link and no amounts; the Inbox never keeps the link', () => {
     const m = quoteCustomerMessage({ name: 'דוד', quoteNumber: 12, business: 'שיפוצי הצפון', link: 'https://x/api/q/TOKEN' })

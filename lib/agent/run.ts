@@ -153,6 +153,15 @@ export type RunAgentInput = {
    */
   surfaceRules?: string
   /**
+   * Leads the APPLICATION already chose and access-checked for this request (the
+   * WhatsApp assistant's stored lead choice, lib/waAssistant/leadChoice.ts), as
+   * if a tool had read them in this run. Never from the model, the user's text or
+   * a request body: the caller resolves them against this scope first. Lets a
+   * proposal name the lead the owner picked two messages ago without the model
+   * searching (and guessing) again. Omitted everywhere else.
+   */
+  verifiedLeadIds?: readonly number[]
+  /**
    * Progress observer, fired as each tool call is admitted. Used by the
    * streaming transport to show which capability is running. Purely
    * observational — see `CreateBudgetOptions.onStep`.
@@ -318,6 +327,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   const basePrompt = buildAgentSystemPrompt(nowMs, { listMeetings: isAgentListMeetingsAgency(scope.agencyId) })
   const systemPrompt = input.surfaceRules ? `${basePrompt}\n\n${input.surfaceRules}` : basePrompt
   const evidence = createEvidenceCollector()
+  for (const id of input.verifiedLeadIds ?? []) if (Number.isSafeInteger(id) && id > 0) evidence.add({ kind: 'lead', refId: String(id) })
   /**
    * Instrumentation only — the tools are wrapped, never altered. `now` is the
    * SAME injected clock the deadline uses, so a test with a frozen clock reports

@@ -12,6 +12,7 @@ export type QuoteEventType =
   | 'preview_blocked'
   | 'edited'
   | 'send_declined'
+  | 'cancelled'
   | 'send_accepted'
   | 'send_failed'
   | 'send_unknown'

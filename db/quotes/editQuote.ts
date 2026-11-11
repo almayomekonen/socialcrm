@@ -116,7 +116,7 @@ export async function editQuoteSystem(input: EditQuoteInput): Promise<EditQuoteR
 }
 
 /** Every open card about this quote (send or edit) names a version that no longer exists. */
-async function supersedeOpenCards(trx: Knex.Transaction, agencyId: number, quoteId: number): Promise<void> {
+export async function supersedeOpenCards(trx: Knex.Transaction, agencyId: number, quoteId: number): Promise<void> {
   await trx('wa_assistant_approvals')
     .where({ agencyId, status: 'pending' })
     .whereIn('actionId', trx('agent_actions').where({ agencyId }).whereIn('actionType', ['send_quote', 'edit_quote']).whereRaw(`(args->>'quoteId')::bigint = ?`, [quoteId]).select('actionId'))

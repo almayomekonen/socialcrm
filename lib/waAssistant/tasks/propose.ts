@@ -95,11 +95,9 @@ export async function proposeTaskOrFollowUp(input: {
       draft.date ? hebrewDateLabel(draft.date) : null,
       draft.when,
     ].filter((x): x is string => !!x)
-  const clientId = Number(input.proposal.args.clientId)
-  if (!Number.isSafeInteger(clientId) || clientId <= 0) return clarify(TASK_COPY.askLead, 'lead', memo())
-
-  // 1. Which lead.
-  const choice = await chooseLead({ scope, proposedId: clientId, evidence: input.evidence, said })
+  // 1. Which lead: one already chosen in this request wins over the Agent's clientId.
+  const choice = await chooseLead({ scope, proposedId: Number(input.proposal.args.clientId), evidence: input.evidence, said, request: { job, kind: 'task' }, requireProposed: true })
+  if ('missing' in choice) return clarify(TASK_COPY.askLead, 'lead', memo())
   if ('refused' in choice)
     return { status: 'refused', stopReason: 'task_lead_not_allowed', text: TASK_COPY.leadNotAllowed, headline: null }
   if ('ask' in choice) return clarify(choice.ask, 'lead', memo())
