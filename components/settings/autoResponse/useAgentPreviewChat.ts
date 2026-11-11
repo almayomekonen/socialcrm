@@ -2,6 +2,10 @@
 
 import { useRef, useState } from 'react'
 import { previewAgentTurn, type PreviewTurn } from '@/actions/autoResponse/previewAgent'
+import type { AgentTone } from '@/lib/inbox/autoresponse/conversational/agentProfile'
+
+/** The unsaved greeting / tone / FAQ, sent only where the agent profile exists (conversational agent). */
+export type DraftProfileFields = { greeting: string | null; tone: AgentTone | null; faq: { question: string; answer: string }[] }
 
 /**
  * The test conversation's state and its one network call, moved out of
@@ -34,7 +38,15 @@ const ERROR_COPY: Record<string, string> = {
 
 let nextId = 1
 
-export function useAgentPreviewChat({ draftDescription, draftAgentInstructions }: { draftDescription: string; draftAgentInstructions: string }) {
+export function useAgentPreviewChat({
+  draftDescription,
+  draftAgentInstructions,
+  draftProfile,
+}: {
+  draftDescription: string
+  draftAgentInstructions: string
+  draftProfile?: DraftProfileFields
+}) {
   const [bubbles, setBubbles] = useState<Bubble[]>([])
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
@@ -66,6 +78,7 @@ export function useAgentPreviewChat({ draftDescription, draftAgentInstructions }
         transcript: history,
         draftDescription,
         draftAgentInstructions,
+        ...(draftProfile ? { draftGreeting: draftProfile.greeting, draftTone: draftProfile.tone, draftFaq: draftProfile.faq } : {}),
         ...(agentState !== undefined ? { state: agentState } : {}),
       })
       if (result.ok === false) {

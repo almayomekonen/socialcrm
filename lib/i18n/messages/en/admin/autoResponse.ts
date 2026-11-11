@@ -86,20 +86,9 @@ export const autoResponse: Messages['admin']['autoResponse'] = {
       leaveQuestionnaire: 'Someone in the middle of the questionnaire will get your handoff message with their next message, and the conversation will go to your team with the answers collected so far. The questionnaire, its published versions and drafts are kept.',
       toQuestionnaire: 'Conversations that already started will not get an automatic reply. The agent settings are kept.',
     },
-    confirm: {
-      agent: 'Turn on the smart AI agent?\nFrom now on every new WhatsApp inquiry will be answered by a conversation with the agent instead of the questionnaire. Someone in the middle of the questionnaire will get your handoff message with their next message, and the conversation will go to your team with the answers collected so far. The questionnaire, its published versions and drafts are kept.',
-      questionnaire: 'Turn on the structured questionnaire?\nFrom now on every new WhatsApp inquiry will be answered by the questionnaire you published instead of the agent. Conversations that already started will not get an automatic reply. The agent settings are kept.',
-      agentLbl: 'Turn on AI agent',
-      questionnaireLbl: 'Turn on questionnaire',
-    },
-    saved: {
-      agent: 'The smart AI agent is active',
-      questionnaire: 'The structured questionnaire is active',
-    },
     error: {
       conflict: 'The response method was changed in the meantime. Refresh the page and try again.',
       unavailable: "This method can't be turned on right now.",
-      unknown: "We couldn't change the response method. Try again.",
     },
     agentHidden: "The agent settings are hidden because the questionnaire is active. They're kept as they are.",
     mobileHint: 'The response method is changed from a computer.',

@@ -28,6 +28,7 @@ import { mergeQualification, type Qualification } from '@/lib/inbox/autoresponse
 import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 import { previewConversationalTurn } from '@/lib/inbox/autoresponse/simulate/previewConversational'
 import type { SimState } from '@/lib/inbox/autoresponse/simulate/simulateTurn'
+import type { AgentTone } from '@/lib/inbox/autoresponse/conversational/agentProfile'
 
 /**
  * "בדקו את הסוכן שלכם" — the owner talks to their own agent before any customer
@@ -67,6 +68,14 @@ export type PreviewAgentInput = {
   draftAgentInstructions?: string | null
   /** Conversational agent only: the AI state the previous turn returned. Rebuilt on the server, never trusted. */
   state?: unknown
+  /**
+   * Conversational agent only, all optional: the owner's UNSAVED greeting, tone
+   * and FAQ, laid over the saved agent profile (simulate/draftAgentProfile.ts).
+   * Omitted ⇒ the saved value; ignored by the legacy preview, which has no profile.
+   */
+  draftGreeting?: string | null
+  draftTone?: AgentTone | '' | null
+  draftFaq?: { question: string; answer: string }[] | null
 }
 
 export type PreviewAgentResult =
@@ -157,6 +166,7 @@ export async function previewAgentTurn(input: PreviewAgentInput): Promise<Previe
       profileDerived: Boolean(identity.profile) || derivedNow,
       transcript,
       state: input.state,
+      draftProfile: { greeting: input.draftGreeting, tone: input.draftTone, faq: input.draftFaq },
     })
   }
 

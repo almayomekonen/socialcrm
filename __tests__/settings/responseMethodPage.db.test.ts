@@ -5,10 +5,12 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { db } from '@/config/db'
 
 /**
- * The מענה אוטומטי response-method switch (AI agent / questionnaire) against a
- * real database: what it writes, what it must never touch, eligibility,
- * compare-and-set, concurrency, tenancy, and that the worker's routing reads
- * back the same choice. Authentication is the only thing faked.
+ * The response method against a real database, beyond the column table
+ * (responseMethodSave.db.test.ts): what a switch must never touch, that the
+ * worker routes by the saved choice, server-side eligibility, concurrency,
+ * tenancy, and that the page renders the persisted choice. Ported from the
+ * removed instant-switch action's suite onto the one save path that remains.
+ * Authentication and the business-profile model call are faked.
  */
 
 const auth = vi.hoisted(() => ({ user: null as null | { id: number; agencyId: number; role: string }, mobile: false }))
@@ -26,14 +28,33 @@ vi.mock('@/lib/access/productAccess', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/access/productAccess')>()),
   getAgencyProductAccess: async () => ({ status: 'PAID', hasAccess: true }),
 }))
+vi.mock('@/lib/inbox/autoresponse/businessProfile', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/lib/inbox/autoresponse/businessProfile')>()
+  return {
+    ...real,
+    deriveBusinessProfile: async ({ description }: { description: string }) => ({
+      ok: true,
+      profile: {
+        version: 1,
+        sourceHash: real.hashDescription(description),
+        derivedAt: new Date(0).toISOString(),
+        facts: [],
+        explicit: { prices: [], hours: [], policies: [] },
+        objectives: [],
+        collect: [],
+        tone: null,
+        unsupportedRequests: [],
+      },
+    }),
+  }
+})
 
-import { setAutoResponseResponder } from '@/actions/autoResponse/setResponder'
-import { getChannelSettings } from '@/db/autoResponseSettings'
+import { updateAutoResponseSettings, type UpdateAutoResponseInput } from '@/actions/autoResponse/updateSettings'
 import { QUESTIONNAIRE_ROUTED_SQL } from '@/db/questionnaireJobs'
 import AutoResponseSettingsPage from '@/app/(he)/(app)/settings/(admin_settings)/auto-response/page'
 
 const PP = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'scripts/questionnaire/samples/perfect-picture.he.json'), 'utf8'))
-const PROFILE = { greeting: 'היי, כאן הסטודיו', persona: 'נעים', tone: 'friendly', faq: [{ q: 'חניה?', a: 'יש חניה' }], escalationTopics: ['החזר'], importantInfo: '' }
+const PROFILE = { greeting: 'היי, כאן הסטודיו', persona: 'נעים', tone: 'friendly', faq: [{ question: 'חניה?', answer: 'יש חניה' }], escalationTopics: ['החזר'] }
 
 type Tenant = { agencyId: number; adminId: number; agentId: number }
 const agencies: number[] = []
@@ -42,7 +63,7 @@ async function makeAgency(
   name: string,
   s: { responder: 'agent' | 'questionnaire'; mode: 'qualify' | 'acknowledge'; replyMode?: 'ai' | 'fixed'; questionnaire?: unknown | null },
 ): Promise<Tenant> {
-  const [a] = await db('agencies').insert({ name: `rs-${name}`, autoResponseEnabled: true, plan: 'pro' }).returning('id')
+  const [a] = await db('agencies').insert({ name: `rmp-${name}`, autoResponseEnabled: true, plan: 'pro' }).returning('id')
   const agencyId = Number(a.id)
   agencies.push(agencyId)
   const [admin] = await db('users').insert({ firstName: 'א', role: 'ADMIN', agencyId }).returning('id')
@@ -51,9 +72,10 @@ async function makeAgency(
     agencyId,
     channel: 'whatsapp',
     enabled: true,
+    dailyCap: 200,
     mode: s.mode,
     replyMode: s.replyMode ?? 'ai',
-    fixedBody: s.replyMode === 'fixed' ? 'תודה, נחזור אליך' : null,
+    fixedBody: 'תודה, נחזור אליך',
     guidance: 'סטודיו לצילום חתונות',
     agentInstructions: 'קצר ולעניין',
     responder: s.responder,
@@ -67,30 +89,36 @@ const as = (t: Tenant, role: 'ADMIN' | 'AGNT' = 'ADMIN') => {
   auth.user = { id: role === 'ADMIN' ? t.adminId : t.agentId, agencyId: t.agencyId, role }
 }
 const row = (t: Tenant) => db('auto_response_settings').where({ agencyId: t.agencyId, channel: 'whatsapp' }).first()
-/** Everything except the one column the switch may write (and its audit stamps). */
-const untouched = async (t: Tenant) => {
-  const { responder: _r, updatedAt: _u, updatedBy: _b, ...rest } = await row(t)
-  return JSON.stringify({
-    rest,
-    revisions: await db('questionnaire_revisions').where({ agencyId: t.agencyId }).orderBy('id'),
-    sessions: await db('questionnaire_sessions').where({ agencyId: t.agencyId }).orderBy('id'),
-    master: await db('agencies').where({ id: t.agencyId }).first('autoResponseEnabled'),
+
+/** The form's save, unchanged settings, only the method moving. */
+const save = (over: Partial<UpdateAutoResponseInput>) =>
+  updateAutoResponseSettings({
+    masterEnabled: true,
+    channelEnabled: true,
+    dailyCap: 200,
+    guidance: 'סטודיו לצילום חתונות',
+    agentInstructions: 'קצר ולעניין',
+    businessName: null,
+    replyMode: 'ai',
+    fixedBody: 'תודה, נחזור אליך',
+    delaySeconds: 0,
+    ...over,
   })
-}
 
 async function addRevisions(t: Tenant) {
   await db('questionnaire_revisions').insert([
     { agencyId: t.agencyId, status: 'published', revision: 1, definition: JSON.stringify(PP), source: 'staff', publishedAt: db.fn.now() },
-    { agencyId: t.agencyId, status: 'published', revision: 2, definition: JSON.stringify(PP), source: 'builder', publishedAt: db.fn.now() },
     { agencyId: t.agencyId, status: 'draft', definition: JSON.stringify({ ...PP, opening: 'טיוטה' }), source: 'builder' },
   ])
 }
+const revisions = (t: Tenant) => db('questionnaire_revisions').where({ agencyId: t.agencyId }).orderBy('id')
 
 beforeEach(() => {
   vi.unstubAllEnvs()
   vi.stubEnv('WA_QUESTIONNAIRE_ENABLED', '1')
   vi.stubEnv('WA_QUESTIONNAIRE_AGENCY_IDS', 'all')
   vi.stubEnv('QUESTIONNAIRE_BUILDER_AGENCY_IDS', 'all')
+  vi.stubEnv('SMART_REPLY_AGENT_ENABLED', '')
   auth.mobile = false
 })
 
@@ -107,44 +135,29 @@ afterAll(async () => {
   await db.destroy()
 })
 
-describe('switching writes the responder and nothing else', () => {
-  it('questionnaire → AI agent keeps the questionnaire, its published revisions and the draft', async () => {
+describe('a switch keeps what belongs to the other method', () => {
+  it('questionnaire → AI keeps the questionnaire, its published revisions and the draft', async () => {
     const t = await makeAgency('q2a', { responder: 'questionnaire', mode: 'qualify', questionnaire: PP })
     await addRevisions(t)
-    const before = await untouched(t)
+    const before = { questionnaire: (await row(t)).questionnaire, revisions: await revisions(t) }
     as(t)
-    expect(await setAutoResponseResponder({ to: 'agent', from: 'questionnaire' })).toEqual({ ok: true, responder: 'agent' })
-    expect(await row(t)).toMatchObject({ responder: 'agent', updatedBy: t.adminId })
-    expect(await untouched(t)).toBe(before)
-    expect((await getChannelSettings(t.agencyId, 'whatsapp'))?.responder).toBe('agent')
+    expect(await save({ method: 'ai', methodFrom: 'questionnaire' })).toMatchObject({ ok: true })
+    expect(await row(t)).toMatchObject({ responder: 'agent', questionnaire: before.questionnaire })
+    expect(await revisions(t)).toEqual(before.revisions)
   })
 
-  it('AI agent → questionnaire keeps the agent profile, description, instructions, mode and reply style', async () => {
+  it('AI → questionnaire keeps the agent profile, description, instructions, mode and reply style', async () => {
     const t = await makeAgency('a2q', { responder: 'agent', mode: 'qualify', questionnaire: PP })
-    await addRevisions(t)
-    const before = await untouched(t)
     as(t)
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toEqual({ ok: true, responder: 'questionnaire' })
-    expect(await untouched(t)).toBe(before)
+    expect(await save({ method: 'questionnaire', methodFrom: 'ai' })).toMatchObject({ ok: true })
     const r = await row(t)
     expect(r).toMatchObject({ responder: 'questionnaire', mode: 'qualify', replyMode: 'ai', guidance: 'סטודיו לצילום חתונות', agentInstructions: 'קצר ולעניין' })
-    expect(r.agentProfile).toEqual(PROFILE)
-  })
-
-  it('round trip returns the row to exactly where it started', async () => {
-    const t = await makeAgency('round', { responder: 'agent', mode: 'qualify', questionnaire: PP })
-    const before = await untouched(t)
-    as(t)
-    await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })
-    await setAutoResponseResponder({ to: 'agent', from: 'questionnaire' })
-    expect((await row(t)).responder).toBe('agent')
-    expect(await untouched(t)).toBe(before)
+    expect(r.agentProfile).toMatchObject({ greeting: PROFILE.greeting, faq: PROFILE.faq })
   })
 })
 
-describe('the worker reads back the same choice', () => {
-  // The questionnaire worker's own claim predicate, evaluated for a job of this
-  // agency that was enqueued as an ordinary agent turn.
+describe('the worker reads back the saved choice', () => {
+  // The questionnaire worker's own claim predicate, for a job of this agency enqueued as an ordinary agent turn.
   const routedToQuestionnaire = async (t: Tenant) => {
     const r = await db.raw(
       `SELECT ${QUESTIONNAIRE_ROUTED_SQL} AS routed
@@ -154,106 +167,49 @@ describe('the worker reads back the same choice', () => {
     return r.rows[0].routed as boolean
   }
 
-  it('after each switch, the next job goes to the worker that was chosen', async () => {
+  it('after each save, the next job goes to the worker that was chosen', async () => {
     const t = await makeAgency('route', { responder: 'agent', mode: 'qualify', questionnaire: PP })
     as(t)
     expect(await routedToQuestionnaire(t)).toBe(false)
-    await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })
+    await save({ method: 'questionnaire', methodFrom: 'ai' })
     expect(await routedToQuestionnaire(t)).toBe(true)
-    await setAutoResponseResponder({ to: 'agent', from: 'questionnaire' })
+    await save({ method: 'fixed', methodFrom: 'questionnaire' })
     expect(await routedToQuestionnaire(t)).toBe(false)
   })
 })
 
-describe('eligibility is enforced on the server, not only on the screen', () => {
-  it('no published questionnaire → the questionnaire cannot be chosen', async () => {
-    const t = await makeAgency('nopub', { responder: 'agent', mode: 'qualify', questionnaire: null })
-    await db('questionnaire_revisions').insert({ agencyId: t.agencyId, status: 'draft', definition: JSON.stringify(PP), source: 'builder' })
-    as(t)
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toEqual({ ok: false, reason: 'unavailable' })
-    expect((await row(t)).responder).toBe('agent')
-  })
-
+describe('eligibility and authority are enforced on the server', () => {
   it('a stored questionnaire that does not validate counts as not published', async () => {
     const t = await makeAgency('invalid', { responder: 'agent', mode: 'qualify', questionnaire: { opening: 'x' } })
     as(t)
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toEqual({ ok: false, reason: 'unavailable' })
-  })
-
-  it('questionnaire rollout off for the agency → unavailable', async () => {
-    vi.stubEnv('WA_QUESTIONNAIRE_AGENCY_IDS', '')
-    const t = await makeAgency('qoff', { responder: 'agent', mode: 'qualify', questionnaire: PP })
-    as(t)
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toEqual({ ok: false, reason: 'unavailable' })
-  })
-
-  it.each([
-    ['one AI reply', 'ai'],
-    ['one fixed message', 'fixed'],
-  ] as const)('acknowledge mode (%s) → the AI agent cannot be chosen, and nothing changes', async (_label, replyMode) => {
-    const t = await makeAgency(`ack-${replyMode}`, { responder: 'questionnaire', mode: 'acknowledge', replyMode, questionnaire: PP })
-    const before = JSON.stringify(await row(t))
-    as(t)
-    expect(await setAutoResponseResponder({ to: 'agent', from: 'questionnaire' })).toEqual({ ok: false, reason: 'unavailable' })
-    expect(JSON.stringify(await row(t))).toBe(before)
-  })
-
-  it('a non-admin cannot switch', async () => {
-    const t = await makeAgency('agnt', { responder: 'agent', mode: 'qualify', questionnaire: PP })
-    as(t, 'AGNT')
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toEqual({ ok: false, reason: 'forbidden' })
+    expect(await save({ method: 'questionnaire', methodFrom: 'ai' })).toEqual({ ok: false, reason: 'method_unavailable' })
     expect((await row(t)).responder).toBe('agent')
   })
 
-  it.each([
-    [{ to: 'agent', from: 'agent' }],
-    [{ to: 'acknowledge', from: 'agent' }],
-    [{ to: 'questionnaire', from: 'nope' }],
-  ])('malformed input %j is refused', async (input) => {
-    const t = await makeAgency('bad', { responder: 'agent', mode: 'qualify', questionnaire: PP })
-    as(t)
-    expect(await setAutoResponseResponder(input as never)).toEqual({ ok: false, reason: 'invalid' })
+  it('a non-admin cannot save', async () => {
+    const t = await makeAgency('agnt', { responder: 'agent', mode: 'qualify', questionnaire: PP })
+    as(t, 'AGNT')
+    expect(await save({ method: 'questionnaire', methodFrom: 'ai' })).toEqual({ ok: false, reason: 'forbidden' })
+    expect((await row(t)).responder).toBe('agent')
   })
 })
 
-describe('compare-and-set and concurrency', () => {
-  it('a stale page (from no longer matches) gets a conflict, never an overwrite', async () => {
-    const t = await makeAgency('stale', { responder: 'questionnaire', mode: 'qualify', questionnaire: PP })
-    as(t)
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toEqual({ ok: false, reason: 'conflict' })
-    expect((await row(t)).responder).toBe('questionnaire')
-  })
-
-  it('two simultaneous switches: exactly one succeeds, the other is a conflict', async () => {
+describe('concurrency and tenancy', () => {
+  it('two simultaneous saves from the same page: exactly one succeeds, the other is a conflict', async () => {
     const t = await makeAgency('race', { responder: 'agent', mode: 'qualify', questionnaire: PP })
     as(t)
-    const results = await Promise.all([
-      setAutoResponseResponder({ to: 'questionnaire', from: 'agent' }),
-      setAutoResponseResponder({ to: 'questionnaire', from: 'agent' }),
-    ])
+    const results = await Promise.all([save({ method: 'questionnaire', methodFrom: 'ai' }), save({ method: 'fixed', methodFrom: 'ai' })])
     expect(results.filter((r) => r.ok)).toHaveLength(1)
-    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, reason: 'conflict' }])
-    expect((await row(t)).responder).toBe('questionnaire')
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, reason: 'method_conflict' }])
   })
-})
 
-describe('tenancy', () => {
-  it("switching one agency never changes another's configuration", async () => {
+  it("saving one agency never changes another's configuration", async () => {
     const mine = await makeAgency('mine', { responder: 'agent', mode: 'qualify', questionnaire: PP })
     const other = await makeAgency('other', { responder: 'agent', mode: 'qualify', questionnaire: PP })
     const otherBefore = JSON.stringify(await row(other))
     as(mine)
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toMatchObject({ ok: true })
+    expect(await save({ method: 'questionnaire', methodFrom: 'ai' })).toMatchObject({ ok: true })
     expect(JSON.stringify(await row(other))).toBe(otherBefore)
-  })
-
-  it('an agency with no settings row gets no_settings and no row is created', async () => {
-    const [a] = await db('agencies').insert({ name: 'rs-norow', plan: 'pro' }).returning('id')
-    agencies.push(Number(a.id))
-    const [u] = await db('users').insert({ firstName: 'א', role: 'ADMIN', agencyId: a.id }).returning('id')
-    auth.user = { id: Number(u.id), agencyId: Number(a.id), role: 'ADMIN' }
-    expect(await setAutoResponseResponder({ to: 'questionnaire', from: 'agent' })).toEqual({ ok: false, reason: 'no_settings' })
-    expect(await db('auto_response_settings').where({ agencyId: a.id }).first()).toBeUndefined()
   })
 })
 
@@ -282,7 +238,7 @@ describe('the settings page renders the persisted choice', () => {
   })
 
   it('no settings row: the page explains the state and creates nothing', async () => {
-    const [a] = await db('agencies').insert({ name: 'rs-page-norow', plan: 'pro' }).returning('id')
+    const [a] = await db('agencies').insert({ name: 'rmp-page-norow', plan: 'pro' }).returning('id')
     agencies.push(Number(a.id))
     const [u] = await db('users').insert({ firstName: 'א', role: 'ADMIN', agencyId: a.id }).returning('id')
     auth.user = { id: Number(u.id), agencyId: Number(a.id), role: 'ADMIN' }

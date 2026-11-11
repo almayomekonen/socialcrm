@@ -416,3 +416,49 @@ describe('who gets which simulator', () => {
     expect((h.simCalls.at(-1) as Call).conversational).toBeUndefined()
   })
 })
+
+describe('the test chat can use the unsaved greeting, tone and FAQ', () => {
+  const SAVED = { greeting: 'שלום מהסטודיו', persona: null, tone: 'formal', faq: [{ question: 'יש חניה?', answer: 'כן, חניה חינם בחזית' }], escalationTopics: [] }
+  const ask = (extra: Record<string, unknown> = {}) =>
+    previewAgentTurn({ transcript: [{ direction: 'inbound', text: 'כמה עולה?' }], ...extra } as Parameters<typeof previewAgentTurn>[0])
+  const lastCall = () => JSON.stringify(h.simCalls.at(-1))
+
+  it('without the new fields: the saved profile, exactly as before', async () => {
+    const t = await makeTenant('draft-none', { agentProfile: SAVED })
+    h.user = { id: t.userId, agencyId: t.agencyId, role: 'ADMIN' }
+    enable(t.agencyId)
+    h.simScript = [business('89 ₪ לחודש.')]
+    const r = await ask()
+    expect(r).toMatchObject({ ok: true, usedDraft: false })
+    expect((h.simCalls.at(-1) as Call).greetingLine).toBe('שלום מהסטודיו')
+    expect(lastCall()).toContain('כן, חניה חינם בחזית')
+  })
+
+  it('unsaved greeting, tone and FAQ reach the real agent; the reply says it used unsaved text; nothing is saved', async () => {
+    const t = await makeTenant('draft-all', { agentProfile: SAVED })
+    h.user = { id: t.userId, agencyId: t.agencyId, role: 'ADMIN' }
+    enable(t.agencyId)
+    const before = await db('auto_response_settings').where({ agencyId: t.agencyId }).first('agentProfile', 'updatedAt')
+    h.simScript = [business('89 ₪ לחודש.')]
+    const r = await ask({
+      draftGreeting: 'היי! כאן הסטודיו של דנה',
+      draftTone: 'friendly',
+      draftFaq: [{ question: 'עובדים בשבת?', answer: 'לא, רק א׳–ה׳' }],
+    })
+    expect(r).toMatchObject({ ok: true, usedDraft: true })
+    expect(r.ok && r.reply.startsWith('היי! כאן הסטודיו של דנה')).toBe(true)
+    expect((h.simCalls.at(-1) as Call).greetingLine).toBe('היי! כאן הסטודיו של דנה')
+    expect(lastCall()).toContain('לא, רק א׳–ה׳')
+    expect(lastCall()).not.toContain('כן, חניה חינם בחזית')
+    expect(await db('auto_response_settings').where({ agencyId: t.agencyId }).first('agentProfile', 'updatedAt')).toEqual(before)
+  })
+
+  it('an emptied greeting falls back to the template line, as an empty saved greeting does', async () => {
+    const t = await makeTenant('draft-empty', { agentProfile: SAVED })
+    h.user = { id: t.userId, agencyId: t.agencyId, role: 'ADMIN' }
+    enable(t.agencyId)
+    h.simScript = [business('89 ₪ לחודש.')]
+    await ask({ draftGreeting: '' })
+    expect((h.simCalls.at(-1) as Call).greetingLine).toBe(templateGreeting('מנכל SocialCrm draft-empty', 'he'))
+  })
+})

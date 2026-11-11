@@ -77,9 +77,8 @@ export default async function AutoResponseMobile({
         </p>
       )}
 
-      {/* Which method answers, read-only: switching asks for a confirmation and is desk work. */}
+      {/* Which method answers, read-only: changing it is desk work (the desktop form). */}
       <ResponderSelector
-        readOnly
         choice={
           channel
             ? resolveResponderChoice({

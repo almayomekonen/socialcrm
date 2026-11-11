@@ -11,7 +11,7 @@ import ResponseMethodSelector from './ResponseMethodSelector'
 import { AgentPreviewLauncher, AgentPreviewPanel, useAgentPreview } from './AgentPreview'
 import AutoResponseTiming from './AutoResponseTiming'
 import AutoResponseSaveBar from './AutoResponseSaveBar'
-import AutoResponseAgentProfile from './AutoResponseAgentProfile'
+import AutoResponseAgentProfile, { fromAgentProfileDraft, type AgentProfileDraft } from './AutoResponseAgentProfile'
 import { useAutoResponseForm } from './useAutoResponseForm'
 
 /**
@@ -34,7 +34,7 @@ export default function AutoResponseSettingsForm(initial: Props) {
   const t = useT()
   const region = useRegionAttrs()
   const form = useAutoResponseForm(initial)
-  const { draft, baseline, set, setMethod, profile, setProfile, showProfile, dirty, errorCode, error, pending, unsupported, savedDescription } = form
+  const { draft, baseline, set, setMethod, profile, profileBaseline, setProfile, showProfile, dirty, errorCode, error, pending, unsupported, savedDescription } = form
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const bodyId = useId()
@@ -57,11 +57,15 @@ export default function AutoResponseSettingsForm(initial: Props) {
 
   const agentAnswers = method !== 'questionnaire'
   const showPreview = master && method === 'ai'
+  // The test chat also gets the unsaved greeting / tone / FAQ, cleaned as the save cleans them.
+  const draftProfile = showProfile ? previewProfileFields(profile) : undefined
   const preview = useAgentPreview({
     draftDescription: guidance,
     draftAgentInstructions: agentInstructions,
     savedDescription,
     businessName: businessName || initial.businessName,
+    draftProfile,
+    profileChanged: showProfile && JSON.stringify(draftProfile) !== JSON.stringify(previewProfileFields(profileBaseline)),
   })
 
   return (
@@ -186,4 +190,9 @@ export default function AutoResponseSettingsForm(initial: Props) {
       </div>
     </div>
   )
+}
+
+function previewProfileFields(d: AgentProfileDraft) {
+  const { greeting, tone, faq } = fromAgentProfileDraft(d)
+  return { greeting, tone, faq }
 }

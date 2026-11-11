@@ -6,7 +6,7 @@ import ModalPop from '@/lib/modals/ModalPop'
 import { useT } from '@/lib/i18n/I18nProvider'
 import { untranslatedAttrs } from '@/lib/i18n/config'
 import AgentPreviewChat from './AgentPreviewChat'
-import { useAgentPreviewChat, type AgentPreviewChatState } from './useAgentPreviewChat'
+import { useAgentPreviewChat, type AgentPreviewChatState, type DraftProfileFields } from './useAgentPreviewChat'
 
 /**
  * "בדקו את הסוכן שלכם" — the owner talks to their own agent before a customer
@@ -22,9 +22,10 @@ import { useAgentPreviewChat, type AgentPreviewChatState } from './useAgentPrevi
  * responsive layout, not a mobile-only component — phones never reach this form
  * (the page serves AutoResponseMobile to them; architecture-rules §9).
  *
- * DRAFT VS SAVED. The chat sends whatever is currently typed in the business
- * description and the advanced instructions — the two draft fields the preview
- * action accepts — and says whether the reply used saved or unsaved text.
+ * DRAFT VS SAVED. The chat sends whatever is currently typed: the business
+ * description and advanced instructions, and — for an agency on the
+ * conversational agent — the greeting, tone and FAQ. It says whether the reply
+ * used saved or unsaved text.
  *
  * LANGUAGE. This is the AI agent's test chat: its replies, notes and chrome are
  * AI output / AI configuration, out of scope by owner order (no AI
@@ -37,6 +38,9 @@ type Input = {
   /** What is actually stored, so the chat can tell the owner which it used. */
   savedDescription: string
   businessName: string
+  /** Conversational agent only: the unsaved greeting / tone / FAQ, and whether they differ from the saved ones. */
+  draftProfile?: DraftProfileFields
+  profileChanged?: boolean
 }
 
 export type AgentPreviewState = {
@@ -46,13 +50,13 @@ export type AgentPreviewState = {
   isDraft: boolean
 }
 
-export function useAgentPreview({ draftDescription, draftAgentInstructions, savedDescription, businessName }: Input): AgentPreviewState {
-  const chat = useAgentPreviewChat({ draftDescription, draftAgentInstructions })
+export function useAgentPreview({ draftDescription, draftAgentInstructions, savedDescription, businessName, draftProfile, profileChanged = false }: Input): AgentPreviewState {
+  const chat = useAgentPreviewChat({ draftDescription, draftAgentInstructions, draftProfile })
   return {
     chat,
     businessName,
     hasDescription: draftDescription.trim().length > 0,
-    isDraft: draftDescription.trim() !== savedDescription.trim(),
+    isDraft: draftDescription.trim() !== savedDescription.trim() || profileChanged,
   }
 }
 

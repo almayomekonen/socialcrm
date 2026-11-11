@@ -3,6 +3,7 @@ import { getChannelSettings } from '@/db/autoResponseSettings'
 import { loadBusinessIdentity, type BusinessIdentity } from '../businessIdentity'
 import { isQualifierEnabled } from '../killSwitch'
 import { sanitiseSimState, simulateConversationalTurn, type SimResult, type SimState, type SimTurn } from './simulateTurn'
+import { withDraftAgentProfile, type DraftAgentProfileFields } from './draftAgentProfile'
 
 /**
  * "בדקו את הסוכן שלכם" for an agency on the conversational agent
@@ -49,6 +50,8 @@ export async function previewConversationalTurn(input: {
   profileDerived: boolean
   transcript: SimTurn[]
   state: unknown
+  /** The owner's unsaved greeting / tone / FAQ. Absent fields keep the saved profile. */
+  draftProfile?: DraftAgentProfileFields
   nowMs?: number
 }): Promise<ConversationalPreview> {
   const settings = await getChannelSettings(input.agencyId, 'whatsapp')
@@ -60,7 +63,9 @@ export async function previewConversationalTurn(input: {
 
   // The live identity (agent profile included), with the description under test.
   const saved = await loadBusinessIdentity(input.agencyId, 'whatsapp')
-  const identity: BusinessIdentity = { ...saved, ...input.draftIdentity }
+  const draftProfile = withDraftAgentProfile(saved.agentProfile, input.draftProfile)
+  const identity: BusinessIdentity = { ...saved, ...input.draftIdentity, agentProfile: draftProfile.profile }
+  const usedDraft = input.usedDraft || draftProfile.changed
 
   const sim = await simulateConversationalTurn({
     agencyId: input.agencyId,
@@ -77,7 +82,7 @@ export async function previewConversationalTurn(input: {
   return {
     ok: true,
     reply: sim.reply,
-    usedDraft: input.usedDraft,
+    usedDraft,
     profileDerived: input.profileDerived,
     state: sim.state,
     trace: {

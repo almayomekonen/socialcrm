@@ -70,7 +70,7 @@ export default function AutoResponseAgentProfile({ value, onChange }: { value: A
           maxLength={L.greeting}
           sent
           rows={2}
-          placeholder='למשל: היי, ברוכים הבאים! שמחים שפניתם 😊'
+          placeholder='למשל: היי, ברוכים הבאים! שמחים שפניתם'
         />
 
         <AutoResponseTextField

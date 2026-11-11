@@ -103,6 +103,7 @@ export function useAutoResponseForm(initial: AutoResponseFormProps) {
     set,
     setMethod,
     profile,
+    profileBaseline,
     setProfile,
     showProfile,
     dirty,
