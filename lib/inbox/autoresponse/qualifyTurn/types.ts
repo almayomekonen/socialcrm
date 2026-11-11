@@ -6,7 +6,9 @@
  * the statements are the original ones, in the original order.
  */
 import { sendWhatsappText } from '@/lib/whatsapp/sendMessage'
-import { type AutoResponseJob } from '@/db/autoResponseJobs'
+import { type AutoResponseJob, type failAutoResponseJob } from '@/db/autoResponseJobs'
+import type { saveConversationSummary } from '@/db/conversationAiState'
+import type { watchHumanPresence } from '../humanPresenceWatch'
 import type { AutoResponseSettings } from '@/db/autoResponseSettings'
 import { generateQualifyTurn } from '../qualify'
 
@@ -21,6 +23,14 @@ export interface QualifyCtx {
 export interface QualifyDeps {
   send: typeof sendWhatsappText
   generateQualify: typeof generateQualifyTurn
+  /**
+   * The generation step's own writes and watchers. Absent (the worker) ⇒ the real
+   * ones. The owner's simulator passes inert versions, so running the SAME
+   * generation code never touches a conversation, a job or presence.
+   */
+  persistSummary?: typeof saveConversationSummary
+  failJob?: (...args: Parameters<typeof failAutoResponseJob>) => Promise<unknown>
+  watchPresence?: typeof watchHumanPresence
 }
 
 const WINDOW_MS = 24 * 60 * 60 * 1000

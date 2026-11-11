@@ -51,6 +51,11 @@ async function persistEscalation(
   ])
 }
 
+/** What the immediate handoff says. Shared with the owner's simulator so both send the same words. */
+export function immediateHandoffText(greetingLine: string | null, lastInboundText: string): string {
+  return withGreeting(greetingLine, handoffMessage('human_request', detectLang(lastInboundText)))
+}
+
 export async function runImmediateHumanHandoff(args: {
   job: AutoResponseJob
   ctx: QualifyCtx
@@ -67,7 +72,7 @@ export async function runImmediateHumanHandoff(args: {
   const { job, ctx, send, aiState, lastInboundText } = args
   const lang = detectLang(lastInboundText)
   const reason = 'human_request'
-  const handoffText = withGreeting(args.greetingLine ?? null, handoffMessage(reason, lang))
+  const handoffText = immediateHandoffText(args.greetingLine ?? null, lastInboundText)
   const summary = buildSummary({
     qualification: aiState.qualification,
     reason,

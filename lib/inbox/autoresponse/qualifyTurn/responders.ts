@@ -18,6 +18,35 @@ import { sendIreOutbound } from '../ireSend'
 import { COURTESY_KIND, courtesyLine, decideCourtesyClose, isCourtesyMessage } from '../courtesyClose'
 import type { Outcome, TurnBase, TurnFacts } from './types'
 
+/** The first-greeting decision from its inputs. The worker reads them from the database; the simulator from its chat. */
+export function greetingDecisionFor(t: { identity: Awaited<ReturnType<typeof loadBusinessIdentity>>; priorOutbound: boolean; aiState: Pick<TurnFacts['aiState'], 'aiTurnCount' | 'aiState'>; lang: TurnFacts['lang'] }) {
+  const decision = decideGreeting({
+    hasPriorOutbound: t.priorOutbound,
+    aiTurnCount: t.aiState.aiTurnCount,
+    businessName: t.identity.name,
+    lang: t.lang,
+    aiState: t.aiState.aiState,
+  })
+  return { decision }
+}
+
+/** The resolved greeting (identity + line), exactly as the worker's resolveGreeting returns it. */
+export function greetingFor(t: Parameters<typeof greetingDecisionFor>[0]) {
+  const { decision } = greetingDecisionFor(t)
+  return { identity: t.identity, line: decision.greet ? decision.line : null }
+}
+
+/** Would this turn's message get the one-line courtesy reply? Shared with the planner (plan.ts). */
+export function courtesyDecision(t: Pick<TurnFacts, 'recent' | 'lastInboundText' | 'agentHasSpoken' | 'humanTookOver' | 'optOut'>) {
+  return decideCourtesyClose({
+    inboundText: t.lastInboundText,
+    agentHasSpoken: t.agentHasSpoken,
+    humanTookOver: t.humanTookOver,
+    optOut: t.optOut,
+    alreadySentCourtesy: t.recent.some((m) => m.direction === 'outbound' && isCourtesyMessage(m.metadata)),
+  })
+}
+
 /** The lazily resolved greeting and the one-line courtesy reply, bound to this turn. */
 export function turnResponders(t: TurnBase & TurnFacts) {
   const { job, ctx, deps, doSkip, recent, aiState, humanTookOver, lastInboundText, optOut, agentHasSpoken, outboundGate, lang } = t
@@ -40,13 +69,7 @@ export function turnResponders(t: TurnBase & TurnFacts) {
     if (greetingResolved) return greetingResolved
     const identity = await loadBusinessIdentity(job.agencyId, job.channel)
     const priorOutbound = await hasPriorOutbound(conv.id)
-    const decision = decideGreeting({
-      hasPriorOutbound: priorOutbound,
-      aiTurnCount: aiState.aiTurnCount,
-      businessName: identity.name,
-      lang,
-      aiState: aiState.aiState,
-    })
+    const { decision } = greetingDecisionFor({ identity, priorOutbound, aiState, lang })
     waTrace(
       'GREETING_DECISION',
       { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },
@@ -77,13 +100,7 @@ export function turnResponders(t: TurnBase & TurnFacts) {
    * person, and a pleasantry does not change that.
    */
   const attemptCourtesy = async (opts: { closeAfter: string | null }): Promise<Outcome | null> => {
-    const decision = decideCourtesyClose({
-      inboundText: lastInboundText,
-      agentHasSpoken,
-      humanTookOver,
-      optOut,
-      alreadySentCourtesy: recent.some((m) => m.direction === 'outbound' && isCourtesyMessage(m.metadata)),
-    })
+    const decision = courtesyDecision(t)
     waTrace(
       'COURTESY_CLOSE',
       { conversationId: conv.id, jobId: job.id, agencyId: job.agencyId, triggerSequence: job.triggerSequence },

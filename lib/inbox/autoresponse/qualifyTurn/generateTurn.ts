@@ -92,7 +92,7 @@ export async function prepareGeneration(t: TurnBase & TurnFacts & TurnResponders
       })
       if (summarised.ok) {
         conversationSummary = summarised.summary
-        await saveConversationSummary(conv.id, summarised.summary, summarised.throughSequence)
+        await (t.deps.persistSummary ?? saveConversationSummary)(conv.id, summarised.summary, summarised.throughSequence)
         waTrace('CONVERSATION_SUMMARISED', genTraceCtx(), {
           throughSequence: summarised.throughSequence,
           summarisedTurns: summaryPlan.olderTurns.length,
@@ -161,7 +161,7 @@ export async function generateValidatedTurn(t: TurnBase & TurnFacts & Generation
   const { conv } = t.ctx
   // ── Cancel-on-presence: abandon the model call the moment a rep starts typing.
   // Best effort only. Whatever happens here, the outbound guard re-checks.
-  const presenceWatch = watchHumanPresence({
+  const presenceWatch = (deps.watchPresence ?? watchHumanPresence)({
     conversationId: conv.id,
     turnStartedAt: job.createdAt,
     trace: genTrace,
@@ -173,7 +173,7 @@ export async function generateValidatedTurn(t: TurnBase & TurnFacts & Generation
     // attempts and eventually deliver the reply the human displaced.
     if (presenceWatch.cancelled()) return { done: await doSkip('human_typing') }
     if (isRetryableIreGenerationFailure(gen.skipReason)) {
-      await failAutoResponseJob(job.id, gen.skipReason, job.ownerWorkerId)
+      await (deps.failJob ?? failAutoResponseJob)(job.id, gen.skipReason, job.ownerWorkerId)
       return { done: 'failed' as const }
     }
     return { done: await doSkip(gen.skipReason) }

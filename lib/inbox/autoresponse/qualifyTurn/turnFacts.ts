@@ -25,6 +25,19 @@ import { metaSource } from './effects'
 
 const MAX_TRANSCRIPT = 80
 
+/** What the turn's facts are derived from: the rows and state the worker reads from the database. */
+export type TurnFactInputs = {
+  /** Newest first, as `inbox_messages` returns them (at most MAX_TRANSCRIPT). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- knex rows, exactly as the worker always read them
+  rows: any[]
+  aiState: Awaited<ReturnType<typeof getOrCreateAiState>>
+  convo: Awaited<ReturnType<typeof startConversationalTurn>>
+  presenceAtTurnStart: Awaited<ReturnType<typeof readHumanPresence>>
+  sentToday: number
+  settings: Pick<TurnBase['ctx']['settings'], 'maxTurns'>
+  reliability: boolean
+}
+
 /** Everything the turn decides on, read once: transcript, ownership, presence, classification. */
 export async function readTurnFacts(t: Pick<TurnBase, 'job' | 'ctx' | 'reliability'>) {
   const { job, reliability } = t
@@ -35,6 +48,31 @@ export async function readTurnFacts(t: Pick<TurnBase, 'job' | 'ctx' | 'reliabili
     .orderBy('sequence', 'desc')
     .limit(MAX_TRANSCRIPT)
     .select('direction', 'text', 'sentByUserId', 'channelTimestamp', 'createdAt', 'metadata', 'sequence', 'type', 'payload', 'status')
+  const aiState = await getOrCreateAiState(conv.id, job.agencyId)
+  // Conversational agent (IRE_CONVERSATIONAL_AGENCY_IDS only; null = exactly the old path).
+  const convo = await startConversationalTurn({
+    agencyId: job.agencyId,
+    leadId: isPositiveLeadId(job.leadId) ? job.leadId : null,
+    qualification: aiState.qualification,
+    nowMs: Date.now(),
+  })
+  // Human Presence, read once for the cheap pre-generation stop. Covers both a
+  // live signal AND a keystroke already inside this turn, so a job the cron picks
+  // up minutes later does not spend an AI call on a reply the boundary will then
+  // refuse. This is an early exit, not the guarantee: agentSendGuard re-reads
+  // presence at the boundary, after generation, and is what actually decides.
+  const presenceAtTurnStart = await readHumanPresence(conv.id)
+  const sentToday = await countSentToday(job.agencyId)
+  return turnFactsFrom({ rows, aiState, convo, presenceAtTurnStart, sentToday, settings, reliability })
+}
+
+/**
+ * The facts, derived. Pure: the worker feeds it what it read above, and the
+ * owner's simulator (lib/inbox/autoresponse/simulate) feeds it the same shapes
+ * built from its test chat, so both decide on exactly the same facts.
+ */
+export function turnFactsFrom(input: TurnFactInputs) {
+  const { rows, aiState, convo, presenceAtTurnStart, sentToday, settings, reliability } = input
   // Under reliability an image/document/video caption is the customer's text.
   const recent = reliability
     ? rows
@@ -68,27 +106,12 @@ export async function readTurnFacts(t: Pick<TurnBase, 'job' | 'ctx' | 'reliabili
   const lastOutbound = [...recent].reverse().find((m) => m.direction === 'outbound')
   const agentSpokeInWindow = recent.some((m) => m.direction === 'outbound' && metaSource(m.metadata) === 'auto_response')
 
-  const aiState = await getOrCreateAiState(conv.id, job.agencyId)
-  // Conversational agent (IRE_CONVERSATIONAL_AGENCY_IDS only; null = exactly the old path).
-  const convo = await startConversationalTurn({
-    agencyId: job.agencyId,
-    leadId: isPositiveLeadId(job.leadId) ? job.leadId : null,
-    qualification: aiState.qualification,
-    nowMs: Date.now(),
-  })
   // Human takeover. Under reliability: only a PERSON's outbound (isHumanOutbound)
   // written after the last return-to-agent. Legacy: any outbound not written by
   // the agent — which also caught automation templates and pre-return replies.
   const humanTookOver = reliability
     ? humanTookOverSinceEpoch(recent, ownershipEpochSequence(aiState.qualification))
     : legacyHumanTookOver(recent)
-  // Human Presence, read once for the cheap pre-generation stop. Covers both a
-  // live signal AND a keystroke already inside this turn, so a job the cron picks
-  // up minutes later does not spend an AI call on a reply the boundary will then
-  // refuse. This is an early exit, not the guarantee: agentSendGuard re-reads
-  // presence at the boundary, after generation, and is what actually decides.
-  const presenceAtTurnStart = await readHumanPresence(conv.id)
-  const sentToday = await countSentToday(job.agencyId)
   const lastInboundAt = lastInbound ? new Date((lastInbound.channelTimestamp ?? lastInbound.createdAt) as string | Date) : null
   const maxTurns = settings.maxTurns
   const lastInboundText = (lastInbound?.text as string) ?? ''

@@ -25,6 +25,9 @@ import {
 import { isOwnBusinessAccount } from '@/lib/inbox/autoresponse/ownBusinessAccount'
 import { deriveBusinessProfile, hashDescription, type BusinessProfile } from '@/lib/inbox/autoresponse/businessProfile'
 import { mergeQualification, type Qualification } from '@/lib/inbox/autoresponse/qualification'
+import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
+import { previewConversationalTurn } from '@/lib/inbox/autoresponse/simulate/previewConversational'
+import type { SimState } from '@/lib/inbox/autoresponse/simulate/simulateTurn'
 
 /**
  * "בדקו את הסוכן שלכם" — the owner talks to their own agent before any customer
@@ -42,6 +45,14 @@ import { mergeQualification, type Qualification } from '@/lib/inbox/autoresponse
  * is simulated in exactly the way the real one would be — the difference is only
  * that no person is actually notified, which the UI states plainly.
  *
+ * NOTE (architecture-rules §6): ~295 lines, over the soft limit on purpose. The
+ * legacy flow is kept exactly as it was for agencies outside the conversational
+ * rollout and is not extended; new behaviour belongs in simulate/, not here.
+ *
+ * CONVERSATIONAL AGENT. For an agency on IRE_CONVERSATIONAL_AGENCY_IDS the
+ * whole turn is the production agent's (lib/inbox/autoresponse/simulate); the
+ * legacy flow below runs only for every other agency, unchanged.
+ *
  * DRAFT VS SAVED. The owner can test text they have not saved yet. When a draft
  * description is supplied it is derived on the fly; otherwise the saved profile
  * is used. The result reports which, so the UI can say so.
@@ -54,6 +65,8 @@ export type PreviewAgentInput = {
   /** Unsaved description to test. Omitted ⇒ test the saved configuration. */
   draftDescription?: string | null
   draftAgentInstructions?: string | null
+  /** Conversational agent only: the AI state the previous turn returned. Rebuilt on the server, never trusted. */
+  state?: unknown
 }
 
 export type PreviewAgentResult =
@@ -72,7 +85,11 @@ export type PreviewAgentResult =
         control: string
         validator: 'ok' | string
         simulated: string | null
+        /** Conversational agent only: the conversation mode the real agent read. */
+        mode?: string | null
       }
+      /** Conversational agent only: pass back with the next message. */
+      state?: SimState
     }
   | { ok: false; reason: string }
 
@@ -127,6 +144,21 @@ export async function previewAgentTurn(input: PreviewAgentInput): Promise<Previe
 
   const { identity, usedDraft, derivedNow } = await previewIdentity(user.agencyId, input)
   if (!identity.guidance) return { ok: false, reason: 'no_description' }
+
+  // ── The conversational agent: the REAL agent's turn, never the legacy one ──
+  // An agency on IRE_CONVERSATIONAL_AGENCY_IDS is answered on WhatsApp by the
+  // conversational agent, so its owner tests exactly that (simulate/). When its
+  // WhatsApp would not run it, the owner is told so: there is no fallback here.
+  if (canUseConversationalAgent(user.agencyId)) {
+    return previewConversationalTurn({
+      agencyId: user.agencyId,
+      draftIdentity: { guidance: identity.guidance, agentInstructions: identity.agentInstructions, profile: identity.profile },
+      usedDraft,
+      profileDerived: Boolean(identity.profile) || derivedNow,
+      transcript,
+      state: input.state,
+    })
+  }
 
   const lastInbound = transcript[transcript.length - 1].text
   const lang = detectLang(lastInbound)

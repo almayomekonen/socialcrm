@@ -11,62 +11,24 @@ import { recordTurn, mergeOnly, markEscalated, reopenClosedConversation } from '
 import { insertQualifyDraftReview } from '@/db/qualifyDraftReview'
 import { recordTurnClassification } from '@/db/conversationTurnClassification'
 import { isPositiveLeadId } from '../contactJob'
-import { mergeQualification, requiredComplete } from '../qualification'
-import { decidePostGeneration } from '../stateMachine'
-import { handoffMessage, cognitionFromUnderstanding, inboundMemoryText } from '../qualify'
+import { handoffMessage } from '../qualify'
 import { buildSummary } from '../summary'
-import { isWarmHandoffEnabled, buildWarmHandoff } from '../warmHandoff'
 import { waTrace } from '../waTrace'
 import { withGreeting } from '../greeting'
 import { scheduleNoResponseWarning } from '../processNoResponseJob'
-import { memoryAfterTurn, modeOf, notifyPersonalConversation } from '../conversational/hooks'
+import { modeOf, notifyPersonalConversation } from '../conversational/hooks'
 import { isSocialMode } from '../conversational/mode'
-import { meetingNeedsTeam } from '../conversational/turnRules'
 import type { GeneratedTurn, GenerationInput, Outcome, TurnBase, TurnFacts } from './types'
 import { persistEscalation, sendAndPersist, shadowQualificationIfLead } from './effects'
+import { decidePostTurn, escalationText, turnQualification } from './postDecision'
 
 /** Post-generation: the decision, the classification log, and the draft / escalate / continue paths. */
 export async function completeQualifyTurn(t: TurnBase & TurnFacts & GenerationInput & GeneratedTurn & { deferredMeeting: boolean }): Promise<Outcome> {
   const { job, ctx, deps, doSkip, reliability, aiState, convo, maxTurns, lastInboundText, qTranscript, salesMove, salesStrategy, reopenEligible, outboundGate, lang, responseProfile, identity, greetingLine, genTrace, gen, validation, forcedGuardrail, schedulingOverride, deferredMeeting, handoffRequested } = t
   const { settings, conv } = ctx
-  const incomingCog = cognitionFromUnderstanding(
-    gen.understanding,
-    gen.objective,
-    inboundMemoryText({
-      qualification: aiState.qualification,
-      lastInboundText,
-      transcript: qTranscript,
-    }),
-    salesStrategy,
-  )
   const draftOnly = settings.draft
-  const turnMemory = convo ? memoryAfterTurn(convo, gen, { willSend: !draftOnly }) : null
-  const persistExtracted = { ...gen.extracted, cognition: incomingCog, ...(turnMemory ? { conversation: turnMemory.memory } : {}) }
-  const merged = mergeQualification(aiState.qualification, persistExtracted, { corrected: gen.corrected })
-  let post = decidePostGeneration({
-    hotSignal: gen.hotSignal, // observability only — policy ignores LLM hotness
-    uncertain: gen.uncertain, // model-only; validation failures are resolved above
-    requiredComplete: requiredComplete(merged, settings.collectFields.required),
-    turnCount: aiState.aiTurnCount,
-    maxTurns,
-    salesMove, // classifier only; LLM salesMove is never policy
-  })
-  // Safety-guardrail handoff wins over any send/continue decision.
-  if (forcedGuardrail) post = { action: 'escalate', reason: 'guardrail' }
-  else if (convo) {
-    // A deferred meeting mention: the team gets a new booking need; everyone else gets the reply.
-    if (deferredMeeting && post.action === 'escalate' && post.reason === 'human_request' && !meetingNeedsTeam(modeOf(gen))) {
-      post = { action: 'send' }
-    }
-    // The model called a scheduling request personal: the team handles it, as a meeting request always was.
-    if (schedulingOverride) post = { action: 'escalate', reason: 'scheduling_request' }
-    // The model asked for a person: the existing handoff, never a promise in text.
-    if (handoffRequested) post = { action: 'escalate', reason: 'needs_team' }
-    // A topic the owner asked a person to handle (owner-configured only).
-    if (gen.escalationTopic && (identity.agentProfile?.escalationTopics.length ?? 0) > 0) {
-      post = { action: 'escalate', reason: 'escalation_topic' }
-    }
-  }
+  const { turnMemory, persistExtracted, merged } = turnQualification({ aiState, convo, lastInboundText, qTranscript, salesStrategy, gen, draftOnly })
+  const post = decidePostTurn({ aiState, convo, maxTurns, salesMove, identity, gen, forcedGuardrail, schedulingOverride, handoffRequested, settings, merged, deferredMeeting })
   if (convo) {
     waTrace('CONVERSATIONAL_TURN', genTrace, {
       mode: modeOf(gen),
@@ -160,18 +122,14 @@ export async function completeQualifyTurn(t: TurnBase & TurnFacts & GenerationIn
   //    On a QUALIFIED handoff only, an enabled agency gets a deterministic warm
   //    message assembled from known fields; any fallback → the fixed template. ──
   if (post.action === 'escalate' && summary) {
-    let handoffText = handoffMessage(post.reason, lang)
-    if (post.reason === 'qualified' && isWarmHandoffEnabled(job.agencyId)) {
-      const warm = buildWarmHandoff({
-        name: merged.name,
-        need: merged.need,
-        urgency: merged.urgency,
-        context: qTranscript.find((m) => m.direction === 'inbound')?.text,
-        lang,
-      })
-      waTrace('WARM_HANDOFF', genTrace, { ...warm.telemetry })
-      if (warm.text) handoffText = warm.text
-    }
+    const handoffText = escalationText({
+      agencyId: job.agencyId,
+      reason: post.reason,
+      merged,
+      qTranscript,
+      lang,
+      onWarm: (telemetry) => waTrace('WARM_HANDOFF', genTrace, telemetry),
+    })
     const gate = outboundGate()
     if (gate.allowed === false) return doSkip(gate.reason)
     const r = await sendAndPersist(job, ctx, deps.send, withGreeting(greetingLine, handoffText))
