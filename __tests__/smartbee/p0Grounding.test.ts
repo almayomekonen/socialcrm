@@ -73,6 +73,21 @@ describe('amount: the newest explicit amount wins, nothing else is money', () =>
       expect(statedDocumentAmount(turns(['טעות, 1600', 'description'], opening))).toEqual({ amount: 1600 })
       expect(statedDocumentAmount(turns(['1200', 'amount'], ['תפיק קבלה ליוסי על צילום', null]))).toEqual({ amount: 1200 })
     })
+    it('a correction word does not make every number money: "לא, צילום חתונה 2026" keeps 1500', () => {
+      expect(statedDocumentAmount(turns(['לא, צילום חתונה 2026', 'description'], opening))).toEqual({ amount: 1500 })
+      expect(statedDocumentAmount(turns(['בעצם צילום 3 אלבומים', 'type'], opening))).toEqual({ amount: 1500 })
+      // Marked as money, the corrected amount is read.
+      expect(statedDocumentAmount(turns(['לא, צילום חתונה ב-1800 שקל', 'description'], opening))).toEqual({ amount: 1800 })
+    })
+    it.each([
+      ['לא, 2000', 2000],
+      ['לא לא, 2000', 2000],
+      ['טעות, הסכום 1600', 1600],
+      ['סליחה, זה 1.2K', 1200],
+      ['בעצם המחיר הוא 1700', 1700],
+    ])('a correction that is only the amount: "%s" → %s', (text, amount) => {
+      expect(statedDocumentAmount(turns([text, 'payment'], opening))).toEqual({ amount })
+    })
     it('"לא כולל 18" answering VAT is a VAT answer, not a correction of the amount', () => {
       expect(statedDocumentAmount(turns(['לא כולל 18', 'vat'], opening))).toEqual({ amount: 1500 })
     })

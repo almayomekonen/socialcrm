@@ -231,3 +231,42 @@ describe('a correction voids the card even when the worker does not answer it', 
     expect(await docs()).toHaveLength(1)
   })
 })
+
+describe('only a genuine document change voids the card', () => {
+  const REQUEST = 'תפיק קבלה ליוסי כהן על צילום, 500 שקל, שולם במזומן'
+
+  it.each(['המסמך לא הופק', 'המסמך הופק, מספר 1045', 'כמה לידים נכנסו ב-2025?'])(
+    'a stalled-document answer or an unrelated number ("%s") leaves the card approvable',
+    async (text) => {
+      const o = await owner()
+      const only = await lead(o, 'כהן')
+      const h = harness([proposes(only, [only]), plain('בסדר')])
+      const card = await say(o, h, REQUEST)
+      await say(o, h, text)
+      expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['pending'])
+      await tap(o, h, card.buttons![0].id)
+      expect(await docs()).toHaveLength(1)
+    },
+  )
+
+  it.each(['בעצם באשראי', '2000', 'לא, צילום חתונה 2026'])('a correction ("%s") voids it, and its tap issues nothing', async (text) => {
+    const o = await owner()
+    const only = await lead(o, 'כהן')
+    const h = harness([proposes(only, [only]), plain('מה לתקן?')])
+    const card = await say(o, h, REQUEST)
+    await say(o, h, text)
+    expect(await tap(o, h, card.buttons![0].id)).toMatchObject({ body: DOCUMENT_COPY.superseded })
+    expect(await docs()).toHaveLength(0)
+  })
+
+  it('past the reply window, a bare "2000" still voids it; an unrelated "המסמך לא הופק" does not', async () => {
+    const o = await owner()
+    const only = await lead(o, 'כהן')
+    const h = harness([proposes(only, [only]), proposes(only, [only])])
+    await say(o, h, REQUEST)
+    await sayUnanswered(o, h, 'המסמך לא הופק', 'expired')
+    expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['pending'])
+    await sayUnanswered(o, h, '2000', 'expired')
+    expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['superseded'])
+  })
+})

@@ -11,8 +11,8 @@ import type { RequestTurn } from '../request'
  *     phone or account number, installments ("3 תשלומים"), a percent, a date or
  *     a time;
  *   - an UNMARKED number can set the amount only in the message that opened
- *     the request, the answer to OUR amount question, or a message that
- *     corrects ("לא", "בעצם", "טעות", "תתקן", "במקום"). Anywhere else, such
+ *     the request, the answer to OUR amount question, or a correction that is
+ *     nothing but the new amount ("לא, 2000", "בעצם 1700"). Anywhere else, such
  *     as "צילום 2 שעות" answering the description or "כולל 18" answering
  *     VAT, only a number marked as money (₪, ש"ח, שקל) counts. A bare number
  *     answering which lead, the check or the installments is that answer even
@@ -46,13 +46,24 @@ const JOINED_AFTER = /^\s*[-/:.]\s*\d/u
 /** Questions whose bare-number answer is not an amount, even in a correction. */
 const NOT_AMOUNT_ANSWER = /_clarify_(?:lead|check|installments)$/u
 const AMOUNT_ANSWER = /_clarify_amount$/u
-/** A message that corrects what was said. "לא כולל" is a VAT answer, not a correction. */
-const CORRECTION = /(?<![\p{L}])(?:ו?לא(?![\p{L}])(?!\s*כולל)|בעצם|טעות|טעיתי|תתקן|תקן|במקום|סליחה)(?![\p{L}])/u
+/**
+ * A correction whose WHOLE message is the new amount: "לא, 2000", "בעצם 1700",
+ * "טעות, הסכום 1600", "סליחה, זה 1.5K". A correction word does not make every
+ * number around it money: in "לא, צילום חתונה 2026" the number is part of the
+ * description, so there only a number marked as money (₪, ש"ח, שקל) counts.
+ */
+const CORRECTION_WORD = `(?:ו?לא|בעצם|טעות|טעיתי|תתקן|תקן|במקום|סליחה)`
+const CORRECTED_AMOUNT = new RegExp(
+  `^\\s*${CORRECTION_WORD}(?:\\s*[,.:!\\-–]*\\s*${CORRECTION_WORD})*[\\s,.:!\\-–]*` +
+    `(?:(?:ה)?(?:סכום|מחיר)(?:\\s+(?:הוא|זה|צריך\\s+להיות))?\\s*:?\\s*|זה\\s+|(?:צריך\\s+להיות)\\s+)?` +
+    `\\d[\\d,.]*(?:\\s*(?:אלף|אלפים|k))?[\\s.!]*$`,
+  'iu',
+)
 
 /**
  * How a message's numbers are read:
  *   - 'opening': unmarked numbers count; ones we cannot read are skipped;
- *   - 'stated': an amount answer or a correction; unmarked numbers count, and
+ *   - 'stated': an amount answer, or a correction that is only the amount; unmarked numbers count, and
  *     one we cannot read is a question;
  *   - 'money': only numbers marked as money count.
  */
@@ -61,7 +72,7 @@ type Reading = 'opening' | 'stated' | 'money'
 function readingOf(turn: RequestTurn): Reading {
   if (!turn.answering) return 'opening'
   if (NOT_AMOUNT_ANSWER.test(turn.answering)) return 'money'
-  return AMOUNT_ANSWER.test(turn.answering) || CORRECTION.test(turn.text) ? 'stated' : 'money'
+  return AMOUNT_ANSWER.test(turn.answering) || CORRECTED_AMOUNT.test(turn.text) ? 'stated' : 'money'
 }
 
 type Candidate = { value: number; money: boolean } | 'unclear'
