@@ -153,6 +153,13 @@ export type RunAgentInput = {
    */
   surfaceRules?: string
   /**
+   * The answer schema for one surface whose agency has an extra, separately
+   * switched action (lib/agent/smartbeeAnswerSchema.ts). Same contract as the
+   * shared schema plus that action; the validator still decides what is kept.
+   * Omitted everywhere else, so every other run is unchanged.
+   */
+  answerSchema?: typeof agentAnswerSchema
+  /**
    * Leads the APPLICATION already chose and access-checked for this request (the
    * WhatsApp assistant's stored lead choice, lib/waAssistant/leadChoice.ts), as
    * if a tool had read them in this run. Never from the model, the user's text or
@@ -326,6 +333,7 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
   // The meetings rule follows the same per-agency switch as the tool itself (buildAgentTools).
   const basePrompt = buildAgentSystemPrompt(nowMs, { listMeetings: isAgentListMeetingsAgency(scope.agencyId) })
   const systemPrompt = input.surfaceRules ? `${basePrompt}\n\n${input.surfaceRules}` : basePrompt
+  const answerSchema = input.answerSchema ?? agentAnswerSchema
   const evidence = createEvidenceCollector()
   for (const id of input.verifiedLeadIds ?? []) if (Number.isSafeInteger(id) && id > 0) evidence.add({ kind: 'lead', refId: String(id) })
   /**
@@ -611,12 +619,12 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
 
       // ── PHASE 2 · answer. Structured output, NO tools, no forced choice. ──
       const answerMessages = [...conversation, ...evidencePhase.response.messages, ...sourceManifest(evidence)]
-      pendingShadow = reserveCall(answerMessages, 1, { schema: agentAnswerSchema })
+      pendingShadow = reserveCall(answerMessages, 1, { schema: answerSchema })
       result = await generateText({
         model: handle.model,
         system: systemPrompt,
         messages: answerMessages,
-        output: Output.object({ schema: agentAnswerSchema }),
+        output: Output.object({ schema: answerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
         abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),
@@ -624,14 +632,14 @@ export async function runAgentInvestigation(input: RunAgentInput): Promise<Agent
       await settleCall('success', await recordSteps(result.steps), result.totalUsage)
     } else {
       // ── INTERACTIVE · unchanged: one call, tools, structured output. ──
-      pendingShadow = reserveCall(conversation, maxSteps, { tools, schema: agentAnswerSchema })
+      pendingShadow = reserveCall(conversation, maxSteps, { tools, schema: answerSchema })
       result = await generateText({
         model: handle.model,
         system: systemPrompt,
         messages: conversation,
         tools,
         stopWhen: stepCountIs(maxSteps),
-        output: Output.object({ schema: agentAnswerSchema }),
+        output: Output.object({ schema: answerSchema }),
         maxOutputTokens: cfg.maxOutputTokens,
         abortSignal: runSignal,
         ...(cfg.providerMaxRetries != null ? { maxRetries: cfg.providerMaxRetries } : {}),

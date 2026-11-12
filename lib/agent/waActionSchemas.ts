@@ -127,3 +127,36 @@ export const cancelMeetingProposal = z.object({
   args: z.object({ clientId: z.number(), match: z.string().nullable() }),
   evidenceRefs: z.array(z.string()),
 })
+
+/**
+ * A legal document through the agency's SmartBee connection (invoice, receipt,
+ * or invoice-receipt). Offered ONLY to an agency on SMARTBEE_AGENCY_IDS, through
+ * lib/agent/smartbeeAnswerSchema.ts; the shared answer schema never contains it.
+ * Every field nullable (Structured Outputs): null means "not said", and the
+ * application asks. The application re-reads the type, amount, VAT basis and
+ * payment method from the owner's own words; these fields are only a hint.
+ */
+export const createSmartbeeDocumentProposal = z.object({
+  actionType: z.literal('create_smartbee_document'),
+  args: z.object({
+    clientId: z.number(),
+    /** "חשבונית מס" → Invoice, "קבלה" → Receipt, "חשבונית מס קבלה" → InvoiceReceipt, otherwise null. */
+    docType: z.union([z.literal('Invoice'), z.literal('Receipt'), z.literal('InvoiceReceipt'), z.null()]),
+    /** What the document is for, in the owner's words ("צילום חתונה"), or null. */
+    description: z.union([z.string(), z.null()]),
+    /** The amount the owner said, exactly, as a number. Null when none was said. */
+    amount: z.union([z.number(), z.null()]),
+    /** "כולל מע"מ" → incl_vat, "לפני/פלוס מע"מ" → excl_vat, otherwise null. */
+    priceBasis: z.union([z.literal('incl_vat'), z.literal('excl_vat'), z.null()]),
+    paymentMethod: z.union([z.literal('cash'), z.literal('credit_card'), z.literal('bank_transfer'), z.literal('check'), z.literal('other'), z.null()]),
+    /** For `other` only: the owner's word for it ("ביט", "פייבוקס"), else null. */
+    paymentLabel: z.union([z.string(), z.null()]),
+    /** For a check: the check number the owner said, else null. */
+    checkNumber: z.union([z.string(), z.null()]),
+    /** For a bank transfer: the reference the owner said, else null. */
+    transferReference: z.union([z.string(), z.null()]),
+    /** For a card: the number of installments the owner said, else null. */
+    installments: z.union([z.number(), z.null()]),
+  }),
+  evidenceRefs: z.array(z.string()),
+})

@@ -12,6 +12,7 @@ export const paymentMethod: B['paymentMethod'] = {
 }
 
 export const issueError: B['issueError'] = {
+  external_issuer: 'This business issues its documents through SmartBee, so they cannot be issued here',
   payment_exceeds_total: 'The amount received cannot be more than the document total',
   payment_incomplete: 'Complete the payment details',
   issuer_identity_incomplete: 'Complete the business details',

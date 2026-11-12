@@ -17,7 +17,7 @@
  * opens one, asks something else, or (for a meeting) names a task to do.
  */
 
-export type RequestKind = 'meeting' | 'task' | 'status' | 'note' | 'quote'
+export type RequestKind = 'meeting' | 'task' | 'status' | 'note' | 'quote' | 'document'
 
 const words = (...lists: string[]) => new Set(lists.join(' ').split(' '))
 
@@ -40,6 +40,7 @@ const OWN_WORDS: Record<RequestKind, Set<string>> = {
   status: words('סטטוס הסטטוס תעביר להעביר העבר תסמן לסמן סמן תשנה לשנות שנה תעדכן לעדכן עדכן'),
   note: words('הערה הערות תרשום לרשום רשום תוסיף להוסיף הוסף תכתוב לכתוב'),
   quote: words('הנחה אחוז אחוזים הצעה הצעת הצעות מחיר מחירים תכין להכין הכן מעמ מע מ כולל לפני פלוס ללא בלי שקל שקלים ש ח אלף תוקף ימים'),
+  document: words('חשבונית חשבוניות קבלה קבלות מס מסמך תפיק להפיק הפק תוציא להוציא מעמ מע מ כולל לפני פלוס שקל שקלים ש ח אלף שולם שילם שילמה תשלום תשלומים מזומן אשראי כרטיס העברה בנקאית צק שיק המחאה ביט פייבוקס אסמכתא מספר'),
 }
 const WHEN_ASKS = new Set(['ask_time', 'ambiguous_time', 'ambiguous_date', 'past_date', 'past', 'past_today', 'conflict'])
 

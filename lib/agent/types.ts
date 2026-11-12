@@ -368,6 +368,29 @@ export type ProposedAction =
       evidenceRefs: string[]
     }
   | { /** WhatsApp only. */ actionType: 'cancel_meeting'; args: { clientId: number; match: string | null }; evidenceRefs: string[] }
+  | {
+      /**
+       * WhatsApp only, and only for an agency with SmartBee switched on
+       * (lib/agent/smartbeeAnswerSchema.ts offers it to no one else). The model
+       * copies the owner's words; lib/waAssistant/smartbee/propose.ts re-derives
+       * the type, amount, VAT basis and payment from those words and replaces
+       * these args before anything is recorded.
+       */
+      actionType: 'create_smartbee_document'
+      args: {
+        clientId: number
+        docType: 'Invoice' | 'Receipt' | 'InvoiceReceipt' | null
+        description: string | null
+        amount: number | null
+        priceBasis: 'incl_vat' | 'excl_vat' | null
+        paymentMethod: 'cash' | 'credit_card' | 'bank_transfer' | 'check' | 'other' | null
+        paymentLabel: string | null
+        checkNumber: string | null
+        transferReference: string | null
+        installments: number | null
+      }
+      evidenceRefs: string[]
+    }
 
 /**
  * One action across many leads. Expanded by the application into N ordinary

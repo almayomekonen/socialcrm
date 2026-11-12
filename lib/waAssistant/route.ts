@@ -7,7 +7,9 @@ import {
   isWaAssistantRemindersAgency,
   isWaAssistantStatusAgency,
   isWaAssistantTasksAgency,
+  isWaAssistantAgency,
 } from '@/lib/flags/waAssistantFlags'
+import { isSmartbeeAgency } from '@/lib/flags/smartbeeFlags'
 import type { runAgentInvestigation } from '@/lib/agent/run'
 import type { AgentScope } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
@@ -17,6 +19,7 @@ import { proposeLeadUpdate, type LeadUpdateProposeDeps } from './leadUpdates/pro
 import { proposeQuote, type QuoteProposeDeps } from './quotes/propose'
 import { proposeQuoteEdit, type QuoteEditProposal } from './quotes/proposeEdit'
 import { proposeRecordChange, type ChangeProposal } from './recordChanges/propose'
+import { proposeSmartbeeDocument, type DocumentProposeDeps } from './smartbee/propose'
 import { isRequestConversation } from './request'
 import { isClarifyingAnswer } from './tasks/draft'
 import type { MeetingReply } from './meetings/types'
@@ -40,6 +43,8 @@ export type AssistantCapabilities = {
   notesOn: boolean
   remindersOn: boolean
   quotesOn: boolean
+  /** SmartBee documents: one named agency (SMARTBEE_AGENCY_IDS), never an audience. */
+  documentsOn: boolean
   /** Review, edit and send to the customer (only on top of `quotesOn`). */
   quotesSendOn: boolean
   /** Any write at all: decides whether a tap or a bare "כן" means anything here. */
@@ -54,6 +59,7 @@ export function assistantCapabilities(agencyId: number): AssistantCapabilities {
     notesOn: isWaAssistantNotesAgency(agencyId),
     remindersOn: isWaAssistantRemindersAgency(agencyId),
     quotesOn: isWaAssistantQuotesAgency(agencyId),
+    documentsOn: isWaAssistantAgency(agencyId) && isSmartbeeAgency(agencyId),
   }
   return { ...caps, quotesSendOn: isWaAssistantQuotesSendAgency(agencyId), writesOn: Object.values(caps).some(Boolean) }
 }
@@ -63,6 +69,7 @@ export type ProposalRouteDeps = {
   tasks?: TaskProposeDeps
   leadUpdates?: LeadUpdateProposeDeps
   quotes?: QuoteProposeDeps
+  documents?: DocumentProposeDeps
 }
 
 type AgentSuccess = Extract<Awaited<ReturnType<typeof runAgentInvestigation>>, { ok: true }>
@@ -87,6 +94,7 @@ export async function routeProposal(input: {
   if ((caps.statusOn && proposed.actionType === 'update_lead_status') || (caps.notesOn && proposed.actionType === 'add_lead_note'))
     return proposeLeadUpdate({ ...common, proposal: proposed as Parameters<typeof proposeLeadUpdate>[0]['proposal'], deps: deps?.leadUpdates })
   if (caps.quotesOn && proposed.actionType === 'create_quote') return proposeQuote({ ...common, proposal: proposed, deps: deps?.quotes })
+  if (caps.documentsOn && proposed.actionType === 'create_smartbee_document') return proposeSmartbeeDocument({ ...common, proposal: proposed, deps: deps?.documents })
   if (caps.quotesSendOn && proposed.actionType === 'edit_quote') return proposeQuoteEdit({ ...common, proposal: proposed as QuoteEditProposal })
   if ((caps.tasksOn && (proposed.actionType === 'update_task' || proposed.actionType === 'complete_task')) || (caps.meetingsOn && (proposed.actionType === 'reschedule_meeting' || proposed.actionType === 'cancel_meeting')))
     return proposeRecordChange({ ...common, proposal: proposed as ChangeProposal })
@@ -99,6 +107,8 @@ export async function routeProposal(input: {
  */
 export async function agentClarifyStopReason(job: WaAssistantJob, result: AgentSuccess, caps: AssistantCapabilities, hasNote: boolean): Promise<string | null> {
   if (hasNote || !isClarifyingAnswer(result.answer)) return null
+  // A document ("חשבונית", "קבלה") is the most specific request of all: checked first.
+  if (caps.documentsOn && (await isRequestConversation('document', job))) return 'document_clarify_agent'
   // "הצעת מחיר" is specific; checked first so a quote's question never reads as a task's.
   if (caps.quotesOn && (await isRequestConversation('quote', job))) return 'quote_clarify_agent'
   // "תקבע" opens both a meeting and a follow-up: it is a meeting only when the owner says so, or the open request already is one.
