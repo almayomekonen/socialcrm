@@ -97,7 +97,7 @@ export default function AgentPreviewChat({ chat, businessName, hasDescription, i
               )}
             </div>
           ))}
-          {pending && <p className='self-end text-xs text-gray-500'>הסוכן מקליד…</p>}
+          {pending && <p className='self-start text-xs text-gray-500'>הסוכן מקליד…</p>}
           <div ref={endRef} />
         </div>
 
