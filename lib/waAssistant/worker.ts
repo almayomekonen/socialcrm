@@ -35,6 +35,7 @@ import { answerSchemaFor } from '@/lib/agent/smartbeeAnswerSchema'
 import type { DocumentProposeDeps } from './smartbee/propose'
 import type { DocumentDecideDeps } from './smartbee/decide'
 import { handleSmartbeeResolutionMessage } from './smartbee/resolve'
+import { supersedeChangedDocumentCard } from './smartbee/staleCard'
 import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
@@ -186,6 +187,8 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   // A stalled SmartBee document settled by its owner's fixed words (SMARTBEE_AGENCY_IDS only): deterministic, no model.
   const resolution = caps.documentsOn ? await handleSmartbeeResolutionMessage({ job, scope: who.scope, nowMs: startedAt.getTime() }) : null
   if (resolution) return finishMeeting(job, platform, who.phoneE164, resolution, deps, { durationMs: elapsed() })
+  // A correction after a SmartBee card ("לא, 2000") voids that card, even when this turn asks a question instead of showing a new one.
+  if (caps.documentsOn) await supersedeChangedDocumentCard(job)
 
   // "תראה לי שוב את ההצעה": the send card again, without a model and without a credit.
   const review = caps.quotesSendOn ? await handleQuoteReviewMessage({ job, scope: who.scope, nowMs: startedAt.getTime() }) : null

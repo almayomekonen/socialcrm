@@ -71,11 +71,12 @@ async function shownList(scope: AgentScope, ids: readonly number[]): Promise<(Le
 /** "2" / "השני" / "1234" — the owner's answer to our list, from their newest message only. */
 function selected(options: readonly (LeadOption | null)[], reply: string): LeadOption | null {
   const text = norm(reply)
-  const digits = [...text.matchAll(/(?<!\d)(\d{3,4})(?!\d)/g)].map((m) => m[1])
+  // A phone ending is 3-4 bare digits: never part of an amount ("1,500", "₪500", "500 שקל").
+  const digits = [...text.matchAll(/(?<![\d,.₪])(\d{3,4})(?![\d]|[,.]\d|\s*(?:₪|ש["״'׳]?ח|שקל))/gu)].map((m) => m[1])
   const byPhone = options.filter((o): o is LeadOption => !!o?.phoneTail && digits.some((d) => o.phoneTail!.endsWith(d)))
   if (byPhone.length === 1) return byPhone[0]
   if (text.split(' ').length > 3 || /יום/u.test(text)) return null
-  const m = /^(?:מספר\s+)?(?:את\s+)?[הל]?(ראשון|שני|שלישי|רביעי|חמישי|[1-5])(?:\s|$|[.!])/u.exec(text)
+  const m = /^(?:מספר\s+)?(?:את\s+)?[הל]?(ראשון|שני|שלישי|רביעי|חמישי|[1-5])(?:\s|$|[.!](?!\d))/u.exec(text)
   if (!m) return null
   const i = /\d/.test(m[1]) ? Number(m[1]) - 1 : ORDINALS.indexOf(m[1])
   return options[i] ?? null

@@ -33,7 +33,7 @@ describe('payment method', () => {
     expect(statedPaymentMethod(['בביט'])).toEqual({ method: 'other', otherLabel: 'ביט' })
     expect(statedPaymentMethod(['בפייבוקס'])).toEqual({ method: 'other', otherLabel: 'פייבוקס' })
   })
-  it('two methods is a question, not a guess', () => expect(statedPaymentMethod(['חצי מזומן וחצי אשראי'])).toBe('ambiguous'))
+  it('two methods is a question, not a guess', () => expect(statedPaymentMethod(['שולם חצי מזומן וחצי אשראי'])).toBe('ambiguous'))
   it('nothing said → null (the application asks)', () => expect(statedPaymentMethod(['חשבונית ליוסי 1500'])).toBeNull())
 })
 
