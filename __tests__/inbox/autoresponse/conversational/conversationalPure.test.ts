@@ -44,10 +44,12 @@ describe('the rollout flag', () => {
     if (saved === undefined) delete process.env.IRE_CONVERSATIONAL_AGENCY_IDS
     else process.env.IRE_CONVERSATIONAL_AGENCY_IDS = saved
   })
-  it('absence blocks; only named agencies; "all" is not accepted', () => {
+  it('absence blocks; named agencies, or exactly "all" (owner-approved 2026-11-12)', () => {
     delete process.env.IRE_CONVERSATIONAL_AGENCY_IDS
     expect(canUseConversationalAgent(103)).toBe(false)
     process.env.IRE_CONVERSATIONAL_AGENCY_IDS = 'all'
+    expect(canUseConversationalAgent(103)).toBe(true)
+    process.env.IRE_CONVERSATIONAL_AGENCY_IDS = '*'
     expect(canUseConversationalAgent(103)).toBe(false)
     process.env.IRE_CONVERSATIONAL_AGENCY_IDS = ' 103, x, 0, -4, 7.5 '
     expect([...conversationalAgentAgencyIds()]).toEqual([103])

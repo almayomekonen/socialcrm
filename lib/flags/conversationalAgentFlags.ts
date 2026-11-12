@@ -9,10 +9,17 @@
  * structured agent profile (greeting, persona, tone, FAQ, escalation topics) is
  * supplied to the model. See lib/inbox/autoresponse/conversational/.
  *
- * ABSENCE BLOCKS. `IRE_CONVERSATIONAL_AGENCY_IDS` is an explicit comma list of
- * agency ids. Unset, empty or unparseable means NO agency, and "all" is not
- * accepted: this changes what real customers receive, so each agency is named
- * on purpose. Read per call, never cached at module scope.
+ * AUDIENCE. `IRE_CONVERSATIONAL_AGENCY_IDS` is either:
+ *   - `all` (trimmed, any case): every agency, current and future. This is a
+ *     rollout decision, not an eligibility decision: an agency still gets the
+ *     conversational agent only where it would get the qualify agent at all
+ *     (responder = AI agent, mode = 'qualify', auto response on, WhatsApp
+ *     connected, plan entitlement, AI permission, kill switch, send gates);
+ *   - an explicit comma list of agency ids (digits only; anything else in the
+ *     list is ignored), as before.
+ * Unset, empty or unparseable means NO agency. `*` is not accepted, and `all`
+ * mixed into a list (`all,103`) is not `all`: only the exact value opens it to
+ * everyone. Read per call, never cached at module scope.
  *
  * It never weakens a gate: the manual personal mark, opt-out, human takeover,
  * the 24-hour window, quiet hours, the daily cap, the kill switch, plan
@@ -28,7 +35,22 @@ export function conversationalAgentAgencyIds(raw = process.env.IRE_CONVERSATIONA
   return new Set(ids)
 }
 
-export function canUseConversationalAgent(agencyId: number | null | undefined): boolean {
+export type ConversationalAudience = 'all' | Set<number>
+
+/** Who the conversational agent is rolled out to: everyone (`all`) or the listed agency ids. */
+export function conversationalAgentAudience(raw = process.env.IRE_CONVERSATIONAL_AGENCY_IDS): ConversationalAudience {
+  if ((raw ?? '').trim().toLowerCase() === 'all') return 'all'
+  return conversationalAgentAgencyIds(raw)
+}
+
+/**
+ * THE rollout decision, used by every surface: the WhatsApp worker
+ * (conversational/hooks.ts startConversationalTurn), the owner's simulator
+ * (the same function, through simulate/simulateTurn.ts), the preview action,
+ * the settings page and the settings save. Eligibility is never decided here.
+ */
+export function canUseConversationalAgent(agencyId: number | null | undefined, raw = process.env.IRE_CONVERSATIONAL_AGENCY_IDS): boolean {
   if (!agencyId || !Number.isSafeInteger(agencyId) || agencyId <= 0) return false
-  return conversationalAgentAgencyIds().has(agencyId)
+  const audience = conversationalAgentAudience(raw)
+  return audience === 'all' || audience.has(agencyId)
 }

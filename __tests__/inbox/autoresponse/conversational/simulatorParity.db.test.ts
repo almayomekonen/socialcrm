@@ -462,3 +462,50 @@ describe('the test chat can use the unsaved greeting, tone and FAQ', () => {
     expect((h.simCalls.at(-1) as Call).greetingLine).toBe(templateGreeting('מנכל SocialCrm draft-empty', 'he'))
   })
 })
+
+describe('IRE_CONVERSATIONAL_AGENCY_IDS=all: every agency, eligibility unchanged', () => {
+  const setAll = () => {
+    process.env.IRE_CONVERSATIONAL_AGENCY_IDS = 'all'
+  }
+
+  it('an agency created AFTER the value was set gets the conversational agent, identically in production and the simulator', async () => {
+    setAll()
+    const t = await makeTenant('allnew')
+    const [p] = await playBoth(t, [{ say: 'היי מה קורה?', model: [personal('הכל טוב, מה איתך?')] }])
+    expect(p).toMatchObject({ outcome: 'reply', mode: 'personal' })
+    expect((h.simCalls[0] as Call).conversational).toBeTruthy()
+    expect((workerCalls[0] as Call).conversational).toBeTruthy()
+  })
+
+  it('a one-AI-reply (acknowledge) agency is not switched: no conversational turn in production, and the simulator says so', async () => {
+    setAll()
+    const t = await makeTenant('allack', { mode: 'acknowledge' })
+    await says(t, 'היי מה קורה?')
+    await drain()
+    expect(workerCalls).toHaveLength(0)
+    const r = await previewConversationalTurn({ agencyId: t.agencyId, draftIdentity: { guidance: 'x', agentInstructions: null, profile: null }, usedDraft: false, profileDerived: false, transcript: [{ direction: 'inbound', text: 'היי' }], state: undefined })
+    expect(r).toEqual({ ok: false, reason: 'conversational_unavailable' })
+  })
+
+  it('a questionnaire agency is not switched to the agent', async () => {
+    setAll()
+    const t = await makeTenant('allq', { responder: 'questionnaire' })
+    await says(t, 'היי מה קורה?')
+    await drain()
+    expect(workerCalls).toHaveLength(0)
+    const r = await previewConversationalTurn({ agencyId: t.agencyId, draftIdentity: { guidance: 'x', agentInstructions: null, profile: null }, usedDraft: false, profileDerived: false, transcript: [{ direction: 'inbound', text: 'היי' }], state: undefined })
+    expect(r).toEqual({ ok: false, reason: 'conversational_unavailable' })
+  })
+
+  it('the kill switch still stops it for everyone', async () => {
+    setAll()
+    const t = await makeTenant('allkill')
+    process.env.INBOX_QUALIFIER_KILL = '1'
+    try {
+      const r = await previewConversationalTurn({ agencyId: t.agencyId, draftIdentity: { guidance: 'x', agentInstructions: null, profile: null }, usedDraft: false, profileDerived: false, transcript: [{ direction: 'inbound', text: 'היי' }], state: undefined })
+      expect(r).toEqual({ ok: false, reason: 'agent_paused' })
+    } finally {
+      delete process.env.INBOX_QUALIFIER_KILL
+    }
+  })
+})

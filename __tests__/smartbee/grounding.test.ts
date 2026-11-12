@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { descriptionGrounded, statedCheckNumber, statedDocType, statedInstallments, statedPaymentMethod, statedTransferReference } from '@/lib/waAssistant/smartbee/grounding'
-import { isSmartbeeAgency, smartbeeProductionEnabled } from '@/lib/flags/smartbeeFlags'
+import { _setSmartbeePermittedAgencyIdsForTests, isSmartbeeAgency, SMARTBEE_PERMITTED_AGENCY_IDS, smartbeeAgencyIds, smartbeeProductionEnabled } from '@/lib/flags/smartbeeFlags'
 import { resolutionPhrase } from '@/lib/waAssistant/smartbee/resolve'
 
 /** What the OWNER said, never what the model filled. Pure. */
@@ -61,13 +61,38 @@ describe('flags: a named agency, never an audience', () => {
     delete process.env.SMARTBEE_PRODUCTION_ENABLED
   })
   it('digits only; all / * are ignored; absent = off', () => {
-    expect(isSmartbeeAgency(7)).toBe(false)
+    expect(isSmartbeeAgency(167)).toBe(false)
     process.env.SMARTBEE_AGENCY_IDS = 'all'
+    expect(isSmartbeeAgency(167)).toBe(false)
     expect(isSmartbeeAgency(7)).toBe(false)
-    process.env.SMARTBEE_AGENCY_IDS = '*, 7x, 12'
+    process.env.SMARTBEE_AGENCY_IDS = '*, 7x, 167'
     expect(isSmartbeeAgency(7)).toBe(false)
-    expect(isSmartbeeAgency(12)).toBe(true)
+    expect(isSmartbeeAgency(167)).toBe(true)
     expect(isSmartbeeAgency(0)).toBe(false)
+  })
+
+  it('PINNED to agency 167: the env can narrow it, never widen it', () => {
+    process.env.SMARTBEE_AGENCY_IDS = '103,167,12,23'
+    expect(isSmartbeeAgency(167)).toBe(true)
+    for (const other of [103, 12, 23, 69, 168]) expect(isSmartbeeAgency(other)).toBe(false)
+    expect(smartbeeAgencyIds()).toEqual([167])
+    expect(SMARTBEE_PERMITTED_AGENCY_IDS).toEqual([167])
+    // A list without 167 turns it off for everyone.
+    process.env.SMARTBEE_AGENCY_IDS = '103'
+    expect(isSmartbeeAgency(167)).toBe(false)
+    expect(smartbeeAgencyIds()).toEqual([])
+  })
+
+  it('the pin cannot be changed outside tests', () => {
+    const v = process.env.VITEST
+    process.env.VITEST = ''
+    try {
+      expect(() => _setSmartbeePermittedAgencyIdsForTests([1, 2, 3])).toThrow(/only be changed in tests/)
+    } finally {
+      process.env.VITEST = v
+    }
+    process.env.SMARTBEE_AGENCY_IDS = '1'
+    expect(isSmartbeeAgency(1)).toBe(false)
   })
   it('production is off unless exactly 1', () => {
     expect(smartbeeProductionEnabled()).toBe(false)

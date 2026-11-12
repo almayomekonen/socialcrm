@@ -15,6 +15,7 @@ const flags = vi.hoisted(() => ({ agent: true }))
 vi.mock('@/lib/ai/flags', async (orig) => ({ ...(await orig<typeof import('@/lib/ai/flags')>()), isAgentEnabled: () => flags.agent }))
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
 
+import { _setSmartbeePermittedAgencyIdsForTests } from '@/lib/flags/smartbeeFlags'
 import { db } from '@/config/db'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
@@ -125,12 +126,15 @@ beforeEach(async () => {
   process.env.WA_ASSISTANT_AGENCY_IDS = `${A},${B},${X}`
   process.env.OWNER_WA_REMINDERS_AGENCY_IDS = `${A},${B},${X}`
   process.env.SMARTBEE_AGENCY_IDS = `${A},${X}`
+  // The suite's own agencies stand in for the pinned one (agency 167 in Production).
+  _setSmartbeePermittedAgencyIdsForTests([A, X])
   process.env.SMARTBEE_TEST_CLIENT_ID = 'client'
   process.env.SMARTBEE_TEST_CLIENT_PASSWORD = 'pw'
   process.env.PLATFORM_WHATSAPP_PHONE_NUMBER_ID = PLATFORM
   process.env.PLATFORM_WHATSAPP_ACCESS_TOKEN = TOKEN
 })
 afterAll(async () => {
+  _setSmartbeePermittedAgencyIdsForTests(null)
   for (const k of ['WA_ASSISTANT_AGENCY_IDS', 'OWNER_WA_REMINDERS_AGENCY_IDS', 'SMARTBEE_AGENCY_IDS', 'SMARTBEE_TEST_CLIENT_ID', 'SMARTBEE_TEST_CLIENT_PASSWORD', 'PLATFORM_WHATSAPP_PHONE_NUMBER_ID', 'PLATFORM_WHATSAPP_ACCESS_TOKEN'])
     delete process.env[k]
   for (const t of ['wa_assistant_jobs', 'wa_assistant_approvals', 'agent_action_approvals', 'agent_actions']) await db(t).del()

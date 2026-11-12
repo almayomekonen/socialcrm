@@ -12,6 +12,7 @@ const flags = vi.hoisted(() => ({ agent: true }))
 vi.mock('@/lib/ai/flags', async (orig) => ({ ...(await orig<typeof import('@/lib/ai/flags')>()), isAgentEnabled: () => flags.agent }))
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
 
+import { _setSmartbeePermittedAgencyIdsForTests } from '@/lib/flags/smartbeeFlags'
 import { db } from '@/config/db'
 import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
@@ -127,8 +128,11 @@ beforeEach(async () => {
     PLATFORM_WHATSAPP_PHONE_NUMBER_ID: PLATFORM,
     PLATFORM_WHATSAPP_ACCESS_TOKEN: TOKEN,
   })
+  // The suite's own agency stands in for the pinned one (agency 167 in Production).
+  _setSmartbeePermittedAgencyIdsForTests([A])
 })
 afterAll(async () => {
+  _setSmartbeePermittedAgencyIdsForTests(null)
   for (const t of ['wa_assistant_jobs', 'wa_assistant_approvals', 'agent_action_approvals', 'agent_actions']) await db(t).del()
   await db('smartbee_documents').whereIn('agencyId', [A, B]).del()
   await db('smartbee_connections').whereIn('agencyId', [A, B]).del()
