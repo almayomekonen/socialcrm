@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSendByProviderMessageId, updateDeliveryStateByProviderMessageId } from '@/db/automations/activity'
 import { addEmailBlock } from '@/db/automations/emailBlocks'
 import { addLeadSuppression } from '@/db/automations/suppressions'
+import { findInvitationEmailOwner } from '@/db/quotes/invitations'
 import { decideDeliveryEvent, recipientFrom, verifyWebhookSignature } from '@/lib/automations/deliveryEvents'
 
 /**
@@ -66,7 +67,23 @@ export async function POST(req: NextRequest) {
   // email on the same account) ⇒ zero writes.
   const owned = await getSendByProviderMessageId(providerMessageId)
   if (!owned) {
-    console.log(LOG, { outcome: 'ignored', type, reason: 'not_engine_owned', providerMessageId })
+    // A quote's email invitation (lib/waAssistant/quotes/emailInvite.ts) is customer email on the same
+    // sending identity: its complaints and hard bounces protect the address exactly like an engine send's.
+    // There is no ladder for it; every other event about it changes nothing.
+    // Fails soft: a lookup error must never turn platform-email telemetry into a 500 (and a Resend retry storm).
+    const invite = await findInvitationEmailOwner(providerMessageId).catch(() => null)
+    if (invite && decision.effect === 'suppress') {
+      await addLeadSuppression(invite.agencyId, invite.leadId, 'spam_complaint')
+      console.log(LOG, { outcome: 'suppressed', type, source: 'quote_invitation', agencyId: invite.agencyId, leadId: invite.leadId, reason: 'complaint' })
+      return NextResponse.json({ ok: true, outcome: 'suppressed' })
+    }
+    const bounced = invite && decision.effect === 'ladder_and_block' ? recipientFrom(data as { to?: unknown }) : null
+    if (invite && bounced) {
+      await addEmailBlock(invite.agencyId, bounced, 'hard_bounce')
+      console.log(LOG, { outcome: 'address_blocked', source: 'quote_invitation', agencyId: invite.agencyId, reason: 'hard_bounce' })
+      return NextResponse.json({ ok: true, outcome: 'processed' })
+    }
+    console.log(LOG, { outcome: 'ignored', type, reason: invite ? 'quote_invitation_event' : 'not_engine_owned', providerMessageId })
     return NextResponse.json({ ok: true, outcome: 'ignored' })
   }
 

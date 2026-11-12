@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/config/db'
 import { editQuoteSystem, type EditQuoteFailure } from '@/db/quotes/editQuote'
 import { findQuoteDeliveryByAction } from '@/db/quotes/deliveries'
+import { findInvitationByAction } from '@/db/quotes/invitations'
 import { canDraftQuote, canSendQuote } from '@/lib/quotes/permissions'
 import { sendQuoteToCustomer } from '@/lib/waAssistant/quotes/customerSend'
 import { isAdmin, type Roles } from '@/types/roles'
@@ -33,6 +34,8 @@ const sendArgs = z.object({
   leadId: z.number().int().positive(),
   customerPhoneE164: z.string().min(1),
   businessPhoneNumberId: z.string().min(1),
+  // Present only on a card that offered an email invitation: the SHA-256 of the lead's address then.
+  customerEmailHash: z.string().regex(/^[0-9a-f]{64}$/).nullable().optional(),
 })
 
 /** The role alone is not enough: this user must be able to see this lead right now. */
@@ -51,8 +54,21 @@ async function executeSend(action: ActionProposal, ctx: ExecuteContext): Promise
   if (!canSendQuote({ role: ctx.actor.role } as UserDb)) return { status: 'NOT_AUTHORIZED', reason: 'role-may-not-send-quotes' }
   if (!(await leadVisible(ctx, parsed.data.leadId))) return { status: 'NOT_AUTHORIZED', reason: 'lead-not-in-agency-or-not-permitted' }
 
-  const r = await sendQuoteToCustomer({ agencyId: ctx.actor.agencyId, userId: ctx.actor.userId, actionId: action.actionId, args: parsed.data, nowMs: ctx.nowMs })
+  const r = await sendQuoteToCustomer({ agencyId: ctx.actor.agencyId, userId: ctx.actor.userId, actionId: action.actionId, args: parsed.data, nowMs: ctx.nowMs, invite: true })
   switch (r.kind) {
+    // An invitation is not a delivery: SUCCESS here means "the email went out", and nothing else.
+    case 'invited':
+      return { status: 'SUCCESS', targetIds: [{ kind: 'quote_invitation', id: String(r.invitationId) }], detail: { invited: true, ...(r.repeated ? { repeated: true } : {}) } }
+    case 'invite_duplicate':
+      return { status: 'FAILED', reason: 'quote-invite-already-sent' }
+    case 'invite_unavailable':
+      return { status: 'FAILED', reason: `quote-invite-${r.code.replace(/_/g, '-')}` }
+    case 'invite_failed':
+      return { status: 'FAILED', reason: 'quote-invite-failed', detail: { code: r.code } }
+    case 'invite_unknown':
+      return { status: 'UNKNOWN', reason: 'quote-invite-unknown' }
+    case 'delivery_live':
+      return { status: 'FAILED', reason: 'quote-send-already-sent' }
     case 'accepted':
       return { status: 'SUCCESS', targetIds: [{ kind: 'quote_delivery', id: String(r.deliveryId) }] }
     case 'duplicate':
@@ -81,6 +97,8 @@ async function readSend(action: ActionProposal, ctx: ExecuteContext): Promise<Ve
   const parsed = sendArgs.safeParse(action.args)
   if (!parsed.success) return { state: 'UNVERIFIABLE', verified: false, checks: [], reason: 'invalid-args' }
   const row = await findQuoteDeliveryByAction(ctx.actor.agencyId, action.actionId)
+  // Only a card that offered an invitation can have one: other sends never read its table.
+  if (!row && parsed.data.customerEmailHash) return readInvitation(action.actionId, parsed.data, ctx)
   if (!row) return { state: 'NOT_FOUND', verified: false, checks: [], reason: 'delivery-not-found' }
   const checks = [
     { name: 'quote', ok: row.quoteId === parsed.data.quoteId, expected: parsed.data.quoteId, actual: row.quoteId },
@@ -90,6 +108,21 @@ async function readSend(action: ActionProposal, ctx: ExecuteContext): Promise<Ve
   ]
   const ok = checks.every((c) => c.ok)
   return { state: ok ? 'VERIFIED' : 'MISMATCH', verified: ok, checks, targetIds: [{ kind: 'quote_delivery', id: String(row.id) }], reason: ok ? null : 'postcondition-mismatch' }
+}
+
+/** No delivery yet: this action may have emailed an invitation instead. Verified only once the email was accepted. */
+async function readInvitation(actionId: string, args: z.infer<typeof sendArgs>, ctx: ExecuteContext): Promise<VerificationResult> {
+  const inv = await findInvitationByAction(ctx.actor.agencyId, actionId)
+  if (!inv) return { state: 'NOT_FOUND', verified: false, checks: [], reason: 'delivery-not-found' }
+  const checks = [
+    { name: 'quote', ok: inv.quoteId === args.quoteId, expected: args.quoteId, actual: inv.quoteId },
+    { name: 'version', ok: inv.quoteVersion === args.version, expected: args.version, actual: inv.quoteVersion },
+    { name: 'document', ok: inv.documentId === args.documentId, expected: args.documentId, actual: inv.documentId },
+    { name: 'recipient', ok: inv.emailHash === args.customerEmailHash && inv.customerPhoneE164 === args.customerPhoneE164, expected: 'the approved recipient', actual: inv.emailHash === args.customerEmailHash ? 'same' : 'different' },
+    { name: 'invited', ok: ['sent', 'redeemed'].includes(inv.state), expected: 'email accepted', actual: inv.state },
+  ]
+  const ok = checks.every((c) => c.ok)
+  return { state: ok ? 'VERIFIED' : 'MISMATCH', verified: ok, checks, targetIds: [{ kind: 'quote_invitation', id: String(inv.id) }], reason: ok ? null : 'postcondition-mismatch' }
 }
 
 export const sendQuoteAction: AgentActionDefinition = {

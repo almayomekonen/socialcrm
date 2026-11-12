@@ -56,10 +56,33 @@ export const DELIVERY_COPY = {
   cancelRefusedSent: 'ההצעה הזו כבר נשלחה ללקוח, ולכן לא ביטלתי אותה.',
   cancelStale: 'ההצעה השתנתה מאז התצוגה הזו, ולכן לא ביטלתי אותה. אפשר לכתוב "תראה לי שוב את ההצעה".',
   cancelFailed: 'לא הצלחתי לבטל את ההצעה, והיא נשארה כפי שהייתה. אפשר לנסות שוב.',
+  windowClosedNoEmail:
+    'הליד לא כתב לעסק ב-24 השעות האחרונות, ואין עדיין תבנית וואטסאפ מאושרת לשליחת הצעות מחיר. גם אין לליד כתובת מייל שאפשר לשלוח אליה הזמנה, ולכן אי אפשר לשלוח את ההצעה כרגע. ההצעה נשמרה ב-SocialCRM.',
+  inviteAlready: 'כבר נשלחה לליד הזמנה במייל לגרסה הזו של ההצעה, ולא שלחתי אותה שוב. ההצעה תישלח אליו בוואטסאפ כשיכתוב לעסק.',
+  inviteFailed: 'המייל לליד לא נשלח, ולכן גם ההצעה לא נשלחה ללקוח. אפשר לנסות שוב: "תראה לי שוב את ההצעה".',
+  inviteUnknown: 'לא הצלחתי לוודא אם המייל לליד נשלח, ולכן לא אשלח אותו שוב. ההצעה עצמה לא נשלחה ללקוח.',
+  inviteNoEmail: 'בוואטסאפ אי אפשר לשלוח לליד עכשיו, ואין לו כתובת מייל שאפשר לשלוח אליה הזמנה. ההצעה נשמרה ולא נשלחה. כדאי ליצור איתו קשר בדרך אחרת.',
+  inviteEmailChanged: 'כתובת המייל של הליד השתנתה מאז התצוגה, ולכן לא שלחתי דבר. אפשר לכתוב "תראה לי שוב את ההצעה".',
+  inviteNoSender: 'שליחת מיילים ללקוחות עדיין לא מוגדרת לעסק, ולכן לא נשלחה הזמנה. ההצעה נשמרה ולא נשלחה.',
+  inviteRateLimited: 'כבר נשלחו ללקוח הזה כמה הזמנות במייל ביממה האחרונה, ולכן לא שלחתי עוד אחת. ההצעה נשמרה ולא נשלחה. אפשר לנסות שוב מחר.',
+  inviteNoBusinessNumber: 'לא הצלחתי לקרוא את מספר הוואטסאפ של העסק, ולכן לא נשלחה הזמנה. ההצעה נשמרה. אפשר לנסות שוב בעוד רגע.',
 } as const
 
-export function quoteSendCard(input: { lead: string; quoteNumber: number | null; version: number; totalAmount: number; recipient: string | null; phoneE164: string | null; ttlHours: number; blockedBy: string | null }): string {
+/** Why a customer's WhatsApp reply to an invitation did not bring the quote. */
+export const INVITE_REFUSAL_COPY = {
+  changed: 'ההצעה השתנתה או בוטלה מאז שאישרת אותה.',
+  expired: 'האישור שלך לשליחה פג תוקף.',
+  not_authorized: 'כבר אין לך הרשאה לשלוח את ההצעה הזו.',
+  already: 'ההצעה כבר נשלחה ללקוח בדרך אחרת, ולא שלחתי אותה שוב.',
+  failed: 'וואטסאפ לא קיבל את ההודעה.',
+  not_linked: 'ההודעה של הלקוח לא משויכת לליד הזה ב-SocialCRM, ולכן לא שלחתי לו את ההצעה. כדאי לבדוק את השיחה בתיבת ההודעות.',
+  unknown: 'לא הצלחתי לוודא אם ההצעה נשלחה, ולכן לא אשלח אותה שוב. כדאי לבדוק בשיחה עם הליד ב-SocialCRM.',
+} as const
+export type InviteRefusal = keyof typeof INVITE_REFUSAL_COPY
+
+export function quoteSendCard(input: { lead: string; quoteNumber: number | null; version: number; totalAmount: number; recipient: string | null; phoneE164: string | null; ttlHours: number; blockedBy: string | null; inviteEmail?: string | null }): string {
   const sendable = input.blockedBy == null && input.phoneE164 != null
+  const invite = sendable && input.inviteEmail ? input.inviteEmail : null
   return [
     '*טיוטת הצעת המחיר מוכנה לבדיקה*',
     'זו תצוגה מקדימה בשבילך בלבד. הלקוח עדיין לא קיבל את ההצעה.',
@@ -67,7 +90,15 @@ export function quoteSendCard(input: { lead: string; quoteNumber: number | null;
     `ליד: ${name(input.lead)}`,
     `סה"כ: ${ils(input.totalAmount)}`,
     input.phoneE164 ? `תישלח אל: ${name(input.recipient)}, ${maskedPhone(input.phoneE164)}` : null,
-    ...(sendable
+    ...(invite
+      ? [
+          'הליד לא כתב לעסק ב-24 השעות האחרונות, ולכן אי אפשר לשלוח לו את ההצעה בוואטסאפ עכשיו.',
+          `אחרי "${APPROVE_SEND_TITLE}" נשלח לליד מייל (${invite}) עם קישור לפתיחת שיחה בוואטסאפ עם העסק. המייל לא כולל את ההצעה.`,
+          'ההצעה עצמה תישלח אליו בוואטסאפ, בדיוק כפי שהיא, רק אחרי שיכתוב לעסק.',
+          'שום דבר לא יישלח ללקוח לפני שתאשרו.',
+          `האישור בתוקף ל-${input.ttlHours} שעות.`,
+        ]
+      : sendable
       ? [
           `אחרי "${APPROVE_SEND_TITLE}" הליד יקבל בוואטסאפ קישור לקובץ המצורף, בדיוק כפי שהוא.`,
           'שום דבר לא יישלח ללקוח לפני שתאשרו.',
@@ -108,6 +139,27 @@ export const quoteEditedReply = (input: { quoteNumber: number | null; version: n
     // The sweep renders a lost or failed start too, so a new PDF (or a failure notice) always follows.
     input.pdfPending ? 'קובץ PDF חדש בהכנה, ויגיע לכאן לבדיקה ולאישור.' : 'קובץ PDF חדש יגיע לכאן לבדיקה ולאישור.',
     'לא נשלח דבר ללקוח.',
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+/** After the email: the owner must never read this as "the customer has the quote". */
+export const quoteInvitedReply = (input: { quoteNumber: number | null; email: string | null; validUntil: string }) =>
+  [
+    '*נשלחה לליד הזמנה במייל. ההצעה עדיין לא נשלחה ללקוח.*',
+    `שלחנו${input.email ? ` ל-${input.email}` : ''} קישור לפתיחת שיחה בוואטסאפ עם העסק.`,
+    `כשהליד יכתוב, הצעת המחיר${input.quoteNumber != null ? ` (מספר ${input.quoteNumber})` : ''} תישלח אליו בוואטסאפ, ואעדכן אותך כאן.`,
+    `האישור שלך בתוקף עד ${input.validUntil}. אם ההצעה תשתנה או תבוטל עד אז, היא לא תישלח בלי אישור חדש.`,
+  ].join('\n')
+
+export const invitedQuoteSentNotice = (quoteNumber: number | null) =>
+  [`*הלקוח כתב בוואטסאפ, והצעת המחיר נשלחה אליו*${quoteNumber != null ? ` (מספר ${quoteNumber})` : ''}`, 'וואטסאפ קיבל את ההודעה. אעדכן כאן כשהיא תימסר.'].join('\n')
+
+export const invitedQuoteRefusedNotice = (quoteNumber: number | null, why: InviteRefusal) =>
+  [
+    `*הלקוח כתב בוואטסאפ וביקש את הצעת המחיר${quoteNumber != null ? ` (מספר ${quoteNumber})` : ''}, אבל היא לא נשלחה*`,
+    INVITE_REFUSAL_COPY[why],
+    why === 'already' || why === 'unknown' ? null : 'השיחה איתו פתוחה עכשיו, אז אפשר לכתוב "תראה לי שוב את ההצעה" ולאשר מחדש.',
   ]
     .filter(Boolean)
     .join('\n')

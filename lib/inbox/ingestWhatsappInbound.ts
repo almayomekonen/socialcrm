@@ -9,6 +9,7 @@ import { isQuestionnaireConversation } from '@/db/questionnaireSessions'
 import { waTrace } from '@/lib/inbox/autoresponse/waTrace'
 import { notifyEvent } from '@/lib/notifications/emit'
 import { recordInboundOptOut } from '@/lib/whatsapp/optOut/recordInbound'
+import { invitationRefIn } from '@/lib/quotes/invitationRef'
 
 export type IngestWhatsappInboundInput = {
   agencyId: number
@@ -27,6 +28,8 @@ export type IngestWhatsappInboundResult = {
   /** Seconds applied to the enqueued IRE job's notBefore. 0 when no job was created. */
   autoResponseDelaySeconds: number
   ireEnqueued: boolean
+  /** A live quote invitation this message answered (lib/waAssistant/quotes/invitationReply.ts); null otherwise. */
+  quoteInvitationId: number | null
 }
 
 export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): Promise<IngestWhatsappInboundResult> {
@@ -98,6 +101,7 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
 
     let autoResponseDelaySeconds = 0
     let ireEnqueued = false
+    let quoteInvitationId: number | null = null
     if (inserted) {
       await bumpConversationOnInbound(trx, conversationId, parsed.channelTimestamp ?? new Date(), parsed.text)
       const convFlags = await trx('inbox_conversations')
@@ -108,8 +112,16 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
       // nothing in model calls, so it gets no Copilot analysis job either. The
       // check is scoped to this conversation; the agency's other AI is untouched.
       const questionnaire = await isQuestionnaireConversation(trx, input.agencyId, conversationId)
+      // The customer pressed Send on the message an email invitation pre-filled. Matched only by the
+      // reference AND this exact agency, business number and customer number; the quote reply below
+      // answers it, so no AI runs on this one message:
+      // neither the customer-facing autoresponder nor the Copilot analysis.
+      if (invitationRefIn(parsed.text)) {
+        const { matchInvitationReply } = await import('@/lib/waAssistant/quotes/invitationReply')
+        quoteInvitationId = await matchInvitationReply(trx, { agencyId: input.agencyId, businessPhoneNumberId: input.businessPhoneNumberId, customerWaId: input.customerWaId, text: parsed.text })
+      }
       // Copilot analysis stays Lead-only. IRE may run for non-personal Contacts.
-      if (!questionnaire && input.leadId != null && input.leadId > 0) {
+      if (!questionnaire && quoteInvitationId == null && input.leadId != null && input.leadId > 0) {
         await enqueueConversationAnalysis(trx, {
           conversationId,
           agencyId: input.agencyId,
@@ -118,7 +130,7 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
           reason: 'new_message',
         })
       }
-      if (!isPersonal) {
+      if (!isPersonal && quoteInvitationId == null) {
         const enqueued = await enqueueInboundAutoResponse(trx, {
           agencyId: input.agencyId,
           conversationId,
@@ -166,6 +178,6 @@ export async function ingestWhatsappInbound(input: IngestWhatsappInboundInput): 
       )
     }
 
-    return { conversationId, messageId, inserted, autoResponseDelaySeconds, ireEnqueued }
+    return { conversationId, messageId, inserted, autoResponseDelaySeconds, ireEnqueued, quoteInvitationId }
   })
 }

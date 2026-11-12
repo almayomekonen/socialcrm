@@ -14,6 +14,7 @@ import { AUTOMATED_SEND_TIMEOUT_MS } from '@/lib/whatsapp/sendOutcome'
 import { businessDateString } from '@/lib/today/time'
 import { APP_ORIGIN } from '../render'
 import { quoteCustomerMessage, quoteInboxSummary } from './deliveryCopy'
+import { inviteByEmail, type InviteOutcome } from './emailInvite'
 
 /**
  * The only path that puts a quote in front of a customer. Called only by the
@@ -25,7 +26,8 @@ import { quoteCustomerMessage, quoteInboxSummary } from './deliveryCopy'
  * gate themselves. `unknown` is never retried.
  */
 
-export type QuoteSendArgs = { quoteId: number; version: number; documentId: number; contentHash: string; leadId: number; customerPhoneE164: string; businessPhoneNumberId: string }
+/** `customerEmailHash`: the address the card offered an email invitation to, when WhatsApp could not reach the customer. */
+export type QuoteSendArgs = { quoteId: number; version: number; documentId: number; contentHash: string; leadId: number; customerPhoneE164: string; businessPhoneNumberId: string; customerEmailHash?: string | null }
 
 export const QUOTE_DELIVERY_TEMPLATE = 'quote_delivery_he'
 /** Meta's 24 hours, with the same one-hour margin the assistant's own replies keep. */
@@ -41,6 +43,7 @@ export type QuoteSendOutcome =
   | { kind: 'disabled' | 'no_target' | 'no_channel' }
   | { kind: 'opted_out' | 'failed'; code: string }
   | { kind: 'unknown' }
+  | Exclude<InviteOutcome, { kind: 'stale' }>
 
 /** Free text inside the customer's service window; outside it, only an approved UTILITY template. Null when neither. */
 export async function resolveQuoteChannel(input: { agencyId: number; leadId: number; target: WhatsappOutboundTarget; nowMs: number }): Promise<QuoteChannel | null> {
@@ -61,7 +64,12 @@ export async function resolveQuoteChannel(input: { agencyId: number; leadId: num
 
 const claimOutcome = (c: Exclude<ClaimResult, { kind: 'claimed' }>): QuoteSendOutcome => (c.kind === 'duplicate' ? { kind: 'duplicate', delivery: c.delivery } : { kind: 'stale', reason: c.reason })
 
-export async function sendQuoteToCustomer(input: { agencyId: number; userId: number; actionId: string; args: QuoteSendArgs; nowMs: number }): Promise<QuoteSendOutcome> {
+/**
+ * `invite`: only the owner's approval (the `send_quote` executor) may fall back to
+ * an email invitation. The customer's WhatsApp reply to one runs this same path
+ * without it, so a reply can only ever deliver on WhatsApp.
+ */
+export async function sendQuoteToCustomer(input: { agencyId: number; userId: number; actionId: string; args: QuoteSendArgs; nowMs: number; invite?: boolean }): Promise<QuoteSendOutcome> {
   const { agencyId, userId, actionId, args, nowMs } = input
   const own = await findQuoteDeliveryByAction(agencyId, actionId)
   if (own) return { kind: 'duplicate', delivery: own }
@@ -78,7 +86,11 @@ export async function sendQuoteToCustomer(input: { agencyId: number; userId: num
   if (toCustomerPhoneE164(target.customerWaId) !== args.customerPhoneE164 || target.businessPhoneNumberId !== args.businessPhoneNumberId) return { kind: 'stale', reason: 'recipient_changed' }
 
   const chosen = await resolveQuoteChannel({ agencyId, leadId: args.leadId, target, nowMs })
-  if (!chosen) return { kind: 'no_channel' }
+  if (!chosen) {
+    if (!input.invite || !args.customerEmailHash) return { kind: 'no_channel' }
+    const invited = await inviteByEmail({ agencyId, userId, actionId, args: { ...args, customerEmailHash: args.customerEmailHash }, target, expiresOn: quote.expiresOn, nowMs })
+    return invited.kind === 'stale' ? { kind: 'stale', reason: invited.reason } : invited
+  }
 
   const token = newQuoteLinkToken()
   const claim = await claimQuoteDelivery({
