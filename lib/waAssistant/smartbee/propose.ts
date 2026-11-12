@@ -10,10 +10,10 @@ import type { SmartbeeVatOption } from '@/lib/integrations/providers/smartbee/ty
 import type { AgentScope, EvidenceRef, ProposedAction } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from '../meetings/types'
-import { requestMessages } from '../request'
+import { requestTurns } from '../request'
 import { chooseLead } from '../leadChoice'
-import { isStated, statedAmounts, statedBasis } from '../quotes/grounding'
-import { descriptionGrounded, statedCheckNumber, statedDocType, statedInstallments, statedPaymentMethod, statedTransferReference } from './grounding'
+import { descriptionGrounded, statedCheckNumber, statedDocType, statedInstallments, statedPaymentMethod, statedTransferReference, statedVat } from './grounding'
+import { statedDocumentAmount } from './amount'
 import { DOCUMENT_COPY, documentButtons, documentCard } from './copy'
 
 /**
@@ -23,9 +23,11 @@ import { DOCUMENT_COPY, documentButtons, documentCard } from './copy'
  * NOTHING IS ISSUED HERE, and SmartBee is not called. In order:
  *   1. access (lib/integrations/core/permissions.ts): allowlisted agency, active
  *      connection, and THIS user is the connection's owner;
- *   2. the lead, readable by this user (leadChoice.ts);
- *   3. type, amount, VAT basis and payment re-read from the owner's OWN words;
- *      the model's fields are only a hint and never reach the card unchecked;
+ *   2. the lead, readable by this user (leadChoice.ts), chosen ONCE per
+ *      request and stored: a later "2", "מזומן" or "1,500" cannot change it;
+ *   3. type, amount, VAT basis and payment re-read from the owner's OWN words,
+ *      each message with the question it answered (request.ts); the amount on
+ *      the card is the one the owner stated last, never the model's;
  *   4. the customer's name and ID number read ONCE, shown on the card and frozen
  *      into the arguments; the business type's rules and SmartBee's field
  *      rules (payload.ts);
@@ -63,11 +65,12 @@ export async function proposeSmartbeeDocument(input: {
   const access = await (input.deps?.access ?? resolveIntegrationAccess)({ provider: 'smartbee', agencyId: scope.agencyId, userId: scope.userId })
   if (access.ok === false) return refuse(`document_${access.reason}`, access.reason === 'not_owner' ? DOCUMENT_COPY.notOwner : DOCUMENT_COPY.notConnected)
   const connection = access.connection
-  const said = await requestMessages('document', job, input.question)
+  const turns = await requestTurns('document', job, input.question)
+  const said = turns.map((t) => t.text)
 
   const clientId = Number(p.args.clientId)
   if (!Number.isSafeInteger(clientId) || clientId <= 0) return clarify(DOCUMENT_COPY.askLead, 'lead')
-  const choice = await chooseLead({ scope, proposedId: clientId, evidence: input.evidence, said })
+  const choice = await chooseLead({ scope, proposedId: clientId, evidence: input.evidence, said, request: { job, kind: 'document' } })
   if ('refused' in choice) return refuse('document_lead_not_allowed', DOCUMENT_COPY.leadNotAllowed)
   if ('ask' in choice) return clarify(choice.ask, 'lead')
   const lead = choice.lead
@@ -75,18 +78,21 @@ export async function proposeSmartbeeDocument(input: {
   if (unsettled === 'stalled') return refuse('document_unresolved', DOCUMENT_COPY.unresolved)
   if (unsettled) return refuse('document_in_flight', DOCUMENT_COPY.inFlight)
 
-  const docType = statedDocType(said)
+  const docType = statedDocType(turns)
   if (!docType || docType === 'ambiguous') return clarify(DOCUMENT_COPY.askType, 'type', lead.name)
   if (connection.businessType === 'exempt' && docType !== 'Receipt') return refuse('document_type_not_allowed', DOCUMENT_COPY.typeNotAllowed)
 
-  const amount = p.args.amount
-  if (amount == null || !isStated(amount, statedAmounts(said))) return clarify(DOCUMENT_COPY.askAmount, 'amount', lead.name)
+  // The owner's amount, never the model's: the newest one stated; two different ones is a question.
+  const stated = statedDocumentAmount(turns)
+  if (stated === 'ambiguous') return clarify(DOCUMENT_COPY.askOneAmount, 'amount', lead.name)
+  if (!stated) return clarify(DOCUMENT_COPY.askAmount, 'amount', lead.name)
+  const amount = stated.amount
   const description = p.args.description?.trim() ?? ''
   if (!descriptionGrounded(description, said)) return clarify(DOCUMENT_COPY.askDescription, 'description', lead.name)
 
   let vatOption: SmartbeeVatOption | null = null
   if (docType !== 'Receipt') {
-    const basis = statedBasis(said)
+    const basis = statedVat(turns)
     if (basis !== 'incl_vat' && basis !== 'excl_vat') return clarify(DOCUMENT_COPY.askVat, 'vat', lead.name)
     if (docType === 'InvoiceReceipt' && basis !== 'incl_vat') return clarify(DOCUMENT_COPY.askInvoiceReceiptInclVat, 'vat', lead.name)
     vatOption = basis === 'incl_vat' ? 'Include' : 'NotInclude'
@@ -94,21 +100,21 @@ export async function proposeSmartbeeDocument(input: {
 
   let payment: ConfirmedPayment | null = null
   if (docType !== 'Invoice') {
-    const stated = statedPaymentMethod(said)
-    if (stated === 'ambiguous') return clarify(DOCUMENT_COPY.askOnePayment, 'payment', lead.name)
-    if (!stated) return clarify(DOCUMENT_COPY.askPayment, 'payment', lead.name)
-    const checkNumber = stated.method === 'check' ? statedCheckNumber(said) : null
-    if (stated.method === 'check' && !checkNumber) return clarify(DOCUMENT_COPY.askCheckNumber, 'check', lead.name)
-    const installments = stated.method === 'credit_card' ? statedInstallments(said) : null
+    const method = statedPaymentMethod(turns)
+    if (method === 'ambiguous') return clarify(DOCUMENT_COPY.askOnePayment, 'payment', lead.name)
+    if (!method) return clarify(DOCUMENT_COPY.askPayment, 'payment', lead.name)
+    const checkNumber = method.method === 'check' ? statedCheckNumber(said) : null
+    if (method.method === 'check' && !checkNumber) return clarify(DOCUMENT_COPY.askCheckNumber, 'check', lead.name)
+    const installments = method.method === 'credit_card' ? statedInstallments(said) : null
     if (installments != null && (installments < 1 || installments > 99)) return clarify(DOCUMENT_COPY.askInstallments, 'installments', lead.name)
     payment = {
-      method: stated.method,
+      method: method.method,
       amount,
       paidOn: null,
       installments,
       checkNumber,
-      reference: stated.method === 'bank_transfer' ? statedTransferReference(said) : null,
-      otherLabel: stated.otherLabel,
+      reference: method.method === 'bank_transfer' ? statedTransferReference(said) : null,
+      otherLabel: method.otherLabel,
     }
   }
 

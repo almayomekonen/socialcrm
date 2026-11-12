@@ -35,6 +35,7 @@ import { answerSchemaFor } from '@/lib/agent/smartbeeAnswerSchema'
 import type { DocumentProposeDeps } from './smartbee/propose'
 import type { DocumentDecideDeps } from './smartbee/decide'
 import { handleSmartbeeResolutionMessage } from './smartbee/resolve'
+import { supersedeChangedDocumentCard } from './smartbee/staleCard'
 import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
@@ -142,11 +143,14 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   const startedAt = now()
   const elapsed = () => now().getTime() - startedAt.getTime()
 
-  if (startedAt.getTime() - job.messageTimestamp * 1000 > WA_ASSISTANT_LIMITS.replyWindowMs) {
-    return finish(job, { status: 'expired', reply: { state: 'skipped' } })
-  }
+  const expired = startedAt.getTime() - job.messageTimestamp * 1000 > WA_ASSISTANT_LIMITS.replyWindowMs
 
   const who = await resolveAssistantScope(job, startedAt)
+  // A correction after a SmartBee card ("לא, 2000") voids that card FIRST: even when this turn is too late
+  // to answer, over a limit, a reminder, or asks a question instead of showing a new card. Never sends.
+  if (who.ok && assistantCapabilities(job.agencyId).documentsOn) await supersedeChangedDocumentCard(job)
+
+  if (expired) return finish(job, { status: 'expired', reply: { state: 'skipped' } })
   if (who.ok === false) {
     const text = refusalReply(who.reason)
     const reply = text && who.phoneE164 ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' as const }

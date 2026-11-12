@@ -34,6 +34,8 @@ function clean(text: string): string {
 
 /** Letters and digits only, for "does the headline already say this?". */
 const squash = (text: string) => text.replace(/[^\p{L}\p{N}]/gu, '')
+/** `unknown` only when the headline does not already say it: one model sentence is never sent twice in one reply. */
+const unknownBeyond = (headline: string, unknown: string) => (unknown && !squash(headline).includes(squash(unknown)) ? unknown : '')
 
 /**
  * `body`, then `note` (when given), within MAX_REPLY_CHARS. The note's room is
@@ -53,7 +55,8 @@ export function renderAnswer(answer: AgentAnswer, opts: { note?: string | null }
   if (headline) lines.push(`*${headline}*`)
   const claims = (answer.claims ?? []).map((c) => clean(c.text)).filter(Boolean).slice(0, MAX_CLAIMS)
   if (claims.length) lines.push('', ...claims.map((c) => `• ${c}`))
-  if (answer.unknown) lines.push('', clean(answer.unknown))
+  const unknown = answer.unknown ? unknownBeyond(headline, clean(answer.unknown)) : ''
+  if (unknown) lines.push('', unknown)
   lines.push('', `לפרטים המלאים: ${APP_LINK}`)
   return { text: fitReply(lines.join('\n'), opts.note), headline: headline || 'תשובה' }
 }
@@ -82,7 +85,7 @@ export function replyForAnswer(
 ): { text: string; headline: string | null } {
   const claims = answer.claims ?? []
   const headline = clean(answer.headline || '')
-  const unknown = answer.unknown ? clean(answer.unknown) : ''
+  const unknown = answer.unknown ? unknownBeyond(headline, clean(answer.unknown)) : ''
 
   if (claims.length === 0) {
     if (!headline && !unknown) return { text: fitReply(COPY.noAnswer, opts.note), headline: null }

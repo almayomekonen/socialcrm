@@ -55,7 +55,7 @@ function replay(
   [self, ...earlier]: Row[],
   current: string,
   windowMs: number,
-): { said: string[]; pending: boolean; members: Row[] } {
+): { said: string[]; turns: RequestTurn[]; pending: boolean; members: Row[] } {
   const waiting: Row[] = []
   let next = new Date(self.createdAt).getTime()
   for (const r of earlier) {
@@ -64,10 +64,12 @@ function replay(
     waiting.push(r)
     next = at
   }
-  if (!waiting.length) return { said: [current], pending: false, members: [] }
+  if (!waiting.length) return { said: [current], turns: [{ text: current, answering: null }], pending: false, members: [] }
 
   const [first, ...rest] = [...waiting].reverse()
   let said = [first.question!]
+  // The same messages, each with the question it answered (null: it opened the request).
+  let turns: RequestTurn[] = [{ text: first.question!, answering: null }]
   // The earlier messages of this request, oldest first (the current one is not a row yet).
   let members: Row[] = [first]
   let asked = first.stopReason!
@@ -75,14 +77,28 @@ function replay(
     const answer = asked.endsWith('_past_today') && BARE_YES.test(m.text) ? 'מחר' : m.text
     const continues = answersPending({ kind, pendingStopReason: asked, text: m.text, request: said })
     said = continues ? [...said, answer] : [m.text]
+    turns = continues ? [...turns, { text: answer, answering: asked }] : [{ text: m.text, answering: null }]
     members = continues ? (m.row ? [...members, m.row] : members) : m.row ? [m.row] : []
     asked = m.stopReason
   }
-  return { said: said.reverse(), pending: true, members }
+  return { said: said.reverse(), turns: turns.reverse(), pending: true, members }
 }
 
 export async function requestMessages(kind: RequestKind, job: WaAssistantJob, current: string): Promise<string[]> {
   return replay(kind, await recentRows(job), current, CLARIFY_WINDOW_MS).said
+}
+
+/**
+ * One message of a request and the question it answered: the stopReason of the
+ * message before it ("document_clarify_payment"), or null for the message that
+ * opened the request. Lets a reader take a bare "3" as the installments it
+ * answers, never as an amount, and accept a typo only inside the question asked.
+ */
+export type RequestTurn = { text: string; answering: string | null }
+
+/** `requestMessages`, with each message's question. Newest first. */
+export async function requestTurns(kind: RequestKind, job: WaAssistantJob, current: string): Promise<RequestTurn[]> {
+  return replay(kind, await recentRows(job), current, CLARIFY_WINDOW_MS).turns
 }
 
 /**
@@ -128,7 +144,7 @@ export async function isRequestConversation(kind: RequestKind, job: WaAssistantJ
 export async function pendingRequestKind(job: WaAssistantJob): Promise<RequestKind | null> {
   const rows = await recentRows(job)
   const asked = rows[1]?.stopReason ?? ''
-  return (['quote', 'meeting', 'task', 'status', 'note'] as const).find((k) => asked.startsWith(`${k}_clarify_`)) ?? null
+  return (['quote', 'meeting', 'task', 'status', 'note', 'document'] as const).find((k) => asked.startsWith(`${k}_clarify_`)) ?? null
 }
 
 export async function startsCleanRequest(job: WaAssistantJob): Promise<boolean> {
