@@ -4,12 +4,14 @@ import { ils } from '@/lib/quotes/pdf/format'
 import type { ReplyButton } from '@/lib/whatsapp/platform/sendText'
 import type { ConfirmedPayment } from '@/lib/integrations/providers/smartbee/payload'
 import type { SmartbeeDocType, SmartbeeVatOption } from '@/lib/integrations/providers/smartbee/types'
+import type { CustomerDelivery } from './customerDelivery'
 
 /**
  * Every WhatsApp sentence about a SmartBee document. Pure. Nothing here says a
  * document was issued unless the caller passes a document SmartBee CONFIRMED
- * (result 102), with the number it returned. Nothing ever says it was sent to
- * the customer: in this phase it never is.
+ * (result 102), with the number it returned. Nothing says it reached the
+ * customer unless the caller passes that delivery's actual outcome
+ * (./customerDelivery.ts).
  */
 
 export const APPROVE_DOCUMENT_TITLE = 'לאשר ולהפיק'
@@ -131,7 +133,7 @@ export function documentCard(input: {
     `סכום: ${ils(input.amount)}${vat}`,
     input.payment ? paymentLine(input.payment) : null,
     input.payment ? 'באישור את/ה מאשר/ת שהתשלום הזה התקבל בפועל.' : null,
-    'המסמך יופק בחשבון ה-SmartBee של העסק. הוא לא יישלח ללקוח.',
+    'המסמך יופק בחשבון ה-SmartBee של העסק. אחרי ההפקה הקישור לקובץ יישלח ללקוח בוואטסאפ (אם השיחה איתו פתוחה) או במייל.',
     'האישור בתוקף ל-15 דקות.',
   ]
     .filter(Boolean)
@@ -152,15 +154,24 @@ export const documentSubmittedReply = (docType: SmartbeeDocType) =>
 export const documentRetryingReply = (docType: SmartbeeDocType) =>
   `עדיין לא קיבלתי אישור מ-SmartBee שהבקשה ל${DOC_TYPE_LABEL[docType]} התקבלה. אנסה שוב בלי ליצור מסמך כפול, ואעדכן כאן.`
 
+/** What happened to the customer's copy, said plainly. A failure never suggests issuing again: the document exists. */
+const CUSTOMER_DELIVERY_LINE: Readonly<Record<CustomerDelivery, string>> = {
+  whatsapp: 'הקישור לקובץ נשלח ללקוח בוואטסאפ.',
+  email: 'הקישור לקובץ נשלח ללקוח במייל.',
+  whatsapp_unknown: 'לא ידוע אם הקישור הגיע ללקוח בוואטסאפ. כדאי לוודא איתו. המסמך עצמו הופק, אין צורך להפיק שוב.',
+  no_channel: 'המסמך הופק, אבל לא נשלח ללקוח: השיחה איתו בוואטסאפ לא פתוחה ואין לו כתובת מייל תקינה. אפשר להעביר לו את הקישור שלמעלה. אין צורך להפיק שוב.',
+  failed: 'המסמך הופק, אבל השליחה ללקוח נכשלה. אפשר להעביר לו את הקישור שלמעלה. אין צורך להפיק שוב.',
+}
+
 /** Built ONLY from a stored 102 result. */
-export function documentCreatedNotice(input: { docType: SmartbeeDocType; number: string; amount: number; allocationNumber: string | null; link: string | null }): string {
+export function documentCreatedNotice(input: { docType: SmartbeeDocType; number: string; amount: number; allocationNumber: string | null; link: string | null; customer: CustomerDelivery | null }): string {
   return [
     `*${DOC_TYPE_LABEL[input.docType]} הופקה ב-SmartBee*`,
     `מספר מסמך: ${input.number}`,
     `סכום: ${ils(input.amount)}`,
     input.allocationNumber ? `מספר הקצאה: ${input.allocationNumber}` : null,
     input.link ? `קובץ PDF: ${input.link}` : 'SmartBee לא החזיר קישור לקובץ. המסמך זמין בחשבון ה-SmartBee.',
-    'המסמך לא נשלח ללקוח.',
+    input.customer ? CUSTOMER_DELIVERY_LINE[input.customer] : 'המסמך לא נשלח ללקוח: SmartBee לא החזיר קישור לשליחה.',
   ]
     .filter(Boolean)
     .join('\n')
