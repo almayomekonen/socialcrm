@@ -51,6 +51,50 @@ describe('amount: the newest explicit amount wins, nothing else is money', () =>
     // Marked as money, it is the amount even there.
     expect(statedDocumentAmount(turns(['2, וזה 700 שקל', 'lead'], before))).toEqual({ amount: 700 })
   })
+  describe('a number in an answer about something else never replaces the amount (B1)', () => {
+    const opening: [string, null] = ['תפיק קבלה ליוסי על צילום, 1500 שקל במזומן', null]
+    it.each([
+      ['description', 'צילום 2 שעות'],
+      ['description', 'צילום חתונה 2026'],
+      ['type', 'קבלה, על 3 אלבומים'],
+      ['vat', 'כולל 18'],
+      ['payment', 'מזומן, 2 פעמים'],
+    ])('answering %s: "%s" keeps 1500', (q, text) => {
+      expect(statedDocumentAmount(turns([text, q], opening))).toEqual({ amount: 1500 })
+    })
+    it('the same, unmarked as money in the opening message, still keeps 1500', () => {
+      for (const [q, text] of [['description', 'צילום חתונה 2026'], ['vat', 'כולל 18'], ['type', 'קבלה, על 3 אלבומים']])
+        expect(statedDocumentAmount(turns([text, q], ['תפיק קבלה ליוסי על צילום 1500', null]))).toEqual({ amount: 1500 })
+    })
+    it('marked as money, or in a correction, or answering the amount question, it is the amount', () => {
+      expect(statedDocumentAmount(turns(['צילום 2 שעות, 1800 שקל', 'description'], opening))).toEqual({ amount: 1800 })
+      expect(statedDocumentAmount(turns(['לא, 2000', 'payment'], opening))).toEqual({ amount: 2000 })
+      expect(statedDocumentAmount(turns(['בעצם 1700', 'vat'], opening))).toEqual({ amount: 1700 })
+      expect(statedDocumentAmount(turns(['טעות, 1600', 'description'], opening))).toEqual({ amount: 1600 })
+      expect(statedDocumentAmount(turns(['1200', 'amount'], ['תפיק קבלה ליוסי על צילום', null]))).toEqual({ amount: 1200 })
+    })
+    it('"לא כולל 18" answering VAT is a VAT answer, not a correction of the amount', () => {
+      expect(statedDocumentAmount(turns(['לא כולל 18', 'vat'], opening))).toEqual({ amount: 1500 })
+    })
+    it('a count is not an amount even in a correction ("לא, 2 שעות")', () => {
+      expect(statedDocumentAmount(turns(['לא, 2 שעות', 'description'], opening))).toEqual({ amount: 1500 })
+    })
+  })
+
+  describe('a correction we cannot read never revives the older amount (M1)', () => {
+    const opening: [string, null] = ['תפיק קבלה ליוסי על צילום, 1500 שקל במזומן', null]
+    it.each([
+      ['לא, 1000000', 'payment'],
+      ['1000000', 'amount'],
+      ['לא, 1500.5555', 'payment'],
+      ['1500.5555', 'amount'],
+      ['₪1500.5555', 'description'],
+      ['לא, 0500', 'vat'],
+    ])('"%s" answering %s is a question, not 1500', (text, q) => {
+      expect(statedDocumentAmount(turns([text, q], opening))).toBe('ambiguous')
+    })
+  })
+
   it('two different amounts, none marked as money, is a question', () => {
     expect(statedDocumentAmount(opened('קבלה ליוסי 500 או 700'))).toBe('ambiguous')
     // Exactly one marked as money decides.
@@ -90,6 +134,22 @@ describe('payment: only an answer to the payment question or an explicit payment
   it('the newest statement wins; a bare negation states nothing and revives nothing older', () => {
     expect(statedPaymentMethod(turns(['לא, בעצם באשראי', 'vat'], ['קבלה ליוסי 500 שולם במזומן', null]))).toEqual({ method: 'credit_card', otherLabel: null })
     expect(statedPaymentMethod(turns(['לא מזומן', 'vat'], ['קבלה ליוסי 500 שולם במזומן', null]))).toBeNull()
+  })
+  it.each([
+    'קבלה על תשלום כרטיס להופעה',
+    'קיבלתי את ההעברה לשדה',
+    'שולם, קבלה על הסעה והעברה לשדה',
+    'התשלום על כרטיס להופעה',
+    'קיבלנו מזומן',
+  ])('a payment word elsewhere in the sentence is not the method (I2): "%s"', (text) => {
+    expect(statedPaymentMethod(opened(text))).toBeNull()
+  })
+  it('a method right after a paid verb counts (I2)', () => {
+    expect(statedPaymentMethod(opened('שולם במזומן'))).toEqual({ method: 'cash', otherLabel: null })
+    expect(statedPaymentMethod(opened('שילמתי בביט'))).toEqual({ method: 'other', otherLabel: 'ביט' })
+    expect(statedPaymentMethod(opened('שולם מזומן'))).toEqual({ method: 'cash', otherLabel: null })
+    expect(statedPaymentMethod(opened('קבלה ליוסי, שילמו 1500 שקל אשראי'))).toEqual({ method: 'credit_card', otherLabel: null })
+    expect(statedPaymentMethod(opened('שולם חצי מזומן וחצי אשראי'))).toBe('ambiguous')
   })
   it('two methods stated is a question', () => {
     expect(statedPaymentMethod(turns(['חצי מזומן וחצי אשראי', 'payment']))).toBe('ambiguous')

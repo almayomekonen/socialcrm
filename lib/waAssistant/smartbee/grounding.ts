@@ -81,25 +81,45 @@ const METHOD_WORDS: readonly [PaymentMethod, string][] = [
 ]
 const METHOD = new RegExp(`(?<![${HE}\\p{L}])([הולב]-?)?(${METHOD_WORDS.map(([, w]) => w).join('|')})(?![${HE}\\p{L}])`, 'giu')
 const methodOf = (word: string): PaymentMethod => METHOD_WORDS.find(([, w]) => new RegExp(`^(?:${w})$`, 'iu').test(word))![0]
-/** Words that make a sentence a statement about payment ("שולם", "שילמתי", "התקבל"). */
-const PAID = /(?:^|[^\p{L}])(?:שולם|שולמה|שולמו|שילם|שילמה|שילמו|שילמתי|שילמנו|שילמת|תשלום|התשלום|התקבל|התקבלו|קיבלתי|קיבלנו|העביר|העבירה|העבירו)(?![\p{L}])/u
+/**
+ * Verbs saying it WAS paid ("שולם", "שילמתי", "התקבל"). Nouns ("תשלום") and
+ * "קיבלתי" are not here: "קבלה על תשלום כרטיס להופעה" and "קיבלתי את ההעברה
+ * לשדה" say nothing about how the customer paid.
+ */
+const PAID = /(?<![\p{L}])(?:שולם|שולמה|שולמו|שילם|שילמה|שילמו|שילמתי|שילמנו|שילמת|התקבל|התקבלו|העביר|העבירה|העבירו)(?![\p{L}])/gu
+/**
+ * What may stand between a paid verb and the method word it governs: spaces,
+ * "חצי", "רק", "גם", "הכל", an amount, and "ו" chaining to the next method
+ * ("שולם חצי מזומן וחצי אשראי"). Any other word breaks the link: in "שולם,
+ * קבלה על הסעה והעברה לשדה", "העברה" is not how it was paid.
+ */
+const PAID_GAP = /^[\s,:\-–]*(?:ו?(?:חצי|רק|גם|הכל|הכול|\d[\d,.]*(?:\s*(?:₪|ש["״'׳]?ח|שקלים|שקל))?)(?![\p{L}])[\s,:\-–]*)*$/u
 
 export type StatedPayment = { method: PaymentMethod; otherLabel: string | null } | 'ambiguous' | null
 
 /**
  * The payment method in ONE message, or 'none' when the message says nothing
  * about payment. A method word counts only as a statement about payment: the
- * answer to OUR payment question, the word with ב ("במזומן", "בביט"), a
- * sentence saying it was paid ("שולם", "שילמתי"), or a correction ("לא מזומן,
+ * answer to OUR payment question, the word with ב ("במזומן", "בביט"), the
+ * word right after a paid verb ("שולם מזומן", "שילמו אשראי"), or a correction ("לא מזומן,
  * אשראי"). "קבלה על כרטיס להופעה" and "הסעה והעברה לשדה" say nothing about
  * payment. A negated method is not the method.
  */
 function paymentIn(turn: RequestTurn): StatedPayment | 'none' {
   const text = turn.text
-  const found = [...text.matchAll(METHOD)].map((m) => ({ method: methodOf(m[2]), word: m[2], by: (m[1] ?? '').startsWith('ב'), negated: negated(text, m.index) }))
+  const found = [...text.matchAll(METHOD)].map((m) => ({ method: methodOf(m[2]), word: m[2], by: (m[1] ?? '').startsWith('ב'), negated: negated(text, m.index), index: m.index, end: m.index + m[0].length, afterPaid: false }))
   if (!found.length) return 'none'
-  const statement = answering(turn, 'payment') || PAID.test(text) || found.some((f) => f.negated)
-  const counted = found.filter((f) => statement || f.by)
+  // A method word without ב counts after a paid verb only when nothing but PAID_GAP separates them.
+  const verbs = [...text.matchAll(PAID)].map((m) => m.index + m[0].length)
+  let anchor: number | null = null
+  for (const f of found) {
+    const verb = verbs.filter((v) => v <= f.index).at(-1)
+    const from = Math.max(verb ?? -1, anchor ?? -1)
+    f.afterPaid = from >= 0 && PAID_GAP.test(text.slice(from, f.index))
+    if (f.afterPaid) anchor = f.end
+  }
+  const statement = answering(turn, 'payment') || found.some((f) => f.negated)
+  const counted = found.filter((f) => statement || f.by || f.afterPaid)
   if (!counted.length) return 'none'
   const methods = [...new Set(counted.filter((f) => !f.negated).map((f) => f.method))]
   if (methods.length > 1) return 'ambiguous'

@@ -7,8 +7,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * for. The model is deliberately WRONG about the lead on every later turn, to
  * prove the application, not the model, keeps the customer the owner chose.
  */
-const flags = vi.hoisted(() => ({ agent: true }))
+const flags = vi.hoisted(() => ({ agent: true, overLimit: false }))
 vi.mock('@/lib/ai/flags', async (orig) => ({ ...(await orig<typeof import('@/lib/ai/flags')>()), isAgentEnabled: () => flags.agent }))
+// "Over the limit" without sending a hundred messages: the real limits, unless the test says the sender is over.
+vi.mock('@/lib/waAssistant/limits', async (orig) => {
+  const real = await orig<typeof import('@/lib/waAssistant/limits')>()
+  return {
+    ...real,
+    decideUsageLimits: async (...a: Parameters<typeof real.decideUsageLimits>) =>
+      flags.overLimit ? { refusal: { reason: 'sender_limit' as const, firstOver: false }, founder: false, waived: [] } : real.decideUsageLimits(...a),
+  }
+})
 vi.mock('@/lib/agent/trace', () => ({ agentTrace: vi.fn() }))
 
 import { db } from '@/config/db'
@@ -61,11 +70,24 @@ function harness(results: unknown[]) {
   const deps = { runAgent: vi.fn(async () => results.shift() as never) as never, sendText: sendText as never, typing: (async () => undefined) as never, documents: { decide: { follow: vi.fn() as never } } }
   return { deps, last: () => sendText.mock.calls.at(-1)![0] as { body: string; buttons?: { id: string }[] } }
 }
-const msg = (o: Owner, extra: Record<string, unknown>) => processPlatformMessage({ id: `wamid.__p0_${++seq}`, from: o.digits, timestamp: String(Math.floor(Date.now() / 1000)), ...extra } as never)
+const msg = (o: Owner, extra: Record<string, unknown>): Promise<unknown> => processPlatformMessage({ id: `wamid.__p0_${++seq}`, from: o.digits, timestamp: String(Math.floor(Date.now() / 1000)), ...extra } as never)
 async function say(o: Owner, h: ReturnType<typeof harness>, body: string) {
   await msg(o, { type: 'text', text: { body } })
   await runWaAssistantWorker({}, h.deps)
   return h.last()
+}
+/** A text message the worker sees but does not answer: past the reply window, or over the usage limit. */
+async function sayUnanswered(o: Owner, h: ReturnType<typeof harness>, body: string, how: 'expired' | 'over_limit') {
+  const before = (h.deps.sendText as unknown as { mock: { calls: unknown[] } }).mock.calls.length
+  const timestamp = how === 'expired' ? String(Math.floor((Date.now() - 23.5 * 60 * 60 * 1000) / 1000)) : String(Math.floor(Date.now() / 1000))
+  flags.overLimit = how === 'over_limit'
+  await msg(o, { type: 'text', text: { body }, timestamp })
+  await runWaAssistantWorker({}, h.deps)
+  flags.overLimit = false
+  const job = await db('wa_assistant_jobs').where({ agencyId: A }).orderBy('id', 'desc').first('status', 'refusalReason')
+  // Nothing was answered: this turn ran no model and showed no card.
+  expect((h.deps.sendText as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(before)
+  return job as { status: string; refusalReason: string | null }
 }
 async function tap(o: Owner, h: ReturnType<typeof harness>, id: string) {
   await msg(o, { type: 'interactive', interactive: { type: 'button_reply', button_reply: { id, title: 'x' } } })
@@ -86,6 +108,7 @@ beforeEach(async () => {
   await db('clients').where({ agencyId: A }).del()
   await db('agencies').where({ id: A }).update({ plan: 'pro', planReason: null, trialExempt: false, trialStartedAt: null, trialEndsAt: null })
   flags.agent = true
+  flags.overLimit = false
   __resetSmartbeeTokenCache()
   Object.assign(process.env, {
     WA_ASSISTANT_AGENCY_IDS: `${A}`,
@@ -171,6 +194,39 @@ describe('a correction voids the pending card', () => {
     const h = harness([proposes(only, [only]), plain('בשמחה')])
     const card = await say(o, h, REQUEST)
     await say(o, h, 'תודה')
+    await tap(o, h, card.buttons![0].id)
+    expect(await docs()).toHaveLength(1)
+  })
+})
+
+describe('a correction voids the card even when the worker does not answer it', () => {
+  const REQUEST = 'תפיק קבלה ליוסי כהן על צילום, 500 שקל, שולם במזומן'
+
+  it.each([
+    ['past the reply window', 'expired' as const, { status: 'expired' }],
+    ['over the usage limit', 'over_limit' as const, { status: 'refused', refusalReason: 'sender_limit' }],
+  ])('%s: "לא, 2000" still supersedes the ₪500 card, and its tap issues nothing', async (_label, how, outcome) => {
+    const o = await owner()
+    const only = await lead(o, 'כהן')
+    const h = harness([proposes(only, [only])])
+    const card = await say(o, h, REQUEST)
+    expect(card.body).toContain('₪500.00')
+    expect(await sayUnanswered(o, h, 'לא, 2000', how)).toMatchObject(outcome)
+    expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['superseded'])
+    expect(await tap(o, h, card.buttons![0].id)).toMatchObject({ body: DOCUMENT_COPY.superseded })
+    expect(await docs()).toHaveLength(0)
+  })
+
+  it.each([
+    ['past the reply window', 'expired' as const],
+    ['over the usage limit', 'over_limit' as const],
+  ])('%s: small talk ("תודה") leaves the card approvable', async (_label, how) => {
+    const o = await owner()
+    const only = await lead(o, 'כהן')
+    const h = harness([proposes(only, [only])])
+    const card = await say(o, h, REQUEST)
+    await sayUnanswered(o, h, 'תודה', how)
+    expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['pending'])
     await tap(o, h, card.buttons![0].id)
     expect(await docs()).toHaveLength(1)
   })

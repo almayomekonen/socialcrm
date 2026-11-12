@@ -143,11 +143,14 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   const startedAt = now()
   const elapsed = () => now().getTime() - startedAt.getTime()
 
-  if (startedAt.getTime() - job.messageTimestamp * 1000 > WA_ASSISTANT_LIMITS.replyWindowMs) {
-    return finish(job, { status: 'expired', reply: { state: 'skipped' } })
-  }
+  const expired = startedAt.getTime() - job.messageTimestamp * 1000 > WA_ASSISTANT_LIMITS.replyWindowMs
 
   const who = await resolveAssistantScope(job, startedAt)
+  // A correction after a SmartBee card ("לא, 2000") voids that card FIRST: even when this turn is too late
+  // to answer, over a limit, a reminder, or asks a question instead of showing a new card. Never sends.
+  if (who.ok && assistantCapabilities(job.agencyId).documentsOn) await supersedeChangedDocumentCard(job)
+
+  if (expired) return finish(job, { status: 'expired', reply: { state: 'skipped' } })
   if (who.ok === false) {
     const text = refusalReply(who.reason)
     const reply = text && who.phoneE164 ? await reply1(job, platform, who.phoneE164, text, deps) : { state: 'skipped' as const }
@@ -187,8 +190,6 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   // A stalled SmartBee document settled by its owner's fixed words (SMARTBEE_AGENCY_IDS only): deterministic, no model.
   const resolution = caps.documentsOn ? await handleSmartbeeResolutionMessage({ job, scope: who.scope, nowMs: startedAt.getTime() }) : null
   if (resolution) return finishMeeting(job, platform, who.phoneE164, resolution, deps, { durationMs: elapsed() })
-  // A correction after a SmartBee card ("לא, 2000") voids that card, even when this turn asks a question instead of showing a new one.
-  if (caps.documentsOn) await supersedeChangedDocumentCard(job)
 
   // "תראה לי שוב את ההצעה": the send card again, without a model and without a credit.
   const review = caps.quotesSendOn ? await handleQuoteReviewMessage({ job, scope: who.scope, nowMs: startedAt.getTime() }) : null
