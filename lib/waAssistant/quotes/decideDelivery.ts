@@ -3,6 +3,8 @@ import { db } from '@/config/db'
 import { decideOnAction } from '@/lib/agent/actions/bridge'
 import { decideWaApproval, type WaApproval } from '@/db/waAssistantApprovals'
 import { findQuoteDeliveryByAction } from '@/db/quotes/deliveries'
+import { findInvitationByAction } from '@/db/quotes/invitations'
+import { formatBusinessDate } from '@/lib/today/time'
 import { recordQuoteEvent } from '@/db/quotes/events'
 import { cancelQuoteSystem } from '@/db/quotes/cancelQuote'
 import { canDraftQuote } from '@/lib/quotes/permissions'
@@ -12,7 +14,8 @@ import { COPY } from '../render'
 import type { AgentScope } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from '../meetings/types'
-import { DELIVERY_COPY, maskedPhone, quoteEditedReply, quoteSentReply } from './deliveryCopy'
+import { DELIVERY_COPY, maskedPhone, quoteEditedReply, quoteInvitedReply, quoteSentReply } from './deliveryCopy'
+import { emailHashOf, maskedEmail } from './emailInvite'
 import { startQuotePdf } from './pdfJob'
 import { prepareQuoteSendCard } from './preview'
 
@@ -24,6 +27,38 @@ import { prepareQuoteSendCard } from './preview'
  */
 
 const reply = (status: MeetingReply['status'], stopReason: string, text: string | null): MeetingReply => ({ status, stopReason, text, headline: null })
+
+/** How the email-invitation fallback ended, for the owner who tapped. */
+const INVITE_REASONS: Record<string, [MeetingReply['status'], string]> = {
+  'quote-invite-already-sent': ['refused', DELIVERY_COPY.inviteAlready],
+  'quote-invite-failed': ['failed', DELIVERY_COPY.inviteFailed],
+  'quote-invite-unknown': ['failed', DELIVERY_COPY.inviteUnknown],
+  'quote-invite-no-email': ['refused', DELIVERY_COPY.inviteNoEmail],
+  'quote-invite-email-changed': ['refused', DELIVERY_COPY.inviteEmailChanged],
+  'quote-invite-no-sender': ['refused', DELIVERY_COPY.inviteNoSender],
+  'quote-invite-no-business-number': ['failed', DELIVERY_COPY.inviteNoBusinessNumber],
+  'quote-invite-opted-out': ['refused', DELIVERY_COPY.optedOut],
+  'quote-invite-rate-limited': ['refused', DELIVERY_COPY.inviteRateLimited],
+  'quote-invite-disabled': ['refused', DELIVERY_COPY.windowClosedNoEmail],
+}
+
+/** No delivery behind a verified send: it was an email invitation, and the owner must read it as exactly that. */
+async function invitedReply(agencyId: number, actionId: string, repeated: boolean): Promise<MeetingReply> {
+  const inv = await findInvitationByAction(agencyId, actionId)
+  if (!inv || !['sent', 'redeemed'].includes(inv.state)) return reply('failed', 'quote_send_unknown', DELIVERY_COPY.sendUnknown)
+  if (repeated) return reply('answered', 'quote_invite_already', DELIVERY_COPY.inviteAlready)
+  const [quote, lead] = await Promise.all([
+    db('sales_quotes').where({ id: inv.quoteId, agencyId }).first('quoteNumber') as Promise<{ quoteNumber: number | string | null } | undefined>,
+    db('clients').where({ id: inv.leadId, agencyId }).first('email') as Promise<{ email: string | null } | undefined>,
+  ])
+  const email = lead?.email && emailHashOf(lead.email) === inv.emailHash ? maskedEmail(lead.email) : null
+  return {
+    status: 'answered',
+    stopReason: 'quote_invite_sent',
+    headline: 'נשלחה הזמנה במייל. ההצעה עדיין לא נשלחה ללקוח',
+    text: quoteInvitedReply({ quoteNumber: quote?.quoteNumber == null ? null : Number(quote.quoteNumber), email, validUntil: formatBusinessDate(inv.authorizationExpiresAt) }),
+  }
+}
 
 type Card = { job: WaAssistantJob; scope: AgentScope; card: WaApproval; approve: boolean; nowMs: number }
 
@@ -51,13 +86,17 @@ export async function decideQuoteSendCard(input: Card & { args: SendCardArgs }):
   const { outcome } = decided
   if (outcome.report === 'VERIFIED_SUCCESS' || outcome.report === 'DUPLICATE_NOOP') {
     const row = await findQuoteDeliveryByAction(scope.agencyId, card.actionId)
-    if (!row || !['accepted', 'delivered', 'read'].includes(row.state)) return reply('failed', 'quote_send_unknown', DELIVERY_COPY.sendUnknown)
+    if (!row) return invitedReply(scope.agencyId, card.actionId, outcome.report === 'DUPLICATE_NOOP')
+    if (!['accepted', 'delivered', 'read'].includes(row.state)) return reply('failed', 'quote_send_unknown', DELIVERY_COPY.sendUnknown)
     if (outcome.report === 'DUPLICATE_NOOP') return reply('answered', 'quote_send_already', DELIVERY_COPY.alreadySent)
     const quote = (await db('sales_quotes').where({ id: row.quoteId, agencyId: scope.agencyId }).first('quoteNumber')) as { quoteNumber: number | string | null } | undefined
     return { status: 'answered', stopReason: 'quote_send_accepted', headline: 'הצעת המחיר נשלחה ללקוח', text: quoteSentReply({ quoteNumber: quote?.quoteNumber == null ? null : Number(quote.quoteNumber), phoneE164Masked: maskedPhone(args.customerPhoneE164) }) }
   }
-  if (outcome.report === 'EXECUTED_UNVERIFIED' || outcome.report === 'UNKNOWN_RECONCILE') return reply('failed', 'quote_send_unknown', DELIVERY_COPY.sendUnknown)
   const reason = outcome.execution?.reason ?? ''
+  // An invitation's outcome is about the email, never the quote: worded on its own, before the generic "unknown".
+  const invite = INVITE_REASONS[reason]
+  if (invite) return reply(invite[0], `quote_${reason.replace(/-/g, '_')}`, invite[1])
+  if (outcome.report === 'EXECUTED_UNVERIFIED' || outcome.report === 'UNKNOWN_RECONCILE') return reply('failed', 'quote_send_unknown', DELIVERY_COPY.sendUnknown)
   if (outcome.execution?.status === 'NOT_AUTHORIZED') return reply('refused', 'quote_send_not_authorized', DELIVERY_COPY.noSendPermission)
   if (reason === 'quote-send-already-sent') return reply('refused', 'quote_send_already', DELIVERY_COPY.alreadySent)
   if (reason === 'quote-send-stale' || reason === 'quote-send-no-target') return reply('refused', 'quote_send_stale', DELIVERY_COPY.stale)

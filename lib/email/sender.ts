@@ -24,6 +24,11 @@ type SendInput = {
   headers?: Record<string, string>
   /** Files sent with the message, for example a private invoice PDF. Never logged. */
   attachments?: { filename: string; content: Buffer }[]
+  /**
+   * Sent as Resend's `Idempotency-Key`: the same key within 24 hours sends at most one
+   * email, including this function's own transient retry. Absent = unchanged.
+   */
+  idempotencyKey?: string
 }
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string }
@@ -63,6 +68,7 @@ export async function sendEmail({
   from: explicitFrom,
   headers,
   attachments,
+  idempotencyKey,
 }: SendInput): Promise<SendResult> {
   const from = explicitFrom?.trim() || getEmailFrom()
 
@@ -80,7 +86,7 @@ export async function sendEmail({
     if (replyTo) payload.replyTo = replyTo
     if (headers && Object.keys(headers).length > 0) payload.headers = headers
     if (attachments?.length) payload.attachments = attachments
-    return resend.emails.send(payload)
+    return idempotencyKey ? resend.emails.send(payload, { idempotencyKey }) : resend.emails.send(payload)
   }
 
   let res = await attempt()

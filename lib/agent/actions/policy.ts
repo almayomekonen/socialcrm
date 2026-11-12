@@ -46,6 +46,9 @@ const ROLE_CEILING: Record<RiskLevel, (role: string) => boolean> = {
   HIGH_RISK: (role) => role === 'ADMIN',
 }
 
+/** The same ceiling, for a decision made later on an earlier approval (lib/waAssistant/quotes/invitationReply.ts). */
+export const roleMayAct = (risk: RiskLevel, role: string): boolean => ROLE_CEILING[risk](role)
+
 function actorIsCoherent(actor: ActionActor | undefined, agencyId: number): boolean {
   if (!actor) return false
   if (!Number.isInteger(actor.userId) || actor.userId <= 0) return false

@@ -101,6 +101,7 @@ consent is the row's `owner_whatsapp_recipients.consentTextVersion` (+ `consentA
 | `WA_ASSISTANT_QUOTES_AGENCY_IDS` | absent | Absent = no quotes. Lets the assistant create a quote for a lead from the owner's stated prices, after a card. Creation only; sending to the customer is `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS`. `WA_ASSISTANT_AUDIENCE=all` does not open it; `WA_ASSISTANT_QUOTES_AUDIENCE=all` (next row) does. Needs the assistant itself too, a configured VAT rate for the agency, migration `20261111120000`, and the existing PDF renderer and R2 settings. After approval the owner gets the PDF's login-protected link in the same chat; the minute cron retries a failed render up to 3 attempts |
 | `WA_ASSISTANT_QUOTES_AUDIENCE` | absent | Exactly `all`: every agency in the assistant's audience may create quotes (excluded agencies never), and `WA_ASSISTANT_QUOTES_AGENCY_IDS` is ignored. Creation only; each request still needs the owner's card, a role that may draft quotes, lead visibility, a configured VAT rate (or `exempt`) and the request allowance. |
 | `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS` | absent | Absent = create and download only. Lets the owner review the PDF on WhatsApp, edit it, and send it to the customer after approving it. Explicit ids, or `WA_ASSISTANT_QUOTES_SEND_AUDIENCE=all` (next row); only on top of quote creation. See "Quotes V2" below. |
+| `WA_ASSISTANT_QUOTES_EMAIL_INVITE_AGENCY_IDS` | absent | Absent = no email fallback. When WhatsApp cannot reach the customer (window closed, no approved template), the approved quote's card offers an email invitation to write on WhatsApp; the quote is sent on WhatsApp only after the customer writes. `WA_ASSISTANT_QUOTES_EMAIL_INVITE_AUDIENCE=all` opens it to every agency that may send quotes. Needs migration `20261114120000` and `AUTOMATIONS_FROM`. See "Email invitation fallback" below. |
 | `WA_ASSISTANT_QUOTES_SEND_AUDIENCE` | absent | Exactly `all`: every agency that may create quotes may also review, edit and send quotes to customers (excluded agencies never), and `WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS` is ignored. Each send still needs the owner's tap on the card for that exact version, PDF and recipient. `WA_ASSISTANT_QUOTES_AUDIENCE=all` alone does not open it. |
 | `AGENT_LIST_MEETINGS_AGENCY_IDS` | absent | Absent = no `list_meetings` tool. Lets the Agent list the user's own meetings by period ("מה יש לי מחר", "הפגישה הבאה שלי"), on the web Agent and on WhatsApp alike. Explicit ids only, no `all`. Not yet tried with a real model |
 | `AGENT_AGENCY_IDS`, `AI_ENABLED` | must include 103 | The Agent rollout the assistant reuses |
@@ -432,3 +433,45 @@ its `sales_quote_deliveries` row.
 
 The link is `/api/q#<token>`: the token is in the fragment and is exchanged in a POST
 body, so Vercel's request logs never contain it.
+
+### Email invitation fallback (`WA_ASSISTANT_QUOTES_EMAIL_INVITE_AGENCY_IDS`)
+
+Order of delivery after the owner's tap: WhatsApp text inside the 24-hour window →
+the approved `quote_delivery_he` template → **an email invitation** → otherwise the
+quote stays undelivered and the owner is told the exact reason. SMS is not built (a
+separate product and legal decision).
+
+- The card offers it only when the lead has an email address that never hard-bounced
+  (`automation_email_blocks`), never unsubscribed (`automation_lead_suppressions`), and the
+  customer has not opted out on WhatsApp, and the business has a customer sender
+  (`AUTOMATIONS_FROM` + an admin email as Reply-To, the same identity as automation
+  email). The card binds the address's SHA-256 into the approval.
+- The email holds no quote details: a sentence, the business name, and a `wa.me` link
+  to the business number (read from Meta by `phone_number_id`) that pre-fills
+  "…(קוד: SCQ-<16 chars>)". The reference is 80 random bits, stored only as a SHA-256.
+- An email is NOT a delivery: the quote stays `ready`, and no `sales_quote_deliveries`
+  row exists. `sales_quote_invitations` holds the durable authorization: the exact
+  version, PDF hash, amount, lead, customer number, business number and email hash,
+  valid 30 days or to the quote's validity date if earlier. One live invitation per
+  agency, quote, version and address (partial unique index); a failed email may be
+  retried by a new approval.
+- When the customer presses Send, `ingestWhatsappInbound` matches the reference only
+  from the bound agency, business number and customer number, and keeps the
+  autoresponder out of that message. After the lead link, the handler redeems it once,
+  re-checks the approver (active, ADMIN/MNGR, can see the lead), the amount and expiry,
+  and runs the normal send under the approved action's id: same claim, link, receipts
+  and owner notices. A changed, cancelled or expired quote is not sent; the owner is told.
+- No model runs and no usage credit is spent for the reply.
+- Limits: at most 3 invitation emails per address per business per rolling 24 hours
+  (failed sends excluded), and each email carries Resend's `Idempotency-Key`
+  (`quote-invite/<agency>/<invitation>`), so a retried request never sends twice.
+- Bounces and complaints: `app/api/automations/email-events` also recognises an
+  invitation by its Resend message id: a hard bounce blocks the address
+  (`automation_email_blocks`), a complaint suppresses the lead. The matched customer
+  message also skips the Copilot conversation analysis.
+
+Release order: apply migration `20261114120000_quote_email_invitations.cjs` → deploy
+with the flag absent → set `AUTOMATIONS_FROM` if it is not already set → set
+`WA_ASSISTANT_QUOTES_EMAIL_INVITE_AGENCY_IDS=103` (or `…_AUDIENCE=all`) → redeploy →
+test on a lead whose phone and email you own. Roll back by removing the flag: open
+invitations are then never redeemed (the match is gated on it).

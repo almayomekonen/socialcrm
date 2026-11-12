@@ -166,6 +166,14 @@ export async function handleInboundWebhookMessage(args: {
       })
     }
 
+    // The customer answered a quote's email invitation (matched inside the ingest transaction).
+    // After commit and after the lead link, so the send path sees the window this message opened.
+    // Single use and never throws; a redelivered message is `inserted: false` and has no match.
+    if (result.quoteInvitationId != null) {
+      const { deliverInvitedQuote } = await import('@/lib/waAssistant/quotes/invitationReply')
+      await deliverInvitedQuote({ agencyId, invitationId: result.quoteInvitationId, nowMs: Date.now() })
+    }
+
     // TEMPORARY wedding RSVP hook (lib/weddingRsvp). Returns at once unless the
     // message is a tap on its buttons or a head-count answer; never throws.
     if (result.inserted && (message.type === 'interactive' || message.type === 'button' || message.type === 'text')) {

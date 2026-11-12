@@ -179,6 +179,22 @@ export function isWaAssistantQuotesSendAgency(agencyId: number | null | undefine
   return assistantFeatureOn(agencyId, 'WA_ASSISTANT_QUOTES_SEND_AUDIENCE', 'WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS')
 }
 
+/**
+ * WA_ASSISTANT_QUOTES_EMAIL_INVITE_AGENCY_IDS: agencies where an approved quote
+ * that WhatsApp cannot deliver right now (service window closed, no approved
+ * `quote_delivery_he` template) may instead EMAIL the lead an invitation to write
+ * to the business on WhatsApp; the quote itself goes out only on WhatsApp, after
+ * the customer writes. Absence blocks, and only on top of customer sending.
+ *
+ * WA_ASSISTANT_QUOTES_EMAIL_INVITE_AUDIENCE: exactly `all` opens it to every
+ * agency that may send quotes. Off, the card says the quote cannot be sent now,
+ * exactly as before.
+ */
+export function isWaAssistantQuotesEmailInviteAgency(agencyId: number | null | undefined): boolean {
+  if (!isWaAssistantQuotesSendAgency(agencyId)) return false
+  return assistantFeatureOn(agencyId, 'WA_ASSISTANT_QUOTES_EMAIL_INVITE_AUDIENCE', 'WA_ASSISTANT_QUOTES_EMAIL_INVITE_AGENCY_IDS')
+}
+
 /** The listed ids, for the background PDF sweep. Empty (and not `all`) means it does no work at all. */
 export function waAssistantQuotesAgencyIds(): number[] {
   return parseIds(process.env.WA_ASSISTANT_QUOTES_AGENCY_IDS)

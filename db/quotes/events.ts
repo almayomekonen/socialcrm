@@ -20,6 +20,11 @@ export type QuoteEventType =
   | 'read'
   | 'delivery_failed'
   | 'link_opened'
+  | 'invite_sent'
+  | 'invite_failed'
+  | 'invite_unknown'
+  | 'invite_redeemed'
+  | 'invite_refused'
 
 export async function recordQuoteEvent(
   input: { agencyId: number; quoteId: number; quoteVersion: number; type: QuoteEventType; actorUserId?: number | null; actionId?: string | null; detail?: Record<string, unknown> },

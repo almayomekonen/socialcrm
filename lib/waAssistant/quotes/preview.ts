@@ -19,6 +19,8 @@ import type { AgentScope } from '@/lib/agent/types'
 import { resolveQuoteChannel } from './customerSend'
 import { DELIVERY_COPY, quoteSendButtons, quoteSendCard } from './deliveryCopy'
 import { startQuotePdf } from './pdfJob'
+import { inviteAvailability, maskedEmail } from './emailInvite'
+import { isWaAssistantQuotesEmailInviteAgency } from '@/lib/flags/waAssistantFlags'
 
 /**
  * The owner's private PDF preview, for the quote's CURRENT version and PDF.
@@ -90,7 +92,7 @@ export async function prepareQuoteSendCard(input: { agencyId: number; quoteId: n
   }
   const document = { link, filename }
   const leadRow = (await db('clients').where({ id: leadId, agencyId }).first('firstName', 'lastName')) as { firstName: string | null; lastName: string | null } | undefined
-  const card = (to: { recipient: string | null; phoneE164: string | null; blockedBy: string | null }) =>
+  const card = (to: { recipient: string | null; phoneE164: string | null; blockedBy: string | null; inviteEmail?: string | null }) =>
     quoteSendCard({
       lead: [leadRow?.firstName, leadRow?.lastName].filter(Boolean).join(' '),
       quoteNumber: quote.quoteNumber == null ? null : Number(quote.quoteNumber),
@@ -111,16 +113,20 @@ export async function prepareQuoteSendCard(input: { agencyId: number; quoteId: n
   const customerPhoneE164 = toCustomerPhoneE164(target.customerWaId)
   if (!customerPhoneE164) return previewOnly('quote_preview_no_recipient', DELIVERY_COPY.noCustomerNumber)
   // Reachable later (an opt-in, or the customer writing back), so the card can still be edited or cancelled now.
-  const holdBack = (await isCustomerOptedOut(agencyId, customerPhoneE164))
+  const optedOut = await isCustomerOptedOut(agencyId, customerPhoneE164)
+  const noChannel = !optedOut && !(await resolveQuoteChannel({ agencyId, leadId, target, nowMs }))
+  // WhatsApp cannot reach them now: an email invitation can, when the lead has an address we may write to.
+  const invite = noChannel ? await inviteAvailability(agencyId, leadId) : null
+  const holdBack = optedOut
     ? { stopReason: 'quote_preview_opted_out', why: DELIVERY_COPY.optedOut }
-    : !(await resolveQuoteChannel({ agencyId, leadId, target, nowMs }))
-      ? { stopReason: 'quote_preview_no_channel', why: DELIVERY_COPY.windowClosed }
+    : noChannel && !invite
+      ? { stopReason: 'quote_preview_no_channel', why: isWaAssistantQuotesEmailInviteAgency(agencyId) ? DELIVERY_COPY.windowClosedNoEmail : DELIVERY_COPY.windowClosed }
       : null
 
   const outcome = await submitProposedAction({
     proposal: {
       actionType: 'send_quote',
-      args: { quoteId, version, documentId: doc.id, contentHash: doc.contentHash, leadId, customerPhoneE164, businessPhoneNumberId: target.businessPhoneNumberId },
+      args: { quoteId, version, documentId: doc.id, contentHash: doc.contentHash, leadId, customerPhoneE164, businessPhoneNumberId: target.businessPhoneNumberId, ...(invite ? { customerEmailHash: invite.emailHash } : {}) },
       evidenceRefs: [`lead:${leadId}`],
     },
     scope,
@@ -130,13 +136,13 @@ export async function prepareQuoteSendCard(input: { agencyId: number; quoteId: n
   if (!outcome || outcome.report !== 'AWAITING_APPROVAL') return blocked('quote_preview_not_permitted', DELIVERY_COPY.noSendPermission, version)
 
   const { token } = await createWaApproval({ recipientId: input.recipientId, agencyId, userId: scope.userId, jobId: input.jobId, actionId: outcome.actionId, argsHash: outcome.argsHash, now: new Date(nowMs), ttlMs: QUOTE_SEND_APPROVAL_TTL_HOURS * 3600_000 })
-  await recordQuoteEvent({ agencyId, quoteId, quoteVersion: version, type: 'preview_offered', actorUserId: scope.userId, actionId: outcome.actionId, detail: { documentId: doc.id, sendable: !holdBack, ...(holdBack ? { reason: holdBack.stopReason } : {}) } })
+  await recordQuoteEvent({ agencyId, quoteId, quoteVersion: version, type: 'preview_offered', actorUserId: scope.userId, actionId: outcome.actionId, detail: { documentId: doc.id, sendable: !holdBack, ...(invite ? { via: 'email_invite' } : {}), ...(holdBack ? { reason: holdBack.stopReason } : {}) } })
 
   return {
     kind: 'card',
     sendable: !holdBack,
-    stopReason: holdBack?.stopReason ?? 'quote_preview_offered',
-    body: card({ recipient: target.customerName ?? quote.recipientNameSnapshot ?? '', phoneE164: customerPhoneE164, blockedBy: holdBack?.why ?? null }),
+    stopReason: holdBack?.stopReason ?? (invite ? 'quote_preview_offered_invite' : 'quote_preview_offered'),
+    body: card({ recipient: target.customerName ?? quote.recipientNameSnapshot ?? '', phoneE164: customerPhoneE164, blockedBy: holdBack?.why ?? null, inviteEmail: invite ? maskedEmail(invite.email) : null }),
     // Without a way to reach the customer now there is no send button at all; the executor would refuse it anyway.
     buttons: quoteSendButtons(token, { sendable: !holdBack }),
     document,

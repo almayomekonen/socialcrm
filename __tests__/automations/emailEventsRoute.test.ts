@@ -6,6 +6,7 @@ vi.mock('@/db/automations/activity', () => ({
 }))
 vi.mock('@/db/automations/emailBlocks', () => ({ addEmailBlock: vi.fn(async () => {}) }))
 vi.mock('@/db/automations/suppressions', () => ({ addLeadSuppression: vi.fn(async () => {}) }))
+vi.mock('@/db/quotes/invitations', () => ({ findInvitationEmailOwner: vi.fn(async () => null) }))
 
 import crypto from 'crypto'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -14,6 +15,7 @@ import { POST } from '@/app/api/automations/email-events/route'
 import { getSendByProviderMessageId, updateDeliveryStateByProviderMessageId } from '@/db/automations/activity'
 import { addEmailBlock } from '@/db/automations/emailBlocks'
 import { addLeadSuppression } from '@/db/automations/suppressions'
+import { findInvitationEmailOwner } from '@/db/quotes/invitations'
 
 // Delivery-events webhook (ADR-012): signature-gated, correlation-partitioned,
 // idempotent, and structurally incapable of triggering an automation.
@@ -167,5 +169,39 @@ describe('idempotency', () => {
     const res = await post(event('email.delivered'))
     expect(res.status).toBe(200)
     expect(updateDeliveryStateByProviderMessageId).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("a quote's email invitation (not an engine send)", () => {
+  beforeEach(() => {
+    vi.mocked(getSendByProviderMessageId).mockResolvedValue(null)
+    vi.mocked(findInvitationEmailOwner).mockResolvedValue({ agencyId: 9, leadId: 55 })
+  })
+
+  it('a hard bounce blocks the address for that business, with no ladder', async () => {
+    const res = await post(event('email.bounced', { bounce: { type: 'Permanent' } }))
+    expect(res.status).toBe(200)
+    expect(addEmailBlock).toHaveBeenCalledWith(9, 'dana@example.com', 'hard_bounce')
+    expect(updateDeliveryStateByProviderMessageId).not.toHaveBeenCalled()
+  })
+
+  it('a complaint suppresses the lead', async () => {
+    await post(event('email.complained'))
+    expect(addLeadSuppression).toHaveBeenCalledWith(9, 55, 'spam_complaint')
+  })
+
+  it('a soft bounce or a delivery changes nothing', async () => {
+    await post(event('email.bounced', { bounce: { type: 'Transient' } }))
+    await post(event('email.delivered'))
+    noWrites()
+  })
+
+  it('platform email (neither an engine send nor an invitation) is still ignored; a lookup failure too', async () => {
+    vi.mocked(findInvitationEmailOwner).mockResolvedValueOnce(null)
+    expect(await (await post(event('email.bounced', { bounce: { type: 'Permanent' } }))).json()).toMatchObject({ outcome: 'ignored' })
+    vi.mocked(findInvitationEmailOwner).mockRejectedValueOnce(new Error('relation does not exist'))
+    const res = await post(event('email.complained'))
+    expect(res.status).toBe(200)
+    noWrites()
   })
 })
