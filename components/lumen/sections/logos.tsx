@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 
 import { Marquee } from '@/components/lumen/magicui/marquee';
+import { Button } from '@/components/lumen/ui/button';
 import Noise from '@/components/lumen/noise';
 import { cn } from '@/components/lumen/utils';
 import { HE } from '@/lib/marketing/copy/he';
@@ -116,6 +117,17 @@ export default function Logos({ copy = HE.logos }: { copy?: LogosCopy } = {}) {
       <p className="text-foreground container text-center text-lg font-semibold">
         {copy.lead}
       </p>
+      {copy.channelLinks && (
+        <ul className="container mt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-1">
+          {copy.channelLinks.map((link) => (
+            <li key={link.href}>
+              <Button variant="link" className="h-auto p-0 text-base font-semibold" asChild>
+                <Link href={link.href}>{link.label}</Link>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div>
         {/*

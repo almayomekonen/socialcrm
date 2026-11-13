@@ -10,6 +10,7 @@ import { AnimatedCta } from '@/components/ui/animated-cta'
 import { CRMComparisonTable } from '@/components/ui/crm-comparison-table'
 import { FeatureGrid } from '@/components/ui/feature-section'
 import { buildFAQSchema } from '@/components/seo/FAQ'
+import { breadcrumbSchema } from '@/lib/seo/schemas'
 import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 
@@ -126,6 +127,12 @@ export default function CRMvsExcelPage() {
     <>
       <JsonLd data={pageSchema} />
       <JsonLd data={faqSchema} />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'דף הבית', path: '/' },
+          { name: 'CRM מול אקסל', path: '/crm-vs-excel' },
+        ])}
+      />
 
       <MarketingLayout>
 

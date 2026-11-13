@@ -1,5 +1,5 @@
 'use client'
-import { Inbox, MessageCircle, Sparkles } from 'lucide-react'
+import { Inbox, Megaphone, MessageCircle, MessageSquareText, Sheet, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
@@ -22,14 +22,18 @@ import { cn } from '@/components/lumen/utils'
 import { HE } from '@/lib/marketing/copy/he'
 import type { NavCopy } from '@/lib/marketing/copy/types'
 
-const PRODUCT_ICONS = [Inbox, MessageCircle, Sparkles]
+// Matched to `copy.product.subitems` by position. The first three are the
+// homepage sections; the rest are the Hebrew landing pages, which the English
+// copy does not list.
+const PRODUCT_ICONS = [Inbox, MessageCircle, Sparkles, MessageSquareText, Megaphone, Sheet]
 
 function navLinksFrom(copy: NavCopy) {
   return [
     {
       label: copy.product.label,
       href: '#',
-      subitems: copy.product.subitems.map((subitem, index) => ({ ...subitem, icon: PRODUCT_ICONS[index] })),
+      lang: undefined as string | undefined,
+      subitems: copy.product.subitems.map((subitem, index) => ({ ...subitem, icon: PRODUCT_ICONS[index] ?? Inbox })),
     },
     // One centralized destination. No subitems, so this renders through the same
     // plain-link branch as מחירים — no trigger, no chevron, no panel.
@@ -147,7 +151,10 @@ const Navbar = ({ initialBannerVisible = true, copy = HE.nav }: { initialBannerV
                       >
                         {item.label}
                       </NavigationMenuTrigger>
-                      <NavigationMenuContent className=''>
+                      {/* forceMount + hidden while closed: the menu links stay in the
+                          server HTML, so crawlers can follow them to the landing
+                          pages. Radix otherwise renders them only once opened. */}
+                      <NavigationMenuContent forceMount className='data-[state=closed]:hidden'>
                         <ul className='grid w-[263px] gap-2'>
                           {item.subitems.map((subitem) => (
                             <li key={subitem.label}>
@@ -175,7 +182,7 @@ const Navbar = ({ initialBannerVisible = true, copy = HE.nav }: { initialBannerV
                       )}
                       suppressHydrationWarning
                     >
-                      <Link href={item.href}>{item.label}</Link>
+                      <Link href={item.href} hrefLang={item.lang} lang={item.lang}>{item.label}</Link>
                     </NavigationMenuLink>
                   )}
                 </NavigationMenuItem>
@@ -278,7 +285,7 @@ const Navbar = ({ initialBannerVisible = true, copy = HE.nav }: { initialBannerV
                         )}
                         suppressHydrationWarning
                       >
-                        <Link href={item.href} onClick={() => setIsMenuOpen(false)}>
+                        <Link href={item.href} hrefLang={item.lang} lang={item.lang} onClick={() => setIsMenuOpen(false)}>
                           {item.label}
                         </Link>
                       </NavigationMenuLink>

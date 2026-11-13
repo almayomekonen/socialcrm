@@ -56,7 +56,10 @@ export default function FAQSection({
                   <AccordionTrigger className="min-w-0 cursor-pointer text-start text-base font-semibold text-balance hover:no-underline md:text-lg lg:text-xl [&>span]:min-w-0">
                     {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground pb-6 text-base leading-relaxed">
+                  {/* forceMount: closed answers stay in the server HTML (with the
+                      `hidden` attribute) so crawlers read the same answers the
+                      FAQPage schema declares. Radix unmounts them otherwise. */}
+                  <AccordionContent forceMount className="text-muted-foreground pb-6 text-base leading-relaxed">
                     {faq.answer}
                   </AccordionContent>
                 </AccordionItem>

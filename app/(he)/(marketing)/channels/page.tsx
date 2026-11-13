@@ -1,4 +1,6 @@
 import { buildPageMetadata } from '@/lib/seo/metadata'
+import { JsonLd } from '@/components/seo/JsonLd'
+import { breadcrumbSchema } from '@/lib/seo/schemas'
 import { ThemeProvider } from '@/components/lumen/theme-provider'
 import Navbar from '@/components/lumen/layout/navbar'
 import Footer from '@/components/lumen/layout/footer'
@@ -32,6 +34,12 @@ export default function ChannelsPage() {
       disableTransitionOnChange
     >
       <div className='lumen' dir='rtl'>
+        <JsonLd
+          data={breadcrumbSchema([
+            { name: 'דף הבית', path: '/' },
+            { name: 'ערוצים', path: '/channels' },
+          ])}
+        />
         <Navbar initialBannerVisible={false} />
         <AboutHero />
         <BenefitsShowcase />

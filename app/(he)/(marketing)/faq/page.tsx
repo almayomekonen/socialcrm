@@ -5,13 +5,15 @@ import { ThemeProvider } from '@/components/lumen/theme-provider'
 import Navbar from '@/components/lumen/layout/navbar'
 import Footer from '@/components/lumen/layout/footer'
 import FAQSection from '@/components/lumen/sections/faq-section'
-import { FAQ_ITEMS } from '@/components/lumen/sections/faqItems'
+import { FAQ_PAGE_ITEMS } from '@/components/lumen/sections/faqItems'
+import { HE } from '@/lib/marketing/copy/he'
+import { breadcrumbSchema } from '@/lib/seo/schemas'
 
 export const metadata = buildPageMetadata({
   path: '/faq',
-  title: 'שאלות נפוצות | SocialCRM',
+  title: 'שאלות נפוצות: ייבוא לידים, וואטסאפ ומחיר | SocialCRM',
   description:
-    'תשובות לשאלות הנפוצות ביותר: איך לידים מפייסבוק ומאינסטגרם נכנסים למערכת, איך עובד החיבור לוואטסאפ, מה ה-AI עושה בפועל וכמה זה עולה.',
+    'ייבוא מאקסל, סטטוסים, רשימת היום, הרשאות צוות, וואטסאפ, טפסי לידים מפייסבוק ומחיר: תשובות ישירות על איך SocialCRM עובדת בפועל.',
   ogTitle: 'שאלות נפוצות | SocialCRM',
   ogDescription:
     'איך הלידים נכנסים, איך עובד החיבור לוואטסאפ, מה ה-AI עושה וכמה זה עולה.',
@@ -19,7 +21,9 @@ export const metadata = buildPageMetadata({
 
 /**
  * `/faq` mirrors Lumen's own FAQ route: the same `FAQSection` that closes
- * `/`. (The testimonials marquee that followed it was removed: its quotes were
+ * `/`, with the longer `FAQ_PAGE_ITEMS` list (the homepage's five plus the
+ * operational questions, each traced to code in faqItems.ts). The FAQPage
+ * schema is built from the same array as the visible accordion. (The testimonials marquee that followed it was removed: its quotes were
  * not from verified customers.) Shell is mounted here because
  * `ShellChrome` stands back for this route, as it does for the other Lumen pages.
  */
@@ -32,10 +36,16 @@ export default function FAQPage() {
       disableTransitionOnChange
     >
       <div className='lumen min-h-screen' dir='rtl'>
-        <JsonLd data={buildFAQSchema(FAQ_ITEMS)} />
+        <JsonLd data={buildFAQSchema(FAQ_PAGE_ITEMS)} />
+        <JsonLd
+          data={breadcrumbSchema([
+            { name: 'דף הבית', path: '/' },
+            { name: 'שאלות נפוצות', path: '/faq' },
+          ])}
+        />
         <Navbar initialBannerVisible={false} />
         {/* This route owns the page <h1>; the homepage keeps its own. */}
-        <FAQSection headingLevel='h1' />
+        <FAQSection headingLevel='h1' copy={{ ...HE.faq, items: FAQ_PAGE_ITEMS }} />
         <Footer />
       </div>
     </ThemeProvider>

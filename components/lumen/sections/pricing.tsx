@@ -157,15 +157,18 @@ export default function Pricing({
                           </div>
                         </Link>
                       ) : (
-                        /* Plain <a>, matching every other upgrade entry point:
-                           this is a route handler that issues a redirect, not a
-                           page for the client router to prefetch. */
-                        <a href={upgradeHref}>
+                        /* A button, not a link: the target is a route handler
+                           that redirects (anonymous → /auth, signed in → the
+                           billing screen), not a page. As an <a href> it was a
+                           crawlable link to an API route on /, /pricing and
+                           /en. A full navigation, so the client router never
+                           prefetches it. */
+                        <button type="button" onClick={() => window.location.assign(upgradeHref)}>
                           {plan.ctaButton}
                           <div className="bg-background/15 border-background/10 grid size-5.5 place-items-center rounded-full border">
                             <ChevronRight className="size-4 rtl:rotate-180" />
                           </div>
-                        </a>
+                        </button>
                       )}
                     </Button>
                   </div>
