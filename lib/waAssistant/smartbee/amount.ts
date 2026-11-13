@@ -12,7 +12,9 @@ import type { RequestTurn } from '../request'
  *     a time;
  *   - an UNMARKED number can set the amount only in the message that opened
  *     the request, the answer to OUR amount question, or a correction that is
- *     nothing but the new amount ("לא, 2000", "בעצם 1700"). Anywhere else, such
+ *     nothing but the new amount ("לא, 2000", "בעצם 1700"). Any other
+ *     correction with an unmarked number ("לא 500 אלא 2000") is a question.
+ *     Anywhere else, such
  *     as "צילום 2 שעות" answering the description or "כולל 18" answering
  *     VAT, only a number marked as money (₪, ש"ח, שקל) counts. A bare number
  *     answering which lead, the check or the installments is that answer even
@@ -60,19 +62,26 @@ const CORRECTED_AMOUNT = new RegExp(
   'iu',
 )
 
+/** Any correction word. "לא כולל" is a VAT answer, not a correction. */
+const CORRECTION = new RegExp(`(?<![\\p{L}])(?:ו?לא(?![\\p{L}])(?!\\s*כולל)|בעצם|טעות|טעיתי|תתקן|תקן|במקום|סליחה)(?![\\p{L}])`, 'u')
+
 /**
  * How a message's numbers are read:
  *   - 'opening': unmarked numbers count; ones we cannot read are skipped;
  *   - 'stated': an amount answer, or a correction that is only the amount; unmarked numbers count, and
  *     one we cannot read is a question;
+ *   - 'correction': any other correction ("לא 500 אלא 2000", "לא, תעשה 2000"): a number marked as
+ *     money counts, and an unmarked number that is not a count, identifier, percent, date or time is a
+ *     question. The older amount is never kept silently in its place;
  *   - 'money': only numbers marked as money count.
  */
-type Reading = 'opening' | 'stated' | 'money'
+type Reading = 'opening' | 'stated' | 'correction' | 'money'
 
 function readingOf(turn: RequestTurn): Reading {
   if (!turn.answering) return 'opening'
   if (NOT_AMOUNT_ANSWER.test(turn.answering)) return 'money'
-  return AMOUNT_ANSWER.test(turn.answering) || CORRECTED_AMOUNT.test(turn.text) ? 'stated' : 'money'
+  if (AMOUNT_ANSWER.test(turn.answering) || CORRECTED_AMOUNT.test(turn.text)) return 'stated'
+  return CORRECTION.test(turn.text) ? 'correction' : 'money'
 }
 
 type Candidate = { value: number; money: boolean } | 'unclear'
@@ -89,6 +98,11 @@ function candidates(text: string, reading: Reading): Candidate[] {
     // "בכרטיס 1500 ש"ח" is money; "כרטיס 1500" or "צ'ק 1234" is a number of something.
     if (!money && IDENTIFIER_BEFORE.test(before)) continue
     if (reading === 'money' && !money) continue
+    // In a correction, an unmarked number that is not something else might be the new amount: ask.
+    if (reading === 'correction' && !money) {
+      out.push('unclear')
+      continue
+    }
     const thousands = !!m[3]
     const decimals = m[2]
     // "1.500" (thousands or a decimal?) is never guessed, wherever it appears.

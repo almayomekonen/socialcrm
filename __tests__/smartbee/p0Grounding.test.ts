@@ -73,9 +73,9 @@ describe('amount: the newest explicit amount wins, nothing else is money', () =>
       expect(statedDocumentAmount(turns(['טעות, 1600', 'description'], opening))).toEqual({ amount: 1600 })
       expect(statedDocumentAmount(turns(['1200', 'amount'], ['תפיק קבלה ליוסי על צילום', null]))).toEqual({ amount: 1200 })
     })
-    it('a correction word does not make every number money: "לא, צילום חתונה 2026" keeps 1500', () => {
-      expect(statedDocumentAmount(turns(['לא, צילום חתונה 2026', 'description'], opening))).toEqual({ amount: 1500 })
-      expect(statedDocumentAmount(turns(['בעצם צילום 3 אלבומים', 'type'], opening))).toEqual({ amount: 1500 })
+    it('a correction word does not make every number money: "לא, צילום חתונה 2026" never becomes 2026, and never silently 1500', () => {
+      expect(statedDocumentAmount(turns(['לא, צילום חתונה 2026', 'description'], opening))).toBe('ambiguous')
+      expect(statedDocumentAmount(turns(['בעצם צילום 3 אלבומים', 'type'], opening))).toBe('ambiguous')
       // Marked as money, the corrected amount is read.
       expect(statedDocumentAmount(turns(['לא, צילום חתונה ב-1800 שקל', 'description'], opening))).toEqual({ amount: 1800 })
     })
@@ -87,6 +87,23 @@ describe('amount: the newest explicit amount wins, nothing else is money', () =>
       ['בעצם המחיר הוא 1700', 1700],
     ])('a correction that is only the amount: "%s" → %s', (text, amount) => {
       expect(statedDocumentAmount(turns([text, 'payment'], opening))).toEqual({ amount })
+    })
+    it.each(['לא 500 אלא 2000', '2000, לא 1500', 'לא, תעשה 2000', 'בעצם זה יוצא 2000'])(
+      'a correction in another form ("%s") is a question, never the older 1500',
+      (text) => {
+        for (const q of ['payment', 'description', 'vat', 'type']) expect(statedDocumentAmount(turns([text, q], opening))).toBe('ambiguous')
+      },
+    )
+    it('a correction whose only numbers are not amounts keeps the stated amount', () => {
+      expect(statedDocumentAmount(turns(["לא, שולם בצ'ק 1234", 'payment'], opening))).toEqual({ amount: 1500 })
+      expect(statedDocumentAmount(turns(['לא, באשראי ב-3 תשלומים', 'payment'], opening))).toEqual({ amount: 1500 })
+      expect(statedDocumentAmount(turns(['לא, עם 10% הנחה', 'description'], opening))).toEqual({ amount: 1500 })
+    })
+    it('a money-marked correction in any form is the amount', () => {
+      expect(statedDocumentAmount(turns(['לא, תעשה 2000 שקל', 'payment'], opening))).toEqual({ amount: 2000 })
+      // An unmarked number beside it is still a question: "500" might be meant too.
+      expect(statedDocumentAmount(turns(['לא 500 אלא 2000 שקל', 'payment'], opening))).toBe('ambiguous')
+      expect(statedDocumentAmount(turns(['בעצם זה יוצא ₪2000', 'payment'], opening))).toEqual({ amount: 2000 })
     })
     it('"לא כולל 18" answering VAT is a VAT answer, not a correction of the amount', () => {
       expect(statedDocumentAmount(turns(['לא כולל 18', 'vat'], opening))).toEqual({ amount: 1500 })

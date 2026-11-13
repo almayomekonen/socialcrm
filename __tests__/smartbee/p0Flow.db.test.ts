@@ -25,6 +25,7 @@ import { processPlatformMessage } from '@/lib/whatsapp/platform/inbound'
 import { runWaAssistantWorker } from '@/lib/waAssistant/worker'
 import { DOCUMENT_COPY } from '@/lib/waAssistant/smartbee/copy'
 import { saveSmartbeeConnection } from '@/db/smartbee/connections'
+import { _setSmartbeePermittedAgencyIdsForTests } from '@/lib/flags/smartbeeFlags'
 import { __resetSmartbeeTokenCache } from '@/lib/integrations/providers/smartbee/auth'
 import { PLATFORM, TOKEN, agency, cleanup, recipient, resetBetweenTests, user } from '../ownerWhatsappReminders/reminderFixtures'
 
@@ -99,6 +100,8 @@ const proposedArgs = async () => (await db('agent_actions').where({ agencyId: A,
 
 beforeAll(async () => {
   A = await agency('__p0_a__')
+  // The suite's own agency stands in for the pinned one (agency 167 in Production).
+  _setSmartbeePermittedAgencyIdsForTests([A])
 })
 beforeEach(async () => {
   await resetBetweenTests()
@@ -121,6 +124,7 @@ beforeEach(async () => {
   })
 })
 afterAll(async () => {
+  _setSmartbeePermittedAgencyIdsForTests(null)
   for (const t of ['wa_assistant_jobs', 'wa_assistant_approvals', 'agent_action_approvals', 'agent_actions']) await db(t).del()
   await db('smartbee_documents').where({ agencyId: A }).del()
   await db('smartbee_connections').where({ agencyId: A }).del()
@@ -268,5 +272,19 @@ describe('only a genuine document change voids the card', () => {
     expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['pending'])
     await sayUnanswered(o, h, '2000', 'expired')
     expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['superseded'])
+  })
+})
+
+describe('an ambiguous correction asks for the amount instead of reusing the old one', () => {
+  it.each(['לא 500 אלא 2000', 'בעצם זה יוצא 2000'])('"%s" answering the payment question: the amount is asked, 1500 is not reused', async (text) => {
+    const o = await owner()
+    const only = await lead(o, 'כהן')
+    // The model keeps proposing the old amount.
+    const h = harness([1, 2, 3].map(() => proposes(only, [only], { amount: 1500 })))
+    expect((await say(o, h, 'תפיק קבלה ליוסי כהן על צילום, 1500 שקל')).body).toBe(DOCUMENT_COPY.askPayment)
+    expect((await say(o, h, text)).body).toBe(DOCUMENT_COPY.askOneAmount)
+    expect(await db('wa_assistant_approvals').where({ agencyId: A })).toHaveLength(0)
+    // The owner's next, clear answer is the amount.
+    expect((await say(o, h, '2000')).body).toBe(DOCUMENT_COPY.askPayment)
   })
 })
