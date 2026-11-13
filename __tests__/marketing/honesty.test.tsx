@@ -47,6 +47,9 @@ import Faq from '@/app/(he)/(marketing)/faq/page'
 import InstagramLeads from '@/app/(he)/(marketing)/instagram-leads-crm/page'
 import CrmForWhatsapp from '@/app/(he)/(marketing)/crm-for-whatsapp-business/page'
 import CrmVsExcel from '@/app/(he)/(marketing)/crm-vs-excel/page'
+import CrmGuide from '@/app/(he)/(marketing)/crm/page'
+import LeadManagement from '@/app/(he)/(marketing)/lead-management/page'
+import FacebookLeads from '@/app/(he)/(marketing)/facebook-leads/page'
 import Privacy from '@/app/(he)/(marketing)/privacy/page'
 import Terms from '@/app/(he)/(marketing)/terms/page'
 import DataDeletion from '@/app/(he)/(marketing)/data-deletion/page'
@@ -70,6 +73,9 @@ const ROUTES: Record<string, { Page: () => React.ReactNode; chrome: Chrome; scop
   '/instagram-leads-crm': { Page: InstagramLeads, chrome: 'seo', scope: 'marketing' },
   '/crm-for-whatsapp-business': { Page: CrmForWhatsapp, chrome: 'seo', scope: 'marketing' },
   '/crm-vs-excel': { Page: CrmVsExcel, chrome: 'seo', scope: 'marketing' },
+  '/crm': { Page: CrmGuide, chrome: 'seo', scope: 'marketing' },
+  '/lead-management': { Page: LeadManagement, chrome: 'seo', scope: 'marketing' },
+  '/facebook-leads': { Page: FacebookLeads, chrome: 'seo', scope: 'marketing' },
   '/privacy': { Page: Privacy, chrome: 'lumen', scope: 'legal' },
   '/terms': { Page: Terms, chrome: 'lumen', scope: 'legal' },
   '/data-deletion': { Page: DataDeletion, chrome: 'lumen', scope: 'legal' },
@@ -97,8 +103,8 @@ describe('the tested pages are exactly the live public marketing routes', () => 
     expect(Object.keys(ROUTES).sort()).toEqual(INDEXABLE_ROUTES.map((r) => r.path).sort())
   })
 
-  test('the route table matches the proxy allowlist (the retired /crm is a 308, not a page)', () => {
-    const live = proxyPublicRoutes().filter((p) => p !== '/crm')
+  test('the route table matches the proxy allowlist', () => {
+    const live = proxyPublicRoutes()
     expect(live.sort()).toEqual(Object.keys(ROUTES).sort())
   })
 

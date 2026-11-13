@@ -27,11 +27,11 @@ import { TRIAL_CTA_LABEL } from '@/lib/pricing'
  */
 
 const LINKS = [
-  { label: 'ניהול לידים', href: '/' },
+  { label: 'ניהול לידים', href: '/lead-management' },
   { label: 'יכולות', href: '/' },
-  { label: 'וואטסאפ', href: '/channels' },
-  { label: 'פייסבוק', href: '/channels' },
-  { label: 'אינסטגרם', href: '/channels' },
+  { label: 'וואטסאפ', href: '/crm-for-whatsapp-business' },
+  { label: 'פייסבוק', href: '/facebook-leads' },
+  { label: 'אינסטגרם', href: '/instagram-leads-crm' },
   { label: 'מחירים', href: '/pricing' },
 ]
 

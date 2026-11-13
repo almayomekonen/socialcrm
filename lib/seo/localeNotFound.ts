@@ -23,7 +23,7 @@ export type MarketingLocale = 'en' | 'ar'
  * listed here.
  */
 export const LOCALE_PAGES: Record<MarketingLocale, readonly string[]> = {
-  en: ['/en'],
+  en: ['/en', '/en/social-crm'],
   ar: ['/ar'],
 }
 

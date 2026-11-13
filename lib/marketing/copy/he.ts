@@ -18,9 +18,10 @@ export const HE: HomeCopy = {
         { label: 'כל הלידים במקום אחד', href: '/#features-carousel', description: 'פייסבוק, אינסטגרם ווואטסאפ נכנסים לרשימה אחת' },
         { label: 'שיחות שמחוברות לליד', href: '/#features-grid', description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ונקראה' },
         { label: 'AI שמכיר כל ליד', href: '/#features-showcase', description: 'תקציר, נקודות מפתח והצעד הבא' },
+        { label: 'מערכת לניהול לידים', href: '/lead-management', description: 'סטטוסים, נציגים ותזכורות מעקב' },
         { label: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business', description: 'כל שיחה בוואטסאפ הופכת לליד עם סטטוס ונציג' },
+        { label: 'לידים מפייסבוק', href: '/facebook-leads', description: 'טפסי Lead Ads נכנסים למערכת לבד' },
         { label: 'לידים מאינסטגרם', href: '/instagram-leads-crm', description: 'לידים ממודעות אינסטגרם נכנסים אוטומטית' },
-        { label: 'CRM מול אקסל', href: '/crm-vs-excel', description: 'מתי אקסל מספיק ומתי כדאי לעבור למערכת' },
       ],
     },
     links: [
@@ -45,6 +46,7 @@ export const HE: HomeCopy = {
     websiteDir: 'rtl',
     channelLinks: [
       { label: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business' },
+      { label: 'חיבור לידים מפייסבוק ל-CRM', href: '/facebook-leads' },
       { label: 'לידים מאינסטגרם ל-CRM', href: '/instagram-leads-crm' },
       { label: 'כל הערוצים במקום אחד', href: '/channels' },
     ],
@@ -190,6 +192,8 @@ export const HE: HomeCopy = {
           { name: 'ניהול לידים', href: '/' },
           { name: 'מחירים', href: '/pricing' },
           { name: 'שאלות נפוצות', href: '/faq' },
+          { name: 'מערכת לניהול לידים', href: '/lead-management' },
+          { name: 'מדריך: מערכת CRM', href: '/crm' },
           { name: 'CRM לעומת אקסל', href: '/crm-vs-excel' },
           { name: 'English', href: '/en', hrefLang: 'en' },
         ],
@@ -199,6 +203,7 @@ export const HE: HomeCopy = {
         links: [
           { name: 'כל הערוצים', href: '/channels' },
           { name: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business' },
+          { name: 'לידים מפייסבוק', href: '/facebook-leads' },
           { name: 'לידים מאינסטגרם', href: '/instagram-leads-crm' },
         ],
       },

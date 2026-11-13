@@ -16,9 +16,7 @@ export interface MarketingRoute {
   /** False for pages intentionally kept out of the index (e.g. /thank-you). */
   indexable: boolean
   /**
-   * Canonical this route declares. Every route now canonicalises to itself:
-   * the Lumen homepage lives at `/`, and `/crm` is a 308 to it (next.config),
-   * not a second page.
+   * Canonical this route declares. Every route canonicalises to itself.
    */
   canonical: string
 }
@@ -35,6 +33,9 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
   { path: '/instagram-leads-crm', dir: 'instagram-leads-crm', indexable: true, canonical: `${SITE_URL}/instagram-leads-crm` },
   { path: '/crm-for-whatsapp-business', dir: 'crm-for-whatsapp-business', indexable: true, canonical: `${SITE_URL}/crm-for-whatsapp-business` },
   { path: '/crm-vs-excel', dir: 'crm-vs-excel', indexable: true, canonical: `${SITE_URL}/crm-vs-excel` },
+  { path: '/crm', dir: 'crm', indexable: true, canonical: `${SITE_URL}/crm` },
+  { path: '/lead-management', dir: 'lead-management', indexable: true, canonical: `${SITE_URL}/lead-management` },
+  { path: '/facebook-leads', dir: 'facebook-leads', indexable: true, canonical: `${SITE_URL}/facebook-leads` },
   { path: '/privacy', dir: 'privacy', indexable: true, canonical: `${SITE_URL}/privacy` },
   { path: '/terms', dir: 'terms', indexable: true, canonical: `${SITE_URL}/terms` },
   { path: '/data-deletion', dir: 'data-deletion', indexable: true, canonical: `${SITE_URL}/data-deletion` },
@@ -46,6 +47,9 @@ export const MARKETING_ROUTES: MarketingRoute[] = [
  * whose routes all live under `app/(he)/(marketing)`.
  */
 export const ENGLISH_HOME_PATH = '/en'
+
+/** The English social CRM guide: English-only, so it has no Hebrew twin. */
+export const ENGLISH_GUIDE_PATH = '/en/social-crm'
 
 /** Routes that must appear in `app/sitemap.ts`, in the order they are listed. */
 export const INDEXABLE_ROUTES = MARKETING_ROUTES.filter((r) => r.indexable)

@@ -34,6 +34,9 @@ import Faq from '@/app/(he)/(marketing)/faq/page'
 import InstagramLeads from '@/app/(he)/(marketing)/instagram-leads-crm/page'
 import CrmForWhatsapp from '@/app/(he)/(marketing)/crm-for-whatsapp-business/page'
 import CrmVsExcel from '@/app/(he)/(marketing)/crm-vs-excel/page'
+import CrmGuide from '@/app/(he)/(marketing)/crm/page'
+import LeadManagement from '@/app/(he)/(marketing)/lead-management/page'
+import FacebookLeads from '@/app/(he)/(marketing)/facebook-leads/page'
 import Privacy from '@/app/(he)/(marketing)/privacy/page'
 import Terms from '@/app/(he)/(marketing)/terms/page'
 import DataDeletion from '@/app/(he)/(marketing)/data-deletion/page'
@@ -48,6 +51,9 @@ const PAGES: Array<[path: string, Component: () => React.ReactNode]> = [
   ['/instagram-leads-crm', InstagramLeads],
   ['/crm-for-whatsapp-business', CrmForWhatsapp],
   ['/crm-vs-excel', CrmVsExcel],
+  ['/crm', CrmGuide],
+  ['/lead-management', LeadManagement],
+  ['/facebook-leads', FacebookLeads],
   ['/privacy', Privacy],
   ['/terms', Terms],
   ['/data-deletion', DataDeletion],

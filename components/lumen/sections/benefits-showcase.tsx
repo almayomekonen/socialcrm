@@ -21,6 +21,7 @@ const COLUMNS_DATA = [
     cardContent:
       'מחברים את הדף העסקי בכמה לחיצות. מרגע החיבור, כל מי שממלא טופס Lead Ads נכנס למערכת תוך שניות, עם המקור שממנו הגיע.',
     cardPosition: 'bottom' as const,
+    link: { href: '/facebook-leads', label: 'איך לידים מפייסבוק נכנסים ל-CRM' },
   },
   {
     image: '/images/benefits-showcase/2.webp',

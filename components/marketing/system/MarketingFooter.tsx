@@ -18,6 +18,8 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
     title: 'המוצר',
     links: [
       { label: 'ניהול לידים', href: '/' },
+      { label: 'מערכת לניהול לידים', href: '/lead-management' },
+      { label: 'מדריך: מערכת CRM', href: '/crm' },
       { label: 'מחירים', href: '/pricing' },
       { label: 'English', href: '/en' },
     ],
@@ -25,12 +27,10 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
     title: 'ערוצים',
     links: [
-      // Facebook has no page of its own (/facebook-leads redirects to
-      // /channels), so it points there; the other channels have landing pages.
       { label: 'כל הערוצים', href: '/channels' },
       { label: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business' },
+      { label: 'לידים מפייסבוק', href: '/facebook-leads' },
       { label: 'לידים מאינסטגרם', href: '/instagram-leads-crm' },
-      { label: 'לידים מפייסבוק', href: '/channels' },
     ],
   },
   {

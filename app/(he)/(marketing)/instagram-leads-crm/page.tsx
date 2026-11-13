@@ -13,15 +13,16 @@ import Icon from '@/lib/Icon'
 import { Btn } from '@/lib/btns/Btn'
 
 const PAGE_PATH = '/instagram-leads-crm'
-const PAGE_TITLE = 'ניהול לידים ממודעות אינסטגרם | SocialCRM'
+const PAGE_TITLE = 'לידים מאינסטגרם ל-CRM: ממודעות ומהודעות | SocialCRM'
 const PAGE_DESCRIPTION =
-  'לידים ממודעות אינסטגרם נכנסים למערכת אוטומטית. פנייה מהודעה ישירה או תגובה לסטורי מוסיפים ידנית בתוך שניות. הכול במקום אחד, עם מקור, סטטוס ומעקב.'
+  'לידים מאינסטגרם ל-CRM: לידים ממודעות אינסטגרם נכנסים אוטומטית, ופנייה מהודעה ישירה מוסיפים ידנית בשניות. הכול עם מקור, סטטוס ומעקב.'
 
 export const metadata = buildPageMetadata({
   path: PAGE_PATH,
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
-  ogTitle: 'לידים ממודעות אינסטגרם | SocialCRM',
+  ogTitle: 'לידים מאינסטגרם ל-CRM | SocialCRM',
+  ogImage: '/media/og/instagram-leads-crm.png',
   ogDescription: 'לידים ממודעות אינסטגרם נכנסים למערכת אוטומטית. הכול במקום אחד, עם מקור, סטטוס ומעקב.',
 })
 
@@ -167,12 +168,12 @@ export default function InstagramLeadsCrmPage() {
                 לידים מאינסטגרם
               </span>
               <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6 leading-tight'>
-                לידים ממודעות אינסטגרם
+                לידים מאינסטגרם ל-CRM
                 <br />
                 נכנסים אוטומטית, מסודרים מהרגע הראשון
               </h1>
               <p className='text-lg text-gray-700 mb-8 max-w-xl'>
-                כל ליד ממודעת אינסטגרם נכנס למערכת אוטומטית, עם מקור וסטטוס. פנייה מהודעה ישירה או תגובה לסטורי מוסיפים ידנית בתוך שניות, כדי שאף פנייה לא תלך לאיבוד.
+                עם SocialCRM, לידים מאינסטגרם נכנסים ל-CRM בלי העתקה: כל ליד ממודעת אינסטגרם נכנס למערכת אוטומטית, עם מקור וסטטוס. פנייה מהודעה ישירה או תגובה לסטורי מוסיפים ידנית בתוך שניות, כדי שאף פנייה לא תלך לאיבוד.
               </p>
               <div className='flex flex-col sm:flex-row items-center gap-4'>
                 <Link
@@ -257,7 +258,7 @@ export default function InstagramLeadsCrmPage() {
         {/* Solution */}
         <section className='px-8 py-16 bg-white' dir='rtl'>
           <div className='max-w-3xl mx-auto'>
-            <h2 className='text-3xl font-bold mb-6'>איך SocialCRM מנהלת לידים מאינסטגרם</h2>
+            <h2 className='text-3xl font-bold mb-6'>לידים מאינסטגרם ל-CRM: ניהול לידים מאינסטגרם במקום אחד</h2>
             <p className='text-lg text-gray-700 mb-4 leading-relaxed'>
               כל ליד ממודעת אינסטגרם נכנס למערכת לבד, תוך שניות, עם מקור וסטטוס. פניות מהודעות ישירות ותגובות לסטוריז מוסיפים ידנית בתוך כעשר שניות, עם הערה קצרה על מה שעניין אותם.
             </p>

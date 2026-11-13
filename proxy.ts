@@ -19,6 +19,8 @@ const PUBLIC_ROUTES = [
   '/instagram-leads-crm',
   '/crm-for-whatsapp-business',
   '/crm-vs-excel',
+  '/lead-management',
+  '/facebook-leads',
   '/privacy',
   '/terms',
   '/data-deletion',

@@ -22,6 +22,9 @@ import { metadata as faq } from '@/app/(he)/(marketing)/faq/page'
 import { metadata as instagramLeads } from '@/app/(he)/(marketing)/instagram-leads-crm/page'
 import { metadata as crmForWhatsapp } from '@/app/(he)/(marketing)/crm-for-whatsapp-business/page'
 import { metadata as crmVsExcel } from '@/app/(he)/(marketing)/crm-vs-excel/page'
+import { metadata as crmGuide } from '@/app/(he)/(marketing)/crm/page'
+import { metadata as leadManagement } from '@/app/(he)/(marketing)/lead-management/page'
+import { metadata as facebookLeads } from '@/app/(he)/(marketing)/facebook-leads/page'
 import { metadata as privacy } from '@/app/(he)/(marketing)/privacy/page'
 import { metadata as terms } from '@/app/(he)/(marketing)/terms/page'
 import { metadata as dataDeletion } from '@/app/(he)/(marketing)/data-deletion/page'
@@ -36,6 +39,9 @@ const BY_PATH: Record<string, Metadata> = {
   '/instagram-leads-crm': instagramLeads,
   '/crm-for-whatsapp-business': crmForWhatsapp,
   '/crm-vs-excel': crmVsExcel,
+  '/crm': crmGuide,
+  '/lead-management': leadManagement,
+  '/facebook-leads': facebookLeads,
   '/privacy': privacy,
   '/terms': terms,
   '/data-deletion': dataDeletion,

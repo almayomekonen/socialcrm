@@ -270,6 +270,7 @@ export const EN: HomeCopy = {
           { name: 'Lead management', href: '/en' },
           { name: 'Pricing', href: '/en#pricing' },
           { name: 'FAQ', href: '/en#faq' },
+          { name: 'What is social CRM?', href: '/en/social-crm' },
           { name: 'Hebrew site', href: '/', hrefLang: 'he' },
         ],
       },

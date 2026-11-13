@@ -98,7 +98,8 @@ describe('sitemap', () => {
 
   test('nothing Arabic is listed', () => {
     expect(JSON.stringify(entries)).not.toMatch(/\/ar\b/)
-    expect(entries.some((e) => /\/en\//.test(new URL(e.url).pathname))).toBe(false)
+    // The only English page below /en is the social CRM guide.
+    expect(entries.filter((e) => /\/en\//.test(new URL(e.url).pathname)).map((e) => new URL(e.url).pathname)).toEqual(['/en/social-crm'])
   })
 })
 
@@ -152,7 +153,7 @@ describe('the rendered page', () => {
       .map((a) => ({ href: a.getAttribute('href') ?? '', text: norm(a.textContent), hrefLang: a.getAttribute('hreflang') }))
       .filter((a) => a.href.startsWith('/') && !a.href.startsWith('/auth') && !a.href.startsWith('/api/'))
     for (const link of internal) {
-      if (link.href === '/en' || link.href.startsWith('/en#')) continue
+      if (link.href === '/en' || link.href.startsWith('/en#') || link.href.startsWith('/en/')) continue
       // The way back to the Hebrew homepage: labelled as such, and hreflang="he".
       if (link.href === '/') {
         expect(link.text).toMatch(/Hebrew/)
