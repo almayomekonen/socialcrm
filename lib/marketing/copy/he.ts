@@ -18,9 +18,6 @@ export const HE: HomeCopy = {
         { label: 'כל הלידים במקום אחד', href: '/#features-carousel', description: 'פייסבוק, אינסטגרם ווואטסאפ נכנסים לרשימה אחת' },
         { label: 'שיחות שמחוברות לליד', href: '/#features-grid', description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ונקראה' },
         { label: 'AI שמכיר כל ליד', href: '/#features-showcase', description: 'תקציר, נקודות מפתח והצעד הבא' },
-        { label: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business', description: 'כל שיחה בוואטסאפ הופכת לליד עם סטטוס ונציג' },
-        { label: 'לידים מאינסטגרם', href: '/instagram-leads-crm', description: 'לידים ממודעות אינסטגרם נכנסים אוטומטית' },
-        { label: 'CRM מול אקסל', href: '/crm-vs-excel', description: 'מתי אקסל מספיק ומתי כדאי לעבור למערכת' },
       ],
     },
     links: [
@@ -32,22 +29,17 @@ export const HE: HomeCopy = {
     trial: { label: TRIAL_CTA_LABEL, href: '/auth' },
   },
   hero: {
-    titleLine1: 'מערכת CRM לעסקים קטנים:',
-    titleLine2: ' כל הלידים במקום אחד, בלי לפספס אף פנייה',
+    titleLine1: 'כל הלידים שלכם במקום אחד,',
+    titleLine2: ' בלי לפספס אף פנייה',
     subtitle: 'אתם כבר לא צריכים לזכור מי מחכה לתשובה. פותחים בבוקר ורואים בדיוק למי לחזור היום.',
     cta: TRIAL_CTA_LABEL,
-    imageAlt: 'רשימת הלידים במערכת ה-CRM של SocialCRM, עם מקור, סטטוס ונציג לכל ליד',
+    imageAlt: 'ממשק SocialCRM',
   },
   logos: {
-    lead: 'הלידים שלכם מגיעים מכל מקום: וואטסאפ, פייסבוק ואינסטגרם. SocialCRM היא מערכת CRM בעברית שמחברת את כולם לרשימה אחת מסודרת.',
+    lead: 'הלידים שלכם מגיעים מכל מקום: וואטסאפ, פייסבוק ואינסטגרם. SocialCRM מחברת את כולם לרשימה אחת מסודרת.',
     websiteLabel: 'טפסים באתר',
     websiteUrl: '/',
     websiteDir: 'rtl',
-    channelLinks: [
-      { label: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business' },
-      { label: 'לידים מאינסטגרם ל-CRM', href: '/instagram-leads-crm' },
-      { label: 'כל הערוצים במקום אחד', href: '/channels' },
-    ],
   },
   featuresCarousel: {
     dir: 'rtl',
@@ -190,16 +182,14 @@ export const HE: HomeCopy = {
           { name: 'ניהול לידים', href: '/' },
           { name: 'מחירים', href: '/pricing' },
           { name: 'שאלות נפוצות', href: '/faq' },
-          { name: 'CRM לעומת אקסל', href: '/crm-vs-excel' },
-          { name: 'English', href: '/en', hrefLang: 'en' },
         ],
       },
       {
         title: 'ערוצים',
         links: [
-          { name: 'כל הערוצים', href: '/channels' },
-          { name: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business' },
-          { name: 'לידים מאינסטגרם', href: '/instagram-leads-crm' },
+          { name: 'פייסבוק', href: '/channels' },
+          { name: 'וואטסאפ', href: '/channels' },
+          { name: 'אינסטגרם', href: '/channels' },
         ],
       },
       {

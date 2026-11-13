@@ -1,5 +1,5 @@
 'use client'
-import { Inbox, Megaphone, MessageCircle, MessageSquareText, Sheet, Sparkles } from 'lucide-react'
+import { Inbox, MessageCircle, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
@@ -22,10 +22,7 @@ import { cn } from '@/components/lumen/utils'
 import { HE } from '@/lib/marketing/copy/he'
 import type { NavCopy } from '@/lib/marketing/copy/types'
 
-// Matched to `copy.product.subitems` by position. The first three are the
-// homepage sections; the rest are the Hebrew landing pages, which the English
-// copy does not list.
-const PRODUCT_ICONS = [Inbox, MessageCircle, Sparkles, MessageSquareText, Megaphone, Sheet]
+const PRODUCT_ICONS = [Inbox, MessageCircle, Sparkles]
 
 function navLinksFrom(copy: NavCopy) {
   return [

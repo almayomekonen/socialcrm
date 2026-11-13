@@ -149,14 +149,11 @@ export default function Hero({ copy = HE.hero }: { copy?: HeroCopy } = {}) {
           variants={imageVariants}
           className="bg-background/45 border-background relative mt-10 justify-self-end overflow-hidden rounded-t-xl border p-2 md:mt-20 md:rounded-t-3xl md:p-4 lg:mt-25"
         >
-          {/* SocialCRM product shot: `LeadsAppShell` (demo data, the app's real
-              status labels) rendered at 2× — no customer names or phone numbers.
-              Re-capture it from that component rather than from a live account.
-              Intrinsic 2560×1116 (2.29:1) — Lumen's own
+          {/* SocialCRM product shot. Intrinsic 2560×1116 (2.29:1) — Lumen's own
               was 1056×752.5 (1.4:1), so the frame sits much shorter. Frame,
               radii, padding, entrance variant and `priority` are unchanged. */}
           <Image
-            src="/media/hero-leads-demo.png"
+            src="/media/social-icons/hero.png"
             alt={copy.imageAlt}
             width={2560}
             height={1116}
