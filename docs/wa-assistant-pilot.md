@@ -337,6 +337,37 @@ use the `_AUDIENCE=all` mechanism the other capabilities have
 (`__tests__/waAssistant/quoteFlagAllowlist.test.ts`). The switch is read at the
 tap as well, so removing an id also stops that agency's open cards.
 
+**A customer who is not a lead yet.** The owner never has to create the lead
+first, and is never asked what name a lead is saved under. When `find_lead`
+finds nobody, the Agent proposes `create_quote` with `clientId` 0 and
+`newCustomer` (name, phone, email as the owner wrote them; the proposal gate
+lets `clientId` 0 through and nothing else). SocialCRM then decides
+(`lib/waAssistant/quotes/newCustomer.ts`):
+
+- each detail is kept only if the owner wrote it in this request;
+- a phone or email already on a lead of the agency → that lead (none visible to
+  this user → refused, nothing revealed); two such leads → the owner picks;
+- leads the user may see with the same name → one list ending in "ליד חדש";
+- otherwise a new lead. Only its name is ever asked for; the phone and email
+  are optional, and an answer to the name question is used as the name.
+
+The details are stored on the message, so a later question (VAT, say) never
+asks again. The card says "ליד חדש: …" and that approving creates the lead. On
+the tap, the `create_quote` executor creates the lead through
+`lib/system/createLeadForOwner.ts`, the system counterpart of `upsertLead`'s
+create branch: the quota lock and limit, a refusal when the phone or email
+already exists, `createOrigin: 'manual'`, the `lead_created` automation and
+`lead.created` notification. It is keyed by `leadSource` `wa_quote_lead:<actionId>`,
+so a retry finds the same lead. The quote is created for exactly that lead id
+IN THE SAME TRANSACTION (`createQuoteSystem`'s optional `executor`): if the quote
+is refused or the write fails (a VAT rate changed since the card, a crash), the
+lead, its automation job and its notification roll back with it, and a retry
+makes both once. Every lead list in a quote request also ends in "ליד חדש",
+carrying what the owner wrote about the customer. The PDF preview and send card
+follow as for any quote. Nothing reaches the customer before the owner approves
+sending (`__tests__/waAssistant/quoteNewCustomer.db.test.ts`; real model:
+`QUOTE_LIVE_SET=newcustomer`, docs/wa-quotes-validation-harness.md).
+
 **Requests and credits.** The message that drafts the card passes
 `admitAgentRequest` once. A tap returns before that call and no model runs, so
 approving or declining a card uses no request or credit, and still works once the

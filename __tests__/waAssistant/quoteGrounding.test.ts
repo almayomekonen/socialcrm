@@ -187,7 +187,7 @@ describe('a quote request across messages', () => {
 describe('the create_quote proposal', () => {
   const proposal = {
     actionType: 'create_quote',
-    args: { clientId: 7, title: 'שיפוץ מטבח', lines: [line(18500)], priceBasis: 'incl_vat', validityDays: null },
+    args: { clientId: 7, newCustomer: null, title: 'שיפוץ מטבח', lines: [line(18500)], priceBasis: 'incl_vat', validityDays: null },
     evidenceRefs: ['lead:7'],
   }
 

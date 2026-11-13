@@ -45,7 +45,7 @@ import { creditLimitReply } from './creditLimitReply'
 import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
 import { handleQuoteReviewMessage } from './quotes/review'
-import { chosenLeadRule, requestLead } from './leadChoice'
+import { chosenLeadRule, newCustomerRule, requestLead } from './leadChoice'
 
 /**
  * The WhatsApp assistant worker: one queued owner message -> at most one reply.
@@ -214,10 +214,10 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
     maxSteps: WA_ASSISTANT_LIMITS.maxSteps,
     deadlineMs: WA_ASSISTANT_LIMITS.deadlineMs,
     disableResearch: true,
-    surfaceRules: chosen ? `${waAgentRules(caps)}\n${chosenLeadRule(chosen.leadId)}` : waAgentRules(caps),
+    surfaceRules: chosen ? `${waAgentRules(caps)}\n${'leadId' in chosen ? chosenLeadRule(chosen.leadId) : newCustomerRule}` : waAgentRules(caps),
     // SmartBee documents (one agency, SMARTBEE_AGENCY_IDS): only its turns are even offered the action.
     answerSchema: answerSchemaFor(caps.documentsOn),
-    verifiedLeadIds: chosen ? [chosen.leadId] : undefined,
+    verifiedLeadIds: chosen && 'leadId' in chosen ? [chosen.leadId] : undefined,
     // Accounted durably per job (costUsd) instead of the in-memory interactive counter.
     skipInteractiveSpend: true,
     onPersist: async (record) => {

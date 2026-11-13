@@ -20,6 +20,16 @@ Both run only on this machine, against a local database whose name ends in
 
   then `QUOTE_LIVE_MODE=model NODE_ENV=test npx vitest run --config vitest.quote-live.config.ts`.
 
+`QUOTE_LIVE_SET=newcustomer` runs only the new-customer scenarios (N1–N6: a
+customer who is not a lead yet, by name and phone, name only, phone only, with a
+missing VAT basis, a phone that is already a lead, and "ליד חדש" to a list of
+same-name leads), with H1, H5 and H7 beside them. N1 also runs the real PDF job
+(renderer, R2 and the owner's message replaced locally) and requires the owner's
+PDF preview. The scorer fails any reply that asks what name a lead is saved
+under, and checks that an approved new-customer card made exactly one lead, by
+that action, with the quote on it. Real model run on 2026-11-13 (gpt-5.6): 9 of
+9, $0.57.
+
 `QUOTE_LIVE_REPEATS=1` is one complete pass: every scenario, then the remaining
 wordings of the ones that have several. The cap cannot exceed $8 and is enforced
 before each request leaves the machine, counting input at the highest rate the

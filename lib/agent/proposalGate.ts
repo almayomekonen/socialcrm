@@ -55,6 +55,10 @@ export function groundedProposal(
   if (proposal.actionType === 'edit_quote') return proposal
 
   const clientId = proposal.args?.clientId
+  // A quote for someone who is not a lead yet names NO record: the application
+  // searches and asks itself (lib/waAssistant/quotes/newCustomer.ts), and 0 is
+  // never used as an id.
+  if (proposal.actionType === 'create_quote' && clientId === 0) return proposal
   if (!Number.isInteger(clientId) || clientId <= 0) return null
 
   // The one check that matters: a tool returned this lead during this run.

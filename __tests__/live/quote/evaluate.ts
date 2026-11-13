@@ -1,5 +1,6 @@
 import { ils } from '@/lib/quotes/pdf/format'
 import { freeStated, statedAmounts, statedPercents } from '@/lib/waAssistant/quotes/grounding'
+import { phoneCore } from '@/lib/leads/normalizeContact'
 import { expectedPricing, scorePersistence, type PersistedState } from './persistenceScore'
 import type { CardExpect, ScenarioVariant, StepExpect } from './scenarios'
 
@@ -41,7 +42,14 @@ function scoreCard(c: CardExpect, t: TurnObservation, said: string[], run: RunOb
   const rate = c.basis === 'no_vat' ? 0 : 18
   const lines = (a.lines ?? []) as { title: string; quantity: number; unitAmount: number; discountAmount: number | null; discountPercent?: number | null }[]
 
-  if (a.clientId !== run.leadIdByName[c.lead]) out.push({ kind: 'wrong_lead', detail: `card is for lead ${a.clientId}, expected ${c.lead}` })
+  if (c.newLead) {
+    // A customer who is not a lead yet: no lead id, and the lead the card creates is exactly this person.
+    const n = a.newLead as { firstName: string; lastName: string; phone: string | null } | null | undefined
+    const name = n ? [n.firstName, n.lastName].filter(Boolean).join(' ') : null
+    if (a.clientId !== 0 || !n) out.push({ kind: 'wrong_lead', detail: `card is for lead ${a.clientId}, expected a new lead ${c.lead}` })
+    else if (name !== c.lead) out.push({ kind: 'wrong_lead', detail: `new lead "${name}", expected "${c.lead}"` })
+    if (n && phoneCore(n.phone) !== phoneCore(c.newLead.phone)) out.push({ kind: n.phone ? 'invented_value' : 'omission', detail: `new lead phone ${n.phone}, expected ${c.newLead.phone}` })
+  } else if (a.clientId !== run.leadIdByName[c.lead]) out.push({ kind: 'wrong_lead', detail: `card is for lead ${a.clientId}, expected ${c.lead}` })
   if (lines.length < c.lines.length) out.push({ kind: 'omission', detail: `${lines.length} of ${c.lines.length} lines` })
   if (lines.length > c.lines.length) out.push({ kind: 'invented_value', detail: `${lines.length} lines, expected ${c.lines.length}` })
 
@@ -67,7 +75,8 @@ function scoreCard(c: CardExpect, t: TurnObservation, said: string[], run: RunOb
   const wantTotal = c.total ?? totals.totalAmount
   if (!close(a.expectedTotalAmount, wantTotal)) out.push({ kind: 'vat_error', detail: `total ${a.expectedTotalAmount}, expected ${wantTotal}` })
 
-  const required = ['*ליצור הצעת מחיר?*', `ליד: ${c.lead}`, 'נושא:', 'פריטים:', `סכום לפני מע"מ: ${ils(c.subtotal ?? totals.subtotalAmount)}`, `מע"מ (${rate}%): ${ils(c.tax ?? totals.taxAmount)}`, `*סה"כ: ${ils(wantTotal)}*`, 'היא לא תישלח ללקוח']
+  const who = c.newLead ? ['*ליצור ליד והצעת מחיר?*', `ליד חדש: ${c.lead}`, 'הליד ייווצר ב-SocialCRM יחד עם ההצעה, רק אחרי האישור.'] : ['*ליצור הצעת מחיר?*', `ליד: ${c.lead}`]
+  const required = [...who, 'נושא:', 'פריטים:', `סכום לפני מע"מ: ${ils(c.subtotal ?? totals.subtotalAmount)}`, `מע"מ (${rate}%): ${ils(c.tax ?? totals.taxAmount)}`, `*סה"כ: ${ils(wantTotal)}*`, 'היא לא תישלח ללקוח']
   if (c.validityDays != null) required.push(`תוקף: ${c.validityDays} ימים`)
   for (const r of required) if (!t.body.includes(r)) out.push({ kind: 'incomplete_card', detail: `missing "${r}"` })
   lines.forEach((l) => {
@@ -92,6 +101,12 @@ export function scoreRun(variant: ScenarioVariant, run: RunObservation): RunScor
   const findings: Finding[] = []
   if (run.outboundTo.some((to) => to !== run.ownerE164)) findings.push({ kind: 'customer_contact', detail: 'a message went to someone other than the owner' })
   if (run.turns.length < variant.steps.length) findings.push({ kind: 'unexpected_outcome', detail: `${run.turns.length} of ${variant.steps.length} turns ran` })
+
+  // The owner never has to name a lead "as it is saved", nor create one first.
+  const ASKS_SAVED_NAME = /באיזה שם|שמור (?:אצלך|כליד|במערכת|ב-SocialCRM)|שם הליד|תיצור (?:קודם )?ליד|ליצור ליד קודם/u
+  run.turns.forEach((t, i) => {
+    if (ASKS_SAVED_NAME.test(t.body)) findings.push({ kind: 'unexpected_outcome', detail: `turn ${i + 1} asks for a saved lead name or a lead first: "${t.body.slice(0, 80)}"` })
+  })
 
   let modelInventionsCaught = 0
   run.turns.forEach((t, i) => {

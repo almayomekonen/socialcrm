@@ -10,7 +10,9 @@ import type { AgentScope, EvidenceRef, ProposedAction } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from '../meetings/types'
 import { requestMessages } from '../request'
-import { chooseLead } from '../leadChoice'
+import { chooseLead, type LeadOption } from '../leadChoice'
+import { customerDraft, resolveNewCustomer, type NewCustomer } from './newCustomer'
+import { phoneCore } from '@/lib/leads/normalizeContact'
 import { discountRequested, freeContradicted, freeStated, lineGrounded, statedAmounts, statedBasis, statedPercents, validityStated } from './grounding'
 import { QUOTE_COPY, quoteButtons, quoteCard } from './copy'
 
@@ -21,7 +23,9 @@ import { QUOTE_COPY, quoteButtons, quoteCard } from './copy'
  * NOTHING IS CREATED HERE. In order:
  *   1. role: may this user draft quotes at all (`canDraftQuote`);
  *   2. the lead (leadChoice.ts): readable by THIS user; several matches → the
- *      owner chooses;
+ *      owner chooses. A customer the Agent did not find (`clientId` 0) goes to
+ *      ./newCustomer.ts: an existing lead by phone, email or name, or the offer
+ *      of a new lead the approved card creates; only its name is ever asked;
  *   3. every number grounded in the owner's own messages (./grounding.ts): a
  *      missing or unstated price, quantity or discount → a question;
  *   4. the VAT basis is read from the OWNER'S words, not the model's field;
@@ -59,11 +63,21 @@ export async function proposeQuote(input: {
   const said = await requestMessages('quote', job, input.question)
 
   // A lead already chosen in this request wins over the Agent's clientId, even an absent one.
-  const choice = await chooseLead({ scope, proposedId: Number(p.args.clientId), evidence: input.evidence, said, request: { job, kind: 'quote' }, requireProposed: true })
-  if ('missing' in choice) return clarify(QUOTE_COPY.askLead, 'lead')
-  if ('refused' in choice) return refuse('quote_lead_not_allowed', QUOTE_COPY.leadNotAllowed)
-  if ('ask' in choice) return clarify(choice.ask, 'lead')
-  const lead = choice.lead
+  const draft = customerDraft({ said, proposed: p.args.newCustomer, stored: null, askedName: false })
+  const choice = await chooseLead({ scope, proposedId: Number(p.args.clientId), evidence: input.evidence, said, request: { job, kind: 'quote' }, requireProposed: true, offersNewLead: true, newLeadDraft: draft })
+  let newLead: NewCustomer | null = null
+  let existing: LeadOption | null = 'lead' in choice ? choice.lead : null
+  if ('newLead' in choice || ('missing' in choice && p.args.newCustomer)) {
+    const stored = 'newLead' in choice ? choice.newLead : null
+    const r = await resolveNewCustomer({ scope, job, said, proposed: p.args.newCustomer, stored, askedName: !!stored && !stored.firstName })
+    if ('ask' in r) return clarify(r.ask, r.why)
+    if ('refused' in r) return refuse(`quote_new_customer_${r.refused}`, r.text)
+    if ('lead' in r) existing = r.lead
+    else newLead = r.create
+  } else if ('missing' in choice) return clarify(QUOTE_COPY.askLead, 'lead')
+  else if ('refused' in choice) return refuse('quote_lead_not_allowed', QUOTE_COPY.leadNotAllowed)
+  else if ('ask' in choice) return clarify(choice.ask, 'lead')
+  const lead = existing ? { name: existing.name } : { name: [newLead!.firstName, newLead!.lastName].filter(Boolean).join(' ') }
 
   const proposed = (p.args.lines ?? []).filter((l) => typeof l?.title === 'string' && l.title.trim())
   const title = validQuoteTitle(p.args.title) ? p.args.title.trim() : proposed[0]?.title.trim()
@@ -111,6 +125,7 @@ export async function proposeQuote(input: {
 
   const text = quoteCard({
     lead: lead.name,
+    newLead: newLead ? { phoneTail: phoneCore(newLead.phone)?.slice(-4) ?? null } : undefined,
     title,
     lines: priced.lines,
     discountPercents: lines.map((l) => l.discountPercent),
@@ -125,11 +140,14 @@ export async function proposeQuote(input: {
   // The send path cuts a button message at Meta's limit. A cut card could lose its total, and nobody approves what they cannot see.
   if (text.length > MAX_BUTTON_BODY_CHARS) return refuse('quote_card_too_long', QUOTE_COPY.tooLongForCard)
 
-  const evidenceRefs = p.evidenceRefs.includes(`lead:${lead.id}`) ? p.evidenceRefs : [...p.evidenceRefs, `lead:${lead.id}`]
+  const leadRef = existing ? `lead:${existing.id}` : null
+  const evidenceRefs = !leadRef || p.evidenceRefs.includes(leadRef) ? p.evidenceRefs.filter((r) => existing || !r.startsWith('lead:')) : [...p.evidenceRefs, leadRef]
   const final: QuoteProposal = {
     actionType: 'create_quote',
     args: {
-      clientId: lead.id,
+      // Exactly one of the two: a lead the application found, or the customer the approved card creates. Never the model's id.
+      clientId: existing ? existing.id : 0,
+      newLead,
       title,
       lines,
       priceBasis,

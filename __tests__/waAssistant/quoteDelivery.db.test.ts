@@ -979,7 +979,9 @@ describe('choosing the lead once', () => {
     expect(text).toContain('1. george, טלפון שמסתיים ב-6300')
     expect(text).toContain('2. George Gia Machaidze, בלי מספר טלפון, נוצר ב-05.10.2026')
     expect(text).toContain('3. George Gia Machaidze, בלי מספר טלפון, נוצר ב-09.10.2026')
-    expect(await storedChoices()).toEqual([{ options: g.all }])
+    // A quote's list also offers a new lead, keeping what the owner wrote about the customer for that answer.
+    expect(text).toContain('4. ליד חדש')
+    expect(await storedChoices()).toEqual([{ options: g.all, allowNew: true, draft: { firstName: 'george', lastName: null, phone: null, email: null } }])
   })
 
   it('"1" is the first lead shown, even when the Agent then reads and proposes another one', async () => {
@@ -1055,7 +1057,8 @@ describe('choosing the lead once', () => {
     await say(g.o, '7')
     await worker()
     expect(ownerText()).toBe(first)
-    expect(await storedChoices()).toEqual([{ options: g.all }, { options: g.all }])
+    const stored = { options: g.all, allowNew: true, draft: { firstName: 'george', lastName: null, phone: null, email: null } }
+    expect(await storedChoices()).toEqual([stored, stored])
   })
 
   it('a new request starts clean: an earlier choice is not carried into it', async () => {

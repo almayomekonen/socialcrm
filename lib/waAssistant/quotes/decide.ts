@@ -9,7 +9,8 @@ import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import type { MeetingReply } from '../meetings/types'
 import { QUOTE_COPY, quoteSuccessReply } from './copy'
 import { findQuoteByAutomationKeyQuery } from '@/db/quotes/quotes'
-import { quoteAutomationKey } from '@/lib/agent/actions/domain/createQuote'
+import { quoteAutomationKey, quoteLeadSource } from '@/lib/agent/actions/domain/createQuote'
+import { recordLeadChoice } from '../request'
 import { startQuotePdf } from './pdfJob'
 import { isWaAssistantQuotesSendAgency } from '@/lib/flags/waAssistantFlags'
 
@@ -60,26 +61,37 @@ export async function decideQuoteCard(input: {
       : reply('refused', `decision_${decided.reason}`, QUOTE_COPY.changed)
   }
   if (!approve) return reply('answered', 'quote_rejected', QUOTE_COPY.rejected)
-  return reportOutcome(decided.outcome, input.args, scope, input.deps)
+  return reportOutcome(decided.outcome, input.args, scope, job, input.deps)
 }
 
-async function reportOutcome(outcome: ActionOutcome, args: { clientId: number }, scope: AgentScope, deps?: QuoteDecideDeps): Promise<MeetingReply> {
+/** The lead the quote must be on: the approved id, or (a new customer) the one this action created, by its key in this agency. */
+async function approvedLeadId(outcome: ActionOutcome, args: { clientId: number }, agencyId: number): Promise<number | null> {
+  if (args.clientId > 0) return args.clientId
+  const row = (await db('clients').where({ agencyId, leadSource: quoteLeadSource(outcome.actionId) }).first('id')) as { id: number } | undefined
+  return row ? Number(row.id) : null
+}
+
+async function reportOutcome(outcome: ActionOutcome, args: { clientId: number }, scope: AgentScope, job: WaAssistantJob, deps?: QuoteDecideDeps): Promise<MeetingReply> {
   if (outcome.report === 'VERIFIED_SUCCESS' || outcome.report === 'DUPLICATE_NOOP') {
+    const leadId = await approvedLeadId(outcome, args, scope.agencyId)
+    if (leadId == null) return reply('failed', 'quote_unverified', QUOTE_COPY.unverified)
     const reported = outcome.verification?.targetIds?.find((t) => t.kind === 'quote')?.id ?? outcome.execution?.targetIds?.find((t) => t.kind === 'quote')?.id
     // A duplicate may carry no target: the action's own automationKey finds its quote.
     const byKey = reported ? null : ((await findQuoteByAutomationKeyQuery(scope.agencyId, quoteAutomationKey(outcome.actionId), db)) as { id: number } | undefined)
     const quoteId = Number(reported ?? byKey?.id)
-    const row = Number.isSafeInteger(quoteId)
+    const row = Number.isSafeInteger(quoteId) && leadId != null
       ? ((await db('sales_quotes as q')
           .join('clients as c', function () {
             this.on('c.id', '=', 'q.leadId').andOn('c.agencyId', '=', 'q.agencyId')
           })
-          .where({ 'q.id': quoteId, 'q.agencyId': scope.agencyId, 'q.leadId': args.clientId })
+          .where({ 'q.id': quoteId, 'q.agencyId': scope.agencyId, 'q.leadId': leadId })
           .first('q.quoteNumber', 'q.totalAmount', 'q.status', 'c.firstName', 'c.lastName')) as
           | { quoteNumber: number | null; totalAmount: string; status: string; firstName: string | null; lastName: string | null }
           | undefined)
       : undefined
     if (!row || row.status !== 'ready') return reply('failed', 'quote_unverified', QUOTE_COPY.unverified)
+    // The quote workflow now knows its lead by id, also when the approval just created it.
+    await recordLeadChoice(job.id, { leadId })
     const already = outcome.report === 'DUPLICATE_NOOP' || (outcome.execution?.detail as { created?: boolean } | undefined)?.created === false
     // Idempotent and never throws: the PDF runs after this reply, and a failure there cannot touch the quote.
     const pdf = await (deps?.startPdf ?? startQuotePdf)({ agencyId: scope.agencyId, quoteId, renderedByUserId: scope.userId })
@@ -101,6 +113,9 @@ async function reportOutcome(outcome: ActionOutcome, args: { clientId: number },
   if (outcome.report === 'EXECUTED_UNVERIFIED' || outcome.report === 'UNKNOWN_RECONCILE')
     return reply('failed', `quote_${outcome.report.toLowerCase()}`, QUOTE_COPY.unverified)
   if (outcome.execution?.status === 'NOT_AUTHORIZED') return reply('refused', 'quote_not_authorized', QUOTE_COPY.notAuthorized)
-  if (STALE_REASONS.has(outcome.execution?.reason ?? '')) return reply('refused', 'quote_stale_totals', QUOTE_COPY.staleTotals)
+  if (STALE_REASONS.has(outcome.execution?.reason ?? '')) return reply('refused', 'quote_stale_totals', args.clientId > 0 ? QUOTE_COPY.staleTotals : QUOTE_COPY.newLeadStaleTotals)
+  // A new customer's lead could not be made: nothing was written, and the owner hears why.
+  if (outcome.execution?.reason === 'lead-quota-exceeded') return reply('refused', 'quote_new_lead_quota', QUOTE_COPY.newLeadQuota)
+  if (outcome.execution?.reason === 'lead-contact-taken') return reply('refused', 'quote_new_lead_taken', QUOTE_COPY.newLeadTaken)
   return reply('failed', `quote_${outcome.report.toLowerCase()}`, QUOTE_COPY.failed)
 }

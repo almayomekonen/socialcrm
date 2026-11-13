@@ -59,6 +59,13 @@ export type CreateQuoteSystemInput = {
   visibility?: QuoteScope
   metadata?: Record<string, unknown>
   nowMs?: number
+  /**
+   * Join the caller's transaction (its own becomes a savepoint inside it), so
+   * the quote commits or rolls back together with the caller's other writes:
+   * `create_quote` creating a new customer's lead and its quote as one unit.
+   * Absent: a transaction of its own, exactly as before.
+   */
+  executor?: Knex.Transaction
 }
 
 export type CreateQuoteSystemFailure =
@@ -116,13 +123,14 @@ export async function createQuoteSystem(input: CreateQuoteSystemInput): Promise<
   const automationKey = input.automationKey?.trim() || null
   const nowMs = input.nowMs ?? Date.now()
 
+  const base = input.executor ?? db
   // Fast path: a retry finds its quote without opening a transaction.
   if (automationKey) {
-    const existing = await readExisting(agencyId, automationKey, db)
+    const existing = await readExisting(agencyId, automationKey, base)
     if (existing) return { ok: true, ...existing }
   }
 
-  return db.transaction(async (trx): Promise<CreateQuoteSystemResult> => {
+  return base.transaction(async (trx): Promise<CreateQuoteSystemResult> => {
     if (input.visibility && !(await leadVisible(trx, agencyId, leadId, input.visibility))) {
       return { ok: false, reason: 'lead_not_found' }
     }

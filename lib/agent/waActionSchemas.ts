@@ -23,7 +23,23 @@ export const updateLeadStatusProposal = z.object({
 export const createQuoteProposal = z.object({
   actionType: z.literal('create_quote'),
   args: z.object({
+    /** The lead find_lead returned, or 0 when the customer is not a lead yet (then `newCustomer`). */
     clientId: z.number(),
+    /**
+     * Only when find_lead found no such lead: the customer as the owner wrote
+     * them, each field null when not said. The application checks every field
+     * against the owner's words, searches for an existing lead itself, and asks
+     * before creating one; the model never supplies a lead id for it.
+     */
+    newCustomer: z.union([
+      z.object({
+        firstName: z.union([z.string(), z.null()]),
+        lastName: z.union([z.string(), z.null()]),
+        phone: z.union([z.string(), z.null()]),
+        email: z.union([z.string(), z.null()]),
+      }),
+      z.null(),
+    ]),
     /** What the quote is for, in the owner's words ("שיפוץ מטבח"). */
     title: z.string(),
     lines: z.array(
