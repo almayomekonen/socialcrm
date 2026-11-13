@@ -58,12 +58,18 @@ export class VoiceTranscriptionUnavailableError extends Error {
 
 export async function transcribeVoice(input: {
   audio: Uint8Array
-  container: VoiceContainer
+  /** The composer's container. Required unless `use` names the media type. */
+  container?: VoiceContainer
   abortSignal?: AbortSignal
   /** Usage-ledger attribution. Identifiers only. */
-  ledger?: { agencyId: number; userId: number }
+  ledger?: { agencyId: number; userId: number | null }
   /** The duration the container's metadata declares, when it has one. Unverified. */
   metadataDurationMs?: number | null
+  /**
+   * For a caller other than the /agent composer (the WhatsApp agent reading a
+   * customer's voice note). Absent: exactly the composer's behaviour.
+   */
+  use?: { mediaType: string; prompt: string; feature: string; maxDurationMs: number }
 }): Promise<{ text: string }> {
   const openai = getOpenAIProvider()
   if (!openai) throw new VoiceTranscriptionUnavailableError()
@@ -73,10 +79,12 @@ export async function transcribeVoice(input: {
   // One id for the ledger row and the reservation, so an unsettled reservation
   // can be recovered from the row (and the two reconciled) without guessing.
   const callId = newCallId()
+  const feature = input.use?.feature ?? 'voice.transcribe'
+  const maxDurationMs = input.use?.maxDurationMs ?? VOICE_MAX_RECORDING_MS
   const base = {
     callId,
     invocationId: newInvocationId(),
-    feature: 'voice.transcribe',
+    feature,
     provider: 'openai',
     requestedModel: VOICE_TRANSCRIPTION_MODEL,
     agencyId: input.ledger?.agencyId ?? null,
@@ -88,19 +96,20 @@ export async function transcribeVoice(input: {
   const shadow = startShadow({
     callId,
     agencyId: input.ledger?.agencyId ?? null,
-    feature: 'voice.transcribe',
+    feature,
     provider: 'openai',
     model: VOICE_TRANSCRIPTION_MODEL,
     invocationId: base.invocationId,
+    // Inside a worker's operation (the WhatsApp agent's auto_response_job) that operation is the run.
     run: { kind: 'voice.transcribe', id: base.invocationId },
-    estimate: () => estimateTranscription(VOICE_MAX_RECORDING_MS, input.metadataDurationMs ?? null),
+    estimate: () => estimateTranscription(maxDurationMs, input.metadataDurationMs ?? null),
   })
   let result: Awaited<ReturnType<typeof model.doGenerate>>
   try {
     result = await model.doGenerate({
       audio: input.audio,
-      mediaType: VOICE_CONTAINER_MEDIA_TYPE[input.container],
-      providerOptions: { openai: { prompt: TRANSCRIPTION_PROMPT } },
+      mediaType: input.use?.mediaType ?? VOICE_CONTAINER_MEDIA_TYPE[input.container ?? 'webm'],
+      providerOptions: { openai: { prompt: input.use?.prompt ?? TRANSCRIPTION_PROMPT } },
       abortSignal: input.abortSignal,
     })
   } catch (err) {

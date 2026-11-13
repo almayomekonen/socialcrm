@@ -18,7 +18,7 @@ import { shouldInvokeSalesAi } from '../gptEligibility'
 import { detectHumanRequest } from '../salesIntent'
 import { decideConversationControl, isConfirmedHandoffOffer } from '../conversationControl'
 import { humanTypingBlocksTurn } from '../humanPresence'
-import { decideDeterministicTurn } from '../reliability/silence'
+import { decideDeterministicTurn, mediaOnlyKind } from '../reliability/silence'
 import { meetingOnlyHandoff, socialTurn } from '../conversational/turnRules'
 import type { AutoResponseJob } from '@/db/autoResponseJobs'
 import type { QualifyCtx, TurnFacts } from './types'
@@ -87,7 +87,10 @@ export async function planQualifyTurn(input: {
   // Runs after every stop above (ownership, typing, opt-out, window, quiet
   // hours, cap, closed) and before any AI decision, so it can only answer where
   // the agent was already allowed to speak.
-  if (reliability) {
+  // A voice note the agent TRIED and failed to understand gets the honest "send it
+  // again or write it" line for every agency, not only under reliability: it is
+  // never answered from a guess, and it is never met with silence.
+  if (reliability || mediaOnlyKind(unanswered) === 'voice_unclear') {
     const firstContact = !agentHasSpoken && aiState.aiState === 'new'
     const deterministic = decideDeterministicTurn({
       pending: unanswered,
