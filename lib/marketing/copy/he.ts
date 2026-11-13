@@ -18,6 +18,9 @@ export const HE: HomeCopy = {
         { label: 'כל הלידים במקום אחד', href: '/#features-carousel', description: 'פייסבוק, אינסטגרם ווואטסאפ נכנסים לרשימה אחת' },
         { label: 'שיחות שמחוברות לליד', href: '/#features-grid', description: 'עונים מהמערכת ורואים מתי ההודעה נמסרה ונקראה' },
         { label: 'AI שמכיר כל ליד', href: '/#features-showcase', description: 'תקציר, נקודות מפתח והצעד הבא' },
+        { label: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business', description: 'כל שיחה בוואטסאפ הופכת לליד עם סטטוס ונציג' },
+        { label: 'לידים מאינסטגרם', href: '/instagram-leads-crm', description: 'לידים ממודעות אינסטגרם נכנסים אוטומטית' },
+        { label: 'CRM מול אקסל', href: '/crm-vs-excel', description: 'מתי אקסל מספיק ומתי כדאי לעבור למערכת' },
       ],
     },
     links: [
@@ -40,6 +43,11 @@ export const HE: HomeCopy = {
     websiteLabel: 'טפסים באתר',
     websiteUrl: '/',
     websiteDir: 'rtl',
+    channelLinks: [
+      { label: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business' },
+      { label: 'לידים מאינסטגרם ל-CRM', href: '/instagram-leads-crm' },
+      { label: 'כל הערוצים במקום אחד', href: '/channels' },
+    ],
   },
   featuresCarousel: {
     dir: 'rtl',

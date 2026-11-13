@@ -54,7 +54,7 @@ export default function WhyWeBegan() {
 
             <div className="relative aspect-square size-full overflow-hidden rounded-xl">
               <Image
-                src="/media/social-icons/hero.png"
+                src="/media/hero-leads-demo.png"
                 alt="רשימת הלידים במערכת SocialCRM"
                 fill
                 className="rounded-xl object-cover"

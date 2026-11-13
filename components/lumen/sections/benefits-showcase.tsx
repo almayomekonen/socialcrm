@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 
 import Noise from '@/components/lumen/noise';
 import {
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/lumen/ui/card';
+import { Button } from '@/components/lumen/ui/button';
 
 const COLUMNS_DATA = [
   {
@@ -29,6 +31,7 @@ const COLUMNS_DATA = [
     cardContent:
       'עונים מתוך המערכת ורואים מתי ההודעה נמסרה ומתי נקראה. כל הודעה נשמרת על הליד, גם כשנציג מתחלף, ולפנייה חוזרת שולחים תבנית מאושרת.',
     cardPosition: 'inside' as const,
+    link: { href: '/crm-for-whatsapp-business', label: 'איך עובד ה-CRM לוואטסאפ' },
   },
   {
     image: '/images/benefits-showcase/3.webp',
@@ -38,6 +41,7 @@ const COLUMNS_DATA = [
     cardContent:
       'טפסי לידים ממודעות אינסטגרם נכנסים דרך אותו חיבור ל-Meta. הודעות ישירות באינסטגרם לא נאספות אוטומטית, ואת הליד מוסיפים ידנית.',
     cardPosition: 'top' as const,
+    link: { href: '/instagram-leads-crm', label: 'איך לידים מאינסטגרם נכנסים ל-CRM' },
   },
 ];
 
@@ -76,6 +80,17 @@ interface ColumnProps {
   cardPosition: 'top' | 'inside' | 'bottom';
   name?: string;
   title?: string;
+  /** The channel's own landing page, linked with descriptive anchor text. */
+  link?: { href: string; label: string };
+}
+
+function ChannelLink({ link }: { link?: ColumnProps['link'] }) {
+  if (!link) return null;
+  return (
+    <Button variant="link" className="h-auto p-0 text-base font-semibold" asChild>
+      <Link href={link.href}>{link.label}</Link>
+    </Button>
+  );
 }
 
 function TopBottomCardColumn({
@@ -85,6 +100,7 @@ function TopBottomCardColumn({
   cardSubtitle,
   cardContent,
   cardPosition,
+  link,
 }: ColumnProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -106,6 +122,11 @@ function TopBottomCardColumn({
         <CardContent>
           <CardDescription className="">{cardContent}</CardDescription>
         </CardContent>
+        {link && (
+          <CardFooter>
+            <ChannelLink link={link} />
+          </CardFooter>
+        )}
       </Card>
       {cardPosition === 'top' && (
         <div className="relative aspect-[389/384] w-full">
@@ -128,6 +149,7 @@ function InsideCardColumn({
   name,
   title,
   cardContent,
+  link,
 }: ColumnProps) {
   return (
     <div className="flex h-full flex-col">
@@ -154,6 +176,11 @@ function InsideCardColumn({
             <span className="font-semibold">{name}</span>{' '}
             <span className="text-sm">{title}</span>
           </CardFooter>
+          {link && (
+            <CardFooter>
+              <ChannelLink link={link} />
+            </CardFooter>
+          )}
         </Card>
       </div>
     </div>
