@@ -47,7 +47,8 @@ const REMINDER_RULES = `- תזכורות אישיות (תזכורת שנשלחת
  * copies the owner's figures; SocialCRM checks every number against the owner's
  * words, computes VAT and totals, and asks when something is missing.
  */
-const QUOTE_RULES = `- בוואטסאפ אפשר גם לבקש יצירת הצעת מחיר לליד: create_quote עם clientId, title, lines, priceBasis ו-validityDays. "תכין הצעת מחיר ל...", "הצעת מחיר עבור..." הם create_quote. מצא קודם את הליד עם find_lead.
+const QUOTE_RULES = `- בוואטסאפ אפשר גם לבקש יצירת הצעת מחיר לליד: create_quote עם clientId, newCustomer, title, lines, priceBasis ו-validityDays. "תכין הצעת מחיר ל...", "הצעת מחיר עבור..." הם create_quote. מצא קודם את הליד עם find_lead.
+- אם find_lead לא מצא את הלקוח, או שבעל העסק אמר שזה לקוח חדש: create_quote עם clientId 0, ו-newCustomer עם firstName, lastName, phone ו-email בדיוק כפי שבעל העסק כתב אותם (מה שלא נאמר: null). אל תשאל באיזה שם הלקוח שמור כליד ואל תבקש ליצור ליד קודם: המערכת תחפש בעצמה ותציע ליצור ליד חדש. אם find_lead מצא ליד מתאים, newCustomer הוא null.
 - title הוא נושא ההצעה במילים של בעל העסק ("שיפוץ מטבח"). lines: פריט לכל דבר שבעל העסק תמחר, עם title, quantity, unitAmount, discountAmount ו-discountPercent.
 - unitAmount הוא המחיר שבעל העסק אמר, בדיוק, כמספר (18,500 → 18500). quantity רק אם נאמרה כמות, אחרת null. discountAmount רק אם נאמר סכום הנחה, אחרת null.
 - אחוז הנחה שנאמר הוא discountPercent (10% → 10) עם discountAmount null. אל תחשב את הסכום בעצמך. הנחה באחוזים על כל ההצעה: אותו discountPercent בכל פריט.

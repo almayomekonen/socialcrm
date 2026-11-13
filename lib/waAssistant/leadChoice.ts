@@ -5,7 +5,7 @@ import { BUSINESS_TZ } from '@/lib/today/constants'
 import type { AgentScope, EvidenceRef } from '@/lib/agent/types'
 import type { WaAssistantJob } from '@/db/waAssistantJobs'
 import { redactContactDetails } from './render'
-import { pendingRequestKind, recordLeadChoice, requestLeadState, type RequestKind } from './request'
+import { pendingRequestKind, recordLeadChoice, requestLeadState, type NewCustomerDraft, type RequestKind, type RequestLeadState, type StoredLeadChoice } from './request'
 
 /**
  * WHICH LEAD a meeting, task or follow-up is for — never guessed.
@@ -28,8 +28,13 @@ import { pendingRequestKind, recordLeadChoice, requestLeadState, type RequestKin
  */
 
 export type LeadOption = { id: number; name: string; first: string; phoneTail: string | null; created: string | null }
-/** `missing`: no lead stored for this request and none proposed (only with `requireProposed`). */
-export type LeadChoice = { lead: LeadOption } | { ask: string } | { refused: true } | { missing: true }
+/**
+ * `missing`: no lead stored for this request and none proposed (only with `requireProposed`).
+ * `newLead`: the owner said this request is for a customer who is not a lead yet
+ * (only after a list that offered it, which only quotes show: ./quotes/newCustomer.ts).
+ */
+export type LeadChoice = { lead: LeadOption } | { ask: string } | { refused: true } | { missing: true } | { newLead: NewCustomerDraft }
+const EMPTY_DRAFT: NewCustomerDraft = { firstName: null, lastName: null, phone: null, email: null }
 
 const MAX_LISTED = 5
 const ORDINALS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי']
@@ -37,7 +42,8 @@ const norm = (s: string) => s.toLocaleLowerCase().replace(/\s+/g, ' ').trim()
 const hasWord = (text: string, w: string) =>
   !!w && new RegExp(`(?:^|[^\\p{L}])[ולבשמה]?${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'u').test(text)
 
-async function readable(scope: AgentScope, ids: number[]): Promise<LeadOption[]> {
+/** The leads of these ids THIS user may act on (agency + rep visibility), as options. */
+export async function readable(scope: AgentScope, ids: number[]): Promise<LeadOption[]> {
   if (!ids.length) return []
   const q = db('clients').where({ agencyId: scope.agencyId }).whereIn('id', ids).orderBy('id')
   if (!isAdmin(scope.role)) q.whereIn('userId', scope.gotPermIds ?? [])
@@ -82,7 +88,16 @@ function selected(options: readonly (LeadOption | null)[], reply: string): LeadO
   return options[i] ?? null
 }
 
-export function whichLeadQuestion(options: readonly LeadOption[]): string {
+/** "ליד חדש", "חדש", "לקוח חדש", "אף אחד", or the number after the last listed lead. */
+const NEW_ANSWER = /^(?:זה\s+)?(?:[ול]?ליד\s+חדש|לקוח(?:ה)?\s+חדש(?:ה)?|חדש(?:ה)?|אף\s+אחד(?:\s+מהם)?|אף\s+אחת(?:\s+מהם)?|אחר(?:ת)?)[\s.!]*$/u
+export function picksNewLead(answer: string, listed: number): boolean {
+  const text = norm(answer)
+  if (NEW_ANSWER.test(text)) return true
+  const m = /^(?:מספר\s+)?(\d)[\s.!]*$/u.exec(text)
+  return !!m && Number(m[1]) === Math.min(listed, MAX_LISTED) + 1
+}
+
+export function whichLeadQuestion(options: readonly LeadOption[], allowNew = false): string {
   const shown = options.slice(0, MAX_LISTED)
   const same = shown.every((o) => norm(o.name) === norm(shown[0].name))
   const label = (o: LeadOption) => redactContactDetails(o.name).trim() || 'ליד'
@@ -92,6 +107,7 @@ export function whichLeadQuestion(options: readonly LeadOption[]): string {
   const lines = shown.map(
     (o, i) => `${i + 1}. ${label(o)}${o.phoneTail ? `, טלפון שמסתיים ב-${o.phoneTail}` : alike(o) ? ', בלי מספר טלפון' : ''}${alike(o) && o.created ? `, נוצר ב-${o.created}` : ''}`,
   )
+  if (allowNew) return [head, ...lines, `${shown.length + 1}. ליד חדש`, 'איזה מהם? אם זה לקוח אחר, כתבו "ליד חדש".'].join('\n')
   return [head, ...lines, 'איזה מהם?'].join('\n')
 }
 
@@ -105,38 +121,59 @@ type ChooseLeadInput = {
   request?: { job: WaAssistantJob; kind: RequestKind }
   /** The caller asks "which lead?" itself when nothing is stored and the Agent named none. */
   requireProposed?: boolean
+  /**
+   * Quotes only: the caller handles a customer who is not a lead yet
+   * (./quotes/newCustomer.ts). Every list then ends in "a new lead", and carries
+   * what the owner wrote about the customer (`newLeadDraft`) for that answer.
+   */
+  offersNewLead?: boolean
+  newLeadDraft?: NewCustomerDraft
 }
 
 /** What the request already settled: a stored pick, a reply to the stored list, or that list again. Null when nothing is stored. */
-async function fromStored(scope: AgentScope, state: Awaited<ReturnType<typeof requestLeadState>>): Promise<{ choice: LeadChoice; shown?: LeadOption[] } | null> {
+async function fromStored(scope: AgentScope, state: RequestLeadState): Promise<{ choice: LeadChoice; shown?: LeadOption[]; offer?: { allowNew: boolean; draft: NewCustomerDraft | null } } | null> {
   if (state.leadId) {
     const [lead] = await readable(scope, [state.leadId])
     return { choice: lead ? { lead } : { refused: true } }
   }
+  if (state.newLead) return { choice: { newLead: state.newLead } }
   if (!state.offered) return null
   const shown = await shownList(scope, state.offered)
   for (const answer of state.answers) {
+    if (state.allowNew && picksNewLead(answer, shown.length)) return { choice: { newLead: state.draft ?? EMPTY_DRAFT } }
     const pick = selected(shown, answer)
     if (pick) return { choice: { lead: pick } }
   }
   const still = shown.filter((o): o is LeadOption => o !== null)
   // Not answered yet: the same list again, never a new one.
-  return still.length ? { choice: { ask: whichLeadQuestion(still) }, shown: still } : { choice: { refused: true } }
+  if (!still.length) return state.allowNew ? { choice: { newLead: state.draft ?? EMPTY_DRAFT } } : { choice: { refused: true } }
+  return { choice: { ask: whichLeadQuestion(still, state.allowNew) }, shown: still, offer: { allowNew: state.allowNew, draft: state.draft } }
 }
 
-export async function chooseLead(input: ChooseLeadInput & { requireProposed: true }): Promise<LeadChoice>
-export async function chooseLead(input: ChooseLeadInput & { requireProposed?: false }): Promise<Exclude<LeadChoice, { missing: true }>>
+/** The list as stored on the message that shows it: ids in order, and, for a new-lead offer, what the owner wrote about the customer. */
+export function offeredChoice(shown: readonly LeadOption[], offer?: { allowNew: boolean; draft: NewCustomerDraft | null }): StoredLeadChoice {
+  const options = shown.slice(0, MAX_LISTED).map((o) => o.id)
+  return offer?.allowNew ? { options, allowNew: true, ...(offer.draft ? { draft: offer.draft } : {}) } : { options }
+}
+
+type NoNewLead = { newLead: NewCustomerDraft }
+export async function chooseLead(input: ChooseLeadInput & { requireProposed: true; offersNewLead: true }): Promise<LeadChoice>
+export async function chooseLead(input: ChooseLeadInput & { requireProposed: true; offersNewLead?: false }): Promise<Exclude<LeadChoice, NoNewLead>>
+export async function chooseLead(input: ChooseLeadInput & { requireProposed?: false; offersNewLead?: false }): Promise<Exclude<LeadChoice, { missing: true } | NoNewLead>>
 export async function chooseLead(input: ChooseLeadInput): Promise<LeadChoice> {
   const { scope, request } = input
-  const keep = async (choice: LeadChoice, shown?: readonly LeadOption[]): Promise<LeadChoice> => {
+  const keep = async (choice: LeadChoice, shown?: readonly LeadOption[], offer?: { allowNew: boolean; draft: NewCustomerDraft | null }): Promise<LeadChoice> => {
     if (!request) return choice
     if ('lead' in choice) await recordLeadChoice(request.job.id, { leadId: choice.lead.id })
-    else if ('ask' in choice && shown) await recordLeadChoice(request.job.id, { options: shown.slice(0, MAX_LISTED).map((o) => o.id) })
+    // The caller records the new customer itself, once it has read the details (./quotes/newCustomer.ts).
+    else if ('ask' in choice && shown) await recordLeadChoice(request.job.id, offeredChoice(shown, offer))
     return choice
   }
 
   const stored = request ? await fromStored(scope, await requestLeadState(request.kind, request.job, input.said[0] ?? '')) : null
-  if (stored) return keep(stored.choice, stored.shown)
+  // Only a quote request ever stores a new customer; anything else reading one is refused, never handed it.
+  if (stored && 'newLead' in stored.choice && !input.offersNewLead) return { refused: true }
+  if (stored) return keep(stored.choice, stored.shown, stored.offer)
 
   if (input.requireProposed && !(Number.isSafeInteger(input.proposedId) && input.proposedId > 0)) return { missing: true }
   const seen = input.evidence.filter((e) => e.kind === 'lead').map((e) => Number(e.refId))
@@ -157,6 +194,13 @@ export async function chooseLead(input: ChooseLeadInput): Promise<LeadChoice> {
     const pick = selected(pool, input.said[0])
     if (pick) return { lead: pick }
   }
+  if (input.offersNewLead) {
+    // The name the owner used for these leads, when they all share it: "a new lead" then needs no question about the name.
+    const first = pool.every((o) => norm(o.first) === norm(pool[0].first)) && hasWord(said, norm(pool[0].first)) ? pool[0].first : null
+    const draft: NewCustomerDraft = { ...(input.newLeadDraft ?? EMPTY_DRAFT) }
+    if (!draft.firstName && first) draft.firstName = first
+    return keep({ ask: whichLeadQuestion(pool, true) }, pool, { allowNew: true, draft })
+  }
   return keep({ ask: whichLeadQuestion(pool) }, pool)
 }
 
@@ -167,15 +211,19 @@ export async function chooseLead(input: ChooseLeadInput): Promise<LeadChoice> {
  * the Agent neither searches again nor picks another lead. Null when nothing is
  * stored or the reply picks nothing.
  */
-export async function requestLead(job: WaAssistantJob, scope: AgentScope): Promise<{ kind: RequestKind; leadId: number } | null> {
+export async function requestLead(job: WaAssistantJob, scope: AgentScope): Promise<{ kind: RequestKind; leadId: number } | { kind: RequestKind; newCustomer: true } | null> {
   const text = job.question?.trim() ?? ''
   if (job.kind !== 'text' || !text) return null
   const kind = await pendingRequestKind(job)
   if (!kind) return null
   const stored = await fromStored(scope, await requestLeadState(kind, job, text))
-  return stored && 'lead' in stored.choice ? { kind, leadId: stored.choice.lead.id } : null
+  if (stored && 'lead' in stored.choice) return { kind, leadId: stored.choice.lead.id }
+  return stored && 'newLead' in stored.choice ? { kind, newCustomer: true } : null
 }
 
 /** The rule the Agent reads when the lead is already chosen. Ids only, no lead content. */
 export const chosenLeadRule = (leadId: number) =>
   `- בבקשה הזו בעל העסק כבר בחר ליד: clientId ${leadId}. השתמש בו כ-clientId בפעולה, אל תחפש ליד אחר ואל תשאל שוב איזה ליד.`
+
+/** The rule the Agent reads when this quote is for a customer who is not a lead yet. No customer content. */
+export const newCustomerRule = `- בבקשה הזו הלקוח עוד לא ליד ב-SocialCRM, ובעל העסק כבר אישר שזה לקוח חדש. אל תחפש ליד ואל תשאל איזה ליד או באיזה שם הוא שמור: create_quote עם clientId 0, ו-newCustomer עם השם, הטלפון והאימייל שבעל העסק כתב בבקשה הזו (מה שלא נאמר: null).`

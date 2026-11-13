@@ -18,7 +18,14 @@ export const APPROVE_QUOTE_TITLE = 'לאשר וליצור'
 const name = (s: string) => redactContactDetails(s).trim() || 'ליד'
 
 export const QUOTE_COPY = {
-  askLead: 'לאיזה ליד להכין את הצעת המחיר?',
+  askLead: 'לאיזה לקוח להכין את הצעת המחיר? אפשר לכתוב שם וטלפון, גם אם הוא עוד לא ליד ב-SocialCRM.',
+  askNewCustomerName: 'מה שם הלקוח? הוא עוד לא ליד ב-SocialCRM, ואצור אותו כליד חדש יחד עם ההצעה.',
+  askNewCustomerNameKnownContact: 'מה שם הלקוח? לא מצאתי ליד עם הפרטים האלה, ואצור אותו כליד חדש יחד עם ההצעה.',
+  contactNotVisible: 'כבר קיים ב-SocialCRM ליד עם הטלפון או האימייל האלה, אבל הוא לא בין הלידים שלך, ולכן לא יצרתי הצעת מחיר ולא ליד חדש.',
+  newLeadNotAllowed: 'אין לך הרשאה ליצור לידים משלך, ולכן לא יצרתי הצעת מחיר. אפשר לבקש ממנהל המערכת ליצור את הליד.',
+  newLeadQuota: 'הגעתם למכסת הלידים בחבילה, ולכן לא אוכל ליצור ליד חדש להצעה. אפשר לשדרג את המנוי ב-SocialCRM.',
+  newLeadStaleTotals: 'המע"מ של העסק השתנה מאז שהכרטיס הוכן, ולכן לא יצרתי את הליד ואת ההצעה בסכום אחר מזה שאישרת. אפשר לבקש שוב.',
+  newLeadTaken: 'בינתיים נוצר ב-SocialCRM ליד עם הטלפון או האימייל האלה, ולכן לא יצרתי ליד נוסף ולא הצעת מחיר. אפשר לבקש שוב, ואמצא את הליד הקיים.',
   askItems: 'על מה הצעת המחיר, ובאיזה מחיר?',
   askPrice: 'מה המחיר? כתבו את הסכום במספרים, למשל 18,500.',
   askFree: 'הסכום שנרשם הוא ₪0. זו הצעה בחינם? אם כן, כתבו "בחינם". אם לא, כתבו את המחיר.',
@@ -48,6 +55,8 @@ const BASIS_LABEL = { incl_vat: 'המחירים שנמסרו כוללים מע"�
 
 export function quoteCard(input: {
   lead: string
+  /** A customer who is not a lead yet: the card says the approval creates the lead too. */
+  newLead?: { phoneTail: string | null }
   title: string
   lines: readonly PricedOwnerLine[]
   /** The percent the owner stated for each line, or null. */
@@ -66,7 +75,10 @@ export function quoteCard(input: {
   closing?: readonly string[]
 }): string {
   const { totals } = input
-  const out = [input.heading ?? '*ליצור הצעת מחיר?*', `ליד: ${name(input.lead)}`, `נושא: ${name(input.title)}`, 'פריטים:']
+  const who = input.newLead
+    ? [`ליד חדש: ${name(input.lead)}${input.newLead.phoneTail ? `, טלפון שמסתיים ב-${input.newLead.phoneTail}` : ''}`, 'הליד ייווצר ב-SocialCRM יחד עם ההצעה, רק אחרי האישור.']
+    : [`ליד: ${name(input.lead)}`]
+  const out = [input.heading ?? (input.newLead ? '*ליצור ליד והצעת מחיר?*' : '*ליצור הצעת מחיר?*'), ...who, `נושא: ${name(input.title)}`, 'פריטים:']
   input.lines.forEach((l, i) => {
     const percent = input.discountPercents?.[i]
     const discount = l.discount > 0 ? `, הנחה ${percent != null ? `${formatQty(percent)}% (${ils(l.discount)})` : ils(l.discount)}` : ''

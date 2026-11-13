@@ -9,6 +9,7 @@
 // requireUser + field whitelist + quota) unless you are operating from a
 // signed, server-verified context.
 
+import type { Knex } from 'knex'
 import { db } from '@/config/db'
 import type { ClientCreateOrigin } from '@/lib/leads/createOrigin'
 import { describeDbError, type DbErrorInfo } from '@/lib/system/dbErrorInfo'
@@ -50,6 +51,12 @@ export type SystemLeadInput = {
  */
 export type InsertLeadSystemOptions = {
   onError?: (info: DbErrorInfo) => void
+  /**
+   * Run the insert inside the caller's transaction (e.g. the agency quota lock).
+   * Absent: the shared pool, exactly as before. A failed insert inside a
+   * transaction aborts it, so a caller passing one returns right after a null.
+   */
+  executor?: Knex | Knex.Transaction
 }
 
 export async function insertLeadSystem(
@@ -74,7 +81,7 @@ export async function insertLeadSystem(
   }
 
   try {
-    const [lead] = await db('clients').insert(row).returning('*')
+    const [lead] = await (options?.executor ?? db)('clients').insert(row).returning('*')
     return lead ?? null
   } catch (err) {
     // Structured first, so the caller can persist a real diagnosis; the raw

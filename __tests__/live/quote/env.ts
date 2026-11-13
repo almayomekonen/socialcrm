@@ -53,6 +53,8 @@ Object.assign(process.env, {
   AI_DAILY_USD_CAP: '100',
   WA_ASSISTANT_AGENCY_IDS: ids,
   WA_ASSISTANT_QUOTES_AGENCY_IDS: ids,
+  // Quotes V2 (review, PDF preview, send card) is on for every agency in Production.
+  WA_ASSISTANT_QUOTES_SEND_AGENCY_IDS: ids,
   WA_ASSISTANT_DAILY_USD_CAP: '100',
   OWNER_WA_REMINDERS_AGENCY_IDS: ids,
   PLATFORM_WHATSAPP_PHONE_NUMBER_ID: '1000000000001',

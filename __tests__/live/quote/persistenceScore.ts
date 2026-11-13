@@ -44,7 +44,10 @@ export type PersistedItem = {
   lineTotal: number
 }
 export type PersistedAction = { actionId: string; actionType: string; executionStatus: string | null; verificationState: string | null; targetIds: { kind: string; id: string }[] | null }
+export type PersistedLead = { id: number; agencyId: number; firstName: string; lastName: string; phone: string | null; leadSource: string | null; createOrigin: string | null }
 export type PersistedState = {
+  /** Every lead of the run's agencies, seeded ones included. */
+  leads?: PersistedLead[]
   quotes: PersistedQuote[]
   items: PersistedItem[]
   orphanItems: number
@@ -52,7 +55,13 @@ export type PersistedState = {
   actions: PersistedAction[]
 }
 
-export const EMPTY_PERSISTED: PersistedState = { quotes: [], items: [], orphanItems: 0, numbering: [], actions: [] }
+export const EMPTY_PERSISTED: PersistedState = { leads: [], quotes: [], items: [], orphanItems: 0, numbering: [], actions: [] }
+
+/** Leads the run made, beyond the ones the scenario seeded. */
+const newLeads = (run: RunObservation) => {
+  const seeded = new Set(Object.values(run.leadIdByName))
+  return (run.persisted.leads ?? []).filter((l) => !seeded.has(l.id))
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -146,6 +155,7 @@ export function scorePersistence(variant: ScenarioVariant, run: RunObservation):
   check(p.orphanItems === 0, 'orphan_items', `${p.orphanItems} quote items whose quote does not exist`)
   if (!run.approved) {
     scoreNoCard(run, check)
+    check(newLeads(run).length === 0, 'persistence_unexpected', `${newLeads(run).length} leads created with no approved card`)
     return out
   }
 
@@ -186,8 +196,17 @@ export function scorePersistence(variant: ScenarioVariant, run: RunObservation):
   check(row?.actionId === action?.actionId && row?.actionType === 'create_quote', 'wrong_action', `action ${row?.actionType} ${row?.actionId} is not the card's`)
   check(row?.executionStatus === 'SUCCESS' && row?.verificationState === 'VERIFIED', 'wrong_action', `action ${row?.executionStatus} / ${row?.verificationState}`)
   check(Boolean(row?.targetIds?.some((t) => t.kind === 'quote' && Number(t.id) === q.id)), 'wrong_action', 'the action does not point at this quote')
+  // A new customer: exactly one lead was made, by this action, and the quote is on it. Otherwise none was made.
+  const made = newLeads(run)
+  if (a?.newLead) {
+    check(made.length === 1, 'persistence_unexpected', `${made.length} leads created for one new customer`)
+    const lead = made[0]
+    check(lead?.leadSource === `wa_quote_lead:${action?.actionId}` && lead?.createOrigin === 'manual' && lead?.agencyId === run.agencyId, 'wrong_lead', 'the new lead was not made by this action in this agency')
+    check(lead != null && q.leadId === lead.id, 'wrong_lead', `quote on lead ${q.leadId}, the new lead is ${lead?.id}`)
+    check(Boolean(lead && row?.targetIds?.some((t) => t.kind === 'lead' && Number(t.id) === lead.id)), 'wrong_action', 'the action does not point at the lead it made')
+  } else check(made.length === 0, 'persistence_unexpected', `${made.length} leads created for a card on an existing lead`)
   if (a) {
-    check(q.leadId === a.clientId, 'wrong_lead', `quote on lead ${q.leadId}, card on lead ${a.clientId}`)
+    if (!a.newLead) check(q.leadId === a.clientId, 'wrong_lead', `quote on lead ${q.leadId}, card on lead ${a.clientId}`)
     check(q.title === String(a.title).trim(), 'stored_mismatch', 'the title differs from the card')
     check(close(q.totalAmount, Number(a.expectedTotalAmount)), 'stored_mismatch', `stored ${q.totalAmount}, card ${a.expectedTotalAmount}`)
     const lines = (a.lines ?? []) as { title: string }[]
@@ -196,7 +215,7 @@ export function scorePersistence(variant: ScenarioVariant, run: RunObservation):
     checkValidity(q, a.validityDays ?? null, run.finishedAtMs, check)
   }
   if (c) {
-    check(q.leadId === run.leadIdByName[c.lead], 'wrong_lead', `quote on lead ${q.leadId}, expected ${c.lead}`)
+    if (!c.newLead) check(q.leadId === run.leadIdByName[c.lead], 'wrong_lead', `quote on lead ${q.leadId}, expected ${c.lead}`)
     checkFigures(c, q, items, turn?.body ?? '', rate, check)
   }
   checkArithmetic(q, items, rate, check)

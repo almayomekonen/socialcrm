@@ -333,7 +333,11 @@ export type ProposedAction =
        */
       actionType: 'create_quote'
       args: {
+        /** 0 when the customer is not a lead yet: `newCustomer` describes them, and the application decides. */
         clientId: number
+        newCustomer?: { firstName: string | null; lastName: string | null; phone: string | null; email: string | null } | null
+        /** Set by the APPLICATION only (lib/waAssistant/quotes/newCustomer.ts): the lead the approved card creates. */
+        newLead?: { firstName: string; lastName: string; phone: string | null; email: string | null } | null
         title: string
         lines: { title: string; quantity: number | null; unitAmount: number | null; discountAmount: number | null; discountPercent?: number | null }[]
         priceBasis: 'incl_vat' | 'excl_vat' | null

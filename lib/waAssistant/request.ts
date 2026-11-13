@@ -26,8 +26,18 @@ export const REQUEST_WORDS: Record<RequestKind, RegExp> = {
 /** "כן" / "יאללה" answering "…כבר עברה. למחר באותה שעה?" means tomorrow. */
 const BARE_YES = /^\s*(כן|כ|בטח|יאללה|אוקיי|אוקי|ok|okay|סבבה|נכון|למחר)[\s.!]*$/iu
 
-/** What leadChoice.ts stored on a message: the list shown, or the lead chosen. Ids only. */
-export type StoredLeadChoice = { options?: number[]; leadId?: number }
+/**
+ * A customer who is not a lead yet (quotes only, ./quotes/newCustomer.ts): only
+ * what the owner wrote, each field already checked against the owner's words.
+ */
+export type NewCustomerDraft = { firstName: string | null; lastName: string | null; phone: string | null; email: string | null }
+
+/**
+ * What leadChoice.ts stored on a message: the list shown (with `allowNew` when it
+ * offered a new lead too), the lead chosen, or a new customer the request is about.
+ */
+export type StoredLeadChoice = { options?: number[]; allowNew?: boolean; draft?: NewCustomerDraft; leadId?: number; newLead?: NewCustomerDraft }
+export type RequestLeadState = { leadId: number | null; newLead: NewCustomerDraft | null; offered: number[] | null; allowNew: boolean; draft: NewCustomerDraft | null; answers: string[] }
 type Row = { id: number; kind: string; question: string | null; stopReason: string | null; createdAt: Date; leadChoice: StoredLeadChoice | null }
 
 /**
@@ -106,7 +116,7 @@ export async function requestTurns(kind: RequestKind, job: WaAssistantJob, curre
  * list we showed them and the message that answered it (the newest such answer).
  * Only messages of the same request count, so an abandoned request lends nothing.
  */
-export async function requestLeadState(kind: RequestKind, job: WaAssistantJob, current: string): Promise<{ leadId: number | null; offered: number[] | null; answers: string[] }> {
+export async function requestLeadState(kind: RequestKind, job: WaAssistantJob, current: string): Promise<RequestLeadState> {
   const rows = await recentRows(job)
   const { members } = replay(kind, rows, current, CLARIFY_WINDOW_MS)
   const earlier = members.filter((r) => r.id !== job.id)
@@ -114,17 +124,22 @@ export async function requestLeadState(kind: RequestKind, job: WaAssistantJob, c
     for (let i = earlier.length - 1; i >= 0; i--) if (test(earlier[i])) return i
     return -1
   }
-  const pinnedAt = last((r) => Number.isSafeInteger(r.leadChoice?.leadId))
+  const pinnedAt = last((r) => Number.isSafeInteger(r.leadChoice?.leadId) || !!r.leadChoice?.newLead)
   const offeredAt = last((r) => Array.isArray(r.leadChoice?.options) && r.leadChoice!.options!.length > 0)
+  const none: RequestLeadState = { leadId: null, newLead: null, offered: null, allowNew: false, draft: null, answers: [] }
   // A pick made after the newest list stands; a list shown after a pick replaces it.
-  if (pinnedAt > offeredAt) return { leadId: earlier[pinnedAt].leadChoice!.leadId!, offered: null, answers: [] }
-  if (offeredAt < 0) return { leadId: null, offered: null, answers: [] }
+  if (pinnedAt > offeredAt) {
+    const pinned = earlier[pinnedAt].leadChoice!
+    return Number.isSafeInteger(pinned.leadId) ? { ...none, leadId: pinned.leadId! } : { ...none, newLead: pinned.newLead! }
+  }
+  if (offeredAt < 0) return none
   // Every reply since the list, newest first: the current message, then the earlier ones.
   const replies = [current, ...earlier.slice(offeredAt + 1).map((r) => r.question ?? '').reverse()].filter((t) => t.trim())
-  return { leadId: null, offered: earlier[offeredAt].leadChoice!.options!, answers: replies }
+  const shown = earlier[offeredAt].leadChoice!
+  return { ...none, offered: shown.options!, allowNew: shown.allowNew === true, draft: shown.draft ?? null, answers: replies }
 }
 
-/** Ids only: the list shown, or the lead chosen. Written on the message being handled. */
+/** The list shown, the lead chosen, or the new customer. Written on the message being handled. */
 export async function recordLeadChoice(jobId: number, choice: StoredLeadChoice): Promise<void> {
   await db('wa_assistant_jobs').where({ id: jobId }).update({ leadChoice: JSON.stringify(choice) })
 }
