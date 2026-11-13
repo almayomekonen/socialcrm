@@ -29,14 +29,14 @@ export const HE: HomeCopy = {
     trial: { label: TRIAL_CTA_LABEL, href: '/auth' },
   },
   hero: {
-    titleLine1: 'כל הלידים שלכם במקום אחד,',
-    titleLine2: ' בלי לפספס אף פנייה',
+    titleLine1: 'מערכת CRM לעסקים קטנים:',
+    titleLine2: ' כל הלידים במקום אחד, בלי לפספס אף פנייה',
     subtitle: 'אתם כבר לא צריכים לזכור מי מחכה לתשובה. פותחים בבוקר ורואים בדיוק למי לחזור היום.',
     cta: TRIAL_CTA_LABEL,
-    imageAlt: 'ממשק SocialCRM',
+    imageAlt: 'רשימת הלידים במערכת ה-CRM של SocialCRM, עם מקור, סטטוס ונציג לכל ליד',
   },
   logos: {
-    lead: 'הלידים שלכם מגיעים מכל מקום: וואטסאפ, פייסבוק ואינסטגרם. SocialCRM מחברת את כולם לרשימה אחת מסודרת.',
+    lead: 'הלידים שלכם מגיעים מכל מקום: וואטסאפ, פייסבוק ואינסטגרם. SocialCRM היא מערכת CRM בעברית שמחברת את כולם לרשימה אחת מסודרת.',
     websiteLabel: 'טפסים באתר',
     websiteUrl: '/',
     websiteDir: 'rtl',
@@ -182,14 +182,16 @@ export const HE: HomeCopy = {
           { name: 'ניהול לידים', href: '/' },
           { name: 'מחירים', href: '/pricing' },
           { name: 'שאלות נפוצות', href: '/faq' },
+          { name: 'CRM לעומת אקסל', href: '/crm-vs-excel' },
+          { name: 'English', href: '/en', hrefLang: 'en' },
         ],
       },
       {
         title: 'ערוצים',
         links: [
-          { name: 'פייסבוק', href: '/channels' },
-          { name: 'וואטסאפ', href: '/channels' },
-          { name: 'אינסטגרם', href: '/channels' },
+          { name: 'כל הערוצים', href: '/channels' },
+          { name: 'CRM לוואטסאפ', href: '/crm-for-whatsapp-business' },
+          { name: 'לידים מאינסטגרם', href: '/instagram-leads-crm' },
         ],
       },
       {

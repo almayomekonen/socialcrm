@@ -18,6 +18,10 @@ const METADATA: Metadata = {
   alternates: {
     canonical: 'https://getsocialcrm.com/auth',
   },
+  // A login screen should not hold a search result a marketing page could
+  // (144 impressions, Search Console 11.2026). Not blocked in robots.txt on
+  // purpose: Google has to crawl the page to see this tag.
+  robots: { index: false, follow: true },
   openGraph: {
     title: 'SocialCRM כל הלידים שלך במקום אחד',
     description: 'נהל את כל הלידים מפייסבוק, אינסטגרם ווואטסאפ ממקום אחד. התחל עכשיו בחינם.',
