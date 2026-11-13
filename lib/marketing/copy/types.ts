@@ -60,12 +60,6 @@ export interface LogosCopy {
   websiteLabel: string
   websiteUrl: string
   websiteDir: Dir
-  /**
-   * Each channel's own landing page, linked under the lead sentence with
-   * descriptive anchor text. Omitted where those pages don't exist in the
-   * page's language (the English homepage).
-   */
-  channelLinks?: ReadonlyArray<{ label: string; href: string }>
 }
 
 export interface FeaturesCarouselCopy {

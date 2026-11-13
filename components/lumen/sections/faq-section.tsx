@@ -56,10 +56,12 @@ export default function FAQSection({
                   <AccordionTrigger className="min-w-0 cursor-pointer text-start text-base font-semibold text-balance hover:no-underline md:text-lg lg:text-xl [&>span]:min-w-0">
                     {faq.question}
                   </AccordionTrigger>
-                  {/* forceMount: closed answers stay in the server HTML (with the
-                      `hidden` attribute) so crawlers read the same answers the
-                      FAQPage schema declares. Radix unmounts them otherwise. */}
-                  <AccordionContent forceMount className="text-muted-foreground pb-6 text-base leading-relaxed">
+                  {/* forceMount: closed answers stay in the server HTML so crawlers
+                      read the same answers the FAQPage schema declares (Radix
+                      unmounts them otherwise). forceMount does NOT hide them, so
+                      `in-data-[state=closed]:hidden` does: while the item is
+                      closed the answer is display:none, exactly as before. */}
+                  <AccordionContent forceMount className="text-muted-foreground pb-6 text-base leading-relaxed in-data-[state=closed]:hidden">
                     {faq.answer}
                   </AccordionContent>
                 </AccordionItem>
