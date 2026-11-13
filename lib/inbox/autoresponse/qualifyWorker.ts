@@ -30,6 +30,7 @@ import { turnResponders } from './qualifyTurn/responders'
 import { generateValidatedTurn, prepareGeneration } from './qualifyTurn/generateTurn'
 import { completeQualifyTurn } from './qualifyTurn/completeTurn'
 import { sendAndPersist } from './qualifyTurn/effects'
+import { transcribePendingVoiceNotes } from '@/lib/inbox/voice/transcribePending'
 
 export type { QualifyCtx, QualifyDeps } from './qualifyTurn/types'
 
@@ -50,6 +51,20 @@ export async function processQualifyJob(job: AutoResponseJob, ctx: QualifyCtx, d
   if (isQualifierEnabled() === false) return doSkip('qualifier_killed')
   // Ownership + silence correctness (reliability/*), per agency.
   const reliability = canUseAgentReliability(job.agencyId)
+
+  // A customer's voice note becomes words on its own row BEFORE the facts are
+  // read, so this turn reads it exactly like typed text. Every agency the agent
+  // serves; gated only by auto-response being on and the agent's own AI gate.
+  // Never able to break a turn: on any error the turn runs exactly as it did
+  // before voice existed (an unread note is acknowledged, typed text answered).
+  await transcribePendingVoiceNotes({
+    agencyId: job.agencyId,
+    conversationId: conv.id,
+    businessPhoneNumberId: conv.businessPhoneNumberId,
+    autoResponseOn: master && settings.enabled === true,
+  }).catch((err) => {
+    console.error('[IRE-VOICE] voice step failed; turn continues without it', { jobId: job.id, conversationId: conv.id, error: (err as Error)?.name ?? 'error' })
+  })
 
   const facts = await readTurnFacts({ job, ctx, reliability })
   const { aiState, lastInboundText, lang } = facts

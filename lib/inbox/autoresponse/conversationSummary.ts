@@ -38,7 +38,8 @@ export type SummaryState = {
   summaryThroughSequence: number
 }
 
-export type Turn = { direction: 'inbound' | 'outbound'; text: string; sequence: number }
+/** `voice`: the customer said it in a voice note the agent understood (lib/inbox/voice). */
+export type Turn = { direction: 'inbound' | 'outbound'; text: string; sequence: number; voice?: true }
 
 export type SummaryPlan =
   | { action: 'keep' }

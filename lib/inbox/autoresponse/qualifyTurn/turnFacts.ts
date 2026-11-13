@@ -18,6 +18,7 @@ import { readHumanPresence } from '@/db/conversationHumanPresence'
 import { isNoResponseWarningMessage, metadataKind } from '../noResponseClose'
 import { humanTookOverSinceEpoch, legacyHumanTookOver, ownershipEpochSequence } from '../reliability/ownership'
 import { readableInboundText } from '../reliability/silence'
+import { voiceTranscriptOf } from '@/lib/inbox/voice/voiceNote'
 import { startConversationalTurn } from '../conversational/hooks'
 import { socialReopen } from '../conversational/turnRules'
 import type { TurnBase } from './types'
@@ -74,12 +75,20 @@ export async function readTurnFacts(t: Pick<TurnBase, 'job' | 'ctx' | 'reliabili
 export function turnFactsFrom(input: TurnFactInputs) {
   const { rows, aiState, convo, presenceAtTurnStart, sentToday, settings, reliability } = input
   // Under reliability an image/document/video caption is the customer's text.
-  const recent = reliability
-    ? rows
-        .slice()
-        .reverse()
-        .map((m) => (m.direction === 'inbound' ? { ...m, text: readableInboundText(m) } : m))
-    : rows.slice().reverse()
+  // A voice note the agent understood is the customer's text for EVERY agency
+  // (lib/inbox/voice), marked `voice` so the prompt can say it was spoken.
+  const recent = (
+    reliability
+      ? rows
+          .slice()
+          .reverse()
+          .map((m) => (m.direction === 'inbound' ? { ...m, text: readableInboundText(m) } : m))
+      : rows.slice().reverse()
+  ).map((m) => {
+    if (m.direction !== 'inbound' || m.type !== 'audio') return m
+    const spoken = voiceTranscriptOf(m)
+    return spoken ? { ...m, text: spoken, voice: true } : m
+  })
   const lastMsg = recent[recent.length - 1]
   /**
    * The newest inbound the agent can actually READ.
@@ -137,9 +146,10 @@ export function turnFactsFrom(input: TurnFactInputs) {
       direction: m.direction as 'inbound' | 'outbound',
       text: (m.text as string) ?? '',
       sequence: Number(m.sequence ?? 0),
+      ...(m.voice === true ? { voice: true as const } : {}),
     }))
     .filter((m) => m.text)
-  const qTranscript = recentWindow(sequencedTurns).map((m) => ({ direction: m.direction, text: m.text }))
+  const qTranscript = recentWindow(sequencedTurns).map((m) => ({ direction: m.direction, text: m.text, ...(m.voice ? { voice: true as const } : {}) }))
   const persistedStrategy = isSalesStrategy(aiState.qualification.cognition?.salesStrategy)
     ? aiState.qualification.cognition?.salesStrategy
     : undefined
@@ -160,6 +170,8 @@ export function turnFactsFrom(input: TurnFactInputs) {
 
   // A turn with no readable text (media only) is not English: it is unknown, and
   // this product speaks Hebrew by default. Legacy kept the old default.
-  const lang = reliability && !lastInboundText.trim() ? 'he' : detectLang(lastInboundText)
+  // An unreadable voice note is the same: its language is unknown, so Hebrew (every agency).
+  const unreadVoice = unanswered.some((m) => m.type === 'audio')
+  const lang = (reliability || unreadVoice) && !lastInboundText.trim() ? 'he' : detectLang(lastInboundText)
   return { recent, lastMsg, unanswered, lastInbound, lastOutbound, agentSpokeInWindow, aiState, convo, humanTookOver, presenceAtTurnStart, sentToday, lastInboundAt, maxTurns, lastInboundText, previousOutbound, previousOutboundKind, closeOfferPending, hasUnansweredInbound, consecutiveAiWithoutInbound, optOut, agentHasSpoken, sequencedTurns, qTranscript, salesMove, salesStrategy, reopenEligible, outboundGate, lang }
 }

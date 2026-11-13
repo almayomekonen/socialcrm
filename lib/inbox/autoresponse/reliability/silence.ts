@@ -2,6 +2,7 @@ import { isGreetingOnly, isLowInformationInbound } from '../gptEligibility'
 import { inboundContainsRealQuestion } from '../conversationControl'
 import { withGreeting } from '../greeting'
 import { metadataSource } from './ownership'
+import { isVoiceUnclear, voiceTranscriptOf } from '@/lib/inbox/voice/voiceNote'
 
 /**
  * When the agent must not stay silent, and what it says instead. Pure.
@@ -43,6 +44,8 @@ const VISUAL_MEDIA = new Set(['image', 'document', 'video'])
 export function readableInboundText(m: InboundRow): string {
   const text = String(m.text ?? '').trim()
   if (text) return text
+  // A voice note the agent understood (lib/inbox/voice): its words are the customer's text.
+  if (m.type === 'audio') return voiceTranscriptOf(m)
   if (!CAPTIONED_TYPES.has(String(m.type ?? ''))) return ''
   const payload = (typeof m.payload === 'string' ? safeParse(m.payload) : m.payload) as { caption?: unknown } | null
   const caption = payload?.caption
@@ -57,7 +60,7 @@ function safeParse(s: string): unknown {
   }
 }
 
-export type MediaOnlyKind = 'voice' | 'visual'
+export type MediaOnlyKind = 'voice' | 'voice_unclear' | 'visual'
 
 /**
  * The customer's pending messages are media we cannot read, and nothing else.
@@ -69,6 +72,8 @@ export function mediaOnlyKind(pending: readonly InboundRow[]): MediaOnlyKind | n
   if (!pending.length) return null
   if (pending.some((m) => readableInboundText(m))) return null
   const types = pending.map((m) => String(m.type ?? ''))
+  // Tried and not understood: the customer is asked to resend or write it, never answered from a guess.
+  if (pending.some((m) => m.type === 'audio' && isVoiceUnclear(m))) return 'voice_unclear'
   if (types.includes('audio')) return 'voice'
   if (types.some((t) => VISUAL_MEDIA.has(t))) return 'visual'
   return null
@@ -98,6 +103,11 @@ export function openingQuestion(lang: 'he' | 'en'): string {
 }
 
 export function mediaAcknowledgement(kind: MediaOnlyKind, lang: 'he' | 'en'): string {
+  if (kind === 'voice_unclear') {
+    return lang === 'en'
+      ? "Got your voice message, but I couldn't make it out. Could you send it again, or write it in a few words?"
+      : 'קיבלתי את ההקלטה, אבל לא הצלחתי לשמוע אותה ברור. אפשר לשלוח אותה שוב, או לכתוב לי בכמה מילים?'
+  }
   if (lang === 'en') {
     return kind === 'voice'
       ? "Got your voice message. I can't listen to recordings here yet, could you write it in a few words?"
