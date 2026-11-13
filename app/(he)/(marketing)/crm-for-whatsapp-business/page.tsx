@@ -15,7 +15,7 @@ import { Btn } from '@/lib/btns/Btn'
 const PAGE_PATH = '/crm-for-whatsapp-business'
 const PAGE_TITLE = 'WhatsApp Business CRM: ניהול לידים מעבר לתוויות | SocialCRM'
 const PAGE_DESCRIPTION =
-  'וואטסאפ עסקי נותן תוויות ותגובות מהירות, אבל הוא לא מערכת מכירות. SocialCRM מחברת את הוואטסאפ שלכם, הופכת כל שיחה לליד עם סטטוס, נציג ומעקב, ועוזרת ששום פנייה לא תיפול בין הכיסאות.'
+  'וואטסאפ עסקי נותן תוויות, אבל הוא לא מערכת מכירות. SocialCRM מחברת את הוואטסאפ והופכת כל שיחה לליד עם סטטוס, נציג ומעקב.'
 
 export const metadata = buildPageMetadata({
   path: PAGE_PATH,

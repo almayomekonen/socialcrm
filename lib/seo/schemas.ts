@@ -1,4 +1,5 @@
 import { PRICING } from '@/lib/pricing'
+import { BUSINESS_PHONE_HREF } from '@/lib/businessContact'
 
 const SITE_URL = 'https://getsocialcrm.com'
 const SITE_NAME = 'SocialCRM'
@@ -24,6 +25,17 @@ export function organizationSchema(opts: { description?: string; inLanguage?: st
     description: opts.description ?? 'מערכת ניהול לידים ומכירות לעסקים קטנים בישראל',
     inLanguage: opts.inLanguage ?? 'he',
     areaServed: 'IL',
+    // Clean profile URL only. The Facebook link in the footer is a share link
+    // (facebook.com/share/...), which is not a stable profile URL; add the
+    // Page's real URL here once it is known.
+    sameAs: ['https://www.instagram.com/socialcrm.ai'],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: BUSINESS_PHONE_HREF.replace('tel:', ''),
+      contactType: 'customer support',
+      areaServed: 'IL',
+      availableLanguage: ['he', 'en'],
+    },
   }
 }
 

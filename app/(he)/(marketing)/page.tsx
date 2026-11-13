@@ -1,5 +1,5 @@
 import { buildPageMetadata, HOME_LANGUAGES } from '@/lib/seo/metadata'
-import { TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
+import { PRICING, TRIAL_OFFER_FAQ_ANSWER } from '@/lib/pricing'
 import { TRIAL_LENGTH_DAYS } from '@/lib/trial'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { buildFAQSchema, type FAQItem } from '@/components/seo/FAQ'
@@ -18,9 +18,10 @@ import Pricing from '@/components/lumen/sections/pricing'
 export const metadata = buildPageMetadata({
   path: '/',
   languages: HOME_LANGUAGES,
-  title: 'מערכת ניהול לידים לעסקים קטנים | SocialCRM',
+  title: 'מערכת CRM לעסקים קטנים עם וואטסאפ ו-AI | SocialCRM',
   description:
-    `SocialCRM מרכזת את כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד. לכל ליד יש שיחה מחוברת, סטטוס ונציג, ובתוכנית Pro גם AI שמכיר את ההיסטוריה וממליץ על הצעד הבא. ${TRIAL_LENGTH_DAYS} ימי ניסיון במערכת המלאה.`,
+    `מערכת CRM בעברית לעסקים קטנים: כל הלידים מוואטסאפ, פייסבוק ואינסטגרם ברשימה אחת, עם סטטוס, נציג ומעקב. ${PRICING.currency}${PRICING.monthly} לחודש, ${TRIAL_LENGTH_DAYS} ימי ניסיון.`,
+  ogTitle: 'מערכת CRM לעסקים קטנים | SocialCRM',
   ogDescription:
     'כל הלידים מפייסבוק, מאינסטגרם ומוואטסאפ במקום אחד, עם שיחה, סטטוס ומעקב לכל ליד, כדי ששום פנייה לא תיפול בין הכיסאות.',
 })

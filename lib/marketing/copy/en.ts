@@ -35,7 +35,7 @@ export const EN_LANGUAGE_NOTE =
 export const EN_META = {
   title: 'Lead Management CRM for Small Businesses | SocialCRM',
   description:
-    `SocialCRM brings all your leads from Facebook, Instagram and WhatsApp into one place. Every lead has a connected conversation, a status and a rep, and the Pro plan adds AI that knows the history and recommends the next step. ${DAYS}-day trial of the full system.`,
+    `A social CRM for small businesses: leads from WhatsApp, Facebook and Instagram in one list, with a status, a rep and follow-ups. ${DAYS}-day trial.`,
   ogDescription:
     'All your leads from Facebook, Instagram and WhatsApp in one place, with a conversation, a status and follow-up for every lead, so no inquiry slips through the cracks.',
   skipLink: 'Skip to content',
