@@ -270,3 +270,17 @@ describe('only a genuine document change voids the card', () => {
     expect(await db('wa_assistant_approvals').where({ agencyId: A }).pluck('status')).toEqual(['superseded'])
   })
 })
+
+describe('an ambiguous correction asks for the amount instead of reusing the old one', () => {
+  it.each(['לא 500 אלא 2000', 'בעצם זה יוצא 2000'])('"%s" answering the payment question: the amount is asked, 1500 is not reused', async (text) => {
+    const o = await owner()
+    const only = await lead(o, 'כהן')
+    // The model keeps proposing the old amount.
+    const h = harness([1, 2, 3].map(() => proposes(only, [only], { amount: 1500 })))
+    expect((await say(o, h, 'תפיק קבלה ליוסי כהן על צילום, 1500 שקל')).body).toBe(DOCUMENT_COPY.askPayment)
+    expect((await say(o, h, text)).body).toBe(DOCUMENT_COPY.askOneAmount)
+    expect(await db('wa_assistant_approvals').where({ agencyId: A })).toHaveLength(0)
+    // The owner's next, clear answer is the amount.
+    expect((await say(o, h, '2000')).body).toBe(DOCUMENT_COPY.askPayment)
+  })
+})
