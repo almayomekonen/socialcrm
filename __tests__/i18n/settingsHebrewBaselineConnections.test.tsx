@@ -184,7 +184,7 @@ describe('Hebrew baseline — ready-made messages', () => {
     out.discardDialog = dialogs()
     await click(inDialog('אישור'))
     await flush()
-    await click(btn('ערוך ונסה שוב'))
+    await click(btn('עריכה ושליחה מחדש'))
     out.retryDialog = dialogs()
     await click(inDialog('ביטול'))
     out.calls = calls()

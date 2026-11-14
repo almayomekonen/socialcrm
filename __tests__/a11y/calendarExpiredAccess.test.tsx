@@ -110,7 +110,7 @@ describe('existing meetings are shown as real records, not locked ones', () => {
 
   it('a scheduled meeting still looks scheduled', () => {
     renderDetails(EXPIRED)
-    expect(screen.getByRole('button', { name: 'ערוך פגישה' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'עריכת פגישה' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /ביטול הפגישה/ })).toBeTruthy()
   })
 
@@ -128,7 +128,7 @@ describe('existing meetings are shown as real records, not locked ones', () => {
   it('an active subscription renders identically', () => {
     renderDetails(ACTIVE)
     expect(screen.getByText('פגישה עם דוד כהן')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'ערוך פגישה' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'עריכת פגישה' })).toBeTruthy()
   })
 })
 

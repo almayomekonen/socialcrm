@@ -71,7 +71,7 @@ export const automations = {
     lockTitle: 'האוטומציה מוגדרת כפעילה',
     lockBody: 'המנוי שלך הסתיים ולכן היא לא רצה כרגע.',
     lockRenew: 'חידוש המנוי יחזיר את ההפעלה.',
-    menu: { edit: 'ערוך', log: 'יומן פעילות', duplicate: 'שכפל', delete: 'מחק' },
+    menu: { edit: 'עריכה', log: 'יומן פעילות', duplicate: 'שכפל', delete: 'מחק' },
   },
   library: {
     title: 'ספריית האוטומציות',

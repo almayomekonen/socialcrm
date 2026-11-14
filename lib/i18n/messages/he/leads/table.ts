@@ -73,7 +73,7 @@ export const toolbar = {
   newLead: 'ליד חדש',
   newCustomer: 'לקוח חדש',
   lists: 'רשימות',
-  editList: 'ערוך רשימה',
+  editList: 'עריכת רשימה',
   newList: 'רשימה חדשה',
   noRowsSelected: 'לא נבחרו רשומות מהטבלה',
 } as const

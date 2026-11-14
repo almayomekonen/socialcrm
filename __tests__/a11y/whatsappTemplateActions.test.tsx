@@ -55,7 +55,7 @@ describe('TemplateRow — action affordances by status', () => {
   })
   it('rejected → retry + discard', () => {
     render(<TemplateRow template={tpl(1, 'rejected', 'לא אושרה')} actions={spies} />)
-    expect(screen.getByRole('button', { name: /ערוך ונסה שוב/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /עריכה ושליחה מחדש/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'הסר' })).toBeInTheDocument()
   })
   it('pending → discard only', () => {
@@ -70,7 +70,7 @@ describe('TemplateRow — action affordances by status', () => {
   it('retry is not confirm-gated — fires onRetry directly', () => {
     const onRetry = vi.fn()
     render(<TemplateRow template={tpl(9, 'rejected', 'x')} actions={{ ...spies, onRetry }} />)
-    fireEvent.click(screen.getByRole('button', { name: /ערוך ונסה שוב/ }))
+    fireEvent.click(screen.getByRole('button', { name: /עריכה ושליחה מחדש/ }))
     expect(onRetry).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }))
   })
   it('archive is confirm-gated (ConfirmPop) → onArchive only after אישור', () => {
@@ -95,7 +95,7 @@ describe('TemplatesWorkspace — mutation wiring', () => {
 
   it('retry opens the create modal pre-filled with the rejected content', () => {
     render(<TemplatesWorkspace initial={[tpl(7, 'rejected', 'לא אושרה')]} />)
-    fireEvent.click(screen.getByRole('button', { name: /ערוך ונסה שוב/ }))
+    fireEvent.click(screen.getByRole('button', { name: /עריכה ושליחה מחדש/ }))
     // modal open, title input pre-filled from the rejected template
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByDisplayValue('תזכורת פולואפ')).toBeInTheDocument()

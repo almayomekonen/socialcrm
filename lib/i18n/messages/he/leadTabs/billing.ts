@@ -14,7 +14,7 @@ export const billing = {
     issuedAt: 'תאריך הנפקה',
     dueAt: 'החזר עד',
   },
-  edit: 'ערוך',
+  edit: 'עריכה',
   view: 'הצג',
   empty: {
     title: 'אין חשבוניות לליד זה',

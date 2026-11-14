@@ -139,13 +139,13 @@ describe('Hebrew baseline — meeting details', () => {
     out.confirm = top()
     cleanup()
     await details(MEETINGS[0], EXPIRED)
-    await act(async () => fireEvent.click(btn('ערוך פגישה')))
+    await act(async () => fireEvent.click(btn('עריכת פגישה')))
     await act(async () => fireEvent.click(btn('סמן כהושלמה')))
     await act(async () => fireEvent.click(btn('סמן כלא הגיע')))
     out.expired = { ...log(), marked: calSpies.markMeetingCompleted.mock.calls.length }
     cleanup(); resetCalSpies()
     await details()
-    await act(async () => fireEvent.click(btn('ערוך פגישה')))
+    await act(async () => fireEvent.click(btn('עריכת פגישה')))
     out.edit = calSpies.pushes
     expect(out).toMatchSnapshot()
   })

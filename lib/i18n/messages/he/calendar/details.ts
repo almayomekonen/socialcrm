@@ -15,7 +15,7 @@ export const details = {
   close: 'סגור',
   retrying: 'מסנכרן…',
   retry: 'נסה לסנכרן שוב',
-  edit: 'ערוך פגישה',
+  edit: 'עריכת פגישה',
   cancelling: 'מבטל…',
   cancel: 'ביטול הפגישה',
   cancelConfirm: 'לבטל את הפגישה "{title}"?\nהמשתתפים יקבלו הודעת ביטול.',

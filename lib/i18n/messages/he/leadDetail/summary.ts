@@ -50,7 +50,7 @@ export const activity = {
   placeholder: 'מה נאמר בשיחה? מה סוכם עם הליד?',
   add: 'הוסף הערה',
   saving: 'שומר…',
-  edit: 'ערוך הערה',
+  edit: 'עריכת הערה',
   saveEdit: 'שמור שינויים',
   delete: 'מחק הערה',
   confirmDelete: 'למחוק את ההערה? לא ניתן לשחזר אותה.',

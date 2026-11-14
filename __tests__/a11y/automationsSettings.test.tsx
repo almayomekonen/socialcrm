@@ -42,7 +42,7 @@ describe('AutomationCard', () => {
 
     const menu = screen.getByRole('button', { name: /פעולות/ })
     fireEvent.click(menu)
-    for (const label of ['ערוך', 'יומן פעילות', 'שכפל', 'מחק']) {
+    for (const label of ['עריכה', 'יומן פעילות', 'שכפל', 'מחק']) {
       expect(screen.getByRole('menuitem', { name: new RegExp(label) })).toBeInTheDocument()
     }
   })

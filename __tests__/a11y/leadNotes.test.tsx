@@ -110,7 +110,7 @@ describe('LeadNotes', () => {
   it('edits a note in the box and replaces it in the list', async () => {
     editLeadNote.mockResolvedValue({ note: { id: 1, userName: 'דן', content: 'דיברנו בצהריים', createdAt: '2026-11-04T10:00:00.000Z' } })
     render(<LeadNotes leadId={5} notes={[existing]} surface='desktop' />)
-    fireEvent.click(screen.getByRole('button', { name: 'ערוך הערה' }))
+    fireEvent.click(screen.getByRole('button', { name: 'עריכת הערה' }))
     const box = screen.getByRole('textbox') as HTMLTextAreaElement
     expect(box.value).toBe('דיברנו בבוקר')
 
@@ -127,7 +127,7 @@ describe('LeadNotes', () => {
 
   it('cancelling an edit leaves the note untouched', () => {
     render(<LeadNotes leadId={5} notes={[existing]} surface='desktop' />)
-    fireEvent.click(screen.getByRole('button', { name: 'ערוך הערה' }))
+    fireEvent.click(screen.getByRole('button', { name: 'עריכת הערה' }))
     fireEvent.click(screen.getByRole('button', { name: /ביטול/ }))
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('')
     expect(screen.getByText('דיברנו בבוקר')).toBeTruthy()
@@ -137,7 +137,7 @@ describe('LeadNotes', () => {
   it('keeps the edit open with its text when the save fails', async () => {
     editLeadNote.mockRejectedValue(new Error('network'))
     render(<LeadNotes leadId={5} notes={[existing]} surface='desktop' />)
-    fireEvent.click(screen.getByRole('button', { name: 'ערוך הערה' }))
+    fireEvent.click(screen.getByRole('button', { name: 'עריכת הערה' }))
     const box = screen.getByRole('textbox') as HTMLTextAreaElement
     fireEvent.change(box, { target: { value: 'נוסח חדש' } })
     fireEvent.click(screen.getByRole('button', { name: /שמור שינויים/ }))

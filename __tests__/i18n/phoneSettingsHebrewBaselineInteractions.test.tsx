@@ -181,7 +181,7 @@ describe('Hebrew baseline — phone ready messages', () => {
     out.editEditor = html(dialog())
     await click(byText('ביטול'))
     await open('הצעה אחרונה')
-    await click(byText('ערוך ונסה שוב'))
+    await click(byText('עריכה ושליחה מחדש'))
     out.retryEditor = html(dialog())
     await click(byText('ביטול'))
     await open('תזכורת פגישה')

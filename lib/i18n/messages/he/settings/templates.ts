@@ -22,7 +22,7 @@ export const templates = {
   },
   rejectedTitle: 'ההודעה לא אושרה',
   pending: { title: 'ההודעה נשלחה לאישור וואטסאפ', explanation: 'אין צורך לעשות דבר — ברגע שתאושר, היא תהיה מוכנה לשליחה.' },
-  row: { edit: 'עריכת הודעה', retry: 'ערוך ונסה שוב', archive: 'ארכיון', discard: 'הסר', archiveConfirm: 'להעביר את "{title}" לארכיון?', discardConfirm: 'להסיר את "{title}"?' },
+  row: { edit: 'עריכת הודעה', retry: 'עריכה ושליחה מחדש', archive: 'ארכיון', discard: 'הסר', archiveConfirm: 'להעביר את "{title}" לארכיון?', discardConfirm: 'להסיר את "{title}"?' },
   empty: {
     title: 'אין עדיין הודעות WhatsApp מוכנות',
     body: 'הודעות WhatsApp מוכנות מאפשרות לפנות ללידים גם אחרי שהשיחה נרגעה — תזכורת, מבצע או עדכון — בלי להמתין שהליד יכתוב קודם.',
