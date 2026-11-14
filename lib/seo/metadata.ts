@@ -23,6 +23,8 @@ export interface PageMetadataOptions {
   locale?: string
   /** hreflang alternates. Only for a page that really exists in another language. */
   languages?: Record<string, string>
+  /** This page's own 1200×630 PNG under /public (e.g. `/media/og/crm.png`). Defaults to the site image. */
+  ogImage?: string
 }
 
 /** The one page that exists in both languages. `x-default` is the English page. */
@@ -33,7 +35,8 @@ export const HOME_LANGUAGES = {
 }
 
 export function buildPageMetadata(opts: PageMetadataOptions): Metadata {
-  const { path, title, description, ogTitle, ogDescription, canonical, noindex, locale = LOCALE, languages } = opts
+  const { path, title, description, ogTitle, ogDescription, canonical, noindex, locale = LOCALE, languages, ogImage } = opts
+  const ogImageUrl = ogImage ? `${SITE_URL}${ogImage}` : OG_IMAGE_URL
   const canonicalUrl = canonical ?? `${SITE_URL}${path}`
   const finalOgTitle = ogTitle ?? title
   const finalOgDescription = ogDescription ?? description
@@ -51,8 +54,8 @@ export function buildPageMetadata(opts: PageMetadataOptions): Metadata {
       type: 'website',
       images: [
         {
-          url: OG_IMAGE_URL,
-          secureUrl: OG_IMAGE_URL,
+          url: ogImageUrl,
+          secureUrl: ogImageUrl,
           alt: finalOgTitle,
           width: OG_IMAGE_WIDTH,
           height: OG_IMAGE_HEIGHT,
@@ -66,7 +69,7 @@ export function buildPageMetadata(opts: PageMetadataOptions): Metadata {
       description: finalOgDescription,
       images: [
         {
-          url: OG_IMAGE_URL,
+          url: ogImageUrl,
           alt: finalOgTitle,
           width: OG_IMAGE_WIDTH,
           height: OG_IMAGE_HEIGHT,

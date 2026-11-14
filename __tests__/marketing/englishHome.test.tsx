@@ -98,7 +98,8 @@ describe('sitemap', () => {
 
   test('nothing Arabic is listed', () => {
     expect(JSON.stringify(entries)).not.toMatch(/\/ar\b/)
-    expect(entries.some((e) => /\/en\//.test(new URL(e.url).pathname))).toBe(false)
+    // The only English page below /en is the social CRM guide.
+    expect(entries.filter((e) => /\/en\//.test(new URL(e.url).pathname)).map((e) => new URL(e.url).pathname)).toEqual(['/en/social-crm'])
   })
 })
 

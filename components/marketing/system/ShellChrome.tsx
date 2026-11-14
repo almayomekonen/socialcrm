@@ -47,7 +47,11 @@ import Footer from '@/components/lumen/layout/footer'
  * tabIndex={-1} makes <main> programmatically focusable so the jump moves the
  * caret, not just the scroll position; focus:outline-none keeps that invisible.
  */
-const SELF_SHELLED = new Set(['/', '/pricing', '/channels', '/faq'])
+const SELF_SHELLED = new Set([
+  '/', '/pricing', '/channels', '/faq',
+  // SEO landing pages: current design, their own Lumen shell (LandingPage).
+  '/crm', '/lead-management', '/whatsapp-crm', '/facebook-leads', '/instagram-leads',
+])
 
 /** Content-only routes that receive the Lumen shell from here. */
 const LUMEN_SHELLED = new Set(['/terms', '/privacy', '/data-deletion'])

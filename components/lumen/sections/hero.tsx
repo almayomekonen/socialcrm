@@ -11,7 +11,12 @@ import usePrefersReducedMotion from '@/hooks/usePrefersReducedMotion';
 import { HE } from '@/lib/marketing/copy/he';
 import type { HeroCopy } from '@/lib/marketing/copy/types';
 
-export default function Hero({ copy = HE.hero }: { copy?: HeroCopy } = {}) {
+/**
+ * `showImage` exists for the SEO landing pages, which reuse this hero for their
+ * H1, intro and CTA without the product screenshot. It defaults to true, so the
+ * homepage and /en render exactly as before.
+ */
+export default function Hero({ copy = HE.hero, showImage = true }: { copy?: HeroCopy; showImage?: boolean } = {}) {
   const prefersReducedMotion = usePrefersReducedMotion();
 
   // Animation variants
@@ -86,7 +91,7 @@ export default function Hero({ copy = HE.hero }: { copy?: HeroCopy } = {}) {
   };
 
   return (
-    <section className="section-padding relative flex flex-col items-center bg-[url(/images/gradient.webp)] bg-cover bg-center bg-no-repeat !pb-0 dark:bg-[url(/images/gradient-dark.webp)]">
+    <section className={`section-padding relative flex flex-col items-center bg-[url(/images/gradient.webp)] bg-cover bg-center bg-no-repeat dark:bg-[url(/images/gradient-dark.webp)]${showImage ? ' !pb-0' : ''}`}>
       <motion.div
         variants={overlayVariants}
         initial={prefersReducedMotion ? 'visible' : 'hidden'}
@@ -145,6 +150,8 @@ export default function Hero({ copy = HE.hero }: { copy?: HeroCopy } = {}) {
           </motion.p>
         )}
 
+        {showImage && (
+        <>
         <motion.div
           variants={imageVariants}
           className="bg-background/45 border-background relative mt-10 justify-self-end overflow-hidden rounded-t-xl border p-2 md:mt-20 md:rounded-t-3xl md:p-4 lg:mt-25"
@@ -170,6 +177,8 @@ export default function Hero({ copy = HE.hero }: { copy?: HeroCopy } = {}) {
             frame. Anchoring it to a band at the bottom edge instead hides only the
             image's lower rows and leaves everything above at full strength. */}
         <div className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t to-transparent md:h-56" />
+        </>
+        )}
       </motion.div>
     </section>
   );
