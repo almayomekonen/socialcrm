@@ -86,7 +86,7 @@ export default function MessengerSavedReplies({ initial }: { initial: MessengerS
     setDraft((d) => (d ? { ...d, [key]: value } : d))
 
   return (
-    <div className='grid gap-4'>
+    <div className='grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4'>
       <p className='text-xs leading-relaxed text-gray-500'>
         {t('settings.messenger.replies.intro')}
       </p>

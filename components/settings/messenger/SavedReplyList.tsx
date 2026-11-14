@@ -19,11 +19,11 @@ export default function SavedReplyList({
 }) {
   const t = useT()
   return (
-    <ul className='grid gap-1.5'>
+    <ul className='grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5'>
       {replies.map((reply) => (
         <li
           key={reply.id}
-          className='flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2'
+          className='flex min-w-0 items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2'
         >
           <div className='min-w-0 flex-1'>
             <p className='truncate text-sm font-medium text-gray-900'>{reply.title}</p>
