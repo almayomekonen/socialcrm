@@ -16,9 +16,10 @@ const PUBLIC_ROUTES = [
   '/faq',
   // SEO acquisition pages: deliberately outside the primary navigation, but
   // they exist to be entered from search, so they must stay crawlable.
-  '/instagram-leads-crm',
-  '/crm-for-whatsapp-business',
-  '/crm-vs-excel',
+  '/lead-management',
+  '/whatsapp-crm',
+  '/facebook-leads',
+  '/instagram-leads',
   '/privacy',
   '/terms',
   '/data-deletion',
