@@ -179,17 +179,18 @@ export const HE: HomeCopy = {
       {
         title: 'המוצר',
         links: [
-          { name: 'ניהול לידים', href: '/' },
+          { name: 'ניהול לידים', href: '/lead-management' },
           { name: 'מחירים', href: '/pricing' },
           { name: 'שאלות נפוצות', href: '/faq' },
+          { name: 'מערכת CRM', href: '/crm' },
         ],
       },
       {
         title: 'ערוצים',
         links: [
-          { name: 'פייסבוק', href: '/channels' },
-          { name: 'וואטסאפ', href: '/channels' },
-          { name: 'אינסטגרם', href: '/channels' },
+          { name: 'פייסבוק', href: '/facebook-leads' },
+          { name: 'וואטסאפ', href: '/whatsapp-crm' },
+          { name: 'אינסטגרם', href: '/instagram-leads' },
         ],
       },
       {
