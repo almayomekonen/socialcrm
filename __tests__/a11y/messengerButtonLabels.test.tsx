@@ -49,7 +49,7 @@ const reply: MessengerSavedReply = {
 describe('saved replies settings buttons', () => {
   it('the list and add controls show their labels', () => {
     render(<MessengerSavedReplies initial={[reply]} />)
-    expect(screen.getByRole('button', { name: 'ערוך את שעות פעילות' })).toHaveTextContent('ערוך')
+    expect(screen.getByRole('button', { name: 'עריכת שעות פעילות' })).toHaveTextContent('עריכה')
     expect(screen.getByRole('button', { name: 'הוסף תשובה שמורה' })).toHaveTextContent('הוסף תשובה שמורה')
   })
 

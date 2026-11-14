@@ -240,7 +240,7 @@ describe('Hebrew baseline — Messenger, Calendar, Drive, AI', () => {
     fireEvent.change(replies.querySelector('#sr-title')!, { target: { value: 'חדשה' } })
     await click(btn('שמור תשובה שמורה'))
     await flush()
-    await click(replies.querySelector('[aria-label="ערוך את שעות פעילות"]'))
+    await click(replies.querySelector('[aria-label="עריכת שעות פעילות"]'))
     out.editForm = norm(replies.innerHTML)
     await click(btn('ביטול'))
     const confirmSpy = vi.fn(() => true)
