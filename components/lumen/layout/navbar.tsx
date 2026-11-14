@@ -29,8 +29,7 @@ function navLinksFrom(copy: NavCopy) {
     {
       label: copy.product.label,
       href: '#',
-      lang: undefined as string | undefined,
-      subitems: copy.product.subitems.map((subitem, index) => ({ ...subitem, icon: PRODUCT_ICONS[index] ?? Inbox })),
+      subitems: copy.product.subitems.map((subitem, index) => ({ ...subitem, icon: PRODUCT_ICONS[index] })),
     },
     // One centralized destination. No subitems, so this renders through the same
     // plain-link branch as מחירים — no trigger, no chevron, no panel.
@@ -148,10 +147,7 @@ const Navbar = ({ initialBannerVisible = true, copy = HE.nav }: { initialBannerV
                       >
                         {item.label}
                       </NavigationMenuTrigger>
-                      {/* forceMount + hidden while closed: the menu links stay in the
-                          server HTML, so crawlers can follow them to the landing
-                          pages. Radix otherwise renders them only once opened. */}
-                      <NavigationMenuContent forceMount className='data-[state=closed]:hidden'>
+                      <NavigationMenuContent className=''>
                         <ul className='grid w-[263px] gap-2'>
                           {item.subitems.map((subitem) => (
                             <li key={subitem.label}>
@@ -179,7 +175,7 @@ const Navbar = ({ initialBannerVisible = true, copy = HE.nav }: { initialBannerV
                       )}
                       suppressHydrationWarning
                     >
-                      <Link href={item.href} hrefLang={item.lang} lang={item.lang}>{item.label}</Link>
+                      <Link href={item.href}>{item.label}</Link>
                     </NavigationMenuLink>
                   )}
                 </NavigationMenuItem>
@@ -282,7 +278,7 @@ const Navbar = ({ initialBannerVisible = true, copy = HE.nav }: { initialBannerV
                         )}
                         suppressHydrationWarning
                       >
-                        <Link href={item.href} hrefLang={item.lang} lang={item.lang} onClick={() => setIsMenuOpen(false)}>
+                        <Link href={item.href} onClick={() => setIsMenuOpen(false)}>
                           {item.label}
                         </Link>
                       </NavigationMenuLink>

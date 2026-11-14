@@ -96,26 +96,25 @@ const FAQList = ({
   selected: string
 }) => (
   <div className='mx-auto mt-12 max-w-3xl'>
-    {/* Every tab is rendered and the inactive ones carry `hidden`, so all the
-        questions and answers are in the server HTML that the FAQPage schema
-        describes. Returning null for inactive tabs left them out entirely. */}
-    {Object.entries(faqData).map(([category, questions]) => {
-      const active = selected === category
-      return (
-        <motion.div
-          key={category}
-          hidden={!active}
-          initial={false}
-          animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, ease: 'backIn' }}
-          className='space-y-4'
-        >
-          {questions.map((faq, index) => (
-            <FAQItem key={index} {...faq} />
-          ))}
-        </motion.div>
-      )
-    })}
+    <AnimatePresence mode='wait'>
+      {Object.entries(faqData).map(([category, questions]) => {
+        if (selected !== category) return null
+        return (
+          <motion.div
+            key={category}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, ease: 'backIn' }}
+            className='space-y-4'
+          >
+            {questions.map((faq, index) => (
+              <FAQItem key={index} {...faq} />
+            ))}
+          </motion.div>
+        )
+      })}
+    </AnimatePresence>
   </div>
 )
 

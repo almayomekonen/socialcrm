@@ -18,11 +18,7 @@ export interface NavCopy {
     label: string
     subitems: ReadonlyArray<{ label: string; href: string; description: string }>
   }
-  /**
-   * `lang` marks a link whose text and target are in another language (the
-   * language switch); it sets both `lang` and `hreflang` on the anchor.
-   */
-  links: ReadonlyArray<{ label: string; href: string; lang?: string }>
+  links: ReadonlyArray<{ label: string; href: string }>
   login: { label: string; href: string }
   trial: { label: string; href: string }
 }

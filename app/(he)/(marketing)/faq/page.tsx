@@ -5,8 +5,7 @@ import { ThemeProvider } from '@/components/lumen/theme-provider'
 import Navbar from '@/components/lumen/layout/navbar'
 import Footer from '@/components/lumen/layout/footer'
 import FAQSection from '@/components/lumen/sections/faq-section'
-import { FAQ_PAGE_ITEMS } from '@/components/lumen/sections/faqItems'
-import { HE } from '@/lib/marketing/copy/he'
+import { FAQ_ITEMS } from '@/components/lumen/sections/faqItems'
 import { breadcrumbSchema } from '@/lib/seo/schemas'
 
 export const metadata = buildPageMetadata({
@@ -21,9 +20,7 @@ export const metadata = buildPageMetadata({
 
 /**
  * `/faq` mirrors Lumen's own FAQ route: the same `FAQSection` that closes
- * `/`, with the longer `FAQ_PAGE_ITEMS` list (the homepage's five plus the
- * operational questions, each traced to code in faqItems.ts). The FAQPage
- * schema is built from the same array as the visible accordion. (The testimonials marquee that followed it was removed: its quotes were
+ * `/`. (The testimonials marquee that followed it was removed: its quotes were
  * not from verified customers.) Shell is mounted here because
  * `ShellChrome` stands back for this route, as it does for the other Lumen pages.
  */
@@ -36,7 +33,7 @@ export default function FAQPage() {
       disableTransitionOnChange
     >
       <div className='lumen min-h-screen' dir='rtl'>
-        <JsonLd data={buildFAQSchema(FAQ_PAGE_ITEMS)} />
+        <JsonLd data={buildFAQSchema(FAQ_ITEMS)} />
         <JsonLd
           data={breadcrumbSchema([
             { name: 'דף הבית', path: '/' },
@@ -45,7 +42,7 @@ export default function FAQPage() {
         />
         <Navbar initialBannerVisible={false} />
         {/* This route owns the page <h1>; the homepage keeps its own. */}
-        <FAQSection headingLevel='h1' copy={{ ...HE.faq, items: FAQ_PAGE_ITEMS }} />
+        <FAQSection headingLevel='h1' />
         <Footer />
       </div>
     </ThemeProvider>

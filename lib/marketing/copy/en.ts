@@ -71,8 +71,6 @@ export const EN: HomeCopy = {
     links: [
       { label: 'Pricing', href: '/en#pricing' },
       { label: 'FAQ', href: '/en#faq' },
-      // The way back to the Hebrew site, which is where the product lives.
-      { label: 'עברית', href: '/', lang: 'he' },
     ],
     login: { label: 'Log in', href: '/auth' },
     trial: { label: EN_TRIAL_CTA_LABEL, href: '/auth' },
@@ -270,7 +268,6 @@ export const EN: HomeCopy = {
           { name: 'Lead management', href: '/en' },
           { name: 'Pricing', href: '/en#pricing' },
           { name: 'FAQ', href: '/en#faq' },
-          { name: 'Hebrew site', href: '/', hrefLang: 'he' },
         ],
       },
       {

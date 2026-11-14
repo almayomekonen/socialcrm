@@ -146,19 +146,13 @@ describe('the rendered page', () => {
     for (const link of cta) expect(link.getAttribute('href')).toMatch(/^\/auth/)
   })
 
-  test('links stay on /en, except the Hebrew legal pages and the language switch, which say so', () => {
+  test('links stay on /en, except the Hebrew legal pages, which say so', () => {
     const internal = [...container.querySelectorAll('a')]
       .filter((a) => !a.closest('[lang="he"]'))
       .map((a) => ({ href: a.getAttribute('href') ?? '', text: norm(a.textContent), hrefLang: a.getAttribute('hreflang') }))
       .filter((a) => a.href.startsWith('/') && !a.href.startsWith('/auth') && !a.href.startsWith('/api/'))
     for (const link of internal) {
       if (link.href === '/en' || link.href.startsWith('/en#')) continue
-      // The way back to the Hebrew homepage: labelled as such, and hreflang="he".
-      if (link.href === '/') {
-        expect(link.text).toMatch(/Hebrew/)
-        expect(link.hrefLang).toBe('he')
-        continue
-      }
       expect(link.href, link.text).toMatch(/^\/(terms|privacy|data-deletion)$/)
       expect(link.text).toMatch(/\(Hebrew\)/)
       expect(link.hrefLang).toBe('he')
@@ -252,9 +246,7 @@ describe('the Hebrew site stays free of English copy', () => {
     expect(EN.featuresCarousel.items).toHaveLength(HE.featuresCarousel.items.length)
     expect(EN.featuresGrid.items).toHaveLength(HE.featuresGrid.items.length)
     expect(EN.featuresShowcase.items).toHaveLength(HE.featuresShowcase.items.length)
-    // The Hebrew menu also lists the Hebrew-only landing pages; the homepage
-    // sections (`/#…`) are the items both languages share.
-    expect(EN.nav.product.subitems).toHaveLength(HE.nav.product.subitems.filter((i) => i.href.startsWith('/#')).length)
+    expect(EN.nav.product.subitems).toHaveLength(HE.nav.product.subitems.length)
     expect(EN.pricing.plans.team.features).toHaveLength(HE.pricing.plans.team.features.length)
     expect(EN.pricing.plans.individual.features).toHaveLength(HE.pricing.plans.individual.features.length)
   })
