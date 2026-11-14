@@ -66,11 +66,14 @@ describe('automation never touches the allowance or the wallet', () => {
     const o = await owner('auto-split')
     const a = await before()
     process.env.CREDITS_AUTOMATION_MONTHLY_USD_ALERT = String(a.automation.costUsd + 0.1)
-    await ai(o, 'auto_response_job', 0.2)
+    await ai(o, 'conversation_analysis_job', 0.2)
     await ai(o, 'wa_assistant_job', 0.06)
+    await ai(o, 'auto_response_job', 0.04)
     const b = await before()
     expect(b.automation.costUsd - a.automation.costUsd).toBeCloseTo(0.2, 6)
     expect(b.agent.costUsd - a.agent.costUsd).toBeCloseTo(0.06, 6)
+    // The customer-facing agent is its own line: neither owner-initiated nor background.
+    expect(b.customerAgent.costUsd - a.customerAgent.costUsd).toBeCloseTo(0.04, 6)
     expect(b.automation.overAlert).toBe(true)
   })
 })
@@ -78,9 +81,11 @@ describe('automation never touches the allowance or the wallet', () => {
 describe('unknown cost is visible, not a reliable zero', () => {
   it('flags a successful call with no cost', async () => {
     const o = await owner('unknown-cost')
+    await ai(o, 'conversation_analysis_job', null)
     await ai(o, 'auto_response_job', null)
     const r = await before()
     expect(r.automation.unknownCostCalls).toBeGreaterThanOrEqual(1)
+    expect(r.customerAgent.unknownCostCalls).toBeGreaterThanOrEqual(1)
     expect(r.reliable).toBe(false)
   })
   it('an unclassified kind is never charged and is named', async () => {

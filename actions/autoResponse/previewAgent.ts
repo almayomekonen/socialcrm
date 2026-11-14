@@ -2,6 +2,7 @@
 
 import { requireProductAccess } from '@/lib/requireUser'
 import { isAdmin } from '@/types/roles'
+import { runPreviewRequest } from '@/lib/credits/previewRequest'
 import { db } from '@/config/db'
 import { getChannelSettings } from '@/db/autoResponseSettings'
 import {
@@ -140,10 +141,18 @@ async function previewIdentity(
   }
 }
 
+/**
+ * One preview turn. Admins with product access only; every turn is rate limited
+ * per user, admitted against the agency's allowance and credits, and released
+ * when it produced no reply (lib/credits/previewRequest.ts).
+ */
 export async function previewAgentTurn(input: PreviewAgentInput): Promise<PreviewAgentResult> {
   const user = await requireProductAccess()
   if (!isAdmin(user.role)) return { ok: false, reason: 'forbidden' }
+  return runPreviewRequest<PreviewAgentResult>(user, (why) => ({ ok: false, reason: why }), () => previewAgentTurnAdmitted(user, input))
+}
 
+async function previewAgentTurnAdmitted(user: { id: number; agencyId: number }, input: PreviewAgentInput): Promise<PreviewAgentResult> {
   const transcript = (input.transcript ?? [])
     .slice(-MAX_PREVIEW_TURNS)
     .map((t) => ({ direction: t.direction, text: String(t.text ?? '').slice(0, MAX_PREVIEW_TEXT) }))

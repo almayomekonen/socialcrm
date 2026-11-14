@@ -107,7 +107,7 @@ export async function admitAgentRequestOnce(input: AgentRequestInput): Promise<{
     })
     if (out.created && out.row.tier === 'blocked') {
       console.info(`${LOG} blocked`, { agencyId: input.agencyId, requestId: Number(out.row.id), source: input.source, notice: out.row.notice })
-      await track({ agencyId: input.agencyId, userId: input.userId ?? undefined, event: out.row.notice === 'full' ? 'agent_free_allowance_exhausted' : 'agent_request_blocked', props: { source: input.source } })
+      await track({ agencyId: input.agencyId, userId: input.userId ?? undefined, event: out.row.notice === 'full' ? 'agent_free_allowance_exhausted' : 'agent_request_blocked', props: { source: input.source, operation: input.operation.kind } })
     }
     return { admission: decisionOf(out.row), firstSeen: out.created }
   } catch (err) {
@@ -164,6 +164,51 @@ async function aggregate(trx: Knex.Transaction, r: { agencyId: number; operation
   return { calls: Number(a.calls), cost: a.cost === null ? null : Number(a.cost), unpriced: a.unpriced === true, last: a.last ? new Date(a.last) : null, models: (a.models ?? []).filter(Boolean) }
 }
 
+/**
+ * Did the operation behind a request deliver a usable result?
+ *
+ *   delivered    the customer got what they asked for (or a deliberate refusal);
+ *   undelivered  it ended without a result — a skipped or dead auto-reply job, a
+ *                failed or expired WhatsApp assistant job, a failed investigation.
+ *                It must not consume the free allowance or credits;
+ *   pending      still running or queued for a retry: settle later, never now, so a
+ *                retried job is not voided halfway (a voided row re-admits unmetered);
+ *   unknown      a kind with no durable outcome record: settled as before.
+ *
+ * Reads only the operation's own row, scoped by agency.
+ */
+export type Delivery = 'delivered' | 'undelivered' | 'pending' | 'unknown'
+
+const numericId = (id: unknown): number | null => {
+  const n = Number(id)
+  return Number.isSafeInteger(n) && n > 0 ? n : null
+}
+
+export async function operationDelivery(q: Knex | Knex.Transaction, r: { agencyId: number; operationKind: string; operationId: string }): Promise<Delivery> {
+  if (r.operationKind === 'auto_response_job') {
+    const id = numericId(r.operationId)
+    const job = id ? ((await q('auto_response_jobs').where({ id, agencyId: r.agencyId }).first('status')) as { status: string } | undefined) : undefined
+    if (!job) return 'unknown'
+    if (job.status === 'sent') return 'delivered'
+    if (job.status === 'skipped' || job.status === 'dead') return 'undelivered'
+    return 'pending'
+  }
+  if (r.operationKind === 'wa_assistant_job') {
+    const id = numericId(r.operationId)
+    const job = id ? ((await q('wa_assistant_jobs').where({ id, agencyId: r.agencyId }).first('status')) as { status: string } | undefined) : undefined
+    if (!job) return 'unknown'
+    if (job.status === 'answered' || job.status === 'refused') return 'delivered'
+    if (job.status === 'failed' || job.status === 'expired') return 'undelivered'
+    return 'pending'
+  }
+  if (r.operationKind === 'agent_investigation') {
+    const inv = (await q('agent_investigations').where({ agencyId: r.agencyId, investigationId: r.operationId }).first('status')) as { status: string } | undefined
+    if (!inv) return 'unknown'
+    return inv.status === 'failed' ? 'undelivered' : 'delivered'
+  }
+  return 'unknown'
+}
+
 /** Close quiet requests. Idempotent: each row closes once and every ledger key is unique. */
 export async function settleAgentRequests(input: { nowMs?: number; limit?: number } = {}): Promise<SettlementSummary> {
   const summary: SettlementSummary = { settled: 0, exempt: 0, unpriced: 0, voided: 0, skipped: 0 }
@@ -183,6 +228,16 @@ export async function settleAgentRequests(input: { nowMs?: number; limit?: numbe
           trx(T).where({ id }).update({ settledAt: new Date(nowMs), calls: a.calls, unpriced: a.unpriced, costMicros: a.cost === null ? null : Math.round(a.cost * 1_000_000), ...extra })
         // No model call was made (refused, crashed first): it is not a request that happened.
         if (a.calls === 0 && isAiUsageLedgerEnabled() && r.tier !== 'exempt') {
+          await close({ tier: 'void' })
+          return 'voided' as const
+        }
+        // The operation ended without a usable result: nothing is consumed (its provider
+        // cost is still recorded on this row and in ai_usage_events). A job still running
+        // or awaiting a retry stays open until it ends, or until it ages out of the lookback.
+        const ageMs = nowMs - new Date(r.createdAt as string | Date).getTime()
+        const delivery = await operationDelivery(trx, { agencyId, operationKind: String(r.operationKind), operationId: String(r.operationId) })
+        if (delivery === 'pending' && ageMs < LOOKBACK_DAYS * 86_400_000) return 'skipped' as const
+        if (delivery === 'undelivered' && r.tier !== 'exempt') {
           await close({ tier: 'void' })
           return 'voided' as const
         }

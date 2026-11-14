@@ -8,6 +8,7 @@ import { evaluateShadowGate } from '@/lib/entitlements'
 import { resolveAiAccess } from './access'
 import type { CopilotModeId } from './copilotModes'
 import { getDailySpend } from './router/spend'
+import { durableDailySpendUsd } from '@/db/ai/dailySpend'
 
 /**
  * The AI admission gate — everything that decides whether a run may start, and
@@ -97,8 +98,13 @@ export async function admitAiRun(input: AiAdmissionInput): Promise<AiAdmission> 
   }
 
   if (!hasAnyProviderConfigured()) return { ok: false, reason: 'no-providers' }
-  if (input.agencyId && getDailySpend(input.agencyId) >= env.dailyUsdCap && !(await isFounder())) {
-    return { ok: false, reason: 'over-quota' }
+  // The per-agency daily USD cap: the in-memory figure (this instance, exact to the
+  // last call) or the durable ledger figure (every instance, survives restarts),
+  // whichever is higher. The ledger is read only while this instance is under the cap.
+  if (input.agencyId) {
+    const local = getDailySpend(input.agencyId)
+    const spent = local >= env.dailyUsdCap ? local : Math.max(local, (await durableDailySpendUsd(input.agencyId)) ?? 0)
+    if (spent >= env.dailyUsdCap && !(await isFounder())) return { ok: false, reason: 'over-quota' }
   }
 
   const cfg = getTaskConfig(input.kind)

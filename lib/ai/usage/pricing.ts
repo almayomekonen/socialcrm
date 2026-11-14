@@ -1,10 +1,11 @@
 /**
  * Versioned provider prices for the AI usage ledger (USD per 1M tokens).
  *
- * Separate from `estimateCostUsd` (lib/ai/tasks.ts), which still drives the
- * in-memory spend cap and is deliberately untouched: this table only prices
- * ledger rows and shadow-budget estimates. A model that is neither listed nor
- * a documented alias is NOT guessed — its rows are `costBasis: 'unknown'`.
+ * THE price table. It prices ledger rows and shadow-budget estimates, and
+ * `estimateCostUsd` (lib/ai/tasks.ts) — the spend guards' estimate — reads it
+ * too (input/output only, every input token priced as uncached). A model that is
+ * neither listed nor a documented alias is NOT guessed in the ledger — its rows
+ * are `costBasis: 'unknown'`; the spend estimate prices it conservatively.
  *
  * PRICE RESOLUTION (`resolvePrice`), in this order:
  *   1. a direct price for the provider-reported model;

@@ -102,9 +102,19 @@ export const growChargeReconciler: ChargeReconciler = async (charge) => {
   }
 }
 
-export async function reconcileUnknownCharges(limit: number, reconcile: ChargeReconciler = growChargeReconciler): Promise<ReconcileSummary> {
+/**
+ * `kinds` narrows the pass. The usage-credits cron reconciles CREDIT PACKS only, so
+ * a pack whose answer was lost is resolved (credits granted exactly once, or the
+ * charge marked not taken) even while SUBSCRIPTION_CHARGES_ENABLED keeps the
+ * subscription pass — the only other caller — switched off.
+ */
+export async function reconcileUnknownCharges(
+  limit: number,
+  reconcile: ChargeReconciler = growChargeReconciler,
+  opts: { kinds?: readonly string[] } = {},
+): Promise<ReconcileSummary> {
   const summary: ReconcileSummary = { paid: 0, notCharged: 0, undetermined: 0 }
-  for (const charge of await listUnknownCharges(limit)) {
+  for (const charge of await listUnknownCharges(limit, opts.kinds)) {
     let verdict: ReconcileVerdict
     try {
       verdict = await reconcile(charge)

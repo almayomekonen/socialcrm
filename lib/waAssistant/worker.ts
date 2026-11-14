@@ -40,7 +40,7 @@ import { MEETING_COPY } from './meetings/copy'
 import { TASK_COPY } from './tasks/copy'
 import type { MeetingReply } from './meetings/types'
 import { handleReminderMessage } from './reminders/route'
-import { admitAgentRequest } from '@/db/credits/agentRequests'
+import { admitAgentRequest, voidUndeliveredRequest } from '@/db/credits/agentRequests'
 import { creditLimitReply } from './creditLimitReply'
 import { decideUsageLimits } from './limits'
 import type { ReminderDeps } from './reminders/reply'
@@ -128,6 +128,8 @@ export async function runWaAssistantWorker(opts: { limit?: number } = {}, deps: 
     } catch (err) {
       console.error('[WaAssistant][job] failed', { jobId: job.id, name: (err as Error)?.name ?? null })
       await finishWaAssistantJob(job.id, { status: 'failed', stopReason: 'exception' }).catch(() => undefined)
+      // No result reached the owner: the request is not counted (no-op when nothing was admitted).
+      await voidUndeliveredRequest(job.agencyId, { kind: 'wa_assistant_job', id: String(job.id) })
     }
     summary.outcomes[status] = (summary.outcomes[status] ?? 0) + 1
   }
@@ -230,6 +232,10 @@ async function processJob(job: WaAssistantJob, platform: Platform, deps: WaAssis
   })
 
   if (result.ok !== true) {
+    // The investigation produced nothing usable (provider error, deadline, ...): the
+    // owner's free allowance and credits are released now, so retrying is one request,
+    // not two. Its provider cost stays recorded in ai_usage_events.
+    await voidUndeliveredRequest(job.agencyId, { kind: 'wa_assistant_job', id: String(job.id) })
     return finish(job, {
       status: 'failed',
       stopReason: result.reason,

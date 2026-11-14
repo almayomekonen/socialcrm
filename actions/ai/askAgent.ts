@@ -1,7 +1,7 @@
 'use server'
 
 import { randomUUID } from 'crypto'
-import { admitAgentRequest } from '@/db/credits/agentRequests'
+import { admitAgentRequest, voidUndeliveredRequest } from '@/db/credits/agentRequests'
 import { runAgentInvestigation, type AgentTurn } from '@/lib/agent/run'
 import { resolveAgentScope } from '@/lib/agent/scope'
 import { submitProposedAction, submitProposedBatch } from '@/lib/agent/actions/bridge'
@@ -111,17 +111,29 @@ export async function askAgent(
   const access = await admitAgentRequest({ agencyId: scope.agencyId, userId: scope.userId, source: 'web', operation: { kind: 'agent_investigation', id: investigationId }, nowMs: requestStartedAt })
   if ('reason' in access) return { ok: false, reason: 'gate_denied', message: 'ai-credits-exhausted', investigationId, costUsd: 0 }
 
-  let result = await runAgentInvestigation({
-    investigationId,
-    question: trimmed.slice(0, MAX_QUESTION_CHARS),
-    history,
-    onProgress: options?.onProgress,
-    abortSignal,
-    scope,
-    onPersist: persistQuietly,
-  })
+  const operation = { kind: 'agent_investigation', id: investigationId }
+  let result: AgentResult
+  try {
+    result = await runAgentInvestigation({
+      investigationId,
+      question: trimmed.slice(0, MAX_QUESTION_CHARS),
+      history,
+      onProgress: options?.onProgress,
+      abortSignal,
+      scope,
+      onPersist: persistQuietly,
+    })
+  } catch (err) {
+    await voidUndeliveredRequest(scope.agencyId, operation)
+    throw err
+  }
 
-  if (result.ok !== true) return result
+  // No usable answer (provider error, deadline, the rep navigated away): the request
+  // is not counted. The provider cost stays recorded in ai_usage_events.
+  if (result.ok !== true) {
+    await voidUndeliveredRequest(scope.agencyId, operation)
+    return result
+  }
   // WhatsApp-only action types never reach the web runtime or the web action card.
   if (result.answer.proposedAction && !WEB_ACTION_TYPES.has(result.answer.proposedAction.actionType)) {
     result = { ...result, answer: { ...result.answer, proposedAction: null } }

@@ -128,8 +128,11 @@ export async function reclaimStaleInFlightCharges(leaseMs: number): Promise<{ re
   return { requeued, unknown }
 }
 
-export async function listUnknownCharges(limit: number): Promise<ChargeRow[]> {
-  return (await db(CHARGES_TABLE).where({ status: 'unknown' }).orderBy('updatedAt', 'asc').limit(limit)).map(mapCharge)
+/** Unknown outcomes, oldest first. `kinds` narrows to those charge kinds (e.g. credit packs only). */
+export async function listUnknownCharges(limit: number, kinds?: readonly string[]): Promise<ChargeRow[]> {
+  const q = db(CHARGES_TABLE).where({ status: 'unknown' })
+  if (kinds) q.whereIn('kind', [...kinds])
+  return (await q.orderBy('updatedAt', 'asc').limit(limit)).map(mapCharge)
 }
 
 export async function markChargeSucceeded(q: Knex, chargeId: number, paid: PaidCharge): Promise<boolean> {

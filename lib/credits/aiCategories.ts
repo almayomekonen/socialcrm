@@ -4,16 +4,20 @@ import type { TaskKind } from '@/lib/ai/types'
  * Who asked for an AI operation, for internal reporting (db/credits/report.ts).
  * The customer balance is touched only through agent_requests.
  *
- *   agent         an explicit request by the business owner or a rep.
- *   automation    background work. Never counted, never charged.
- *   unclassified  a kind not listed here: never charged, flagged in reporting.
+ *   agent           an explicit request by the business owner or a rep.
+ *   customer_agent  the customer-facing WhatsApp agent answering a customer turn,
+ *                   and the owner's preview of it. Counted and charged per turn
+ *                   through agent_requests (lib/credits/customerAgentRequest.ts),
+ *                   reported apart from the owner's own requests.
+ *   automation      background work. Never counted, never charged.
+ *   unclassified    a kind not listed here: never charged, flagged in reporting.
  *
  * `Record<TaskKind, …>` makes a new task kind a compile error until it is
  * classified. A lead summary is `automation` even when a person is looking at
  * the page: it is generated on view and pre-warmed on lead changes, and nobody
  * asked for it.
  */
-export type AiUsageCategory = 'agent' | 'automation' | 'unclassified'
+export type AiUsageCategory = 'agent' | 'customer_agent' | 'automation' | 'unclassified'
 
 const TASK_CATEGORY: Record<TaskKind, Exclude<AiUsageCategory, 'unclassified'>> = {
   'lead.summary': 'automation',
@@ -26,7 +30,7 @@ const TASK_CATEGORY: Record<TaskKind, Exclude<AiUsageCategory, 'unclassified'>> 
   'copilot.classifyIntent': 'agent',
   'copilot.generalReason': 'agent',
   'conversation.analysis': 'automation',
-  'inbox.autoResponse': 'automation',
+  'inbox.autoResponse': 'customer_agent',
   'agent.investigate': 'agent',
 }
 
@@ -37,7 +41,8 @@ const OPERATION_CATEGORY: Record<string, Exclude<AiUsageCategory, 'unclassified'
   whatsapp_reply_draft: 'agent',
   agent_investigation: 'agent',
   'voice.transcribe': 'agent',
-  auto_response_job: 'automation',
+  auto_response_job: 'customer_agent',
+  auto_response_preview: 'customer_agent',
   conversation_analysis_job: 'automation',
 }
 

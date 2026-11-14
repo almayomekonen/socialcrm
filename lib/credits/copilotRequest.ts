@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
-import { admitAgentRequest } from '@/db/credits/agentRequests'
+import { admitAgentRequest, voidUndeliveredRequest } from '@/db/credits/agentRequests'
 import { currentAiOperation, withAiOperation } from '@/lib/ai/usage/context'
 
 /**
@@ -25,10 +25,28 @@ export const COPILOT_OPERATION_KIND = 'copilot_request'
 
 export const COPILOT_LIMIT_NOTE = 'נוצלו הבקשות הכלולות החודש. אפשר להוסיף קרדיטים בעמוד מנוי ותשלום; ה-CRM ממשיך לעבוד כרגיל.'
 
+/**
+ * A Copilot result that carries no answer. Lead actions return `AiRunResult`
+ * (`{ ok: false, reason }` when the model failed); a general answer has no `ok`
+ * and is always a delivered reply.
+ */
+export function isUndeliveredCopilotResult(result: unknown): boolean {
+  return typeof result === 'object' && result !== null && 'ok' in result && (result as { ok: unknown }).ok === false
+}
+
 export async function runCopilotRequest<T>(user: { id: number; agencyId: number }, blocked: () => T, run: () => Promise<T>): Promise<T> {
   if (currentAiOperation()?.kind === COPILOT_OPERATION_KIND) return run()
   const id = randomUUID()
-  const access = await admitAgentRequest({ agencyId: user.agencyId, userId: user.id, source: 'web', operation: { kind: COPILOT_OPERATION_KIND, id }, nowMs: Date.now() })
+  const operation = { kind: COPILOT_OPERATION_KIND, id }
+  const access = await admitAgentRequest({ agencyId: user.agencyId, userId: user.id, source: 'web', operation, nowMs: Date.now() })
   if ('reason' in access) return blocked()
-  return withAiOperation({ kind: COPILOT_OPERATION_KIND, id, agencyId: user.agencyId, userId: user.id }, run)
+  try {
+    const result = await withAiOperation({ ...operation, agencyId: user.agencyId, userId: user.id }, run)
+    // A failed generation delivered nothing: it does not consume the allowance or credits.
+    if (isUndeliveredCopilotResult(result)) await voidUndeliveredRequest(user.agencyId, operation)
+    return result
+  } catch (err) {
+    await voidUndeliveredRequest(user.agencyId, operation)
+    throw err
+  }
 }

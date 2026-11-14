@@ -21,8 +21,11 @@ describe('categories', () => {
   it.each(['wa_assistant_job', 'agent_investigation', 'voice.transcribe', 'agent.investigate', 'copilot.classifyIntent', 'copilot.generalReason', 'lead.askQuestion', 'lead.followup', 'lead.nextStep'])('%s is owner-initiated', (k) => {
     expect(aiUsageCategory(k)).toBe('agent')
   })
-  it.each(['auto_response_job', 'conversation_analysis_job', 'inbox.autoResponse', 'conversation.analysis', 'lead.summary', 'lead.classify', 'pipeline.weekly', 'health.check'])('%s is automation', (k) => {
+  it.each(['conversation_analysis_job', 'conversation.analysis', 'lead.summary', 'lead.classify', 'pipeline.weekly', 'health.check'])('%s is automation', (k) => {
     expect(aiUsageCategory(k)).toBe('automation')
+  })
+  it.each(['auto_response_job', 'inbox.autoResponse', 'auto_response_preview'])('%s is the customer-facing agent, reported apart', (k) => {
+    expect(aiUsageCategory(k)).toBe('customer_agent')
   })
   it('an unknown kind is unclassified', () => {
     expect(aiUsageCategory('brand_new_job')).toBe('unclassified')

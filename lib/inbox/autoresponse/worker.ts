@@ -37,8 +37,10 @@ import { hasPriorOutbound } from '@/db/inboxMessages'
 import { assertIreSendAllowed } from './ireSendGate'
 import { assertAgentSendAllowed } from './agentSendGuard'
 import { enqueueFollowUpTurnIfOwed } from './followUpTurn'
-import { aiRepliesPausedForPlan } from './reliability/entitlement'
+import { aiRepliesPausedForPlan, automaticReplyNeedsAi } from './reliability/entitlement'
 import { AI_NOT_ENTITLED } from './reliability/reasons'
+import { CREDITS_EXHAUSTED, admitCustomerAgentTurn, releaseCustomerAgentTurn } from '@/lib/credits/customerAgentRequest'
+import { notifyAgencyOwner } from '@/lib/payments/notifyOwner'
 import { canUseConversationalAgent } from '@/lib/flags/conversationalAgentFlags'
 
 const TERMINAL_STATUSES = ['closed', 'lost']
@@ -123,6 +125,27 @@ async function processJob(rawJob: AutoResponseJob, deps: WorkerDeps): Promise<Ou
   // reply (reliability rollout). Skipped, not failed: retrying cannot succeed,
   // and a dead job is exactly the silent loss this prevents.
   if (await aiRepliesPausedForPlan(job.agencyId, settings)) return doSkip(AI_NOT_ENTITLED)
+
+  // Credits: a turn the agent answers with a model spends the agency's one balance
+  // (lib/credits/customerAgentRequest.ts). Decided once per job, before any model
+  // runs; a fixed reply or the questionnaire calls none and is never metered.
+  // Out of allowance and credits: no model, no message — the customer's message
+  // waits in the inbox for a human, and the owner is emailed once per month.
+  if (automaticReplyNeedsAi(settings)) {
+    const credit = await admitCustomerAgentTurn(job)
+    if (credit === 'credits_exhausted') {
+      const outcome = await doSkip(CREDITS_EXHAUSTED)
+      // After the skip committed. Sent at most once per agency per credit month (the
+      // email's send key carries the month); every failure is logged and swallowed.
+      await notifyAgencyOwner('credits.exhausted', job.agencyId, '[IRE][credits]')
+      return outcome
+    }
+    if (credit === 'unavailable') {
+      // The balance could not be read for an enforced agency: retry, never run unmetered.
+      await failAutoResponseJob(job.id, 'credits_unavailable', job.ownerWorkerId)
+      return 'failed'
+    }
+  }
 
   // Qualify mode (opt-in per agency) branches to its own processor; acknowledge
   // mode (everything below) is unchanged.
@@ -385,6 +408,10 @@ export async function runAutoResponseWorker(
       if (r === 'sent') sent++
       else if (r === 'skipped') skipped++
       else if (r === 'failed') failed++
+      // A skipped turn sent the customer nothing: it does not count against the
+      // allowance or credits. A failed one may be retried under the same request, so
+      // it stays open; settlement releases it if the job ends dead.
+      if (r === 'skipped') await releaseCustomerAgentTurn(job)
     } catch (err) {
       if (err instanceof LeaseLostError) {
         // Another worker owns this job now; it decides the outcome. Nothing was sent.

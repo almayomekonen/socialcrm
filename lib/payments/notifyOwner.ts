@@ -12,7 +12,7 @@
  * is the source of truth; this is an announcement about it, and an announcement
  * that does not go out must never undo what it was announcing.
  */
-export type BillingLifecycleEvent = 'subscription.activated' | 'subscription.payment_failed' | 'trial.card_started'
+export type BillingLifecycleEvent = 'subscription.activated' | 'subscription.payment_failed' | 'trial.card_started' | 'credits.exhausted'
 
 export async function notifyAgencyOwner(event: BillingLifecycleEvent, agencyId: number, log: string): Promise<void> {
   try {

@@ -1,4 +1,5 @@
 import { ModelRole, TaskKind } from './types'
+import { priceFor } from './usage/pricing'
 
 export type TaskConfig = {
   role: ModelRole
@@ -126,27 +127,23 @@ export function getTaskConfig(kind: TaskKind): TaskConfig {
   return TASKS[kind]
 }
 
-type Pricing = { inUsdPerM: number; outUsdPerM: number }
+/**
+ * Price of a model not in the ledger table. Conservative on purpose: this
+ * estimate feeds spend caps, where guessing low is the dangerous direction.
+ */
+const UNLISTED_PRICE = { input: 5, output: 15 } as const
 
-const PRICING: Record<string, Pricing> = {
-  // Anthropic
-  'claude-opus-4-7': { inUsdPerM: 5, outUsdPerM: 25 },
-  'claude-sonnet-4-6': { inUsdPerM: 3, outUsdPerM: 15 },
-  'claude-haiku-4-5': { inUsdPerM: 1, outUsdPerM: 5 },
-  // Google
-  'gemini-2.5-flash-lite': { inUsdPerM: 0.1, outUsdPerM: 0.4 },
-  'gemini-2.5-flash': { inUsdPerM: 0.3, outUsdPerM: 2.5 },
-  'gemini-2.5-pro': { inUsdPerM: 1.25, outUsdPerM: 10 },
-  // OpenAI fallback
-  'gpt-4.1-mini': { inUsdPerM: 0.4, outUsdPerM: 1.6 },
-  'gpt-4.1': { inUsdPerM: 2, outUsdPerM: 8 },
-  'gpt-5.6': { inUsdPerM: 5, outUsdPerM: 30 },
-  'gpt-5.6-sol': { inUsdPerM: 5, outUsdPerM: 30 },
-  'gpt-5.6-terra': { inUsdPerM: 2, outUsdPerM: 12 },
-  'gpt-5.6-luna': { inUsdPerM: 0.2, outUsdPerM: 1.2 },
-}
-
+/**
+ * Estimated USD for one call, from the SAME versioned table that prices the usage
+ * ledger (lib/ai/usage/pricing.ts) — there is one price table, not two.
+ *
+ * It drives the in-memory spend guard, the WhatsApp assistant's job cost and the
+ * Agent's reported cost. Only total input/output counts reach it, so every input
+ * token is priced as UNCACHED: an upper bound on the ledger's cache-aware figure,
+ * never below it. (Before 2026-11-14 a second table priced gpt-5.6 at $5/$30;
+ * the same jobs read ~2.9x the ledger.)
+ */
 export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
-  const p = PRICING[model] ?? { inUsdPerM: 5, outUsdPerM: 15 }
-  return (inputTokens * p.inUsdPerM + outputTokens * p.outUsdPerM) / 1_000_000
+  const p = priceFor(model)?.price ?? UNLISTED_PRICE
+  return (inputTokens * p.input + outputTokens * p.output) / 1_000_000
 }

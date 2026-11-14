@@ -56,6 +56,8 @@ export const NON_RESUMABLE_SKIP_REASONS: ReadonlySet<string> = new Set([
   'no_recipient',
   // The plan does not include the AI reply: another turn would be refused too.
   'ai_not_entitled',
+  // No allowance or credits left: another turn would be refused too, until credits are added.
+  'credits_exhausted',
 ])
 
 export type LatestInbound = { sequence: number } | null | undefined

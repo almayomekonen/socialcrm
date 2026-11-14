@@ -14,6 +14,16 @@
  *   CREDITS_PURCHASES_AGENCY_IDS           who may BUY a pack (and sees the balance).
  *   CREDITS_UI_AGENCY_IDS                  who sees the balance without buying.
  *
+ *   CREDITS_ENFORCEMENT=all                THE LAUNCH MODE: every agency, current and future,
+ *                                          is enforced — Pro included, because the ₪89
+ *                                          subscription now INCLUDES the monthly allowance
+ *                                          and packs cover the rest (business decision,
+ *                                          2026-11-14). Every enforced agency may buy packs
+ *                                          (admins only, server-checked) and sees its
+ *                                          balance. Only the exact value `all` opens it;
+ *                                          anything else leaves the explicit lists above in
+ *                                          charge. Requires CREDITS_METERING=1.
+ *
  * A free monthly allowance of agent requests, then one purchased-credit balance
  * per agency. Automation and WhatsApp delivery never touch either.
  *
@@ -55,17 +65,27 @@ const listed = (name: string, agencyId: number | null | undefined) =>
   !!agencyId && parseAgencyIds(process.env[name]).includes(agencyId)
 
 export const isCreditsMeteringEnabled = (): boolean => process.env.CREDITS_METERING === '1'
+/** CREDITS_ENFORCEMENT=all (exact, trimmed, any case) with metering on: every agency is enforced. */
+export const isGlobalCreditEnforcement = (): boolean =>
+  isCreditsMeteringEnabled() && (process.env.CREDITS_ENFORCEMENT ?? '').trim().toLowerCase() === 'all'
+const validAgency = (agencyId: number | null | undefined): agencyId is number =>
+  typeof agencyId === 'number' && Number.isSafeInteger(agencyId) && agencyId > 0
 const listedForEnforcement = (agencyId: number | null | undefined): boolean =>
-  isCreditsMeteringEnabled() && listed('CREDITS_ENFORCEMENT_AGENCY_IDS', agencyId)
+  isCreditsMeteringEnabled() && (isGlobalCreditEnforcement() ? validAgency(agencyId) : listed('CREDITS_ENFORCEMENT_AGENCY_IDS', agencyId))
 /**
- * Are credits enforced for this agency? The Pro plan promises unlimited AI, so a
- * Pro agency stays unenforced even when listed, until CREDITS_ENFORCE_ON_PRO=1
- * records that the plan policy and customer communication are resolved.
+ * Are credits enforced for this agency?
+ *
+ * Global mode (CREDITS_ENFORCEMENT=all): yes for every agency, Pro included — the
+ * subscription includes the monthly allowance and packs cover the rest.
+ *
+ * List mode (the pilot path, unchanged): a Pro agency stays unenforced even when
+ * listed, until CREDITS_ENFORCE_ON_PRO=1 records that the plan policy and
+ * customer communication are resolved.
  */
 export const isCreditEnforcedFor = (agencyId: number | null | undefined, plan: string | null | undefined): boolean =>
-  listedForEnforcement(agencyId) && (plan !== 'pro' || process.env.CREDITS_ENFORCE_ON_PRO === '1')
+  listedForEnforcement(agencyId) && (isGlobalCreditEnforcement() || plan !== 'pro' || process.env.CREDITS_ENFORCE_ON_PRO === '1')
 export const canPurchaseCredits = (agencyId: number | null | undefined): boolean =>
-  listed('CREDITS_PURCHASES_AGENCY_IDS', agencyId)
+  (isGlobalCreditEnforcement() && validAgency(agencyId)) || listed('CREDITS_PURCHASES_AGENCY_IDS', agencyId)
 /** May packs be SOLD to this agency? Only where credits are enforced: otherwise usage is not limited and a pack buys nothing. */
 export const isPackSellable = (agencyId: number | null | undefined, plan: string | null | undefined): boolean => canPurchaseCredits(agencyId) && isCreditEnforcedFor(agencyId, plan)
 export const canSeeCreditBalance = (agencyId: number | null | undefined): boolean =>

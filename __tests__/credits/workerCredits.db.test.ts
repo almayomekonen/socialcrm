@@ -65,6 +65,25 @@ async function owner(digits: string, role = 'ADMIN') {
   return u
 }
 
+describe('a failed investigation does not consume the request (job 211 class)', () => {
+  it('a provider error releases the free request at once; the next question runs on the same allowance', async () => {
+    await owner('972500007011')
+    const h = harness()
+    h.runAgent.mockResolvedValueOnce({ ok: false, reason: 'error', message: 'provider down', investigationId: 'inv_f', costUsd: 0 } as never)
+    await ask('972500007011', 'שאלה שנכשלת')
+    await runWaAssistantWorker({}, h.deps)
+    const [failed] = await requests()
+    expect(failed).toMatchObject({ operationKind: 'wa_assistant_job', tier: 'void' })
+    expect(await db('wa_assistant_jobs').where({ id: Number(failed.operationId) }).first()).toMatchObject({ status: 'failed', replyState: 'sent' })
+
+    // Allowance is 1: the failed turn did not use it, so this one is free and runs.
+    await ask('972500007011', 'שאלה חוזרת')
+    await runWaAssistantWorker({}, h.deps)
+    expect(h.runAgent).toHaveBeenCalledTimes(2)
+    expect((await requests()).map((r) => r.tier)).toEqual(['void', 'free'])
+  })
+})
+
 describe('request 51 on WhatsApp', () => {
   it('does not run the Agent, replies once with the link, and later messages are rate limited', async () => {
     await owner('972500007001')

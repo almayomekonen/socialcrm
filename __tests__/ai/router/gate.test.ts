@@ -36,6 +36,13 @@ vi.mock('@/lib/ai/router/spend', () => ({
   addDailySpend: vi.fn(),
   _resetDailySpendForTests: vi.fn(),
 }))
+const durable = { value: null as number | null, reads: 0 }
+vi.mock('@/db/ai/dailySpend', () => ({
+  durableDailySpendUsd: () => {
+    durable.reads += 1
+    return Promise.resolve(durable.value)
+  },
+}))
 vi.mock('@/lib/ai/providers', () => ({ getProviderChain: () => chainValue.current }))
 vi.mock('@/lib/ai/tasks', () => ({
   getTaskConfig: () => ({ role: 'volume', maxOutputTokens: 512, timeoutMs: 10_000, retryOnSameProvider: 1 }),
@@ -70,8 +77,39 @@ beforeEach(() => {
   trial.throws = false
   trial.calls = 0
   spend.value = 0
+  durable.value = null
+  durable.reads = 0
   chainValue.current = [{ provider: 'anthropic', modelId: 'm-1', model: {} }]
   shadowSpy.mockClear()
+})
+
+describe('the daily USD cap holds across instances and restarts (durable ledger figure)', () => {
+  it('refuses when the ledger says the agency spent the cap today, even if this instance saw nothing', async () => {
+    spend.value = 0
+    durable.value = 20
+    expect(await admit()).toEqual({ ok: false, reason: 'over-quota' })
+  })
+  it('admits below the cap on both figures', async () => {
+    spend.value = 5
+    durable.value = 19.99
+    expect((await admit()).ok).toBe(true)
+  })
+  it('falls back to the in-memory guard when there is no durable figure (ledger off or unreadable)', async () => {
+    durable.value = null
+    spend.value = 0
+    expect((await admit()).ok).toBe(true)
+    spend.value = 20
+    expect(await admit()).toEqual({ ok: false, reason: 'over-quota' })
+  })
+  it('does not read the ledger when this instance is already over the cap', async () => {
+    spend.value = 25
+    expect(await admit()).toEqual({ ok: false, reason: 'over-quota' })
+    expect(durable.reads).toBe(0)
+  })
+  it('applies to internal bypass callers too', async () => {
+    durable.value = 21
+    expect(await admit({ bypassAllowlist: true })).toEqual({ ok: false, reason: 'over-quota' })
+  })
 })
 
 describe('step 1 — isAiEnabled short-circuits everything', () => {
